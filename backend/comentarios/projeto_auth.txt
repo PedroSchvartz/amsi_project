@@ -1,0 +1,202 @@
+================================================================================
+  ANSI PROJECT — PLANO DE IMPLEMENTAÇÃO: AUTENTICAÇÃO JWT
+================================================================================
+
+DATA: 2026-04-18
+STATUS: Planejado — não iniciado
+
+--------------------------------------------------------------------------------
+  CONTEXTO
+--------------------------------------------------------------------------------
+
+A API atual é anêmica (Anemic API): todas as rotas são abertas, sem autenticação.
+O objetivo é adicionar autenticação JWT própria (sem OAuth externo) usando email
+como identificador de login e bcrypt para hash de senha.
+
+Biblioteca de JWT: python-jose
+Biblioteca de hash: bcrypt (já em uso em utils/auth_utils.py)
+
+Instalar se não tiver:
+  pip install python-jose[cryptography] bcrypt
+
+--------------------------------------------------------------------------------
+  ARQUIVOS EXISTENTES RELEVANTES
+--------------------------------------------------------------------------------
+
+utils/auth_utils.py
+  - hash_senha(senha: str) -> str
+  - verificar_senha(senha_plana: str, senha_hash: str) -> bool
+  - criar_token_acesso(dados: dict) -> str
+  - SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES (480 min = 8h)
+  !! ATENÇÃO: Trocar SECRET_KEY por uma chave segura antes de produção !!
+
+models/usuario.py
+  - Campos relevantes: id_usuario, email, senha, perfil_de_acesso, bloqueado,
+                       suspenso, exclusao
+  - perfil_de_acesso: Enum com "Administrador" e "Consulta"
+  - Campo `login` foi REMOVIDO — identificador agora é o EMAIL
+
+schemas/usuario.py
+  - UsuarioCreate: não expõe senha em hash — a route precisa fazer o hash
+  - UsuarioResponse: não retorna o campo senha (correto)
+
+--------------------------------------------------------------------------------
+  ESTRUTURA A CRIAR
+--------------------------------------------------------------------------------
+
+auth/
+├── __init__.py          (vazio)
+├── router.py            (endpoint de login)
+└── dependencies.py      (injeção de usuário autenticado nas rotas)
+
+--------------------------------------------------------------------------------
+  ARQUIVO: auth/router.py
+--------------------------------------------------------------------------------
+
+Endpoint: POST /auth/token
+
+Request body (form ou JSON — recomendado JSON para consistência com o resto):
+  {
+    "email": "usuario@email.com",
+    "senha": "senha_plana"
+  }
+
+Lógica:
+  1. Buscar usuário por email no banco
+  2. Se não encontrar: 401
+  3. verificar_senha(senha_plana, usuario.senha_hash)
+  4. Se senha errada: 401
+  5. Se usuario.bloqueado == True: 403 "Usuário bloqueado"
+  6. Se usuario.suspenso não é None e suspenso > datetime.now(): 403 "Usuário suspenso"
+  7. Se usuario.exclusao não é None: 403 "Usuário removido"
+  8. Gerar token: criar_token_acesso({"sub": str(usuario.id_usuario), "perfil": usuario.perfil_de_acesso.value})
+  9. Retornar: {"access_token": token, "token_type": "bearer"}
+
+Schema de resposta (criar em schemas/ ou inline):
+  class TokenResponse(BaseModel):
+      access_token: str
+      token_type: str = "bearer"
+
+--------------------------------------------------------------------------------
+  ARQUIVO: auth/dependencies.py
+--------------------------------------------------------------------------------
+
+Função: get_current_user(token, db) -> Usuario
+
+Lógica:
+  1. Extrair token do header Authorization: Bearer <token>
+  2. Decodificar com jose.jwt.decode(token, SECRET_KEY, ALGORITHM)
+  3. Se inválido ou expirado: 401
+  4. Extrair "sub" (id_usuario) do payload
+  5. Buscar usuário no banco por id_usuario
+  6. Se não encontrar: 401
+  7. Retornar objeto Usuario
+
+Função: exige_admin(current_user) -> Usuario
+  1. Se current_user.perfil_de_acesso != AcessoEnum.Administrador: 403
+  2. Retornar current_user
+
+Importações necessárias:
+  from jose import jwt, JWTError
+  from fastapi import Depends, HTTPException, status
+  from fastapi.security import OAuth2PasswordBearer
+  from utils.auth_utils import SECRET_KEY, ALGORITHM
+
+  oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
+
+--------------------------------------------------------------------------------
+  MODIFICAÇÕES NAS ROUTES EXISTENTES
+--------------------------------------------------------------------------------
+
+routes/usuario.py
+  - POST /usuarios/ (criar_usuario):
+      Antes de salvar, substituir:
+        usuario = Usuario(**dados.model_dump())
+      Por:
+        dados_dict = dados.model_dump()
+        dados_dict["senha"] = hash_senha(dados_dict["senha"])
+        usuario = Usuario(**dados_dict)
+
+  - PUT /usuarios/{id} (atualizar_usuario):
+      Se "senha" estiver no payload:
+        if "senha" in dados_dict:
+            dados_dict["senha"] = hash_senha(dados_dict["senha"])
+
+  - GET /usuarios/ — proteger com Depends(exige_admin)
+  - DELETE /usuarios/{id} — proteger com Depends(exige_admin)
+  - GET /usuarios/{id} — proteger com Depends(get_current_user)
+  - PUT /usuarios/{id} — proteger com Depends(get_current_user)
+
+routes/lancamento.py
+  - Todas as rotas: Depends(get_current_user)
+
+routes/cliente_fornecedor.py
+  - Todas as rotas: Depends(get_current_user)
+
+routes/endereco.py, routes/contato.py
+  - Todas as rotas: Depends(get_current_user)
+
+routes/tipo_Lancamento.py
+  - GET: Depends(get_current_user)
+  - POST/PUT/DELETE: Depends(exige_admin)
+
+routes/login.py
+  - Todas as rotas: Depends(exige_admin)
+  (log de sessão é dado sensível — só admin acessa)
+
+ROTAS PÚBLICAS (sem autenticação):
+  - POST /auth/token
+  - GET /
+  - GET /logs/ui (uso interno de testes — remover em produção)
+
+--------------------------------------------------------------------------------
+  MODIFICAÇÃO NO main.py
+--------------------------------------------------------------------------------
+
+Adicionar após os outros routers:
+
+  from auth.router import router as auth_router
+  app.include_router(auth_router)
+
+--------------------------------------------------------------------------------
+  ORDEM DE IMPLEMENTAÇÃO RECOMENDADA
+--------------------------------------------------------------------------------
+
+1. Criar auth/__init__.py (vazio)
+2. Criar auth/dependencies.py
+3. Criar auth/router.py
+4. Modificar routes/usuario.py (hash de senha)
+5. Registrar auth_router no main.py
+6. Testar POST /auth/token manualmente
+7. Proteger routes uma a uma, testando a bateria após cada uma
+8. Atualizar bateria_testes.py para incluir fluxo de autenticação
+
+--------------------------------------------------------------------------------
+  ATUALIZAÇÃO DA BATERIA DE TESTES
+--------------------------------------------------------------------------------
+
+A bateria atual (34/34) não usa autenticação.
+Após implementar, o fluxo da bateria precisa:
+
+  1. POST /auth/token com credenciais do usuário de teste
+  2. Guardar o token retornado
+  3. Passar o header em todas as requisições:
+     headers = {"Authorization": f"Bearer {token}"}
+     requests.get(url, headers=headers)
+
+O usuário de teste precisa ter senha já em hash no banco.
+Alternativa: criar o usuário de teste via POST /usuarios/ (que já faz o hash)
+e depois autenticar.
+
+--------------------------------------------------------------------------------
+  OBSERVAÇÕES FINAIS
+--------------------------------------------------------------------------------
+
+- Não remover as rotas de CRUD de usuário — o admin precisa delas
+- O campo `senha` nunca deve aparecer no UsuarioResponse (já está correto)
+- Em produção: SECRET_KEY deve vir de variável de ambiente, não hardcoded
+- O token expira em 8h (480 min) — ajustar conforme necessidade
+- Suspenso é um TIMESTAMP — comparar com datetime.now() para saber se ainda vale
+- bloqueado é permanente até admin desbloquear manualmente
+
+================================================================================

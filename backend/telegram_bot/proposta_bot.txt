@@ -1,0 +1,67 @@
+====================================================================
+PROJETO ANSI - DOCUMENTAÇÃO DO MÓDULO TELEGRAM
+====================================================================
+
+1. OBJETIVO DO MÓDULO
+Este módulo integra o sistema de gestão da Associação (Backend FastAPI) 
+com o Telegram. O objetivo é manter um grupo oficial de moradores seguro, 
+livre de invasores, e permitir o envio de notificações de emergência 
+diretamente do sistema, sem intervenção humana.
+
+Para garantir a segurança, o Telegram não entrega o número de telefone 
+do usuário passivamente. Portanto, criamos um fluxo de validação ativa 
+onde o bot é o "Porteiro" do grupo.
+
+
+2. ESTRUTURA E ARQUITETURA (DIVISÃO DE TAREFAS)
+O funcionamento do Telegram foi dividido em duas frentes distintas para 
+não travar a API principal:
+
+A) O CÉREBRO (Atendimento ao Morador)
+   - Arquivo: `bot_service.py` (Script isolado rodando em Polling)
+   - Função: Fica "ouvindo" o Telegram 24h por dia. 
+   - Quando um morador manda mensagem no privado do Bot, ele pede o contato.
+   - Ele conecta no Banco de Dados, verifica se o número de telefone existe.
+   - Se existir: Salva o `telegram_id` do morador no banco e adiciona o morador diretmanete (se não der entrega o Link do Grupo).
+   - O grupo precisa de autorização do administrador para entrar (o bot) se o numero não estiver no back, bloqueia a entrada.
+
+B) O BRAÇO (Ferramenta do Backend)
+   - Arquivo: `utils/telegram_manager.py` (Classe utilitária)
+   - Função: É importado dentro das rotas do FastAPI (ex: `routes/usuario.py`).
+   - Não atende usuários. Apenas executa ordens da API.
+   - Ordem 1: Enviar mensagem de emergência para o ID do Grupo.
+   - Ordem 2: Remover (Kick/Ban) um `telegram_id` do grupo quando a API 
+     deletar um usuário ou remover seu cargo.
+
+
+3. OS TRÊS PILARES DE FUNCIONAMENTO (FLUXOS)
+
+[Fluxo 1: Entrada Segura no Grupo]
+Morador -> Inicia chat com Bot -> Bot pede Contato -> Morador clica em "Compartilhar" -> 
+Bot lê o número -> Consulta Banco de Dados -> Cadastra o telegram_id -> Envia Link do Grupo.
+
+[Fluxo 2: Expulsão Automática]
+Administrador deleta usuário no Frontend -> Backend (FastAPI) recebe o DELETE -> 
+Backend chama `telegram_manager.remover_usuario(telegram_id)` -> 
+Bot bane e desbane o usuário no grupo (kick).
+
+[Fluxo 3: Alerta de Emergência]
+Sistema identifica emergência -> Backend chama `telegram_manager.enviar_mensagem_grupo()` -> 
+Bot posta a mensagem no grupo oficial (somente o bot tem permissão de escrita no grupo).
+
+
+4. REQUISITOS DO BANCO DE DADOS
+Para este módulo funcionar, a tabela `Usuario` (em `models/usuario.py`) precisa obrigatoriamente 
+da coluna `telegram_id` (String ou BigInteger). Ela começa vazia no cadastro e é preenchida 
+pelo `bot_service.py` no primeiro contato.
+
+
+5. CONFIGURAÇÕES NO APLICATIVO TELEGRAM
+Quem for administrar o sistema precisa garantir que:
+- O Bot seja Administrador do grupo oficial.
+- Permissão de "Enviar Mensagens" dos membros comuns deve estar DESATIVADA.
+- Permissão de "Enviar Mensagens" do Bot deve estar ATIVADA.
+
+====================================================================
+FIM DO DOCUMENTO
+====================================================================

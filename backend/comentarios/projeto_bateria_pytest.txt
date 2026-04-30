@@ -1,0 +1,213 @@
+================================================================================
+  ANSI PROJECT — PLANO DE MIGRAÇÃO: BATERIA DE TESTES → PYTEST
+================================================================================
+
+DATA: 2026-04-19
+STATUS: Planejado — fazer após entrega do MVP
+PRIORIDADE: Baixa — não bloqueia nenhuma funcionalidade
+
+--------------------------------------------------------------------------------
+  POR QUE MIGRAR
+--------------------------------------------------------------------------------
+
+A bateria atual (bateria_testes.py) funciona mas tem limitações:
+  - Globais mutáveis (_passou, _falhou, _headers) — frágil e difícil de isolar
+  - Setup e asserção misturados na mesma função
+  - Sem teardown garantido — se um teste falha no meio, dados ficam no banco
+  - Sem categorização — positivos, negativos e limpeza no mesmo nível
+  - Escalar vai aumentar complexidade de manutenção exponencialmente
+
+Pytest resolve tudo isso e é o padrão da indústria para FastAPI.
+Demonstrar isso no TCC agrega valor acadêmico.
+
+--------------------------------------------------------------------------------
+  INSTALAR
+--------------------------------------------------------------------------------
+
+  pip install pytest pytest-cov httpx
+
+  - pytest       : runner de testes
+  - pytest-cov   : relatório de cobertura de código
+  - httpx        : cliente HTTP assíncrono (padrão com FastAPI TestClient)
+
+--------------------------------------------------------------------------------
+  ESTRUTURA A CRIAR
+--------------------------------------------------------------------------------
+
+tests/
+├── __init__.py
+├── conftest.py          — fixtures globais (client, token, dados base)
+├── test_auth.py         — testes de autenticação
+├── test_usuario.py      — CRUD + controle de acesso
+├── test_tipo_lancamento.py
+├── test_cliente_fornecedor.py
+├── test_endereco.py
+├── test_contato.py
+├── test_lancamento.py
+└── test_login_sessao.py
+
+--------------------------------------------------------------------------------
+  ARQUIVO: tests/conftest.py
+--------------------------------------------------------------------------------
+
+Centraliza tudo que os testes precisam compartilhar.
+
+```python
+import pytest
+from fastapi.testclient import TestClient
+from main import app
+from database import get_db, engine
+from models import Base
+
+@pytest.fixture(scope="session")
+def client():
+    with TestClient(app) as c:
+        yield c
+
+@pytest.fixture(scope="session")
+def token_admin(client):
+    r = client.post("/auth/token", json={
+        "email": "admin@amsi.com",
+        "senha": "senhaSecreta"
+    })
+    return r.json()["access_token"]
+
+@pytest.fixture(scope="session")
+def headers_admin(token_admin):
+    return {"Authorization": f"Bearer {token_admin}"}
+
+@pytest.fixture(scope="session")
+def token_consulta(client, headers_admin):
+    # Cria usuário Consulta para testes negativos
+    r = client.post("/usuarios/", json={
+        "senha": "consulta123",
+        "nome": "Consulta Fixture",
+        "email": "consulta_fixture@amsi.com",
+        "cargo": "Associado",
+        "perfil_de_acesso": "Consulta",
+        "notificacao": False,
+        "bloqueado": False
+    }, headers=headers_admin)
+    id_consulta = r.json()["id_usuario"]
+
+    r = client.post("/auth/token", json={
+        "email": "consulta_fixture@amsi.com",
+        "senha": "consulta123"
+    })
+    token = r.json()["access_token"]
+    yield token
+
+    # Teardown automático
+    client.delete(f"/usuarios/{id_consulta}", headers=headers_admin)
+
+@pytest.fixture(scope="session")
+def headers_consulta(token_consulta):
+    return {"Authorization": f"Bearer {token_consulta}"}
+```
+
+--------------------------------------------------------------------------------
+  PADRÃO DE TESTE
+--------------------------------------------------------------------------------
+
+Cada arquivo de teste segue o padrão:
+
+```python
+# test_tipo_lancamento.py
+import pytest
+
+def test_criar_tipo(client, headers_admin):
+    r = client.post("/tipo_lancamento/", json={
+        "descricao_conta": "Tipo Pytest",
+        "natureza_conta": "Debito"
+    }, headers=headers_admin)
+    assert r.status_code == 200
+    assert r.json()["descricao_conta"] == "Tipo Pytest"
+
+def test_criar_tipo_sem_token(client):
+    r = client.post("/tipo_lancamento/", json={
+        "descricao_conta": "Tipo Pytest",
+        "natureza_conta": "Debito"
+    })
+    assert r.status_code == 401
+
+def test_criar_tipo_perfil_consulta(client, headers_consulta):
+    r = client.post("/tipo_lancamento/", json={
+        "descricao_conta": "Tipo Pytest",
+        "natureza_conta": "Debito"
+    }, headers=headers_consulta)
+    assert r.status_code == 403
+```
+
+--------------------------------------------------------------------------------
+  TEARDOWN AUTOMÁTICO COM FIXTURE
+--------------------------------------------------------------------------------
+
+Para testes que criam dados, usar fixture com yield:
+
+```python
+@pytest.fixture
+def tipo_lancamento(client, headers_admin):
+    r = client.post("/tipo_lancamento/", json={
+        "descricao_conta": "Tipo Pytest",
+        "natureza_conta": "Debito"
+    }, headers=headers_admin)
+    data = r.json()
+    yield data
+    # Teardown — roda mesmo se o teste falhar
+    client.delete(f"/tipo_lancamento/{data['id_tipo_lancamento']}", headers=headers_admin)
+
+def test_buscar_tipo(client, headers_admin, tipo_lancamento):
+    r = client.get(f"/tipo_lancamento/{tipo_lancamento['id_tipo_lancamento']}", headers=headers_admin)
+    assert r.status_code == 200
+```
+
+--------------------------------------------------------------------------------
+  COMO RODAR
+--------------------------------------------------------------------------------
+
+  # Rodar todos os testes
+  pytest tests/
+
+  # Rodar com relatório de cobertura
+  pytest tests/ --cov=. --cov-report=term-missing
+
+  # Rodar só um arquivo
+  pytest tests/test_usuario.py
+
+  # Rodar só um teste específico
+  pytest tests/test_usuario.py::test_criar_usuario
+
+  # Rodar com output detalhado
+  pytest tests/ -v
+
+--------------------------------------------------------------------------------
+  VANTAGENS PARA O TCC
+--------------------------------------------------------------------------------
+
+  - Relatório de cobertura de código (mostra % do código testado)
+  - Output profissional com pytest -v
+  - Teardown garantido — banco sempre limpo mesmo com falhas
+  - Isolamento — cada teste é independente
+  - Padrão da indústria — demonstra maturidade técnica
+
+--------------------------------------------------------------------------------
+  ORDEM DE MIGRAÇÃO RECOMENDADA
+--------------------------------------------------------------------------------
+
+1. Criar tests/conftest.py com fixtures de auth
+2. Migrar test_auth.py (mais simples, valida o conftest)
+3. Migrar test_tipo_lancamento.py (sem dependências complexas)
+4. Migrar demais arquivos na ordem das FKs
+5. Adicionar --cov e verificar cobertura
+6. Manter bateria_testes.py até pytest estar 100% cobrindo tudo
+7. Remover bateria_testes.py
+
+--------------------------------------------------------------------------------
+  OBSERVAÇÃO FINAL
+--------------------------------------------------------------------------------
+
+O TestClient do FastAPI usa a mesma instância do app — não precisa de servidor
+rodando. Isso torna os testes mais rápidos e independentes do ambiente.
+Não é necessário ngrok, uvicorn ou main.py para rodar pytest.
+
+================================================================================

@@ -1,0 +1,202 @@
+================================================================================
+  ANSI PROJECT — PLANO DE IMPLEMENTAÇÃO: SESSÃO E INVALIDAÇÃO DE TOKEN
+================================================================================
+
+DATA: 2026-04-20
+STATUS: Planejado — não iniciado
+
+--------------------------------------------------------------------------------
+  CONTEXTO
+--------------------------------------------------------------------------------
+
+Atualmente:
+  - Token JWT expira em 4h (hardcoded em auth_utils.py)
+  - Sessão na tabela login é registrada mas não controla validade do token
+  - Não há como invalidar um token antes do exp
+  - Credenciais (secret key, email, etc.) estão hardcoded nos arquivos
+
+Objetivo:
+  - Controle de inatividade configurável via .env
+  - Invalidação real de token no backend (não só no frontend)
+  - Sessão única por usuário
+  - Logout explícito funcional
+  - Todas as configurações sensíveis em config.env
+
+--------------------------------------------------------------------------------
+  ARQUIVO: config.env
+--------------------------------------------------------------------------------
+
+Criar/preencher com:
+
+  JWT_SECRET_KEY=<chave_aleatoria_longa>
+  JWT_EXPIRE_MINUTES=5
+  JWT_ALGORITHM=HS256
+  EMAIL_REMETENTE=opedroschvartz@gmail.com
+  EMAIL_SENHA_APP=<senha_de_app_do_google>
+
+Instalar: pip install python-dotenv
+Carregar em utils/config.py (novo arquivo):
+
+  from dotenv import load_dotenv
+  import os
+
+  load_dotenv("config.env")
+
+  JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "fallback_dev_key")
+  JWT_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRE_MINUTES", 5))
+  JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
+  EMAIL_REMETENTE = os.getenv("EMAIL_REMETENTE", "")
+  EMAIL_SENHA_APP = os.getenv("EMAIL_SENHA_APP", "")
+
+Atualizar:
+  - utils/auth_utils.py — importar de utils/config.py em vez de hardcode
+  - utils/email_sender.py — importar de utils/config.py em vez de hardcode
+
+--------------------------------------------------------------------------------
+  BANCO DE DADOS — NOVA TABELA
+--------------------------------------------------------------------------------
+
+Criar tabela token_blacklist:
+
+  CREATE TABLE token_blacklist (
+      id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      jti VARCHAR(255) NOT NULL UNIQUE,
+      id_usuario_fk BIGINT NOT NULL REFERENCES usuario(id_usuario),
+      invalidado_em TIMESTAMP NOT NULL DEFAULT NOW(),
+      exp TIMESTAMP NOT NULL
+  );
+
+  CREATE INDEX idx_blacklist_jti ON token_blacklist(jti);
+  CREATE INDEX idx_blacklist_exp ON token_blacklist(exp);
+
+jti = JWT ID — campo único adicionado no payload do token para identificação.
+
+Adicionar model models/token_blacklist.py.
+Registrar no models/__init__.py e no Base.metadata.
+
+Limpeza automática (opcional, pós MVP):
+  Registros com exp < now() podem ser deletados periodicamente — não afetam
+  a segurança porque tokens expirados já são rejeitados pelo JWT.
+
+--------------------------------------------------------------------------------
+  MODIFICAÇÕES EM ARQUIVOS EXISTENTES
+--------------------------------------------------------------------------------
+
+utils/auth_utils.py:
+  - Importar JWT_SECRET_KEY, JWT_EXPIRE_MINUTES, JWT_ALGORITHM de utils/config.py
+  - criar_token_acesso: adicionar "jti": str(uuid.uuid4()) no payload
+  - Remover SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES hardcoded
+
+utils/email_sender.py:
+  - Importar EMAIL_REMETENTE, EMAIL_SENHA_APP de utils/config.py
+  - Remover REMETENTE e SENHA_APP hardcoded
+
+auth/dependencies.py:
+  - get_current_user: após decodificar o token, verificar se jti está na blacklist
+    Se estiver: 401 "Sessão encerrada"
+  - get_current_user: buscar login ativo do usuário e atualizar
+    data_logout = now() + timedelta(minutes=JWT_EXPIRE_MINUTES)
+
+auth/router.py — POST /auth/token:
+  - Antes de criar nova sessão: invalidar tokens anteriores do usuário
+    (adicionar jti dos logins ativos à blacklist)
+  - Marcar data_logout dos logins anteriores como now()
+  - Criar novo login normalmente
+
+auth/router.py — POST /auth/logout (NOVO):
+  - Extrair jti do token atual via get_current_user
+  - Adicionar jti na token_blacklist
+  - Setar data_logout = now() no login ativo
+  - Retornar {"detail": "Logout realizado com sucesso"}
+
+--------------------------------------------------------------------------------
+  NOVO ARQUIVO: models/token_blacklist.py
+--------------------------------------------------------------------------------
+
+  from sqlalchemy import Column, BigInteger, String, TIMESTAMP, ForeignKey
+  from sqlalchemy.sql import func
+  from database import Base
+
+  class TokenBlacklist(Base):
+      __tablename__ = "token_blacklist"
+
+      id = Column(BigInteger, primary_key=True, autoincrement=True)
+      jti = Column(String(255), nullable=False, unique=True)
+      id_usuario_fk = Column(BigInteger, ForeignKey("usuario.id_usuario"), nullable=False)
+      invalidado_em = Column(TIMESTAMP, nullable=False, server_default=func.now())
+      exp = Column(TIMESTAMP, nullable=False)
+
+--------------------------------------------------------------------------------
+  NOVO ENDPOINT: POST /auth/logout
+--------------------------------------------------------------------------------
+
+  Request: apenas o token no header Authorization
+  Response: {"detail": "Logout realizado com sucesso"}
+
+  Lógica:
+    1. get_current_user extrai o usuário e o jti do token
+    2. Adicionar jti na token_blacklist
+    3. Buscar login ativo (data_logout > now() ou mais recente) do usuário
+    4. Setar data_logout = now()
+    5. Retornar sucesso
+
+  Para passar o jti para o endpoint, get_current_user precisa retornar
+  também o jti — ou criar uma dependência separada que retorna (usuario, jti).
+
+--------------------------------------------------------------------------------
+  MODIFICAÇÃO EM get_current_user
+--------------------------------------------------------------------------------
+
+Fluxo atualizado:
+  1. Extrair token do header
+  2. Decodificar JWT → obter sub (id_usuario) e jti
+  3. Verificar se jti está na token_blacklist → 401 se estiver
+  4. Buscar usuário no banco → 401 se não encontrar
+  5. Buscar login mais recente do usuário
+  6. Atualizar data_logout = now() + JWT_EXPIRE_MINUTES
+  7. Retornar usuário
+
+Para o logout precisar do jti, criar dependência auxiliar:
+
+  def get_token_payload(credentials = Depends(bearer_scheme)) -> dict:
+      try:
+          return jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+      except JWTError:
+          raise HTTPException(status_code=401, detail="Token inválido")
+
+--------------------------------------------------------------------------------
+  ORDEM DE IMPLEMENTAÇÃO
+--------------------------------------------------------------------------------
+
+1. Criar config.env com as variáveis
+2. Criar utils/config.py — carregar variáveis do .env
+3. Atualizar utils/auth_utils.py — usar config.py + adicionar jti
+4. Atualizar utils/email_sender.py — usar config.py
+5. Criar tabela token_blacklist no banco + tabelas_do_banco.txt
+6. Criar models/token_blacklist.py
+7. Atualizar auth/dependencies.py — verificar blacklist + renovar data_logout
+8. Atualizar auth/router.py — invalidar sessões anteriores no login + POST /logout
+9. Testar via Swagger
+10. Atualizar bateria de testes
+
+--------------------------------------------------------------------------------
+  IMPACTO NA BATERIA DE TESTES
+--------------------------------------------------------------------------------
+
+- POST /auth/token na bateria cria sessão e invalida anteriores — OK
+- GET /login/por-usuario/{id} para limpar logins ainda funciona
+- Adicionar teste: POST /auth/logout → 200
+- Adicionar teste: request após logout → 401
+
+--------------------------------------------------------------------------------
+  OBSERVAÇÕES
+--------------------------------------------------------------------------------
+
+- JWT_EXPIRE_MINUTES controla tanto o exp do token quanto o timeout de inatividade
+- O frontend deve chamar qualquer endpoint autenticado periodicamente para
+  renovar o data_logout (keepalive) — ou implementar um endpoint dedicado
+  GET /auth/ping que só renova o timeout sem fazer nada mais
+- config.env deve estar no .gitignore — nunca commitar credenciais
+- Em produção: JWT_SECRET_KEY deve ser gerada com secrets.token_hex(32)
+
+================================================================================

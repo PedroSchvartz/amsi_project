@@ -1,0 +1,28 @@
+# Ambiente virtual
+venv/
+env/
+.venv/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Pytest
+.pytest_cache/
+
+# Variáveis de ambiente e segredos
+config.env
+.env
+*.env
+
+# Logs
+logs/
+
+# Outputs de debug
+output.txt
+
+# IDEs
+.vscode/
+.idea/

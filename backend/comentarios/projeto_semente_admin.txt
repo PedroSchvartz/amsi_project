@@ -1,0 +1,137 @@
+================================================================================
+  ANSI PROJECT — PLANO DE IMPLEMENTAÇÃO: BOOTSTRAP DE USUÁRIO ADMINISTRADOR
+================================================================================
+
+DATA: 2026-04-23
+STATUS: Planejado — não iniciado
+
+--------------------------------------------------------------------------------
+  CONTEXTO
+--------------------------------------------------------------------------------
+
+O sistema atual implementou autenticação, porém existe o problema do "ovo e da
+galinha": para criar um usuário administrador, é necessário estar logado como
+administrador.
+O objetivo é implementar uma verificação no início da aplicação (lifespan do
+FastAPI) que garanta a existência de uma lista *hardcoded* de usuários administradores,
+criando-os se não existirem no banco.
+
+--------------------------------------------------------------------------------
+  ARQUIVOS EXISTENTES RELEVANTES
+--------------------------------------------------------------------------------
+
+main.py
+  - Arquivo principal, instancia o FastAPI (`app = FastAPI(...)`).
+  - Será modificado para incluir o `lifespan` com a lógica de bootstrap.
+
+database.py
+  - Fornece `SessionLocal` para instanciar a sessão fora do contexto de request.
+
+models/usuario.py
+  - Tabela `Usuario`.
+  - Enum `AcessoEnum.Administrador` e `CargoEnum.Diretor` (ou equivalente).
+  - Campos necessários: `senha`, `nome`, `email`, `cargo`, `perfil_de_acesso`.
+
+utils/auth_utils.py
+  - Fornece `hash_senha(senha: str) -> str`.
+
+--------------------------------------------------------------------------------
+  ESTRUTURA A CRIAR
+--------------------------------------------------------------------------------
+
+Criar um novo arquivo utilitário para não poluir o `main.py`:
+
+utils/
+└── bootstrap.py      (lógica de conferência e criação)
+
+--------------------------------------------------------------------------------
+  ARQUIVO: utils/bootstrap.py
+--------------------------------------------------------------------------------
+
+Função: garantir_admins_iniciais(db: Session)
+
+Lista (hardcoded):
+  ADMINS_INICIAIS = [
+      {
+          "email": "admin@empresa.com", # Altere para o email real
+          "nome": "Admin Master",
+          "senha_plana": "SenhaSecreta123!", # Em prod, isso deve vir do config.py
+          "cargo": CargoEnum.Diretor,
+          "perfil_de_acesso": AcessoEnum.Administrador
+      }
+  ]
+
+Lógica:
+  1. Iterar sobre ADMINS_INICIAIS.
+  2. Buscar no banco (query) se `Usuario.email` já existe e se `Usuario.exclusao` é None.
+  3. Se não existir:
+     3.1 Fazer hash da senha usando `hash_senha()`.
+     3.2 Criar a instância de `Usuario`.
+     3.3 Adicionar ao banco (`db.add()`).
+  4. Após o loop, dar `db.commit()`.
+  5. Adicionar logs (usando `logging.info`) indicando se os usuários foram criados
+     ou se já existiam.
+
+Importações necessárias:
+  import logging
+  from sqlalchemy.orm import Session
+  from models.usuario import Usuario, CargoEnum, AcessoEnum
+  from utils.auth_utils import hash_senha
+
+--------------------------------------------------------------------------------
+  MODIFICAÇÃO NO main.py
+--------------------------------------------------------------------------------
+
+Implementar o `lifespan` do FastAPI.
+
+Importações a adicionar:
+  from contextlib import asynccontextmanager
+  from database import SessionLocal
+  from utils.bootstrap import garantir_admins_iniciais
+
+Lógica do lifespan (adicionar ANTES de `app = FastAPI(...)`):
+
+  @asynccontextmanager
+  async def lifespan(app: FastAPI):
+      # --- Inicialização ---
+      db = SessionLocal()
+      try:
+          garantir_admins_iniciais(db)
+      except Exception as e:
+          logging.error(f"Erro no bootstrap de admins: {e}")
+      finally:
+          db.close()
+      
+      yield
+      # --- Encerramento ---
+      pass
+
+Modificar a instância do FastAPI para usar o lifespan:
+  Substituir:
+    app = FastAPI(
+        title="AMSI Project",
+        ...
+    )
+  Por:
+    app = FastAPI(
+        title="AMSI Project",
+        lifespan=lifespan,
+        ...
+    )
+
+--------------------------------------------------------------------------------
+  ORDEM DE IMPLEMENTAÇÃO RECOMENDADA
+--------------------------------------------------------------------------------
+
+1. Criar `utils/bootstrap.py` com a função de criação.
+2. Modificar `main.py` para injetar o `lifespan`.
+3. Rodar o terminal (`uvicorn main:app --reload` ou usando o seu script customizado).
+4. Conferir o output no terminal (os logs da criação).
+5. Tentar logar (via Swagger ou frontend) com o email e senha configurados.
+
+================================================================================
+
+**Instruções para prosseguir:**
+Leia o documento. Se estiver de acordo, crie o arquivo `.txt` localmente se preferir, e me confirme que podemos começar a codar. Entregarei o código de `utils/bootstrap.py` e o trecho atualizado do `main.py` na sequência.
+
+Aliás, para liberar as funcionalidades de todos os apps, ative a [Atividade nos apps do Gemini](https://myactivity.google.com/product/gemini).
