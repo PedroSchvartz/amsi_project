@@ -1,0 +1,56 @@
+.container {
+  display: flex;
+  justify-content: center;
+  padding: 40px;
+}
+
+.box {
+  background: #e6e6e6;
+  padding: 30px;
+  border-radius: 12px;
+  width: 500px;
+}
+
+h2 {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+label {
+  display: flex;
+}
+
+input {
+  padding: 10px;
+  border-radius: 6px;
+  border: none;
+  background: #cfcfcf;
+}
+
+.buttons {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+
+button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.cancel {
+  background: #bfbfbf;
+}
+
+.save {
+  background: #a3b18a;
+  color: white;
+}
