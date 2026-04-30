@@ -1,0 +1,154 @@
+-- Criação do banco de dados e tabelas para o sistema de controle financeiro
+-- ================================================
+-- TIPOS ENUM
+-- ================================================
+
+CREATE TYPE cargo_enum AS ENUM ('Diretor','Tesoureiro','Secretário','Conselheiro','Associado');
+CREATE TYPE acesso_enum AS ENUM ('Administrador','Consulta');
+CREATE TYPE natureza_enum AS ENUM ('Debito','Credito');
+CREATE TYPE tipo_clifor_enum AS ENUM ('C','F','A');
+
+
+-- ================================================
+-- ORDEM DE CRIAÇÃO: Usuario > tipo_conta > ClienteFornecedor > Endereco > Contato > Login > Lancamento
+-- ================================================
+
+
+CREATE TABLE Usuario (
+    id_usuario BIGINT GENERATED ALWAYS AS IDENTITY,
+    Senha VARCHAR(255) NOT NULL,
+    Nome VARCHAR(255) NOT NULL,
+    Data_Cadastro TIMESTAMP NOT NULL DEFAULT NOW(),
+    Email VARCHAR(255) NOT NULL,
+    Cargo cargo_enum NOT NULL,
+    Perfil_de_Acesso acesso_enum NOT NULL,
+    Notificacao BOOLEAN NOT NULL DEFAULT FALSE,
+    Suspenso TIMESTAMP DEFAULT NULL,
+    Qtd_suspensao INT DEFAULT 0,
+    Bloqueado BOOLEAN NOT NULL DEFAULT FALSE,
+    Exclusao TIMESTAMP DEFAULT NULL,
+    telegram_id VARCHAR(255) DEFAULT NULL,
+    primeiro_acesso BOOLEAN NOT NULL DEFAULT TRUE,
+    PRIMARY KEY (id_usuario)   
+);
+
+-- Usuario
+CREATE INDEX idx_usuario_email ON Usuario(Email);
+CREATE INDEX idx_usuario_bloqueado ON Usuario(Bloqueado);
+
+
+CREATE TABLE tipo_conta (
+    id_tipo_conta BIGINT GENERATED ALWAYS AS IDENTITY,
+    Descricao_Conta VARCHAR(255) NOT NULL,
+    Natureza_Conta natureza_enum NOT NULL,
+    Observacao TEXT DEFAULT NULL,
+    PRIMARY KEY (id_tipo_conta)
+);
+
+
+CREATE TABLE ClienteFornecedor (
+    id_CliFor BIGINT GENERATED ALWAYS AS IDENTITY,
+    id_Usuario_FK BIGINT,
+    PessoaFisica_Juridica BOOLEAN NOT NULL,
+    CPF_CNPJ VARCHAR(255) NOT NULL,
+    RG_InscricaoEstadual VARCHAR(255) NOT NULL,
+    Nome VARCHAR(255) NOT NULL,
+    DataNascimento DATE NOT NULL,
+    Tipo_CliFor tipo_clifor_enum NOT NULL,
+    Ativo BOOLEAN NOT NULL DEFAULT TRUE,
+    Inadimplente BOOLEAN NOT NULL DEFAULT FALSE,
+    PRIMARY KEY (id_CliFor),
+    FOREIGN KEY (id_Usuario_FK) REFERENCES Usuario(id_usuario)
+);
+
+-- ClienteFornecedor
+CREATE INDEX idx_clifor_cpf_cnpj ON ClienteFornecedor(CPF_CNPJ);
+CREATE INDEX idx_clifor_nome ON ClienteFornecedor(Nome);
+CREATE INDEX idx_clifor_ativo ON ClienteFornecedor(Ativo);
+CREATE INDEX idx_clifor_inadimplente ON ClienteFornecedor(Inadimplente);
+
+
+CREATE TABLE Endereco (
+    id_Endereco BIGINT GENERATED ALWAYS AS IDENTITY,
+    id_CliFor_FK BIGINT NOT NULL,
+    EnderecoPrimario BOOLEAN NOT NULL DEFAULT FALSE,
+    Logradouro VARCHAR(255) NOT NULL,
+    Numero VARCHAR(255) NOT NULL,
+    Complemento VARCHAR(255) DEFAULT NULL,
+    Bairro VARCHAR(255) NOT NULL,
+    Cidade VARCHAR(255) NOT NULL,
+    UF VARCHAR(2) NOT NULL,
+    CEP VARCHAR(9) NOT NULL,
+    PRIMARY KEY (id_Endereco),
+    FOREIGN KEY (id_CliFor_FK) REFERENCES ClienteFornecedor(id_CliFor)
+);
+
+
+CREATE TABLE Contato (
+    id_Contato BIGINT GENERATED ALWAYS AS IDENTITY,
+    id_CliFor_FK BIGINT NOT NULL,
+    TipoContato VARCHAR(255) NOT NULL,
+    Info_do_Contato VARCHAR(255) NOT NULL,
+    Contato_Principal BOOLEAN NOT NULL DEFAULT FALSE,
+    PRIMARY KEY (id_Contato),
+    FOREIGN KEY (id_CliFor_FK) REFERENCES ClienteFornecedor(id_CliFor)
+);
+
+
+CREATE TABLE Login (
+    id_Login BIGINT GENERATED ALWAYS AS IDENTITY,
+    Data_Login TIMESTAMP NOT NULL DEFAULT NOW(),
+    Data_Logout TIMESTAMP DEFAULT NULL,
+    id_usuario_FK BIGINT NOT NULL,
+    Dispositivo_Logado VARCHAR(255) NOT NULL,
+    Localizacao VARCHAR(255) NOT NULL,
+    Navegador VARCHAR(255) NOT NULL,
+    PRIMARY KEY (id_Login),
+    FOREIGN KEY (id_usuario_FK) REFERENCES Usuario(id_usuario)
+);
+-- Login
+CREATE INDEX idx_id_Login ON Login(Data_Login);
+CREATE INDEX idx_id_usuario_FK ON Login(id_usuario_FK);
+
+CREATE TABLE Lancamento (
+    id_lancamento BIGINT GENERATED ALWAYS AS IDENTITY,
+    id_Usuario_FK_Lancamento BIGINT NOT NULL,
+    id_CliFor_Relacionado_FK BIGINT NOT NULL,
+    id_tipo_conta_FK BIGINT NOT NULL,
+    Data_lancamento TIMESTAMP NOT NULL DEFAULT NOW(),
+    Valor DECIMAL(15,2) NOT NULL,
+    Data_vencimento DATE NOT NULL,
+    Multa DECIMAL(15,2),
+    Juros DECIMAL(15,2),
+    id_Usuario_FK_Fechamento BIGINT,
+    data_pagamento TIMESTAMP,
+    Valor_Pago DECIMAL(15,2),
+    Observacao TEXT,
+    Natureza_Lancamento natureza_enum NOT NULL,
+    Estorno BOOLEAN NOT NULL DEFAULT FALSE,
+    PRIMARY KEY (id_lancamento),
+    FOREIGN KEY (id_Usuario_FK_Lancamento) REFERENCES Usuario(id_usuario),
+    FOREIGN KEY (id_CliFor_Relacionado_FK) REFERENCES ClienteFornecedor(id_CliFor),
+    FOREIGN KEY (id_tipo_conta_FK) REFERENCES tipo_conta(id_tipo_conta),
+    FOREIGN KEY (id_Usuario_FK_Fechamento) REFERENCES Usuario(id_usuario)
+);
+
+
+-- Lancamento
+CREATE INDEX idx_lancamento_data_vencimento ON Lancamento(Data_vencimento);
+CREATE INDEX idx_lancamento_data_lancamento ON Lancamento(Data_lancamento);
+CREATE INDEX idx_lancamento_estorno ON Lancamento(Estorno);
+CREATE INDEX idx_lancamento_clifor ON Lancamento(id_CliFor_Relacionado_FK);
+
+-- Registro de Tokens idx_token_ativo_usuario
+-- Para exigir o token no login e dificultar o acesso por histórico.
+CREATE TABLE token_ativo (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    jti VARCHAR(255) NOT NULL UNIQUE,
+    id_usuario_fk BIGINT NOT NULL REFERENCES usuario(id_usuario),
+    criado_em TIMESTAMP NOT NULL DEFAULT NOW(),
+    exp TIMESTAMP NOT NULL
+);
+
+CREATE INDEX idx_token_ativo_jti ON token_ativo(jti);
+CREATE INDEX idx_token_ativo_usuario ON token_ativo(id_usuario_fk);

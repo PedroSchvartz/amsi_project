@@ -1,0 +1,256 @@
+================================================================================
+  AMSI PROJECT — PLANO DE IMPLEMENTAÇÃO: PESQUISAS E FILTROS
+================================================================================
+
+DATA: 2026-04-30
+STATUS: Planejado — não iniciado
+ARQUIVOS AFETADOS:
+  routes/lancamento.py
+  routes/cliente_fornecedor.py
+  schemas/lancamento.py (novo schema LancamentoResumo)
+
+--------------------------------------------------------------------------------
+  CONTEXTO
+--------------------------------------------------------------------------------
+
+O backend precisa expor rotas de pesquisa ricas para o frontend React.
+A abordagem adotada é query parameters opcionais nas rotas GET existentes —
+sem filtro = retorna tudo (comportamento atual preservado).
+Filtros se acumulam (AND implícito).
+Nenhuma rota nova de listagem é criada — apenas as existentes são enriquecidas.
+
+Duas rotas novas são adicionadas para agregações (retornam estrutura diferente
+das listagens, por isso são rotas separadas):
+  GET /lancamento/resumo
+  GET /cliente_fornecedor/{id}/resumo
+
+--------------------------------------------------------------------------------
+  ROTA 1 — GET /cliente_fornecedor/
+--------------------------------------------------------------------------------
+
+COMPORTAMENTO ATUAL: retorna todos os clifors sem filtro.
+COMPORTAMENTO NOVO: aceita filtros opcionais via query parameters.
+
+FILTROS:
+
+  nome: str | None
+    Busca parcial case-insensitive no campo nome.
+    Implementação: .filter(ClienteFornecedor.nome.ilike(f"%{nome}%"))
+
+  tipo_clifor: "C" | "F" | "A" | None
+    Filtra pelo tipo do clifor.
+
+  ativo: bool | None
+    True = apenas ativos, False = apenas inativos.
+
+  inadimplente: bool | None
+    True = apenas inadimplentes, False = apenas adimplentes.
+
+  apenas_pendentes: bool | None
+    True = retorna apenas clifors que têm pelo menos um lançamento
+    com data_pagamento == None.
+    Implementação: EXISTS subquery em Lancamento.
+
+EXEMPLO DE CHAMADA:
+  GET /cliente_fornecedor/?tipo_clifor=C&inadimplente=true&apenas_pendentes=true
+
+RESPONSE: List[ClienteFornecedorResponse] — schema existente, sem alteração.
+
+--------------------------------------------------------------------------------
+  ROTA 2 — GET /lancamento/
+--------------------------------------------------------------------------------
+
+COMPORTAMENTO ATUAL: retorna todos os lançamentos sem filtro.
+COMPORTAMENTO NOVO: aceita filtros opcionais via query parameters.
+
+ATENÇÃO: a rota GET /lancamento/{id_lancamento} usa path parameter inteiro.
+O FastAPI pode conflitar com rotas fixas como /lancamento/resumo se declaradas
+depois. Declarar /lancamento/resumo ANTES de /lancamento/{id_lancamento} no
+arquivo para evitar o conflito.
+
+FILTROS:
+
+  id_clifor: int | None
+    Lançamentos de um clifor específico.
+
+  id_tipo_conta: int | None
+    Lançamentos de um tipo de conta específico.
+
+  natureza: "Debito" | "Credito" | None
+    Filtra pela natureza do lançamento.
+
+  apenas_abertos: bool | None
+    True = data_pagamento == None.
+
+  apenas_vencidos: bool | None
+    True = data_vencimento < hoje E data_pagamento == None.
+
+  data_vencimento_de: date | None
+    Lançamentos com data_vencimento >= data_vencimento_de.
+
+  data_vencimento_ate: date | None
+    Lançamentos com data_vencimento <= data_vencimento_ate.
+
+  data_lancamento_de: date | None
+    Lançamentos com data_lancamento >= data_lancamento_de.
+
+  data_lancamento_ate: date | None
+    Lançamentos com data_lancamento <= data_lancamento_ate.
+
+  estorno: bool | None
+    True = apenas estornados, False = apenas não estornados.
+
+EXEMPLO DE CHAMADA:
+  GET /lancamento/?natureza=Debito&apenas_abertos=true&data_vencimento_ate=2026-05-01
+
+RESPONSE: List[LancamentoResponse] — schema existente, sem alteração.
+
+--------------------------------------------------------------------------------
+  ROTA 3 — GET /lancamento/resumo
+--------------------------------------------------------------------------------
+
+ROTA NOVA. Retorna totais agregados — não é uma listagem.
+Aceita os mesmos filtros de GET /lancamento/ (exceto apenas_vencidos, que é
+implícito nos campos total_vencido_*).
+
+RESPONSE — novo schema LancamentoResumo:
+
+  {
+    "total_a_receber": Decimal,       — soma valor onde natureza=Credito e data_pagamento==None
+    "total_a_pagar": Decimal,         — soma valor onde natureza=Debito e data_pagamento==None
+    "saldo_liquido": Decimal,         — total_a_receber - total_a_pagar
+    "total_vencido_a_receber": Decimal, — Credito, data_pagamento==None, data_vencimento < hoje
+    "total_vencido_a_pagar": Decimal,   — Debito, data_pagamento==None, data_vencimento < hoje
+    "quantidade_abertos": int,        — count onde data_pagamento==None
+    "quantidade_vencidos": int        — count onde data_pagamento==None e data_vencimento < hoje
+  }
+
+Valores None no banco (sem lançamentos que atendam o filtro) retornam 0.
+Implementação: SQLAlchemy func.sum() + func.count() com coalesce para o zero.
+
+EXEMPLO DE CHAMADA:
+  GET /lancamento/resumo?id_clifor=3&natureza=Debito
+
+DECLARAR esta rota ANTES de /{id_lancamento} no arquivo para evitar conflito
+de rota do FastAPI.
+
+--------------------------------------------------------------------------------
+  ROTA 4 — GET /cliente_fornecedor/{id}/resumo
+--------------------------------------------------------------------------------
+
+ROTA NOVA. Retorna o saldo consolidado de um clifor específico.
+Útil para tela de detalhe do clifor no frontend.
+
+RESPONSE — novo schema CliForResumo (inline ou em schemas/cliente_fornecedor.py):
+
+  {
+    "id_clifor": int,
+    "nome": str,
+    "total_a_receber": Decimal,
+    "total_a_pagar": Decimal,
+    "saldo_liquido": Decimal,
+    "total_vencido_a_receber": Decimal,
+    "total_vencido_a_pagar": Decimal,
+    "quantidade_abertos": int,
+    "quantidade_vencidos": int
+  }
+
+404 se clifor não encontrado.
+
+EXEMPLO DE CHAMADA:
+  GET /cliente_fornecedor/7/resumo
+
+ATENÇÃO: /{id_clifor} já existe como rota. Declarar /{id_clifor}/resumo
+ANTES de /{id_clifor} no arquivo para evitar conflito.
+
+--------------------------------------------------------------------------------
+  NOVOS SCHEMAS
+--------------------------------------------------------------------------------
+
+Adicionar em schemas/lancamento.py:
+
+  class LancamentoResumo(BaseModel):
+      total_a_receber: Decimal
+      total_a_pagar: Decimal
+      saldo_liquido: Decimal
+      total_vencido_a_receber: Decimal
+      total_vencido_a_pagar: Decimal
+      quantidade_abertos: int
+      quantidade_vencidos: int
+
+Adicionar em schemas/cliente_fornecedor.py:
+
+  class CliForResumo(BaseModel):
+      id_clifor: int
+      nome: str
+      total_a_receber: Decimal
+      total_a_pagar: Decimal
+      saldo_liquido: Decimal
+      total_vencido_a_receber: Decimal
+      total_vencido_a_pagar: Decimal
+      quantidade_abertos: int
+      quantidade_vencidos: int
+
+--------------------------------------------------------------------------------
+  ARMADILHAS CONHECIDAS
+--------------------------------------------------------------------------------
+
+1. CONFLITO DE ROTA NO FASTAPI
+   Rotas com path parameter inteiro ({id}) conflitam com rotas fixas declaradas
+   depois. Sempre declarar rotas fixas (/resumo, /pendentes, etc.) ANTES das
+   rotas com parâmetro no mesmo arquivo.
+
+   Ordem correta em routes/lancamento.py:
+     GET /lancamento/resumo          ← declarar primeiro
+     GET /lancamento/                ← listagem com filtros
+     GET /lancamento/{id_lancamento} ← por último
+
+   Ordem correta em routes/cliente_fornecedor.py:
+     GET /cliente_fornecedor/                  ← listagem com filtros
+     GET /cliente_fornecedor/{id_clifor}/resumo ← antes do /{id_clifor}
+     GET /cliente_fornecedor/{id_clifor}        ← por último
+
+2. APENAS_VENCIDOS COM APENAS_ABERTOS
+   Se apenas_vencidos=True, apenas_abertos é redundante (vencido implica aberto).
+   Tratar apenas_vencidos independentemente — não depender de apenas_abertos estar True.
+
+3. COALESCE NOS TOTAIS
+   func.sum() retorna None se não há linhas. Sempre usar:
+     coalesce(func.sum(Lancamento.valor), 0)
+   para garantir Decimal(0) na resposta.
+
+4. COMPARAÇÃO DE DATA
+   data_vencimento é Date, datetime.today() é datetime. Usar date.today() na
+   comparação para evitar erros de tipo no SQLAlchemy/PostgreSQL.
+
+--------------------------------------------------------------------------------
+  ORDEM DE IMPLEMENTAÇÃO
+--------------------------------------------------------------------------------
+
+1. Adicionar LancamentoResumo e CliForResumo nos schemas
+2. Atualizar routes/lancamento.py:
+   a. Enriquecer GET / com filtros
+   b. Adicionar GET /resumo (antes de /{id_lancamento})
+3. Atualizar routes/cliente_fornecedor.py:
+   a. Enriquecer GET / com filtros
+   b. Adicionar GET /{id_clifor}/resumo (antes de /{id_clifor})
+4. Testar via Swagger manualmente cada filtro
+5. Adicionar testes na bateria pytest
+
+--------------------------------------------------------------------------------
+  IMPACTO NOS TESTES EXISTENTES
+--------------------------------------------------------------------------------
+
+Os testes atuais de listagem (test_listar_clifors, test_listar_lancamentos)
+chamam GET / sem parâmetros — continuam funcionando pois sem filtro = retorna
+tudo (comportamento preservado).
+
+Novos testes a adicionar em test_lancamento.py e test_cliente_fornecedor.py:
+  - test_filtro_lancamento_natureza
+  - test_filtro_lancamento_apenas_abertos
+  - test_filtro_lancamento_periodo
+  - test_resumo_lancamentos
+  - test_filtro_clifor_apenas_pendentes
+  - test_resumo_clifor
+
+================================================================================

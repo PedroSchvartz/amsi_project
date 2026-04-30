@@ -1,0 +1,513 @@
+- endpoint: POST /auth/token
+  descricao: Login
+  parametros: []
+  respostas:
+  - '200'
+  - '422'
+- endpoint: POST /auth/logout
+  descricao: Logout
+  parametros: []
+  respostas:
+  - '200'
+- endpoint: POST /auth/trocar-senha
+  descricao: Trocar Senha
+  parametros: []
+  respostas:
+  - '200'
+  - '422'
+- endpoint: GET /usuarios/
+  descricao: Listar Usuarios
+  parametros: []
+  respostas:
+  - '200'
+- endpoint: POST /usuarios/
+  descricao: Criar Usuario
+  parametros: []
+  respostas:
+  - '200'
+  - '422'
+- endpoint: GET /usuarios/{id_usuario}
+  descricao: Buscar Usuario
+  parametros:
+  - nome: id_usuario
+    local: path
+    obrigatorio: true
+    tipo: integer
+  respostas:
+  - '200'
+  - '422'
+- endpoint: PUT /usuarios/{id_usuario}
+  descricao: Atualizar Usuario
+  parametros:
+  - nome: id_usuario
+    local: path
+    obrigatorio: true
+    tipo: integer
+  respostas:
+  - '200'
+  - '422'
+- endpoint: DELETE /usuarios/{id_usuario}
+  descricao: Deletar Usuario
+  parametros:
+  - nome: id_usuario
+    local: path
+    obrigatorio: true
+    tipo: integer
+  respostas:
+  - '200'
+  - '422'
+- endpoint: POST /usuarios/{id_usuario}/resetar-senha
+  descricao: Resetar Senha
+  parametros:
+  - nome: id_usuario
+    local: path
+    obrigatorio: true
+    tipo: integer
+  respostas:
+  - '200'
+  - '422'
+- endpoint: GET /login/
+  descricao: Listar Logins
+  parametros: []
+  respostas:
+  - '200'
+- endpoint: POST /login/
+  descricao: Registrar Login
+  parametros: []
+  respostas:
+  - '200'
+  - '422'
+- endpoint: GET /login/{id_login}
+  descricao: Buscar Login
+  parametros:
+  - nome: id_login
+    local: path
+    obrigatorio: true
+    tipo: integer
+  respostas:
+  - '200'
+  - '422'
+- endpoint: PUT /login/{id_login}
+  descricao: Registrar Logout
+  parametros:
+  - nome: id_login
+    local: path
+    obrigatorio: true
+    tipo: integer
+  respostas:
+  - '200'
+  - '422'
+- endpoint: DELETE /login/{id_login}
+  descricao: Deletar Login
+  parametros:
+  - nome: id_login
+    local: path
+    obrigatorio: true
+    tipo: integer
+  respostas:
+  - '200'
+  - '422'
+- endpoint: GET /login/por-usuario/{id_usuario}
+  descricao: Listar Logins Por Usuario
+  parametros:
+  - nome: id_usuario
+    local: path
+    obrigatorio: true
+    tipo: integer
+  respostas:
+  - '200'
+  - '422'
+- endpoint: GET /tipo_conta/
+  descricao: Listar Tipos
+  parametros: []
+  respostas:
+  - '200'
+- endpoint: POST /tipo_conta/
+  descricao: Criar Tipo
+  parametros: []
+  respostas:
+  - '200'
+  - '422'
+- endpoint: GET /tipo_conta/{id_tipo_conta}
+  descricao: Buscar Tipo
+  parametros:
+  - nome: id_tipo_conta
+    local: path
+    obrigatorio: true
+    tipo: integer
+  respostas:
+  - '200'
+  - '422'
+- endpoint: PUT /tipo_conta/{id_tipo_conta}
+  descricao: Atualizar Tipo
+  parametros:
+  - nome: id_tipo_conta
+    local: path
+    obrigatorio: true
+    tipo: integer
+  respostas:
+  - '200'
+  - '422'
+- endpoint: DELETE /tipo_conta/{id_tipo_conta}
+  descricao: Deletar Tipo
+  parametros:
+  - nome: id_tipo_conta
+    local: path
+    obrigatorio: true
+    tipo: integer
+  respostas:
+  - '200'
+  - '422'
+- endpoint: GET /cliente_fornecedor/
+  descricao: Listar Clifors
+  parametros:
+  - nome: nome
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: tipo_clifor
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: ativo
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: inadimplente
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: apenas_pendentes
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: pessoafisica_juridica
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  respostas:
+  - '200'
+  - '422'
+- endpoint: POST /cliente_fornecedor/
+  descricao: Criar Clifor
+  parametros: []
+  respostas:
+  - '200'
+  - '422'
+- endpoint: GET /cliente_fornecedor/{id_clifor}/resumo
+  descricao: Resumo Clifor
+  parametros:
+  - nome: id_clifor
+    local: path
+    obrigatorio: true
+    tipo: integer
+  respostas:
+  - '200'
+  - '422'
+- endpoint: GET /cliente_fornecedor/{id_clifor}
+  descricao: Buscar Clifor
+  parametros:
+  - nome: id_clifor
+    local: path
+    obrigatorio: true
+    tipo: integer
+  respostas:
+  - '200'
+  - '422'
+- endpoint: PUT /cliente_fornecedor/{id_clifor}
+  descricao: Atualizar Clifor
+  parametros:
+  - nome: id_clifor
+    local: path
+    obrigatorio: true
+    tipo: integer
+  respostas:
+  - '200'
+  - '422'
+- endpoint: DELETE /cliente_fornecedor/{id_clifor}
+  descricao: Deletar Clifor
+  parametros:
+  - nome: id_clifor
+    local: path
+    obrigatorio: true
+    tipo: integer
+  respostas:
+  - '200'
+  - '422'
+- endpoint: GET /endereco/
+  descricao: Listar Enderecos
+  parametros: []
+  respostas:
+  - '200'
+- endpoint: POST /endereco/
+  descricao: Criar Endereco
+  parametros: []
+  respostas:
+  - '200'
+  - '422'
+- endpoint: GET /endereco/{id_endereco}
+  descricao: Buscar Endereco
+  parametros:
+  - nome: id_endereco
+    local: path
+    obrigatorio: true
+    tipo: integer
+  respostas:
+  - '200'
+  - '422'
+- endpoint: PUT /endereco/{id_endereco}
+  descricao: Atualizar Endereco
+  parametros:
+  - nome: id_endereco
+    local: path
+    obrigatorio: true
+    tipo: integer
+  respostas:
+  - '200'
+  - '422'
+- endpoint: DELETE /endereco/{id_endereco}
+  descricao: Deletar Endereco
+  parametros:
+  - nome: id_endereco
+    local: path
+    obrigatorio: true
+    tipo: integer
+  respostas:
+  - '200'
+  - '422'
+- endpoint: GET /endereco/por-clifor/{id_clifor}
+  descricao: Listar Enderecos Por Clifor
+  parametros:
+  - nome: id_clifor
+    local: path
+    obrigatorio: true
+    tipo: integer
+  respostas:
+  - '200'
+  - '422'
+- endpoint: GET /contato/
+  descricao: Listar Contatos
+  parametros: []
+  respostas:
+  - '200'
+- endpoint: POST /contato/
+  descricao: Criar Contato
+  parametros: []
+  respostas:
+  - '200'
+  - '422'
+- endpoint: GET /contato/{id_contato}
+  descricao: Buscar Contato
+  parametros:
+  - nome: id_contato
+    local: path
+    obrigatorio: true
+    tipo: integer
+  respostas:
+  - '200'
+  - '422'
+- endpoint: PUT /contato/{id_contato}
+  descricao: Atualizar Contato
+  parametros:
+  - nome: id_contato
+    local: path
+    obrigatorio: true
+    tipo: integer
+  respostas:
+  - '200'
+  - '422'
+- endpoint: DELETE /contato/{id_contato}
+  descricao: Deletar Contato
+  parametros:
+  - nome: id_contato
+    local: path
+    obrigatorio: true
+    tipo: integer
+  respostas:
+  - '200'
+  - '422'
+- endpoint: GET /contato/por-clifor/{id_clifor}
+  descricao: Listar Contatos Por Clifor
+  parametros:
+  - nome: id_clifor
+    local: path
+    obrigatorio: true
+    tipo: integer
+  respostas:
+  - '200'
+  - '422'
+- endpoint: GET /lancamento/resumo
+  descricao: Resumo Lancamentos
+  parametros:
+  - nome: id_clifor
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: id_tipo_conta
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: natureza
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: apenas_abertos
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: data_vencimento_de
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: data_vencimento_ate
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: data_lancamento_de
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: data_lancamento_ate
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: estorno
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: valor_minimo
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: valor_maximo
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  respostas:
+  - '200'
+  - '422'
+- endpoint: GET /lancamento/
+  descricao: Listar Lancamentos
+  parametros:
+  - nome: id_clifor
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: id_tipo_conta
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: natureza
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: apenas_abertos
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: apenas_vencidos
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: data_vencimento_de
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: data_vencimento_ate
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: data_lancamento_de
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: data_lancamento_ate
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: estorno
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: valor_minimo
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: valor_maximo
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  respostas:
+  - '200'
+  - '422'
+- endpoint: POST /lancamento/
+  descricao: Criar Lancamento
+  parametros: []
+  respostas:
+  - '200'
+  - '422'
+- endpoint: GET /lancamento/{id_lancamento}
+  descricao: Buscar Lancamento
+  parametros:
+  - nome: id_lancamento
+    local: path
+    obrigatorio: true
+    tipo: integer
+  respostas:
+  - '200'
+  - '422'
+- endpoint: PUT /lancamento/{id_lancamento}
+  descricao: Fechar Lancamento
+  parametros:
+  - nome: id_lancamento
+    local: path
+    obrigatorio: true
+    tipo: integer
+  respostas:
+  - '200'
+  - '422'
+- endpoint: DELETE /lancamento/{id_lancamento}
+  descricao: Deletar Lancamento
+  parametros:
+  - nome: id_lancamento
+    local: path
+    obrigatorio: true
+    tipo: integer
+  respostas:
+  - '200'
+  - '422'
+- endpoint: GET /lancamento/por-clifor/{id_clifor}
+  descricao: Listar Lancamentos Por Clifor
+  parametros:
+  - nome: id_clifor
+    local: path
+    obrigatorio: true
+    tipo: integer
+  respostas:
+  - '200'
+  - '422'
+- endpoint: GET /lancamento/por-usuario/{id_usuario}
+  descricao: Listar Lancamentos Por Usuario
+  parametros:
+  - nome: id_usuario
+    local: path
+    obrigatorio: true
+    tipo: integer
+  respostas:
+  - '200'
+  - '422'
+- endpoint: GET /logs/
+  descricao: Listar Logs
+  parametros: []
+  respostas:
+  - '200'
+- endpoint: GET /logs/ui
+  descricao: Logs Ui
+  parametros: []
+  respostas:
+  - '200'
+- endpoint: GET /
+  descricao: Root
+  parametros: []
+  respostas:
+  - '200'

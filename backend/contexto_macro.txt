@@ -1,0 +1,218 @@
+================================================================================
+  ANSI PROJECT — APRESENTAÇÃO E CONTEXTO
+================================================================================
+
+NOME DO PROJETO: ANSI Project
+DESCRIÇÃO: Sistema de gestão financeira para associação de moradores.
+           TCC do Pedro com aplicação real — não é exercício acadêmico.
+PRAZO: 15/05/2026 para finalizar programação do MVP.
+
+--------------------------------------------------------------------------------
+  STACK
+--------------------------------------------------------------------------------
+
+Backend  : FastAPI (Python) + PostgreSQL 17.4
+Frontend : React.js (em andamento — colega responsável)
+Auth     : JWT próprio com bcrypt (implementado — ver fase_atual.txt)
+Ngrok    : domínio fixo bienvenu-meningitic-alejandra.ngrok-free.dev
+           token: 3ApIjjSxFJ4NceaIBdInO3CLpyY_4YafBnmdNCTdXRZ9esHdQ
+
+--------------------------------------------------------------------------------
+  BANCO DE DADOS
+--------------------------------------------------------------------------------
+
+Banco    : ANSI_Project
+Usuário  : postgres
+Senha    : 99181
+Porta    : 5432
+OBS      : usa BIGINT GENERATED ALWAYS AS IDENTITY e ENUMs nativos do PostgreSQL
+
+--------------------------------------------------------------------------------
+  ESTRUTURA DO PROJETO
+--------------------------------------------------------------------------------
+
+Caminho  : C:\Codigos\ANSI_Project_Desenvolvimento
+
+C:\Codigos\ANSI_Project_Desenvolvimento
+├── auth
+│   ├── __init__.py
+│   ├── dependencies.py      — get_current_user, exige_admin
+│   └── router.py            — POST /auth/token
+├── bateria_testes.py        — 35/35 passando, limpa o banco após rodar
+├── comentarios
+│   ├── projeto_auth.txt     — plano detalhado de implementação da auth
+│   ├── projeto_bateria_pytest  — plano de atualização da Bateria testes
+│   ├── projeto_notificador.txt — plano de email e telegram
+│   ├── fase_atual.txt       — estado atual, o que falta, regras de negócio
+│   └── tabelas_do_banco.txt — SQL de criação do banco (fonte da verdade)
+├── database.py
+├── main.py
+├── models/
+├── routes/
+├── schemas/
+├── telegram_bot/
+└── utils/
+    ├── auth_utils.py        — hash_senha, verificar_senha, criar_token_acesso
+    ├── email_sender.py
+    ├── frequentes.py        — biblioteca pessoal: boolput, configure_logging, etc.
+    ├── request_logger.py    — middleware + /logs/ui
+    └── telegram_sender.py
+
+--------------------------------------------------------------------------------
+  CONVENÇÕES E ARMADILHAS CONHECIDAS
+--------------------------------------------------------------------------------
+
+- SEMPRE verificar nomes de colunas contra comentarios/tabelas_do_banco.txt
+  antes de escrever qualquer model ou query
+- id_tipo_lancamento_fk (não id_tipo_conta_fk) — já corrigido, não regredir
+- ENUMs do banco SEM acento: Debito/Credito — natureza_enum
+  O banco usa C, F, A para tipo_clifor_enum
+- Models usam values_callable para ENUMs (já aplicado em todos)
+- Campo `login` foi REMOVIDO da tabela usuario — identificador é o EMAIL
+- utils/frequentes.py: boolput, configure_logging, intput, floatput,
+  obriput, colorir, get_timestamp, mapeia_diretorio — usar sempre que possível
+
+--------------------------------------------------------------------------------
+  COMO ENVIAR CONTEXTO PARA NOVO CHAT
+--------------------------------------------------------------------------------
+
+Enviar na ordem:
+  1. observacao.txt      (este arquivo)
+  2. fase_atual.txt      (estado e direções)
+  3. tabelas_do_banco.txt
+  4. main.py
+  5. database.py
+  6. Todos os models
+  7. Schema/route específico do que for trabalhar
+
+--------------------------------------------------------------------------------
+  PERFIL DE TRABALHO — PEDRO
+--------------------------------------------------------------------------------
+
+- Modo produção: respostas curtas, diretas, sem explicar o óbvio
+- Testa tudo antes de aceitar. Nunca implementar sem esperar resultado do terminal
+- Corrige sem drama — "está errado" e segue
+- Não antecipe demais — resolva o problema atual, não os três seguintes
+- Propostas são bem-vindas desde que não interrompam o fluxo
+- Não assuma de mais, perguntas inteligêntes evitam o desperdicio de tokens e de tempo.
+- Não existem perguntas burras, apenas redundantes, O Pedro está disposto a criar .TXTs para evitar isso.
+- Modo estudo (quando indicado): mais explicação, mais contexto — adaptar conforme
+- Usa a árvore de diretórios (mapeia_diretorio) para orientar o que ler/criar
+- Estamos construindo um MVP
+================================================================================
+
+--------------------------------------------------------------------------------
+  PADRÕES DE DESENVOLVIMENTO
+--------------------------------------------------------------------------------
+
+Esta seção define como crescer o projeto de forma coerente. Sempre que chegar
+uma demanda nova — do frontend, de regra de negócio, ou decisão própria —
+seguir esses padrões antes de escrever qualquer código.
+
+## QUANDO O FRONTEND PEDE ALGO NOVO
+
+Perguntas a responder antes de codar:
+
+  1. Isso já existe? Verificar se a rota ou lógica já está implementada.
+     Consultar /docs (Swagger) com o servidor rodando.
+
+  2. É uma variação de algo que existe ou é algo novo?
+     - Variação (ex: filtro em listagem existente): adicionar parâmetros na
+       rota existente, não criar rota nova.
+     - Algo novo (ex: relatório, agregação): criar rota nova seguindo o padrão.
+
+  3. Exige mudança no banco? Se sim:
+     - Atualizar tabelas_do_banco.txt ANTES de codar
+     - Atualizar o model correspondente
+     - Atualizar o schema correspondente
+     - Só então criar/modificar a route
+
+  4. Quem pode acessar? Definir se é get_current_user ou exige_admin
+     antes de implementar.
+
+## PADRÃO DE ROTA NOVA
+
+Estrutura de arquivos a seguir:
+  models/     — define a tabela (SQLAlchemy)
+  schemas/    — define o que entra e o que sai (Pydantic)
+  routes/     — define os endpoints (FastAPI)
+
+Nunca pular etapas. Sempre model → schema → route.
+Registrar a nova route no main.py.
+
+Nomenclatura:
+  - Prefixo da rota: plural, minúsculo, sem acento (ex: /lancamentos/, /usuarios/)
+  - Funções: verbo + substantivo (ex: listar_lancamentos, criar_clifor)
+  - Models: PascalCase (ex: Lancamento, ClienteFornecedor)
+  - Schemas: PascalCase + sufixo Create/Update/Response (ex: LancamentoCreate)
+
+## PADRÃO DE FILTROS EM LISTAGEM
+
+Quando o frontend pedir filtro em uma listagem existente, o padrão é:
+query parameters opcionais na rota GET.
+
+Exemplo — filtro em /lancamento/:
+
+  @router.get("/", response_model=List[LancamentoResponse])
+  def listar_lancamentos(
+      natureza: Optional[str] = None,
+      id_clifor: Optional[int] = None,
+      data_inicio: Optional[date] = None,
+      data_fim: Optional[date] = None,
+      db: Session = Depends(get_db),
+      current_user = Depends(get_current_user)
+  ):
+      query = db.query(Lancamento)
+      if natureza:
+          query = query.filter(Lancamento.natureza_lancamento == natureza)
+      if id_clifor:
+          query = query.filter(Lancamento.id_clifor_relacionado_fk == id_clifor)
+      if data_inicio:
+          query = query.filter(Lancamento.data_vencimento >= data_inicio)
+      if data_fim:
+          query = query.filter(Lancamento.data_vencimento <= data_fim)
+      return query.all()
+
+Regras:
+  - Todos os filtros são opcionais (Optional + default None)
+  - Sem filtro = retorna tudo (comportamento atual preservado)
+  - Filtros se acumulam (AND implícito)
+  - Nunca criar rota separada só para filtrar — sempre parâmetros na rota existente
+
+## PADRÃO DE RESPOSTA DE ERRO
+
+Usar sempre HTTPException com status codes semânticos:
+  404 — recurso não encontrado
+  400 — dado inválido enviado pelo cliente
+  401 — não autenticado
+  403 — autenticado mas sem permissão
+  409 — conflito (ex: email já cadastrado)
+  500 — erro interno (deixar o FastAPI tratar automaticamente)
+
+Nunca retornar 200 com mensagem de erro no body.
+
+## PADRÃO DE COMUNICAÇÃO FRONTEND ↔ BACKEND
+
+O frontend sempre:
+  - Manda Authorization: Bearer <token> em todas as requisições autenticadas
+  - Recebe JSON
+  - Trata 401 redirecionando para tela de login
+  - Trata 403 mostrando mensagem de permissão insuficiente
+
+O backend sempre:
+  - Aceita e retorna JSON
+  - Nunca retorna o campo `senha` em nenhuma resposta
+  - Datas em ISO 8601 (ex: "2026-04-19T10:00:00")
+  - Decimais como string no JSON (comportamento padrão do Pydantic com DECIMAL)
+
+## ADICIONANDO CAMPO NOVO NO BANCO
+
+Checklist:
+  1. ALTER TABLE no pgAdmin
+  2. Atualizar tabelas_do_banco.txt
+  3. Atualizar model (models/)
+  4. Atualizar schemas/ (Create, Update e Response conforme necessário)
+  5. Testar com a bateria ou manualmente no Swagger
+  6. Atualizar fase_atual.txt se for pendência resolvida
+
+================================================================================

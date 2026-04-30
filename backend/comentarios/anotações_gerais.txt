@@ -1,0 +1,33 @@
+=========================================================
+Código SQL para perceber atividade no banco:
+=========================================================
+SELECT 'usuario' as tabela, COUNT(*) FROM usuario
+UNION ALL
+SELECT 'tipo_lancamento', COUNT(*) FROM tipo_conta
+UNION ALL
+SELECT 'clientefornecedor', COUNT(*) FROM clientefornecedor
+UNION ALL
+SELECT 'endereco', COUNT(*) FROM endereco
+UNION ALL
+SELECT 'contato', COUNT(*) FROM contato
+UNION ALL
+SELECT 'login', COUNT(*) FROM login
+UNION ALL
+SELECT 'lancamento', COUNT(*) FROM lancamento;
+
+=========================================================
+Email do admin para a bateria: opedroschvartz@gmail.com
+Senha do admin: senhaSecreta
+
+em: C:\Codigos\ANSI_Project_Desenvolvimento\routes\usuario.py
+
+com permissão de criar um administrador:
+@router.post("/", response_model=UsuarioResponse)
+def criar_usuario(dados: UsuarioCreate, db: Session = Depends(get_db), _=Depends(exige_admin)):
+
+Sem permissão de criar um administrador:
+@router.post("/", response_model=UsuarioResponse)
+def criar_usuario(dados: UsuarioCreate, db: Session = Depends(get_db)):
+
+=========================================================
+

@@ -1,0 +1,218 @@
+================================================================================
+  ANSI PROJECT — PLANO DE IMPLEMENTAÇÃO: MÓDULO DE NOTIFICAÇÕES
+================================================================================
+
+DATA: 2026-04-18
+STATUS: Planejado — não iniciado
+
+--------------------------------------------------------------------------------
+  VISÃO GERAL
+--------------------------------------------------------------------------------
+
+O sistema precisa se comunicar com usuários por dois canais:
+  - Email (Gmail via SMTP)
+  - Telegram (Bot API)
+
+O Telegram tem dois papéis distintos:
+  1. PORTEIRO: valida o número do morador e gerencia entrada/saída do grupo
+  2. BRAÇO: ferramenta do backend para envio de alertas e remoção de membros
+
+O Email serve para notificações transacionais (confirmações, alertas, etc.)
+
+--------------------------------------------------------------------------------
+  ESTRUTURA DE ARQUIVOS
+--------------------------------------------------------------------------------
+
+utils/
+├── email_sender.py          (já existe — ver seção abaixo)
+├── telegram_sender.py       (já existe — envio simples, base para o manager)
+├── telegram_manager.py      (CRIAR — braço do backend)
+└── notificador.py           (CRIAR — orquestrador unificado)
+
+Separado da API (script isolado):
+├── bot_service.py           (CRIAR — cérebro do Telegram, roda em polling)
+
+--------------------------------------------------------------------------------
+  REQUISITO DE BANCO DE DADOS
+--------------------------------------------------------------------------------
+
+A tabela `usuario` precisa de uma coluna nova:
+
+  telegram_id  VARCHAR(255) NULL  -- preenchida pelo bot_service no 1º contato
+
+Adicionar no banco:
+  ALTER TABLE usuario ADD COLUMN telegram_id VARCHAR(255) NULL;
+
+Adicionar no model models/usuario.py:
+  telegram_id = Column(String(255), nullable=True, default=None)
+
+Adicionar no schema schemas/usuario.py:
+  - UsuarioResponse: telegram_id: Optional[str] = None
+  - UsuarioUpdate: telegram_id: Optional[str] = None  (admin pode setar manualmente)
+
+--------------------------------------------------------------------------------
+  CREDENCIAIS — CONFIGURAÇÃO
+--------------------------------------------------------------------------------
+
+!! ATENÇÃO: Mover para variáveis de ambiente antes de produção !!
+
+Email (utils/email_sender.py):
+  remetente = "opedroschvartz@gmail.com"
+  senha = "<senha de app do Google>"
+  -- Para gerar a senha: https://myaccount.google.com/ > "Senha de app"
+  -- Requer autenticação de dois fatores ativa na conta Google
+
+Telegram:
+  TOKEN   = "8774446994:AAE3S4X9vAfU8ho3T7FKxotdFVRsM6jSF9Y"
+  CHAT_ID do grupo = (obter após criar o grupo e adicionar o bot como admin)
+  -- O bot precisa ser Administrador do grupo
+  -- Membros comuns: permissão de "Enviar Mensagens" DESATIVADA
+  -- Bot: permissão de "Enviar Mensagens" ATIVADA
+
+--------------------------------------------------------------------------------
+  ARQUIVO: utils/email_sender.py (já existe — ajustes necessários)
+--------------------------------------------------------------------------------
+
+Remover o código de exemplo no final do arquivo (as linhas soltas fora da função).
+Remover as variáveis globais soltas — mover para dentro da função ou para config.
+
+Interface final esperada:
+  enviar_email(destinatario: str, assunto: str, corpo: str) -> bool
+    - Retorna True se enviou, False se falhou
+    - Logar falha com logging.warning() em vez de print()
+
+--------------------------------------------------------------------------------
+  ARQUIVO: utils/telegram_manager.py (CRIAR)
+--------------------------------------------------------------------------------
+
+Responsabilidade: braço do backend. Não atende usuários, só executa ordens.
+
+Funções a implementar:
+
+  enviar_mensagem_grupo(mensagem: str) -> bool
+    - Envia mensagem HTML para o CHAT_ID do grupo oficial
+    - Retorna True se enviou, False se falhou
+    - Usar parse_mode="HTML"
+
+  remover_usuario_do_grupo(telegram_id: str) -> bool
+    - Bane e desbane o telegram_id do grupo (kick sem ban permanente)
+    - Sequência: banChatMember -> unbanChatMember (com only_if_banned=True)
+    - Retorna True se executou, False se falhou
+
+  enviar_mensagem_privada(telegram_id: str, mensagem: str) -> bool
+    - Envia mensagem direta para um usuário específico
+    - Útil para notificações individuais (suspensão, etc.)
+
+Base (já existe em telegram_sender.py):
+  TOKEN = "8774446994:AAE3S4X9vAfU8ho3T7FKxotdFVRsM6jSF9Y"
+  BASE_URL = f"https://api.telegram.org/bot{TOKEN}"
+
+--------------------------------------------------------------------------------
+  ARQUIVO: utils/notificador.py (CRIAR)
+--------------------------------------------------------------------------------
+
+Orquestrador único. O resto do código só chama isso.
+
+  def notificar_usuario(usuario, canal: str, assunto: str, mensagem: str) -> bool
+    canal pode ser: "email", "telegram", "ambos"
+    - "email": chama enviar_email(usuario.email, assunto, mensagem)
+    - "telegram": chama enviar_mensagem_privada(usuario.telegram_id, mensagem)
+                  Se telegram_id for None: loga warning e retorna False
+    - "ambos": chama os dois, retorna True só se ambos tiverem sucesso
+
+  def notificar_grupo(mensagem: str) -> bool
+    - Chama telegram_manager.enviar_mensagem_grupo(mensagem)
+    - Usar para alertas de emergência
+
+--------------------------------------------------------------------------------
+  ARQUIVO: bot_service.py (CRIAR — script isolado, NÃO é parte da API)
+--------------------------------------------------------------------------------
+
+Roda separado da API FastAPI, em processo próprio.
+Usa polling (loop infinito com getUpdates) — não precisa de webhook.
+
+Instalar: pip install pyTelegramBotAPI
+  import telebot
+
+Fluxo de entrada segura no grupo:
+
+  1. Morador inicia chat com o bot no privado
+  2. Bot responde pedindo o contato (botão nativo do Telegram)
+  3. Morador clica em "Compartilhar Contato"
+  4. Bot recebe o número de telefone
+  5. Bot consulta banco: busca usuario onde contato.info_do_contato == numero
+     (tabela contato, tipo "Telefone")
+  6. Se encontrado:
+       a. Salva telegram_id na tabela usuario
+       b. Tenta adicionar diretamente ao grupo via approveJoinRequest
+          ou envia link do grupo
+       c. Responde: "Acesso liberado!"
+  7. Se não encontrado:
+       a. Responde: "Número não encontrado no sistema."
+       b. NÃO envia link do grupo
+
+Fluxo de remoção (disparado pelo backend, não pelo bot):
+  - O backend chama telegram_manager.remover_usuario_do_grupo(telegram_id)
+  - O bot_service não participa desse fluxo
+
+Configuração do grupo:
+  - Grupo deve estar em modo "privado" (invite only)
+  - Bot deve ser administrador com permissão de adicionar membros
+  - Membros sem permissão de escrever (só o bot escreve)
+
+--------------------------------------------------------------------------------
+  INTEGRAÇÃO COM AS ROUTES EXISTENTES
+--------------------------------------------------------------------------------
+
+routes/usuario.py — DELETE /{id_usuario}:
+  Antes de deletar, se usuario.telegram_id não for None:
+    telegram_manager.remover_usuario_do_grupo(usuario.telegram_id)
+
+routes/usuario.py — PUT /{id_usuario} (suspensão/bloqueio):
+  Se bloqueado passar a True ou suspenso for definido:
+    notificador.notificar_usuario(usuario, canal="ambos",
+      assunto="Acesso suspenso",
+      mensagem="Seu acesso ao sistema foi suspenso.")
+    Se bloqueado: telegram_manager.remover_usuario_do_grupo(usuario.telegram_id)
+
+Alertas de emergência (quando implementado):
+  notificador.notificar_grupo("<b>EMERGÊNCIA:</b> mensagem aqui")
+
+--------------------------------------------------------------------------------
+  ORDEM DE IMPLEMENTAÇÃO RECOMENDADA
+--------------------------------------------------------------------------------
+
+1. ALTER TABLE usuario ADD COLUMN telegram_id (banco)
+2. Atualizar model e schema de usuario
+3. Ajustar utils/email_sender.py (limpar globals e print)
+4. Criar utils/telegram_manager.py
+5. Criar utils/notificador.py
+6. Testar email e telegram isoladamente
+7. Integrar nas routes (delete e suspensão)
+8. Criar bot_service.py por último (mais complexo, menos urgente)
+
+--------------------------------------------------------------------------------
+  DEPENDÊNCIAS PYTHON
+--------------------------------------------------------------------------------
+
+Já em uso:
+  requests (telegram_sender.py)
+  smtplib, email.mime (email_sender.py) — biblioteca padrão, sem instalar
+
+Instalar:
+  pip install pyTelegramBotAPI   (para bot_service.py)
+
+--------------------------------------------------------------------------------
+  OBSERVAÇÕES FINAIS
+--------------------------------------------------------------------------------
+
+- bot_service.py roda em processo separado — não bloqueia a API
+- Se o servidor reiniciar, bot_service.py precisa ser reiniciado manualmente
+  (considerar rodar como serviço do Windows ou task scheduler no deploy final)
+- telegram_id é preenchido pelo bot, não pelo cadastro manual — pode ser None
+  por muito tempo após o lançamento. O notificador.py deve tratar esse caso.
+- O grupo do Telegram é o canal de emergência — não usar para spam
+- Em produção: TOKEN e senha do email devem vir de variáveis de ambiente (.env)
+  pip install python-dotenv
+
+================================================================================
