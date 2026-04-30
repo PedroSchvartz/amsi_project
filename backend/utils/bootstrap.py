@@ -4,7 +4,7 @@ import os
 import secrets
 import string
 
-sys.path.append(os.getcwd())
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlalchemy.orm import Session
 from database import SessionLocal

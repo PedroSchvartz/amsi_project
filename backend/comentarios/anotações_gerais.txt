@@ -3,7 +3,7 @@ Código SQL para perceber atividade no banco:
 =========================================================
 SELECT 'usuario' as tabela, COUNT(*) FROM usuario
 UNION ALL
-SELECT 'tipo_lancamento', COUNT(*) FROM tipo_lancamento
+SELECT 'tipo_lancamento', COUNT(*) FROM tipo_conta
 UNION ALL
 SELECT 'clientefornecedor', COUNT(*) FROM clientefornecedor
 UNION ALL

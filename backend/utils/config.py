@@ -3,7 +3,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 # Caminho absoluto para o config.env na raiz do projeto
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 load_dotenv(BASE_DIR / "config.env")
 
 # Auth
