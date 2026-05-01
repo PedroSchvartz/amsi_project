@@ -15,27 +15,11 @@ _log_file_path: str = None
 
 
 def _init_log_file():
-    global _log_file_path
-    if _log_file_path is None:
-        os.makedirs("logs", exist_ok=True)
-        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        _log_file_path = f"logs/requests_{timestamp}.json"
-        with open(_log_file_path, "w", encoding="utf-8") as f:
-            json.dump([], f)
-    return _log_file_path
+    return None
 
 
 def _append_to_file(entry: dict):
-    path = _init_log_file()
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        data.append(entry)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        logging.warning(f"Falha ao salvar log de request: {e}")
-
+    pass  # Desativado no Vercel (sistema de arquivos read-only)
 
 # ── middleware ───────────────────────────────────────────────────────────────
 class RequestLoggerMiddleware(BaseHTTPMiddleware):
