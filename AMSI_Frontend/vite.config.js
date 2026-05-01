@@ -5,3 +5,12 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
 })
+
+export default defineConfig({
+  server: {
+    force: true, // ⚡ sempre regenera o cache ao iniciar
+  },
+  optimizeDeps: {
+    force: true, // 🔥 força re-bundle das deps sempre
+  },
+})

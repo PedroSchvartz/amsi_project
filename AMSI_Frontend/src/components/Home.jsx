@@ -41,6 +41,12 @@ function Home() {
                   Cadastrar
                 </Link>
               </li>
+
+              <li className="nav-item">
+                <Link className="nav-link" to="/lancamento/">
+                  Lancamentos
+                </Link>
+              </li>
             </ul>
 
             {/* Lado direito */}
