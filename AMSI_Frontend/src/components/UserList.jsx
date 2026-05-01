@@ -25,20 +25,15 @@ function UserList() {
     fetchUsers();
   }, []);
 
-  // ✏️ editar
   const handleEdit = (user) => {
     navigate(`/usuarios/editar/${user.id_usuario}`);
   };
 
-  // 🗑️ excluir
   const handleDelete = (id) => {
     const confirmDelete = window.confirm("Deseja excluir este usuário?");
     if (!confirmDelete) return;
 
     console.log("Excluir usuário:", id);
-
-    // depois você liga com API
-    // await deleteUser(id)
   };
 
   if (loading) return <p>Carregando...</p>;
@@ -56,7 +51,7 @@ function UserList() {
             <th>Email</th>
             <th>Cargo</th>
             <th>Perfil</th>
-            <th>Ações</th> {/* 🔥 NOVA COLUNA */}
+            <th>Ações</th>
           </tr>
         </thead>
 
@@ -68,8 +63,6 @@ function UserList() {
               <td>{user.email}</td>
               <td>{user.cargo}</td>
               <td>{user.perfil_de_acesso}</td>
-
-              {/* 🔥 BOTÕES */}
               <td className="d-flex gap-2">
                 <button
                   className="btn btn-sm btn-outline-primary"
@@ -85,7 +78,6 @@ function UserList() {
                   <i className="bi bi-trash"></i>
                 </button>
               </td>
-
             </tr>
           ))}
         </tbody>
