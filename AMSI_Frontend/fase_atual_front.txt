@@ -22,7 +22,7 @@ ESTRUTURA DE ARQUIVOS:
   ├── index.css
   ├── assets/
   ├── components/
-  │   ├── AdminRoute.jsx       — guard: exige perfil Administrador
+  │   ├── AdminRoute.jsx       — guard: exige perfil Administrador (lê JWT via isAdmin())
   │   ├── PrivateRoute.jsx     — guard: exige autenticação
   │   ├── Login.jsx
   │   ├── Home.jsx
@@ -36,6 +36,7 @@ ESTRUTURA DE ARQUIVOS:
   │   ├── ClientRegisterPage.jsx
   │   ├── UserListPage.jsx
   │   ├── UserRegisterPage.jsx
+  │   ├── TrocarSenhaPage.jsx      — fluxo de primeiro acesso
   │   ├── LancamentoPage.jsx       — ESQUELETO (sem lógica)
   │   └── ListaLancamentosPage.jsx — ESQUELETO (sem lógica)
   ├── services/
@@ -52,6 +53,7 @@ ESTRUTURA DE ARQUIVOS:
 
 ROTAS CONFIGURADAS (App.jsx):
   /                  → LoginPage           (pública)
+  /trocar-senha      → TrocarSenhaPage     (privada)
   /home              → HomePage            (privada)
   /usuarios          → UserListPage        (privada)
   /cliente_fornecedor → ClientRegisterPage (privada)
@@ -62,29 +64,38 @@ ROTAS CONFIGURADAS (App.jsx):
 AUTH (services/auth.js):
   - Token armazenado em localStorage
   - getUserFromToken() — decodifica JWT (atob)
-  - isAdmin() — verifica payload.perfil === "Administrador"
+  - isAdmin() — verifica payload.perfil === "Administrador" (lê do JWT, não do localStorage)
   - isAuthenticated() — valida token + expiração local
-  - logout() — limpa localStorage
+  - logout() — chama POST /auth/logout no backend antes de limpar localStorage
 
   ATENÇÃO: a expiração é validada apenas pelo payload JWT (exp).
   O header X-Session-Expires retornado pelo backend NÃO está sendo lido.
-  O fluxo de primeiro_acesso (troca de senha obrigatória) NÃO está implementado.
 
 API (services/api.js):
-  Cobertura completa de endpoints do backend:
+  Totalmente alinhado ao contrato real do backend (openapi_ai.yaml com request_body
+  e response_200). Cobertura completa de endpoints:
   - Auth: login, logout, trocar-senha
   - Usuários: CRUD + resetar-senha
-  - Cliente/Fornecedor: CRUD
+  - Cliente/Fornecedor: CRUD + resumo + filtros em getClifors
   - Endereço: CRUD + por-clifor
   - Contato: CRUD + por-clifor
   - Lançamento: CRUD + por-clifor + por-usuario + resumo (com filtros alinhados)
   - Tipo de Conta: CRUD
   - Login/Sessões: listagem + por-usuario
 
-  Filtros de getLancamentos alinhados ao backend:
-    id_clifor, id_tipo_conta, natureza, apenas_abertos, apenas_vencidos,
-    data_vencimento_de, data_vencimento_ate, data_lancamento_de,
-    data_lancamento_ate, estorno, valor_minimo, valor_maximo
+  handleResponse trata 401 com logout automático (exceto trocarSenha que usa
+  noLogout: true para exibir erro sem deslogar).
+
+  Campos corrigidos em relação à versão anterior:
+    - trocarSenha: nova_senha → senha_nova (alinhado ao backend)
+    - createUser: perfil → perfil_de_acesso (alinhado ao backend)
+    - detail array do FastAPI/Pydantic tratado corretamente (não exibe [object Object])
+
+ENUMS DO BANCO (fonte da verdade: tabelas_do_banco.txt):
+  cargo_enum:       'Diretor','Tesoureiro','Secretário','Conselheiro','Associado'
+  acesso_enum:      'Administrador','Consulta'
+  natureza_enum:    'Debito','Credito'
+  tipo_clifor_enum: 'C','F','A'
 
 --------------------------------------------------------------------------------
   PRÓXIMOS PASSOS IMEDIATOS
@@ -96,12 +107,7 @@ API (services/api.js):
 2. Implementar ListaLancamentosPage — tabela conectada com filtros funcionais
    (getLancamentos com todos os filtros disponíveis)
 
-3. Implementar fluxo de primeiro_acesso:
-   - Após login, verificar campo primeiro_acesso na resposta
-   - Se true → redirecionar para tela de troca de senha antes de /home
-   - Chamar trocarSenha() e só então liberar navegação
-
-4. Implementar leitura de X-Session-Expires:
+3. Implementar leitura de X-Session-Expires:
    - A cada response autenticado, ler o header e atualizar timer de sessão
    - Ao expirar sem atividade → logoutUser() + redirecionar para /
 

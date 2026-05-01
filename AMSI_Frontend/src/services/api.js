@@ -11,21 +11,28 @@ function authHeaders() {
 	};
 }
 
-async function handleResponse(response) {
+async function handleResponse(response, { noLogout = false } = {}) {
 	if (response.status === 401) {
-		logout();
-		window.location.href = '/';
-		return;
+		if (!noLogout) {
+			logout();
+			window.location.href = '/';
+			return;
+		}
 	}
 	if (!response.ok) {
 		const error = await response.json().catch(() => ({}));
-		throw new Error(error.detail || `Erro ${response.status}`);
+		const detail = error.detail;
+		const message = Array.isArray(detail)
+			? detail.map((e) => e.msg).join(', ')
+			: detail || `Erro ${response.status}`;
+		throw new Error(message);
 	}
 	return response.json();
 }
 
 // ======================
 // 🔐 AUTH
+// response POST /auth/token: { access_token, token_type, primeiro_acesso }
 // ======================
 
 export const loginUser = async (email, senha) => {
@@ -34,7 +41,6 @@ export const loginUser = async (email, senha) => {
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({ email, senha })
 	});
-
 	const data = await response.json();
 	if (!response.ok) {
 		const message = data?.detail?.[0]?.msg || 'Usuário ou Senha inválidos';
@@ -51,13 +57,14 @@ export const logoutUser = async () => {
 	return handleResponse(response);
 };
 
+// body: { senha_atual, senha_nova }
 export const trocarSenha = async ({ senha_atual, nova_senha }) => {
 	const response = await fetch(`${BASE_URL}/auth/trocar-senha`, {
 		method: 'POST',
 		headers: authHeaders(),
-		body: JSON.stringify({ senha_atual, nova_senha })
+		body: JSON.stringify({ senha_atual, senha_nova: nova_senha })
 	});
-	return handleResponse(response);
+	return handleResponse(response, { noLogout: true });
 };
 
 // ======================
@@ -80,6 +87,7 @@ export const getUser = async (id_usuario) => {
 	return handleResponse(response);
 };
 
+// body: { nome, email, cargo, perfil_de_acesso, notificacao? }
 export const createUser = async (data) => {
 	const response = await fetch(`${BASE_URL}/usuarios/`, {
 		method: 'POST',
@@ -87,10 +95,9 @@ export const createUser = async (data) => {
 		body: JSON.stringify({
 			nome: data.nome,
 			email: data.email,
-			senha: data.senha,
 			cargo: data.cargo,
-			perfil_de_acesso: data.perfil,
-			notificacao: false
+			perfil_de_acesso: data.perfil_de_acesso,
+			notificacao: data.notificacao ?? false
 		})
 	});
 	return handleResponse(response);
@@ -125,8 +132,17 @@ export const resetarSenhaUsuario = async (id_usuario) => {
 // 🏢 CLIENTE / FORNECEDOR
 // ======================
 
-export const getClifors = async () => {
-	const response = await fetch(`${BASE_URL}/cliente_fornecedor/`, {
+export const getClifors = async (filtros = {}) => {
+	const params = new URLSearchParams();
+	if (filtros.nome) params.append('nome', filtros.nome);
+	if (filtros.tipo_clifor) params.append('tipo_clifor', filtros.tipo_clifor);
+	if (filtros.ativo != null) params.append('ativo', filtros.ativo);
+	if (filtros.inadimplente != null) params.append('inadimplente', filtros.inadimplente);
+	if (filtros.apenas_pendentes != null) params.append('apenas_pendentes', filtros.apenas_pendentes);
+	if (filtros.pessoafisica_juridica != null)
+		params.append('pessoafisica_juridica', filtros.pessoafisica_juridica);
+	const query = params.toString() ? `?${params.toString()}` : '';
+	const response = await fetch(`${BASE_URL}/cliente_fornecedor/${query}`, {
 		method: 'GET',
 		headers: authHeaders()
 	});
@@ -141,6 +157,16 @@ export const getClifor = async (id_clifor) => {
 	return handleResponse(response);
 };
 
+export const getCliforResumo = async (id_clifor) => {
+	const response = await fetch(`${BASE_URL}/cliente_fornecedor/${id_clifor}/resumo`, {
+		method: 'GET',
+		headers: authHeaders()
+	});
+	return handleResponse(response);
+};
+
+// body: { pessoafisica_juridica, cpf_cnpj, rg_inscricaoestadual, nome, datanascimento,
+//         tipo_clifor ("C"|"F"|"A"), ativo?, inadimplente?, id_usuario_fk? }
 export const createClifor = async (data) => {
 	const response = await fetch(`${BASE_URL}/cliente_fornecedor/`, {
 		method: 'POST',
@@ -195,6 +221,8 @@ export const getEnderecosPorClifor = async (id_clifor) => {
 	return handleResponse(response);
 };
 
+// body: { id_clifor_fk, logradouro, numero, bairro, cidade, uf, cep,
+//         enderecoprimario?, complemento? }
 export const createEndereco = async (data) => {
 	const response = await fetch(`${BASE_URL}/endereco/`, {
 		method: 'POST',
@@ -249,6 +277,7 @@ export const getContatosPorClifor = async (id_clifor) => {
 	return handleResponse(response);
 };
 
+// body: { id_clifor_fk, tipocontato, info_do_contato, contato_principal? }
 export const createContato = async (data) => {
 	const response = await fetch(`${BASE_URL}/contato/`, {
 		method: 'POST',
@@ -280,18 +309,12 @@ export const deleteContato = async (id_contato) => {
 // ======================
 
 // Filtros disponíveis (todos opcionais):
-//   id_clifor            — number
-//   id_tipo_conta        — number
-//   natureza             — "Debito" | "Credito"
-//   apenas_abertos       — boolean
-//   apenas_vencidos      — boolean
-//   data_vencimento_de   — string ISO (YYYY-MM-DD)
-//   data_vencimento_ate  — string ISO (YYYY-MM-DD)
-//   data_lancamento_de   — string ISO (YYYY-MM-DD)
-//   data_lancamento_ate  — string ISO (YYYY-MM-DD)
-//   estorno              — boolean
-//   valor_minimo         — number
-//   valor_maximo         — number
+//   id_clifor, id_tipo_conta — number
+//   natureza — "Debito" | "Credito"
+//   apenas_abertos, apenas_vencidos, estorno — boolean
+//   data_vencimento_de, data_vencimento_ate,
+//   data_lancamento_de, data_lancamento_ate — string ISO (YYYY-MM-DD)
+//   valor_minimo, valor_maximo — number
 
 export const getLancamentos = async (filtros = {}) => {
 	const params = new URLSearchParams();
@@ -309,7 +332,6 @@ export const getLancamentos = async (filtros = {}) => {
 	if (filtros.estorno != null) params.append('estorno', filtros.estorno);
 	if (filtros.valor_minimo != null) params.append('valor_minimo', filtros.valor_minimo);
 	if (filtros.valor_maximo != null) params.append('valor_maximo', filtros.valor_maximo);
-
 	const query = params.toString() ? `?${params.toString()}` : '';
 	const response = await fetch(`${BASE_URL}/lancamento/${query}`, {
 		method: 'GET',
@@ -318,13 +340,15 @@ export const getLancamentos = async (filtros = {}) => {
 	return handleResponse(response);
 };
 
+// response: { total_a_receber, total_a_pagar, saldo_liquido,
+//             total_vencido_a_receber, total_vencido_a_pagar,
+//             quantidade_abertos, quantidade_vencidos }
 export const getLancamentosResumo = async (filtros = {}) => {
 	const params = new URLSearchParams();
 	if (filtros.id_clifor != null) params.append('id_clifor', filtros.id_clifor);
 	if (filtros.id_tipo_conta != null) params.append('id_tipo_conta', filtros.id_tipo_conta);
 	if (filtros.natureza) params.append('natureza', filtros.natureza);
 	if (filtros.apenas_abertos != null) params.append('apenas_abertos', filtros.apenas_abertos);
-	if (filtros.apenas_vencidos != null) params.append('apenas_vencidos', filtros.apenas_vencidos);
 	if (filtros.data_vencimento_de) params.append('data_vencimento_de', filtros.data_vencimento_de);
 	if (filtros.data_vencimento_ate)
 		params.append('data_vencimento_ate', filtros.data_vencimento_ate);
@@ -334,7 +358,6 @@ export const getLancamentosResumo = async (filtros = {}) => {
 	if (filtros.estorno != null) params.append('estorno', filtros.estorno);
 	if (filtros.valor_minimo != null) params.append('valor_minimo', filtros.valor_minimo);
 	if (filtros.valor_maximo != null) params.append('valor_maximo', filtros.valor_maximo);
-
 	const query = params.toString() ? `?${params.toString()}` : '';
 	const response = await fetch(`${BASE_URL}/lancamento/resumo${query}`, {
 		method: 'GET',
@@ -367,6 +390,8 @@ export const getLancamentosPorUsuario = async (id_usuario) => {
 	return handleResponse(response);
 };
 
+// body: { id_usuario_fk_lancamento, id_clifor_relacionado_fk, id_tipo_conta_fk,
+//         valor, data_vencimento, natureza_lancamento ("Debito"|"Credito"), observacao? }
 export const createLancamento = async (data) => {
 	const response = await fetch(`${BASE_URL}/lancamento/`, {
 		method: 'POST',
@@ -376,6 +401,8 @@ export const createLancamento = async (data) => {
 	return handleResponse(response);
 };
 
+// body: { id_usuario_fk_fechamento?, data_pagamento?, valor_pago?,
+//         multa?, juros?, observacao?, estorno? }
 export const fecharLancamento = async (id_lancamento, data) => {
 	const response = await fetch(`${BASE_URL}/lancamento/${id_lancamento}`, {
 		method: 'PUT',
@@ -405,14 +432,15 @@ export const getTiposConta = async () => {
 	return handleResponse(response);
 };
 
-export const getTipoConta = async (tipo_conta) => {
-	const response = await fetch(`${BASE_URL}/tipo_conta/${tipo_conta}`, {
+export const getTipoConta = async (id_tipo_conta) => {
+	const response = await fetch(`${BASE_URL}/tipo_conta/${id_tipo_conta}`, {
 		method: 'GET',
 		headers: authHeaders()
 	});
 	return handleResponse(response);
 };
 
+// body: { descricao_conta, natureza_conta ("Debito"|"Credito"), observacao? }
 export const createTipoConta = async (data) => {
 	const response = await fetch(`${BASE_URL}/tipo_conta/`, {
 		method: 'POST',
@@ -422,8 +450,8 @@ export const createTipoConta = async (data) => {
 	return handleResponse(response);
 };
 
-export const updateTipoConta = async (tipo_conta, data) => {
-	const response = await fetch(`${BASE_URL}/tipo_conta/${tipo_conta}`, {
+export const updateTipoConta = async (id_tipo_conta, data) => {
+	const response = await fetch(`${BASE_URL}/tipo_conta/${id_tipo_conta}`, {
 		method: 'PUT',
 		headers: authHeaders(),
 		body: JSON.stringify(data)
@@ -431,8 +459,8 @@ export const updateTipoConta = async (tipo_conta, data) => {
 	return handleResponse(response);
 };
 
-export const deleteTipoConta = async (tipo_conta) => {
-	const response = await fetch(`${BASE_URL}/tipo_conta/${tipo_conta}`, {
+export const deleteTipoConta = async (id_tipo_conta) => {
+	const response = await fetch(`${BASE_URL}/tipo_conta/${id_tipo_conta}`, {
 		method: 'DELETE',
 		headers: authHeaders()
 	});

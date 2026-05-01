@@ -1,84 +1,79 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import "../styles/login.css";
-import { loginUser } from "../services/api.js";
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import '../styles/login.css';
+import { loginUser } from '../services/api.js';
 
 function Login() {
-  const navigate = useNavigate();
-  const [email, setEmail] = useState("");
-  const [senha, setSenha] = useState("");
-  const [erro, setErro] = useState("");
+	const navigate = useNavigate();
+	const [email, setEmail] = useState('');
+	const [senha, setSenha] = useState('');
+	const [erro, setErro] = useState('');
 
-  const handleSubmit = async (e) => {
-  e.preventDefault();
+	const handleSubmit = async (e) => {
+		e.preventDefault();
 
-  try {
-    const data = await loginUser(email, senha);
+		try {
+			const data = await loginUser(email, senha);
 
-    const token = data.access_token || data.token;
+			const token = data.access_token || data.token;
 
-    if (!token) {
-      throw new Error("Token não recebido");
-    }
+			if (!token) {
+				throw new Error('Token não recebido');
+			}
 
-    // 🔐 salva token
-    localStorage.setItem("token", token);
-    localStorage.setItem("user", JSON.stringify(data));
+			localStorage.setItem('token', token);
 
-    // 🧠 tenta pegar expiração real do JWT
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      const exp = payload.exp * 1000; // converte para ms
+			try {
+				const payload = JSON.parse(atob(token.split('.')[1]));
+				localStorage.setItem('expiresAt', payload.exp * 1000);
+			} catch {
+				localStorage.setItem('expiresAt', Date.now() + 240 * 240 * 1000);
+			}
 
-      localStorage.setItem("expiresAt", exp);
-    } catch {
-      // fallback caso não seja JWT
-      const expiresIn = 240 * 240 * 1000; // 1 hora
-      const expiresAt = Date.now() + expiresIn;
+			if (data.primeiro_acesso) {
+				navigate('/trocar-senha');
+			} else {
+				navigate('/home');
+			}
+		} catch (err) {
+			setErro(err.message || 'Erro ao fazer login');
+		}
+	};
 
-      localStorage.setItem("expiresAt", expiresAt);
-    }
+	useEffect(() => {
+		if (erro) {
+			const timer = setTimeout(() => setErro(''), 3000);
+			return () => clearTimeout(timer);
+		}
+	}, [erro]);
 
-    navigate("/home");
-  } catch (err) {
-    setErro(err.message || "Erro ao fazer login");
-  }
-};
+	return (
+		<div className="login-container">
+			<div className="login-box">
+				<h2>Login</h2>
 
-  useEffect(() => {
-    if (erro) {
-      const timer = setTimeout(() => setErro(""), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [erro]);
+				<form onSubmit={handleSubmit}>
+					<input
+						type="email"
+						placeholder="Email"
+						value={email}
+						onChange={(e) => setEmail(e.target.value)}
+					/>
 
-  return (
-    <div className="login-container">
-      <div className="login-box">
-        <h2>Login</h2>
+					<input
+						type="password"
+						placeholder="Senha"
+						value={senha}
+						onChange={(e) => setSenha(e.target.value)}
+					/>
 
-        <form onSubmit={handleSubmit}>
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
+					<button type="submit">Entrar</button>
 
-          <input
-            type="password"
-            placeholder="Senha"
-            value={senha}
-            onChange={(e) => setSenha(e.target.value)}
-          />
-
-          <button type="submit">Entrar</button>
-
-          {erro && <p style={{ color: "red" }}>{erro}</p>}
-        </form>
-      </div>
-    </div>
-  );
+					{erro && <p style={{ color: 'red' }}>{erro}</p>}
+				</form>
+			</div>
+		</div>
+	);
 }
 
 export default Login;

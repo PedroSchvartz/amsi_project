@@ -1056,31 +1056,21 @@ if __name__ == "__main__":
 
     # ======================================================================
 
-    # os_termos_procurados=[
-    #     'AMSI',
-    #     'tipo_conta',
-    #     'tipo_conta',
-    #     'tipo_conta',
-    #     'tipo_conta',
-    #     'tipo_conta',
-    #     'tipo_conta',
-    #     "tipo_conta_fk",
-    #     'tipo_conta',
-    #     'tipo_conta',
-    #     'TipoConta',
-    # ]
+    os_termos_procurados=[
+        'openapi_ai',
+    ]
 
 
-    # lista = buscar_em_arquivos(
-    # termos_procurados=os_termos_procurados,
-    # base_dir="C:\Codigos",
-    # extensoes=['.py'],
-    # max_workers=10,
-    # sensivel=False   ,
-    # update_interval=0.5,
-    # exibir=2,   # ou 0,1, 2, 3 conforme quiser
-    # Salva=True  # ou False
-    # )
+    lista = buscar_em_arquivos(
+    termos_procurados=os_termos_procurados,
+    # base_dir="C:\C:\Codigos\AMSI_Project_Desenvolvimento\\backend",
+    extensoes=['.py'],
+    max_workers=10,
+    sensivel=True,
+    update_interval=0.5,
+    exibir=2,   # ou 0,1, 2, 3 conforme quiser
+    Salva=False  # ou False
+    )
 
     # Substituicao_dos_termos={
     #     'ansi': 'AMSI',

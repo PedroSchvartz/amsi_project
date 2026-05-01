@@ -1,28 +1,113 @@
 - endpoint: POST /auth/token
   descricao: Login
   parametros: []
+  request_body:
+    email:
+      tipo: string
+      obrigatorio: true
+    senha:
+      tipo: string
+      obrigatorio: true
+  response_200:
+    access_token:
+      tipo: string
+      obrigatorio: true
+    token_type:
+      tipo: string
+      obrigatorio: false
+      default: bearer
+    primeiro_acesso:
+      tipo: boolean
+      obrigatorio: false
+      default: false
   respostas:
   - '200'
   - '422'
 - endpoint: POST /auth/logout
   descricao: Logout
   parametros: []
+  request_body: null
+  response_200: null
   respostas:
   - '200'
 - endpoint: POST /auth/trocar-senha
   descricao: Trocar Senha
   parametros: []
+  request_body:
+    senha_atual:
+      tipo: string
+      obrigatorio: true
+    senha_nova:
+      tipo: string
+      obrigatorio: true
+  response_200: null
   respostas:
   - '200'
   - '422'
 - endpoint: GET /usuarios/
   descricao: Listar Usuarios
   parametros: []
+  request_body: null
+  response_200: {}
   respostas:
   - '200'
 - endpoint: POST /usuarios/
   descricao: Criar Usuario
   parametros: []
+  request_body:
+    nome:
+      tipo: string
+      obrigatorio: true
+    email:
+      tipo: string
+      obrigatorio: true
+    cargo:
+      tipo: CargoEnum
+      obrigatorio: true
+    perfil_de_acesso:
+      tipo: AcessoEnum
+      obrigatorio: true
+    notificacao:
+      tipo: boolean
+      obrigatorio: false
+      default: false
+  response_200:
+    id_usuario:
+      tipo: integer
+      obrigatorio: true
+    nome:
+      tipo: string
+      obrigatorio: true
+    email:
+      tipo: string
+      obrigatorio: true
+    cargo:
+      tipo: CargoEnum
+      obrigatorio: true
+    perfil_de_acesso:
+      tipo: AcessoEnum
+      obrigatorio: true
+    notificacao:
+      tipo: boolean
+      obrigatorio: true
+    suspenso:
+      tipo: desconhecido
+      obrigatorio: false
+    qtd_suspensao:
+      tipo: integer
+      obrigatorio: true
+    bloqueado:
+      tipo: boolean
+      obrigatorio: true
+    exclusao:
+      tipo: desconhecido
+      obrigatorio: false
+    data_cadastro:
+      tipo: string
+      obrigatorio: true
+    primeiro_acesso:
+      tipo: boolean
+      obrigatorio: true
   respostas:
   - '200'
   - '422'
@@ -33,6 +118,44 @@
     local: path
     obrigatorio: true
     tipo: integer
+  request_body: null
+  response_200:
+    id_usuario:
+      tipo: integer
+      obrigatorio: true
+    nome:
+      tipo: string
+      obrigatorio: true
+    email:
+      tipo: string
+      obrigatorio: true
+    cargo:
+      tipo: CargoEnum
+      obrigatorio: true
+    perfil_de_acesso:
+      tipo: AcessoEnum
+      obrigatorio: true
+    notificacao:
+      tipo: boolean
+      obrigatorio: true
+    suspenso:
+      tipo: desconhecido
+      obrigatorio: false
+    qtd_suspensao:
+      tipo: integer
+      obrigatorio: true
+    bloqueado:
+      tipo: boolean
+      obrigatorio: true
+    exclusao:
+      tipo: desconhecido
+      obrigatorio: false
+    data_cadastro:
+      tipo: string
+      obrigatorio: true
+    primeiro_acesso:
+      tipo: boolean
+      obrigatorio: true
   respostas:
   - '200'
   - '422'
@@ -43,6 +166,71 @@
     local: path
     obrigatorio: true
     tipo: integer
+  request_body:
+    nome:
+      tipo: desconhecido
+      obrigatorio: false
+    email:
+      tipo: desconhecido
+      obrigatorio: false
+    cargo:
+      tipo: desconhecido
+      obrigatorio: false
+    perfil_de_acesso:
+      tipo: desconhecido
+      obrigatorio: false
+    notificacao:
+      tipo: desconhecido
+      obrigatorio: false
+    suspenso:
+      tipo: desconhecido
+      obrigatorio: false
+    qtd_suspensao:
+      tipo: desconhecido
+      obrigatorio: false
+    bloqueado:
+      tipo: desconhecido
+      obrigatorio: false
+    exclusao:
+      tipo: desconhecido
+      obrigatorio: false
+  response_200:
+    id_usuario:
+      tipo: integer
+      obrigatorio: true
+    nome:
+      tipo: string
+      obrigatorio: true
+    email:
+      tipo: string
+      obrigatorio: true
+    cargo:
+      tipo: CargoEnum
+      obrigatorio: true
+    perfil_de_acesso:
+      tipo: AcessoEnum
+      obrigatorio: true
+    notificacao:
+      tipo: boolean
+      obrigatorio: true
+    suspenso:
+      tipo: desconhecido
+      obrigatorio: false
+    qtd_suspensao:
+      tipo: integer
+      obrigatorio: true
+    bloqueado:
+      tipo: boolean
+      obrigatorio: true
+    exclusao:
+      tipo: desconhecido
+      obrigatorio: false
+    data_cadastro:
+      tipo: string
+      obrigatorio: true
+    primeiro_acesso:
+      tipo: boolean
+      obrigatorio: true
   respostas:
   - '200'
   - '422'
@@ -53,6 +241,8 @@
     local: path
     obrigatorio: true
     tipo: integer
+  request_body: null
+  response_200: null
   respostas:
   - '200'
   - '422'
@@ -63,17 +253,56 @@
     local: path
     obrigatorio: true
     tipo: integer
+  request_body: null
+  response_200: null
   respostas:
   - '200'
   - '422'
 - endpoint: GET /login/
   descricao: Listar Logins
   parametros: []
+  request_body: null
+  response_200: {}
   respostas:
   - '200'
 - endpoint: POST /login/
   descricao: Registrar Login
   parametros: []
+  request_body:
+    id_usuario_fk:
+      tipo: integer
+      obrigatorio: true
+    dispositivo_logado:
+      tipo: string
+      obrigatorio: true
+    localizacao:
+      tipo: string
+      obrigatorio: true
+    navegador:
+      tipo: string
+      obrigatorio: true
+  response_200:
+    id_login:
+      tipo: integer
+      obrigatorio: true
+    data_login:
+      tipo: string
+      obrigatorio: true
+    data_logout:
+      tipo: desconhecido
+      obrigatorio: false
+    id_usuario_fk:
+      tipo: integer
+      obrigatorio: true
+    dispositivo_logado:
+      tipo: string
+      obrigatorio: true
+    localizacao:
+      tipo: string
+      obrigatorio: true
+    navegador:
+      tipo: string
+      obrigatorio: true
   respostas:
   - '200'
   - '422'
@@ -84,6 +313,29 @@
     local: path
     obrigatorio: true
     tipo: integer
+  request_body: null
+  response_200:
+    id_login:
+      tipo: integer
+      obrigatorio: true
+    data_login:
+      tipo: string
+      obrigatorio: true
+    data_logout:
+      tipo: desconhecido
+      obrigatorio: false
+    id_usuario_fk:
+      tipo: integer
+      obrigatorio: true
+    dispositivo_logado:
+      tipo: string
+      obrigatorio: true
+    localizacao:
+      tipo: string
+      obrigatorio: true
+    navegador:
+      tipo: string
+      obrigatorio: true
   respostas:
   - '200'
   - '422'
@@ -94,6 +346,32 @@
     local: path
     obrigatorio: true
     tipo: integer
+  request_body:
+    data_logout:
+      tipo: desconhecido
+      obrigatorio: false
+  response_200:
+    id_login:
+      tipo: integer
+      obrigatorio: true
+    data_login:
+      tipo: string
+      obrigatorio: true
+    data_logout:
+      tipo: desconhecido
+      obrigatorio: false
+    id_usuario_fk:
+      tipo: integer
+      obrigatorio: true
+    dispositivo_logado:
+      tipo: string
+      obrigatorio: true
+    localizacao:
+      tipo: string
+      obrigatorio: true
+    navegador:
+      tipo: string
+      obrigatorio: true
   respostas:
   - '200'
   - '422'
@@ -104,6 +382,8 @@
     local: path
     obrigatorio: true
     tipo: integer
+  request_body: null
+  response_200: null
   respostas:
   - '200'
   - '422'
@@ -114,17 +394,44 @@
     local: path
     obrigatorio: true
     tipo: integer
+  request_body: null
+  response_200: {}
   respostas:
   - '200'
   - '422'
 - endpoint: GET /tipo_conta/
   descricao: Listar Tipos
   parametros: []
+  request_body: null
+  response_200: {}
   respostas:
   - '200'
 - endpoint: POST /tipo_conta/
   descricao: Criar Tipo
   parametros: []
+  request_body:
+    descricao_conta:
+      tipo: string
+      obrigatorio: true
+    natureza_conta:
+      tipo: NaturezaEnum
+      obrigatorio: true
+    observacao:
+      tipo: desconhecido
+      obrigatorio: false
+  response_200:
+    id_tipo_conta:
+      tipo: integer
+      obrigatorio: true
+    descricao_conta:
+      tipo: string
+      obrigatorio: true
+    natureza_conta:
+      tipo: NaturezaEnum
+      obrigatorio: true
+    observacao:
+      tipo: desconhecido
+      obrigatorio: false
   respostas:
   - '200'
   - '422'
@@ -135,6 +442,20 @@
     local: path
     obrigatorio: true
     tipo: integer
+  request_body: null
+  response_200:
+    id_tipo_conta:
+      tipo: integer
+      obrigatorio: true
+    descricao_conta:
+      tipo: string
+      obrigatorio: true
+    natureza_conta:
+      tipo: NaturezaEnum
+      obrigatorio: true
+    observacao:
+      tipo: desconhecido
+      obrigatorio: false
   respostas:
   - '200'
   - '422'
@@ -145,6 +466,29 @@
     local: path
     obrigatorio: true
     tipo: integer
+  request_body:
+    descricao_conta:
+      tipo: desconhecido
+      obrigatorio: false
+    natureza_conta:
+      tipo: desconhecido
+      obrigatorio: false
+    observacao:
+      tipo: desconhecido
+      obrigatorio: false
+  response_200:
+    id_tipo_conta:
+      tipo: integer
+      obrigatorio: true
+    descricao_conta:
+      tipo: string
+      obrigatorio: true
+    natureza_conta:
+      tipo: NaturezaEnum
+      obrigatorio: true
+    observacao:
+      tipo: desconhecido
+      obrigatorio: false
   respostas:
   - '200'
   - '422'
@@ -155,6 +499,8 @@
     local: path
     obrigatorio: true
     tipo: integer
+  request_body: null
+  response_200: null
   respostas:
   - '200'
   - '422'
@@ -185,12 +531,75 @@
     local: query
     obrigatorio: false
     tipo: desconhecido
+  request_body: null
+  response_200: {}
   respostas:
   - '200'
   - '422'
 - endpoint: POST /cliente_fornecedor/
   descricao: Criar Clifor
   parametros: []
+  request_body:
+    id_usuario_fk:
+      tipo: desconhecido
+      obrigatorio: false
+    pessoafisica_juridica:
+      tipo: boolean
+      obrigatorio: true
+    cpf_cnpj:
+      tipo: string
+      obrigatorio: true
+    rg_inscricaoestadual:
+      tipo: string
+      obrigatorio: true
+    nome:
+      tipo: string
+      obrigatorio: true
+    datanascimento:
+      tipo: string
+      obrigatorio: true
+    tipo_clifor:
+      tipo: TipoCliForEnum
+      obrigatorio: true
+    ativo:
+      tipo: boolean
+      obrigatorio: false
+      default: true
+    inadimplente:
+      tipo: boolean
+      obrigatorio: false
+      default: false
+  response_200:
+    id_clifor:
+      tipo: integer
+      obrigatorio: true
+    id_usuario_fk:
+      tipo: desconhecido
+      obrigatorio: false
+    pessoafisica_juridica:
+      tipo: boolean
+      obrigatorio: true
+    cpf_cnpj:
+      tipo: string
+      obrigatorio: true
+    rg_inscricaoestadual:
+      tipo: string
+      obrigatorio: true
+    nome:
+      tipo: string
+      obrigatorio: true
+    datanascimento:
+      tipo: string
+      obrigatorio: true
+    tipo_clifor:
+      tipo: TipoCliForEnum
+      obrigatorio: true
+    ativo:
+      tipo: boolean
+      obrigatorio: true
+    inadimplente:
+      tipo: boolean
+      obrigatorio: true
   respostas:
   - '200'
   - '422'
@@ -201,6 +610,35 @@
     local: path
     obrigatorio: true
     tipo: integer
+  request_body: null
+  response_200:
+    id_clifor:
+      tipo: integer
+      obrigatorio: true
+    nome:
+      tipo: string
+      obrigatorio: true
+    total_a_receber:
+      tipo: string
+      obrigatorio: true
+    total_a_pagar:
+      tipo: string
+      obrigatorio: true
+    saldo_liquido:
+      tipo: string
+      obrigatorio: true
+    total_vencido_a_receber:
+      tipo: string
+      obrigatorio: true
+    total_vencido_a_pagar:
+      tipo: string
+      obrigatorio: true
+    quantidade_abertos:
+      tipo: integer
+      obrigatorio: true
+    quantidade_vencidos:
+      tipo: integer
+      obrigatorio: true
   respostas:
   - '200'
   - '422'
@@ -211,6 +649,38 @@
     local: path
     obrigatorio: true
     tipo: integer
+  request_body: null
+  response_200:
+    id_clifor:
+      tipo: integer
+      obrigatorio: true
+    id_usuario_fk:
+      tipo: desconhecido
+      obrigatorio: false
+    pessoafisica_juridica:
+      tipo: boolean
+      obrigatorio: true
+    cpf_cnpj:
+      tipo: string
+      obrigatorio: true
+    rg_inscricaoestadual:
+      tipo: string
+      obrigatorio: true
+    nome:
+      tipo: string
+      obrigatorio: true
+    datanascimento:
+      tipo: string
+      obrigatorio: true
+    tipo_clifor:
+      tipo: TipoCliForEnum
+      obrigatorio: true
+    ativo:
+      tipo: boolean
+      obrigatorio: true
+    inadimplente:
+      tipo: boolean
+      obrigatorio: true
   respostas:
   - '200'
   - '422'
@@ -221,6 +691,65 @@
     local: path
     obrigatorio: true
     tipo: integer
+  request_body:
+    id_usuario_fk:
+      tipo: desconhecido
+      obrigatorio: false
+    pessoafisica_juridica:
+      tipo: desconhecido
+      obrigatorio: false
+    cpf_cnpj:
+      tipo: desconhecido
+      obrigatorio: false
+    rg_inscricaoestadual:
+      tipo: desconhecido
+      obrigatorio: false
+    nome:
+      tipo: desconhecido
+      obrigatorio: false
+    datanascimento:
+      tipo: desconhecido
+      obrigatorio: false
+    tipo_clifor:
+      tipo: desconhecido
+      obrigatorio: false
+    ativo:
+      tipo: desconhecido
+      obrigatorio: false
+    inadimplente:
+      tipo: desconhecido
+      obrigatorio: false
+  response_200:
+    id_clifor:
+      tipo: integer
+      obrigatorio: true
+    id_usuario_fk:
+      tipo: desconhecido
+      obrigatorio: false
+    pessoafisica_juridica:
+      tipo: boolean
+      obrigatorio: true
+    cpf_cnpj:
+      tipo: string
+      obrigatorio: true
+    rg_inscricaoestadual:
+      tipo: string
+      obrigatorio: true
+    nome:
+      tipo: string
+      obrigatorio: true
+    datanascimento:
+      tipo: string
+      obrigatorio: true
+    tipo_clifor:
+      tipo: TipoCliForEnum
+      obrigatorio: true
+    ativo:
+      tipo: boolean
+      obrigatorio: true
+    inadimplente:
+      tipo: boolean
+      obrigatorio: true
   respostas:
   - '200'
   - '422'
@@ -231,17 +760,81 @@
     local: path
     obrigatorio: true
     tipo: integer
+  request_body: null
+  response_200: null
   respostas:
   - '200'
   - '422'
 - endpoint: GET /endereco/
   descricao: Listar Enderecos
   parametros: []
+  request_body: null
+  response_200: {}
   respostas:
   - '200'
 - endpoint: POST /endereco/
   descricao: Criar Endereco
   parametros: []
+  request_body:
+    id_clifor_fk:
+      tipo: integer
+      obrigatorio: true
+    enderecoprimario:
+      tipo: boolean
+      obrigatorio: false
+      default: false
+    logradouro:
+      tipo: string
+      obrigatorio: true
+    numero:
+      tipo: string
+      obrigatorio: true
+    complemento:
+      tipo: desconhecido
+      obrigatorio: false
+    bairro:
+      tipo: string
+      obrigatorio: true
+    cidade:
+      tipo: string
+      obrigatorio: true
+    uf:
+      tipo: string
+      obrigatorio: true
+    cep:
+      tipo: string
+      obrigatorio: true
+  response_200:
+    id_endereco:
+      tipo: integer
+      obrigatorio: true
+    id_clifor_fk:
+      tipo: integer
+      obrigatorio: true
+    enderecoprimario:
+      tipo: boolean
+      obrigatorio: true
+    logradouro:
+      tipo: string
+      obrigatorio: true
+    numero:
+      tipo: string
+      obrigatorio: true
+    complemento:
+      tipo: desconhecido
+      obrigatorio: false
+    bairro:
+      tipo: string
+      obrigatorio: true
+    cidade:
+      tipo: string
+      obrigatorio: true
+    uf:
+      tipo: string
+      obrigatorio: true
+    cep:
+      tipo: string
+      obrigatorio: true
   respostas:
   - '200'
   - '422'
@@ -252,6 +845,38 @@
     local: path
     obrigatorio: true
     tipo: integer
+  request_body: null
+  response_200:
+    id_endereco:
+      tipo: integer
+      obrigatorio: true
+    id_clifor_fk:
+      tipo: integer
+      obrigatorio: true
+    enderecoprimario:
+      tipo: boolean
+      obrigatorio: true
+    logradouro:
+      tipo: string
+      obrigatorio: true
+    numero:
+      tipo: string
+      obrigatorio: true
+    complemento:
+      tipo: desconhecido
+      obrigatorio: false
+    bairro:
+      tipo: string
+      obrigatorio: true
+    cidade:
+      tipo: string
+      obrigatorio: true
+    uf:
+      tipo: string
+      obrigatorio: true
+    cep:
+      tipo: string
+      obrigatorio: true
   respostas:
   - '200'
   - '422'
@@ -262,6 +887,62 @@
     local: path
     obrigatorio: true
     tipo: integer
+  request_body:
+    enderecoprimario:
+      tipo: desconhecido
+      obrigatorio: false
+    logradouro:
+      tipo: desconhecido
+      obrigatorio: false
+    numero:
+      tipo: desconhecido
+      obrigatorio: false
+    complemento:
+      tipo: desconhecido
+      obrigatorio: false
+    bairro:
+      tipo: desconhecido
+      obrigatorio: false
+    cidade:
+      tipo: desconhecido
+      obrigatorio: false
+    uf:
+      tipo: desconhecido
+      obrigatorio: false
+    cep:
+      tipo: desconhecido
+      obrigatorio: false
+  response_200:
+    id_endereco:
+      tipo: integer
+      obrigatorio: true
+    id_clifor_fk:
+      tipo: integer
+      obrigatorio: true
+    enderecoprimario:
+      tipo: boolean
+      obrigatorio: true
+    logradouro:
+      tipo: string
+      obrigatorio: true
+    numero:
+      tipo: string
+      obrigatorio: true
+    complemento:
+      tipo: desconhecido
+      obrigatorio: false
+    bairro:
+      tipo: string
+      obrigatorio: true
+    cidade:
+      tipo: string
+      obrigatorio: true
+    uf:
+      tipo: string
+      obrigatorio: true
+    cep:
+      tipo: string
+      obrigatorio: true
   respostas:
   - '200'
   - '422'
@@ -272,6 +953,8 @@
     local: path
     obrigatorio: true
     tipo: integer
+  request_body: null
+  response_200: null
   respostas:
   - '200'
   - '422'
@@ -282,17 +965,51 @@
     local: path
     obrigatorio: true
     tipo: integer
+  request_body: null
+  response_200: {}
   respostas:
   - '200'
   - '422'
 - endpoint: GET /contato/
   descricao: Listar Contatos
   parametros: []
+  request_body: null
+  response_200: {}
   respostas:
   - '200'
 - endpoint: POST /contato/
   descricao: Criar Contato
   parametros: []
+  request_body:
+    id_clifor_fk:
+      tipo: integer
+      obrigatorio: true
+    tipocontato:
+      tipo: string
+      obrigatorio: true
+    info_do_contato:
+      tipo: string
+      obrigatorio: true
+    contato_principal:
+      tipo: boolean
+      obrigatorio: false
+      default: false
+  response_200:
+    id_contato:
+      tipo: integer
+      obrigatorio: true
+    id_clifor_fk:
+      tipo: integer
+      obrigatorio: true
+    tipocontato:
+      tipo: string
+      obrigatorio: true
+    info_do_contato:
+      tipo: string
+      obrigatorio: true
+    contato_principal:
+      tipo: boolean
+      obrigatorio: true
   respostas:
   - '200'
   - '422'
@@ -303,6 +1020,23 @@
     local: path
     obrigatorio: true
     tipo: integer
+  request_body: null
+  response_200:
+    id_contato:
+      tipo: integer
+      obrigatorio: true
+    id_clifor_fk:
+      tipo: integer
+      obrigatorio: true
+    tipocontato:
+      tipo: string
+      obrigatorio: true
+    info_do_contato:
+      tipo: string
+      obrigatorio: true
+    contato_principal:
+      tipo: boolean
+      obrigatorio: true
   respostas:
   - '200'
   - '422'
@@ -313,6 +1047,32 @@
     local: path
     obrigatorio: true
     tipo: integer
+  request_body:
+    tipocontato:
+      tipo: desconhecido
+      obrigatorio: false
+    info_do_contato:
+      tipo: desconhecido
+      obrigatorio: false
+    contato_principal:
+      tipo: desconhecido
+      obrigatorio: false
+  response_200:
+    id_contato:
+      tipo: integer
+      obrigatorio: true
+    id_clifor_fk:
+      tipo: integer
+      obrigatorio: true
+    tipocontato:
+      tipo: string
+      obrigatorio: true
+    info_do_contato:
+      tipo: string
+      obrigatorio: true
+    contato_principal:
+      tipo: boolean
+      obrigatorio: true
   respostas:
   - '200'
   - '422'
@@ -323,6 +1083,8 @@
     local: path
     obrigatorio: true
     tipo: integer
+  request_body: null
+  response_200: null
   respostas:
   - '200'
   - '422'
@@ -333,6 +1095,8 @@
     local: path
     obrigatorio: true
     tipo: integer
+  request_body: null
+  response_200: {}
   respostas:
   - '200'
   - '422'
@@ -383,6 +1147,29 @@
     local: query
     obrigatorio: false
     tipo: desconhecido
+  request_body: null
+  response_200:
+    total_a_receber:
+      tipo: string
+      obrigatorio: true
+    total_a_pagar:
+      tipo: string
+      obrigatorio: true
+    saldo_liquido:
+      tipo: string
+      obrigatorio: true
+    total_vencido_a_receber:
+      tipo: string
+      obrigatorio: true
+    total_vencido_a_pagar:
+      tipo: string
+      obrigatorio: true
+    quantidade_abertos:
+      tipo: integer
+      obrigatorio: true
+    quantidade_vencidos:
+      tipo: integer
+      obrigatorio: true
   respostas:
   - '200'
   - '422'
@@ -437,12 +1224,82 @@
     local: query
     obrigatorio: false
     tipo: desconhecido
+  request_body: null
+  response_200: {}
   respostas:
   - '200'
   - '422'
 - endpoint: POST /lancamento/
   descricao: Criar Lancamento
   parametros: []
+  request_body:
+    id_usuario_fk_lancamento:
+      tipo: integer
+      obrigatorio: true
+    id_clifor_relacionado_fk:
+      tipo: integer
+      obrigatorio: true
+    id_tipo_conta_fk:
+      tipo: integer
+      obrigatorio: true
+    valor:
+      tipo: desconhecido
+      obrigatorio: true
+    data_vencimento:
+      tipo: string
+      obrigatorio: true
+    natureza_lancamento:
+      tipo: NaturezaEnum
+      obrigatorio: true
+    observacao:
+      tipo: desconhecido
+      obrigatorio: false
+  response_200:
+    id_lancamento:
+      tipo: integer
+      obrigatorio: true
+    id_usuario_fk_lancamento:
+      tipo: integer
+      obrigatorio: true
+    id_clifor_relacionado_fk:
+      tipo: integer
+      obrigatorio: true
+    id_tipo_conta_fk:
+      tipo: integer
+      obrigatorio: true
+    data_lancamento:
+      tipo: string
+      obrigatorio: true
+    valor:
+      tipo: string
+      obrigatorio: true
+    data_vencimento:
+      tipo: string
+      obrigatorio: true
+    multa:
+      tipo: desconhecido
+      obrigatorio: false
+    juros:
+      tipo: desconhecido
+      obrigatorio: false
+    id_usuario_fk_fechamento:
+      tipo: desconhecido
+      obrigatorio: false
+    data_pagamento:
+      tipo: desconhecido
+      obrigatorio: false
+    valor_pago:
+      tipo: desconhecido
+      obrigatorio: false
+    observacao:
+      tipo: desconhecido
+      obrigatorio: false
+    natureza_lancamento:
+      tipo: NaturezaEnum
+      obrigatorio: true
+    estorno:
+      tipo: boolean
+      obrigatorio: true
   respostas:
   - '200'
   - '422'
@@ -453,6 +1310,53 @@
     local: path
     obrigatorio: true
     tipo: integer
+  request_body: null
+  response_200:
+    id_lancamento:
+      tipo: integer
+      obrigatorio: true
+    id_usuario_fk_lancamento:
+      tipo: integer
+      obrigatorio: true
+    id_clifor_relacionado_fk:
+      tipo: integer
+      obrigatorio: true
+    id_tipo_conta_fk:
+      tipo: integer
+      obrigatorio: true
+    data_lancamento:
+      tipo: string
+      obrigatorio: true
+    valor:
+      tipo: string
+      obrigatorio: true
+    data_vencimento:
+      tipo: string
+      obrigatorio: true
+    multa:
+      tipo: desconhecido
+      obrigatorio: false
+    juros:
+      tipo: desconhecido
+      obrigatorio: false
+    id_usuario_fk_fechamento:
+      tipo: desconhecido
+      obrigatorio: false
+    data_pagamento:
+      tipo: desconhecido
+      obrigatorio: false
+    valor_pago:
+      tipo: desconhecido
+      obrigatorio: false
+    observacao:
+      tipo: desconhecido
+      obrigatorio: false
+    natureza_lancamento:
+      tipo: NaturezaEnum
+      obrigatorio: true
+    estorno:
+      tipo: boolean
+      obrigatorio: true
   respostas:
   - '200'
   - '422'
@@ -463,6 +1367,74 @@
     local: path
     obrigatorio: true
     tipo: integer
+  request_body:
+    id_usuario_fk_fechamento:
+      tipo: desconhecido
+      obrigatorio: false
+    data_pagamento:
+      tipo: desconhecido
+      obrigatorio: false
+    valor_pago:
+      tipo: desconhecido
+      obrigatorio: false
+    multa:
+      tipo: desconhecido
+      obrigatorio: false
+    juros:
+      tipo: desconhecido
+      obrigatorio: false
+    observacao:
+      tipo: desconhecido
+      obrigatorio: false
+    estorno:
+      tipo: desconhecido
+      obrigatorio: false
+  response_200:
+    id_lancamento:
+      tipo: integer
+      obrigatorio: true
+    id_usuario_fk_lancamento:
+      tipo: integer
+      obrigatorio: true
+    id_clifor_relacionado_fk:
+      tipo: integer
+      obrigatorio: true
+    id_tipo_conta_fk:
+      tipo: integer
+      obrigatorio: true
+    data_lancamento:
+      tipo: string
+      obrigatorio: true
+    valor:
+      tipo: string
+      obrigatorio: true
+    data_vencimento:
+      tipo: string
+      obrigatorio: true
+    multa:
+      tipo: desconhecido
+      obrigatorio: false
+    juros:
+      tipo: desconhecido
+      obrigatorio: false
+    id_usuario_fk_fechamento:
+      tipo: desconhecido
+      obrigatorio: false
+    data_pagamento:
+      tipo: desconhecido
+      obrigatorio: false
+    valor_pago:
+      tipo: desconhecido
+      obrigatorio: false
+    observacao:
+      tipo: desconhecido
+      obrigatorio: false
+    natureza_lancamento:
+      tipo: NaturezaEnum
+      obrigatorio: true
+    estorno:
+      tipo: boolean
+      obrigatorio: true
   respostas:
   - '200'
   - '422'
@@ -473,6 +1445,8 @@
     local: path
     obrigatorio: true
     tipo: integer
+  request_body: null
+  response_200: null
   respostas:
   - '200'
   - '422'
@@ -483,6 +1457,8 @@
     local: path
     obrigatorio: true
     tipo: integer
+  request_body: null
+  response_200: {}
   respostas:
   - '200'
   - '422'
@@ -493,21 +1469,29 @@
     local: path
     obrigatorio: true
     tipo: integer
+  request_body: null
+  response_200: {}
   respostas:
   - '200'
   - '422'
 - endpoint: GET /logs/
   descricao: Listar Logs
   parametros: []
+  request_body: null
+  response_200: {}
   respostas:
   - '200'
 - endpoint: GET /logs/ui
   descricao: Logs Ui
   parametros: []
+  request_body: null
+  response_200: null
   respostas:
   - '200'
 - endpoint: GET /
   descricao: Root
   parametros: []
+  request_body: null
+  response_200: null
   respostas:
   - '200'
