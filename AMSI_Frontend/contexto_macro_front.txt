@@ -1,0 +1,160 @@
+================================================================================
+  AMSI PROJECT — FRONTEND CONTEXTO MACRO
+================================================================================
+
+NOME DO PROJETO: AMSI Project
+DESCRIÇÃO: Sistema de gestão financeira para associação de moradores.
+           TCC do Pedro com aplicação real — não é exercício acadêmico.
+STATUS: Backend MVP finalizado. Frontend em desenvolvimento.
+
+--------------------------------------------------------------------------------
+  STACK
+--------------------------------------------------------------------------------
+
+Frontend : React.js + Vite
+Backend  : FastAPI (Python) + PostgreSQL 17.4 — FINALIZADO, não mexer
+Auth     : JWT próprio (implementado no backend)
+Deploy   : Vercel (frontend)
+API Base : https://amsi-project-chzs.vercel.app
+
+--------------------------------------------------------------------------------
+  ATENÇÃO — ARQUIVOS ÓRFÃOS
+--------------------------------------------------------------------------------
+
+A pasta AMSI_Frontend contém resquícios de scaffolding SvelteKit:
+  .svelte-kit/, svelte.config.js, vite.config.ts, static/, tsconfig.json
+
+O projeto roda em React — ignorar esses arquivos completamente.
+
+--------------------------------------------------------------------------------
+  ESTRUTURA DO FRONTEND
+--------------------------------------------------------------------------------
+
+Caminho  : C:\Codigos\ANSI_Project_Desenvolvimento\AMSI_Frontend
+
+AMSI_Frontend
+├── public/
+│   ├── favicon.svg
+│   └── icons.svg
+├── src/
+│   ├── App.jsx                  — roteamento principal
+│   ├── main.jsx                 — entry point
+│   ├── index.css
+│   ├── assets/
+│   ├── components/              — componentes reutilizáveis
+│   │   ├── AdminRoute.jsx       — proteção de rota admin
+│   │   ├── PrivateRoute.jsx     — proteção de rota autenticada
+│   │   ├── ClientRegister.jsx
+│   │   ├── Home.jsx             — usado diretamente na rota /home (sem wrapper Page)
+│   │   ├── Login.jsx
+│   │   ├── News.jsx
+│   │   ├── UserList.jsx
+│   │   └── UserRegister.jsx
+│   ├── pages/                   — wrappers de página (um por rota)
+│   │   ├── ClientRegisterPage.jsx
+│   │   ├── HomePage.jsx         — existe mas NÃO está em uso (App.jsx usa Home.jsx direto)
+│   │   ├── LancamentoPage.jsx
+│   │   ├── ListaLancamentosPage.jsx
+│   │   ├── LoginPage.jsx
+│   │   ├── UserListPage.jsx
+│   │   └── UserRegisterPage.jsx
+│   ├── services/                — camada de comunicação com a API
+│   │   ├── api.js               — todas as chamadas HTTP
+│   │   └── auth.js              — token, sessão, logout
+│   └── styles/                  — CSS por componente
+│       ├── Lancamento.css
+│       ├── ListaLancamentos.css
+│       ├── clientRegister.css
+│       ├── home.css
+│       ├── login.css
+│       ├── userList.css
+│       └── userregister.css
+├── vite.config.js
+├── package.json
+└── contexto_macro.txt           — este arquivo
+
+--------------------------------------------------------------------------------
+  CONTRATO COM O BACKEND
+--------------------------------------------------------------------------------
+
+Fonte da verdade da API: openapi_ai.yaml (raiz do projeto)
+Swagger local: /docs (backend rodando)
+
+Fluxo de autenticação (implementado):
+  1. POST /auth/token → recebe { access_token, primeiro_acesso }
+  2. Token armazenado em localStorage
+  3. Se receber 401 → handleResponse() em api.js chama logout() e redireciona para /
+
+Fluxo de autenticação (PENDENTE — não implementado):
+  - Se primeiro_acesso == true → redirecionar para tela de troca de senha
+  - POST /auth/trocar-senha com token no header
+  - Leitura do header X-Session-Expires a cada response autenticado
+  - Timer de inatividade → POST /auth/logout + redirecionar para /
+
+ATENÇÃO — logout atual:
+  - logout() em auth.js faz localStorage.clear() mas NÃO chama POST /auth/logout
+  - O token permanece válido no backend até expirar naturalmente
+  - Corrigir: logout manual deve chamar logoutUser() da api.js antes de limpar localStorage
+
+Regras de contrato (o backend sempre):
+  - Aceita e retorna JSON
+  - Nunca retorna o campo `senha`
+  - Datas em ISO 8601 (ex: "2026-04-19T10:00:00")
+  - Decimais como string no JSON
+
+O frontend sempre:
+  - Manda Authorization: Bearer <token> em todas as requisições autenticadas
+  - Trata 401 → redireciona para login (já implementado em handleResponse)
+  - Trata 403 → exibe mensagem de permissão insuficiente
+
+ENUMs relevantes (vindos do banco):
+  - natureza_enum: "Debito" / "Credito" (sem acento)
+  - tipo_clifor_enum: "C" / "F" / "A"
+
+--------------------------------------------------------------------------------
+  CONVENÇÕES DO FRONTEND
+--------------------------------------------------------------------------------
+
+Nomenclatura:
+  - Componentes: PascalCase (ex: LancamentoForm, ClienteList)
+  - Pages: PascalCase + sufixo Page (ex: LancamentoPage)
+  - Services: camelCase, agrupados por domínio em api.js
+  - Estilos: arquivo CSS por componente, mesmo nome (ex: Lancamento.css)
+  - Variáveis de domínio: português (seguindo o backend)
+
+Padrões de estrutura:
+  - Lógica de negócio e chamadas HTTP ficam nos services/
+  - Componentes não chamam fetch diretamente — usam services/api.js
+  - Pages são wrappers leves — não contêm lógica pesada
+  - Rotas protegidas usam PrivateRoute ou AdminRoute
+
+Antes de criar componente novo:
+  1. Verificar se já existe algo aproveitável em components/
+  2. Verificar se a rota da API já existe em openapi_ai.yaml
+  3. Verificar se o serviço já está em services/api.js
+
+--------------------------------------------------------------------------------
+  COMO ENVIAR CONTEXTO PARA NOVO CHAT
+--------------------------------------------------------------------------------
+
+Enviar na ordem:
+  1. meu_perfil_de_trabalho_verde.txt
+  2. contexto_macro.txt (este arquivo)
+  3. fase_atual.txt
+  4. App.jsx
+  5. services/api.js + services/auth.js
+  6. Componente/page específico do que for trabalhar
+
+--------------------------------------------------------------------------------
+  BACKEND — REFERÊNCIA (NÃO MODIFICAR)
+--------------------------------------------------------------------------------
+
+O backend está finalizado para o MVP. Qualquer necessidade nova do frontend
+que exija mudança no backend deve ser discutida antes de implementar.
+
+Stack: FastAPI + PostgreSQL 17.4 + SQLAlchemy + JWT com bcrypt
+Caminho: C:\Codigos\ANSI_Project_Desenvolvimento\backend
+Testes: 95/95 passando (pytest tests/)
+Admin permanente: opedroschvartz@gmail.com, id=5 — nunca deletar
+
+================================================================================

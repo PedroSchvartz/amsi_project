@@ -1,0 +1,120 @@
+================================================================================
+  AMSI PROJECT — FASE ATUAL FRONTEND
+================================================================================
+
+DATA: 2026-05-01
+STACK: React + Vite (JSX) — hospedado na Vercel
+REPOSITÓRIO FRONTEND: AMSI_Frontend/
+BASE_URL da API: https://amsi-project-chzs.vercel.app
+
+ATENÇÃO: A pasta AMSI_Frontend contém arquivos de configuração SvelteKit
+(.svelte-kit/, svelte.config.js, vite.config.ts) que são resquícios do
+scaffolding inicial. O projeto roda em React — ignorar esses arquivos.
+
+--------------------------------------------------------------------------------
+  O QUE ESTÁ IMPLEMENTADO
+--------------------------------------------------------------------------------
+
+ESTRUTURA DE ARQUIVOS:
+  src/
+  ├── App.jsx              — roteamento completo (react-router-dom)
+  ├── main.jsx
+  ├── index.css
+  ├── assets/
+  ├── components/
+  │   ├── AdminRoute.jsx       — guard: exige perfil Administrador
+  │   ├── PrivateRoute.jsx     — guard: exige autenticação
+  │   ├── Login.jsx
+  │   ├── Home.jsx
+  │   ├── ClientRegister.jsx
+  │   ├── UserList.jsx
+  │   ├── UserRegister.jsx
+  │   └── News.jsx
+  ├── pages/
+  │   ├── LoginPage.jsx
+  │   ├── HomePage.jsx
+  │   ├── ClientRegisterPage.jsx
+  │   ├── UserListPage.jsx
+  │   ├── UserRegisterPage.jsx
+  │   ├── LancamentoPage.jsx       — ESQUELETO (sem lógica)
+  │   └── ListaLancamentosPage.jsx — ESQUELETO (sem lógica)
+  ├── services/
+  │   ├── api.js           — todas as chamadas HTTP ao backend
+  │   └── auth.js          — token JWT (localStorage), isAdmin, isAuthenticated
+  └── styles/
+      ├── home.css
+      ├── login.css
+      ├── clientRegister.css
+      ├── userList.css
+      ├── userregister.css
+      ├── Lancamento.css
+      └── ListaLancamentos.css
+
+ROTAS CONFIGURADAS (App.jsx):
+  /                  → LoginPage           (pública)
+  /home              → HomePage            (privada)
+  /usuarios          → UserListPage        (privada)
+  /cliente_fornecedor → ClientRegisterPage (privada)
+  /lancamento        → LancamentoPage      (privada)
+  /tipo_lancamento   → ListaLancamentosPage (privada)
+  /cadastro          → UserRegisterPage    (privada + admin)
+
+AUTH (services/auth.js):
+  - Token armazenado em localStorage
+  - getUserFromToken() — decodifica JWT (atob)
+  - isAdmin() — verifica payload.perfil === "Administrador"
+  - isAuthenticated() — valida token + expiração local
+  - logout() — limpa localStorage
+
+  ATENÇÃO: a expiração é validada apenas pelo payload JWT (exp).
+  O header X-Session-Expires retornado pelo backend NÃO está sendo lido.
+  O fluxo de primeiro_acesso (troca de senha obrigatória) NÃO está implementado.
+
+API (services/api.js):
+  Cobertura completa de endpoints do backend:
+  - Auth: login, logout, trocar-senha
+  - Usuários: CRUD + resetar-senha
+  - Cliente/Fornecedor: CRUD
+  - Endereço: CRUD + por-clifor
+  - Contato: CRUD + por-clifor
+  - Lançamento: CRUD + por-clifor + por-usuario + resumo (com filtros alinhados)
+  - Tipo de Conta: CRUD
+  - Login/Sessões: listagem + por-usuario
+
+  Filtros de getLancamentos alinhados ao backend:
+    id_clifor, id_tipo_conta, natureza, apenas_abertos, apenas_vencidos,
+    data_vencimento_de, data_vencimento_ate, data_lancamento_de,
+    data_lancamento_ate, estorno, valor_minimo, valor_maximo
+
+--------------------------------------------------------------------------------
+  PRÓXIMOS PASSOS IMEDIATOS
+--------------------------------------------------------------------------------
+
+1. Implementar LancamentoPage — formulário de cadastro conectado à API
+   (createLancamento, getClifors, getTiposConta)
+
+2. Implementar ListaLancamentosPage — tabela conectada com filtros funcionais
+   (getLancamentos com todos os filtros disponíveis)
+
+3. Implementar fluxo de primeiro_acesso:
+   - Após login, verificar campo primeiro_acesso na resposta
+   - Se true → redirecionar para tela de troca de senha antes de /home
+   - Chamar trocarSenha() e só então liberar navegação
+
+4. Implementar leitura de X-Session-Expires:
+   - A cada response autenticado, ler o header e atualizar timer de sessão
+   - Ao expirar sem atividade → logoutUser() + redirecionar para /
+
+--------------------------------------------------------------------------------
+  PENDÊNCIAS / AVISOS
+--------------------------------------------------------------------------------
+
+- AMSI_Frontend tem arquivos SvelteKit órfãos — não afetam o build React mas
+  podem confundir. Remover quando conveniente.
+- vite.config.js está dentro de src/services/ — lugar errado, mas funciona se
+  não conflitar com o vite.config.js na raiz. Verificar qual está sendo usado.
+- db.json na raiz do frontend — arquivo de mock? Verificar se ainda é usado.
+- Componentes Home.jsx e News.jsx estão em components/ (não em pages/) —
+  inconsistência de organização, baixa prioridade.
+
+================================================================================
