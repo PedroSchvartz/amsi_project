@@ -18,9 +18,11 @@ export const getUserFromToken = () => {
 
 // 🔐 verifica se é admin
 export const isAdmin = () => {
-  const user = getUserFromToken();
+  const user = JSON.parse(localStorage.getItem("user"));
 
-  return user?.perfil === "Administrador";
+  if (!user) return false;
+
+  return user.perfil_de_acesso === "ADMIN";
 };
 
 // 🔐 verifica se está logado
