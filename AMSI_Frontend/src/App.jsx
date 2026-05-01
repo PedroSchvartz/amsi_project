@@ -6,6 +6,7 @@ import UserListPage from "./pages/UserListPage";
 import ClientRegisterPage from "./pages/ClientRegisterPage";
 import LancamentoPage from "./pages/LancamentoPage";
 import ListaLancamentosPage from "./pages/ListaLancamentosPage";
+import "bootstrap-icons/font/bootstrap-icons.css";
 
 import PrivateRoute from "./components/PrivateRoute";
 import AdminRoute from "./components/AdminRoute";
