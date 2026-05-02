@@ -64,6 +64,7 @@ body {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 50px;
+  border-color: var(--primary) !important;
   padding: 8px 16px;
   cursor: pointer;
   display: flex;
@@ -72,7 +73,7 @@ body {
   font-family: var(--font-body);
   font-size: 0.75rem;
   font-weight: 500;
-  color: var(--text-muted);
+  color: var(--primary) !important;
   box-shadow: 0 2px 12px var(--shadow);
   transition: all 0.3s ease;
 }
@@ -88,7 +89,7 @@ body {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: var(--primary);
+  background: var(--primary) !important;
   transition: background 0.3s ease;
 }
 
