@@ -104,7 +104,7 @@ function UserList() {
       <h2>Lista de Usuários</h2>
 
       <table className="table table-striped">
-        <thead>
+        <thead style={{ background: "var(--accent)" }}>
           <tr>
             <th>Nome</th>
             <th>Login</th>
