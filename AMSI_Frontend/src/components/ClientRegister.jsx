@@ -4,14 +4,14 @@ import "../styles/clientRegister.css";
 function ClientRegister() {
   const [form, setForm] = useState({
     tipo: "",
+    cpf_cnpj: "",
     nome: "",
-    documento: "",
     obs: "",
     emails: [{ email: "", principal: true }],
     telefones: [{ numero: "", principal: true }],
     enderecos: [
       {
-        rua: "",
+        logradouro: "",
         numero: "",
         complemento: "",
         estado: "",
@@ -25,7 +25,6 @@ function ClientRegister() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  // 📞 FORMATADOR
   const formatTelefone = (value) => {
     value = value.replace(/\D/g, "");
     if (value.length <= 10) {
@@ -41,7 +40,6 @@ function ClientRegister() {
 
   const limparTelefone = (tel) => tel.replace(/\D/g, "");
 
-  // ✅ HELPERS de validação para liberar o botão +
   const ultimoTelefonePreenchido = () => {
     const ultimo = form.telefones[form.telefones.length - 1];
     return limparTelefone(ultimo.numero).length >= 10;
@@ -49,12 +47,18 @@ function ClientRegister() {
 
   const ultimoEmailPreenchido = () => {
     const ultimo = form.emails[form.emails.length - 1];
-    return ultimo.email.trim() !== "";
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(ultimo.email.trim());
   };
 
   const ultimoEnderecoPreenchido = () => {
     const ultimo = form.enderecos[form.enderecos.length - 1];
-    return ultimo.rua.trim() !== "";
+    return (
+      ultimo.logradouro.trim().length >= 3 &&
+      ultimo.numero.trim().length >= 1 &&
+      ultimo.estado.trim().length >= 2 &&
+      ultimo.cidade.trim().length >= 3
+    );
   };
 
   // 📞 TELEFONES
@@ -65,7 +69,6 @@ function ClientRegister() {
   };
 
   const setTelefonePrincipal = (index) => {
-    // Move o favorito para o início
     const novos = form.telefones.map((tel, i) => ({
       ...tel,
       principal: i === index,
@@ -133,7 +136,7 @@ function ClientRegister() {
       enderecos: [
         ...form.enderecos,
         {
-          rua: "",
+          logradouro: "",
           numero: "",
           complemento: "",
           estado: "",
@@ -169,12 +172,43 @@ function ClientRegister() {
         <h2>Cadastro Cliente / Fornecedor</h2>
 
         <form onSubmit={handleSubmit}>
+
+          {/* INFORMAÇÕES BÁSICAS */}
           <h4>Informações Básicas</h4>
+
+          {/* TIPO */}
+          <div className="d-flex gap-3 mb-3">
+            {["Cliente", "Fornecedor", "Ambos"].map((opcao) => (
+              <div key={opcao} className="form-check">
+                <input
+                  className="form-check-input"
+                  type="radio"
+                  name="tipo"
+                  id={`tipo-${opcao}`}
+                  value={opcao}
+                  checked={form.tipo === opcao}
+                  onChange={handleChange}
+                />
+                <label className="form-check-label" htmlFor={`tipo-${opcao}`}>
+                  {opcao}
+                </label>
+              </div>
+            ))}
+          </div>
 
           <input
             className="form-control mb-2"
-            placeholder="Nome"
+            placeholder="Nome Completo / Razão Social"
             name="nome"
+            value={form.nome}
+            onChange={handleChange}
+          />
+
+          <input
+            className="form-control mb-2"
+            placeholder="CPF / CNPJ"
+            name="cpf_cnpj"
+            value={form.cpf_cnpj}
             onChange={handleChange}
           />
 
@@ -189,7 +223,6 @@ function ClientRegister() {
                 value={tel.numero}
                 onChange={(e) => handleTelefoneChange(index, e.target.value)}
               />
-
               <button
                 type="button"
                 className={`btn btn-sm icon-btn ${
@@ -199,7 +232,6 @@ function ClientRegister() {
               >
                 <i className="bi bi-star-fill"></i>
               </button>
-
               {index > 0 && (
                 <button
                   type="button"
@@ -212,7 +244,6 @@ function ClientRegister() {
             </div>
           ))}
 
-          {/* Botão + só aparece se o último telefone estiver preenchido */}
           {ultimoTelefonePreenchido() && (
             <div className="text-center mt-1">
               <button
@@ -236,7 +267,6 @@ function ClientRegister() {
                 value={e.email}
                 onChange={(ev) => handleEmailChange(index, ev.target.value)}
               />
-
               <button
                 type="button"
                 className={`btn btn-sm icon-btn ${
@@ -246,7 +276,6 @@ function ClientRegister() {
               >
                 <i className="bi bi-star-fill"></i>
               </button>
-
               {index > 0 && (
                 <button
                   type="button"
@@ -259,7 +288,6 @@ function ClientRegister() {
             </div>
           ))}
 
-          {/* Botão + só aparece se o último email estiver preenchido */}
           {ultimoEmailPreenchido() && (
             <div className="text-center mt-1">
               <button
@@ -279,7 +307,6 @@ function ClientRegister() {
             <div key={index} className="box-endereco mb-3">
               <div className="d-flex justify-content-between mb-2">
                 <span>Endereço {index + 1}</span>
-
                 <div className="d-flex gap-1">
                   <button
                     type="button"
@@ -290,7 +317,6 @@ function ClientRegister() {
                   >
                     <i className="bi bi-star-fill"></i>
                   </button>
-
                   {index > 0 && (
                     <button
                       type="button"
@@ -305,10 +331,10 @@ function ClientRegister() {
 
               <input
                 className="form-control mb-2"
-                placeholder="Rua"
-                value={end.rua}
+                placeholder="Logradouro"
+                value={end.logradouro}
                 onChange={(e) =>
-                  handleEnderecoChange(index, "rua", e.target.value)
+                  handleEnderecoChange(index, "logradouro", e.target.value)
                 }
               />
 
@@ -352,7 +378,6 @@ function ClientRegister() {
             </div>
           ))}
 
-          {/* Botão + só aparece se o último endereço tiver rua preenchida */}
           {ultimoEnderecoPreenchido() && (
             <div className="text-center mt-1">
               <button
@@ -365,11 +390,21 @@ function ClientRegister() {
             </div>
           )}
 
-          <br />
+          {/* OBSERVAÇÕES */}
+          <h4 className="mt-3">Observações</h4>
+          <textarea
+            className="form-control mb-3"
+            placeholder="Observações"
+            name="obs"
+            rows={3}
+            value={form.obs}
+            onChange={handleChange}
+          />
 
           <button className="btn btn-dark w-100" type="submit">
             Salvar
           </button>
+
         </form>
       </div>
     </div>
