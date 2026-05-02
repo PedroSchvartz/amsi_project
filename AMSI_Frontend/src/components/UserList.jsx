@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { deleteUser, getUsers, updateUser } from "../services/api.js";
+import { deleteUser, getUsers, updateUser, resetarSenhaUsuario } from "../services/api.js";
 import "../styles/userList.css";
 
 function UserList() {
@@ -7,7 +7,6 @@ function UserList() {
   const [erro, setErro] = useState("");
   const [loading, setLoading] = useState(true);
 
-  // 🔥 estado do modal
   const [modalAberto, setModalAberto] = useState(false);
   const [usuarioSelecionado, setUsuarioSelecionado] = useState(null);
   const [formModal, setFormModal] = useState({
@@ -35,7 +34,6 @@ function UserList() {
     }
   }
 
-  // 🔥 abre o modal preenchido com os dados do usuário
   const handleEdit = (user) => {
     setUsuarioSelecionado(user);
     setFormModal({
@@ -58,14 +56,18 @@ function UserList() {
     setFormModal({ ...formModal, [e.target.name]: e.target.value });
   };
 
-  // 🔥 salva a edição
   const handleSalvar = async () => {
     setErroModal("");
     setSucesso("");
     try {
-      await updateUser(usuarioSelecionado.id_usuario, formModal);
+      await updateUser(usuarioSelecionado.id_usuario, {
+        nome: formModal.nome,
+        email: formModal.email,
+        cargo: formModal.cargo,
+        perfil_de_acesso: formModal.perfil_de_acesso,
+        notificacao: usuarioSelecionado.notificacao ?? false,
+      });
       setSucesso("Usuário atualizado com sucesso!");
-      // atualiza a lista sem recarregar tudo
       setUsuarios((prev) =>
         prev.map((u) =>
           u.id_usuario === usuarioSelecionado.id_usuario
@@ -89,7 +91,20 @@ function UserList() {
       await deleteUser(id);
       setUsuarios((prev) => prev.filter((u) => u.id_usuario !== id));
     } catch (err) {
-      setErro(err.message || "Erro ao excluir usuário")
+      setErro(err.message || "Erro ao excluir usuário");
+    }
+  };
+
+  // 🔥 resetar senha
+  const handleResetSenha = async (id) => {
+    const confirmar = window.confirm("Deseja resetar a senha deste usuário? Ele sreá obrigado a criar um nova senha");
+    if (!confirmar) return;
+
+    try {
+      await resetarSenhaUsuario(id);
+      alert("Senha resetada com sucesso! O usuário deverá criar uma senha nova no próximo login");
+    } catch (err) {
+      setErro(err.message || "Erro ao resetar senha");
     }
   };
 
@@ -123,12 +138,24 @@ function UserList() {
                 <button
                   className="btn btn-sm btn-outline-primary"
                   onClick={() => handleEdit(user)}
+                  title="Editar"
                 >
                   <i className="bi bi-pencil"></i>
                 </button>
+
+                {/* 🔥 botão resetar senha */}
+                <button
+                  className="btn btn-sm btn-outline-warning"
+                  onClick={() => handleResetSenha(user.id_usuario)}
+                  title="Resetar senha"
+                >
+                  <i className="bi bi-key"></i>
+                </button>
+
                 <button
                   className="btn btn-sm btn-outline-danger"
                   onClick={() => handleDelete(user.id_usuario)}
+                  title="Excluir"
                 >
                   <i className="bi bi-trash"></i>
                 </button>
@@ -138,23 +165,16 @@ function UserList() {
         </tbody>
       </table>
 
-      {/* 🔥 MODAL DE EDIÇÃO */}
+      {/* MODAL DE EDIÇÃO */}
       {modalAberto && (
         <>
-          {/* backdrop escuro */}
           <div
             className="modal-backdrop fade show"
             onClick={handleFecharModal}
           />
-
-          <div
-            className="modal fade show d-block"
-            tabIndex="-1"
-            role="dialog"
-          >
+          <div className="modal fade show d-block" tabIndex="-1" role="dialog">
             <div className="modal-dialog modal-dialog-centered" role="document">
               <div className="modal-content">
-
                 <div className="modal-header">
                   <h5 className="modal-title">Editar Usuário</h5>
                   <button
@@ -197,7 +217,9 @@ function UserList() {
                       <option value="">Selecione</option>
                       <option value="Diretor">Diretor</option>
                       <option value="Tesoureiro">Tesoureiro</option>
-                      <option value="Secretario">Secretário</option>
+                      <option value="Secretário">Secretário</option>
+                      <option value="Conselheiro">Conselheiro</option>
+                      <option value="Associado">Associado</option>
                     </select>
                   </div>
 
@@ -226,14 +248,10 @@ function UserList() {
                   >
                     Cancelar
                   </button>
-                  <button
-                    className="btn btn-primary"
-                    onClick={handleSalvar}
-                  >
+                  <button className="btn btn-primary" onClick={handleSalvar}>
                     Salvar
                   </button>
                 </div>
-
               </div>
             </div>
           </div>
