@@ -1,0 +1,318 @@
+/* ============================================================
+   AMSI — Layout Padrão
+   ============================================================ */
+
+@import './theme.css';
+
+.layout-wrapper {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  transition: background 0.4s ease;
+}
+
+/* ── Topbar ── */
+.topbar {
+  background: var(--primary);
+  color: #ffffff;
+  padding: 10px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  box-shadow: 0 2px 12px var(--shadow);
+  transition: background 0.4s ease;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.topbar-logo {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: white;
+  padding: 4px;
+  flex-shrink: 0;
+}
+
+.topbar-nome {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: 0.02em;
+}
+
+.topbar-nome-short { display: none; }
+.topbar-nome-full  { display: inline; }
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  min-width: fit-content;
+}
+
+.topbar-left {
+  flex: 1;
+  min-width: 0;
+}
+
+.topbar-usuario {
+  font-size: 0.82rem;
+  color: rgba(255,255,255,0.85);
+  font-family: var(--font-body);
+  white-space: nowrap;
+}
+
+.topbar-sep {
+  color: rgba(255,255,255,0.4);
+  font-size: 0.9rem;
+}
+
+.theme-toggle {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.35);
+  border-radius: 50px;
+  padding: 5px 14px;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: rgba(255,255,255,0.85);
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.theme-toggle:hover {
+  background: rgba(255,255,255,0.15);
+  color: #ffffff;
+}
+
+/* ── Hamburguer ── */
+.btn-hamburger {
+  display: none !important;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  margin-left: 8px;
+}
+
+.btn-hamburger span {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: #ffffff;
+  border-radius: 2px;
+  transition: all 0.3s ease;
+}
+
+/* ── Menu mobile ── */
+.menu-mobile {
+  display: none;
+  flex-direction: column;
+  background: var(--primary);
+  border-top: 1px solid rgba(255,255,255,0.1);
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.menu-mobile.aberto {
+  max-height: 500px;
+}
+
+.menu-mobile-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 24px;
+  color: rgba(255,255,255,0.85);
+  text-decoration: none;
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  transition: background 0.2s ease;
+  background: transparent;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+
+.menu-mobile-item:hover,
+.menu-mobile-item.active {
+  background: rgba(255,255,255,0.1);
+  color: #ffffff;
+}
+
+.menu-mobile-sair {
+  color: rgba(255,100,100,0.85);
+}
+
+.menu-mobile-sair:hover {
+  background: rgba(255,100,100,0.1);
+  color: #ff6464;
+}
+
+/* ── Menu horizontal desktop ── */
+.menu-horizontal {
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  box-shadow: 0 1px 4px var(--shadow);
+  transition: background 0.4s ease;
+  overflow-x: auto;
+}
+
+[data-theme="corporativo"] .menu-horizontal {
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+}
+
+.menu-links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-body);
+  font-size: 0.83rem;
+  font-weight: 500;
+  color: var(--primary);
+  text-decoration: none;
+  padding: 12px 16px;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+[data-theme="corporativo"] .menu-item {
+  color: var(--text-muted);
+}
+
+.menu-item:hover {
+  color: var(--primary);
+  background: rgba(255,255,255,0.3);
+}
+
+[data-theme="corporativo"] .menu-item:hover {
+  color: var(--primary);
+  background: rgba(56,189,248,0.08);
+}
+
+.menu-item.active {
+  color: var(--primary);
+  border-bottom: 3px solid var(--primary);
+  background: rgba(255,255,255,0.4);
+  font-weight: 600;
+}
+
+[data-theme="corporativo"] .menu-item.active {
+  color: var(--primary);
+  border-bottom: 3px solid var(--primary);
+  background: rgba(56,189,248,0.08);
+}
+
+.menu-icon {
+  font-size: 1rem;
+}
+
+/* ── Botão Sair no menu ── */
+.menu-sair {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid rgba(239,68,68,0.3);
+  border-radius: 6px;
+  padding: 7px 14px;
+  color: #dc2626;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  margin-left: 8px;
+}
+
+.menu-sair:hover {
+  background: rgba(239,68,68,0.08);
+  border-color: #dc2626;
+}
+
+[data-theme="corporativo"] .menu-sair {
+  color: #f87171;
+  border-color: rgba(248,113,113,0.3);
+}
+
+/* ── Conteúdo ── */
+.layout-content {
+  flex: 1;
+  padding: 28px 24px;
+  background: var(--bg);
+  transition: background 0.4s ease;
+}
+
+/* ── Rodapé ── */
+.layout-footer {
+  background: var(--primary);
+  color: rgba(255,255,255,0.55);
+  padding: 14px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  transition: background 0.4s ease;
+}
+
+.footer-nome-short { display: none; }
+.footer-nome-full  { display: inline; }
+
+/* ── Responsivo ── */
+@media (max-width: 900px) {
+  .menu-item span:last-child { display: none; }
+  .menu-item { padding: 12px 10px; }
+}
+
+@media (max-width: 768px) {
+  
+  .topbar-nome-full        { display: none; }
+  .topbar-nome-short       { display: inline; }
+  .btn-hamburger           { display: flex; }
+  .menu-mobile             { display: flex; }
+  .menu-horizontal         { display: none; }
+  .footer-nome-full        { display: none; }
+  .footer-nome-short       { display: inline; }
+  .layout-content          { padding: 16px; }
+  .btn-hamburger {
+    display: flex !important;
+  }
+}
+
+

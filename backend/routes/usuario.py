@@ -65,13 +65,38 @@ def criar_usuario(dados: UsuarioCreate, db: Session = Depends(get_db), _=Depends
 
     # Enviar senha por email
     corpo = f"""
-    <h2>Bem-vindo ao AMSI Project</h2>
-    <p>Olá, <strong>{usuario.nome}</strong>!</p>
-    <p>Sua conta foi criada. Use a senha abaixo para fazer seu primeiro acesso:</p>
-    <h3 style="background:#f4f4f4;padding:10px;letter-spacing:2px;">{senha_provisoria}</h3>
-    <p>Você será solicitado a trocar a senha no primeiro login.</p>
-    <p><small>Se não reconhece este cadastro, ignore este email.</small></p>
-    """
+<!DOCTYPE html>
+<html lang="pt-BR">
+<body style="margin:0;padding:0;background:#EFE6DD;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px;">
+    <tr><td align="center">
+      <table width="600" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(27,67,50,0.10);">
+        <tr><td style="background:#1B4332;padding:32px 40px;text-align:center;">
+          <p style="margin:0;font-size:2rem;font-weight:700;color:#C9A84C;letter-spacing:0.1em;">AMSI</p>
+          <p style="margin:4px 0 0;font-size:0.72rem;color:rgba(255,255,255,0.6);letter-spacing:0.2em;text-transform:uppercase;">Associação de Moradores de Santa Isabel</p>
+        </td></tr>
+        <tr><td style="padding:36px 40px;">
+          <p style="font-size:1.3rem;font-weight:600;color:#1B4332;margin:0 0 8px;">Bem-vindo(a) a AMSI! 👋</p>
+          <p style="color:#6b7280;margin:0 0 20px;">Olá, <strong style="color:#2C2C2C;">{usuario.nome}</strong>! Sua conta foi criada com sucesso.</p>
+          <p style="color:#2C2C2C;margin:0 0 12px;">Sua senha provisória:</p>
+          <div style="background:#f4f1ec;border:1px solid #d1c9bf;border-radius:8px;padding:18px;text-align:center;margin:0 0 20px;">
+            <p style="margin:0 0 4px;font-size:0.7rem;color:#6b7280;letter-spacing:0.12em;text-transform:uppercase;">senha</p>
+            <p style="margin:0;font-size:1.5rem;font-weight:700;color:#1B4332;letter-spacing:0.2em;">{senha_provisoria}</p>
+          </div>
+          <div style="background:#fef9ec;border-left:4px solid #C9A84C;padding:12px 16px;border-radius:4px;margin:0 0 20px;">
+            <p style="margin:0;font-size:0.85rem;color:#92400e;">⚠️ Você será solicitado a trocar esta senha no primeiro login.</p>
+          </div>
+          <p style="font-size:0.78rem;color:#6b7280;margin:0;">Se não reconhece este cadastro, ignore este email.</p>
+        </td></tr>
+        <tr><td style="padding:16px 40px;text-align:center;border-top:1px solid #d1c9bf;">
+          <p style="margin:0;font-size:0.72rem;color:#a0a0a0;">© 2026 AMSI — Este é um email automático.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>
+"""
     try:
         enviar_email(usuario.email, "Sua senha de acesso — AMSI Project", corpo)
     except Exception:
@@ -119,13 +144,38 @@ def resetar_senha(id_usuario: int, db: Session = Depends(get_db), _=Depends(exig
     db.commit()
 
     corpo = f"""
-    <h2>Redefinição de senha — AMSI Project</h2>
-    <p>Olá, <strong>{usuario.nome}</strong>!</p>
-    <p>Sua senha foi redefinida por um administrador. Use a senha abaixo para acessar:</p>
-    <h3 style="background:#f4f4f4;padding:10px;letter-spacing:2px;">{senha_provisoria}</h3>
-    <p>Você será solicitado a trocar a senha no próximo login.</p>
-    <p><small>Se não solicitou este reset, entre em contato com o administrador.</small></p>
-    """
+<!DOCTYPE html>
+<html lang="pt-BR">
+<body style="margin:0;padding:0;background:#EFE6DD;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px;">
+    <tr><td align="center">
+      <table width="600" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(27,67,50,0.10);">
+        <tr><td style="background:#1B4332;padding:32px 40px;text-align:center;">
+          <p style="margin:0;font-size:2rem;font-weight:700;color:#C9A84C;letter-spacing:0.1em;">AMSI</p>
+          <p style="margin:4px 0 0;font-size:0.72rem;color:rgba(255,255,255,0.6);letter-spacing:0.2em;text-transform:uppercase;">Associação de Moradores de Santa Isabel</p>
+        </td></tr>
+        <tr><td style="padding:36px 40px;">
+          <p style="font-size:1.3rem;font-weight:600;color:#1B4332;margin:0 0 8px;">Redefinição de senha 🔐</p>
+          <p style="color:#6b7280;margin:0 0 20px;">Olá, <strong style="color:#2C2C2C;">{usuario.nome}</strong>! Sua senha foi redefinida por um administrador.</p>
+          <p style="color:#2C2C2C;margin:0 0 12px;">Sua nova senha provisória:</p>
+          <div style="background:#f4f1ec;border:1px solid #d1c9bf;border-radius:8px;padding:18px;text-align:center;margin:0 0 20px;">
+            <p style="margin:0 0 4px;font-size:0.7rem;color:#6b7280;letter-spacing:0.12em;text-transform:uppercase;">nova senha</p>
+            <p style="margin:0;font-size:1.5rem;font-weight:700;color:#1B4332;letter-spacing:0.2em;">{senha_provisoria}</p>
+          </div>
+          <div style="background:#fef9ec;border-left:4px solid #C9A84C;padding:12px 16px;border-radius:4px;margin:0 0 20px;">
+            <p style="margin:0;font-size:0.85rem;color:#92400e;">⚠️ Você será solicitado a trocar esta senha no próximo login.</p>
+          </div>
+          <p style="font-size:0.78rem;color:#6b7280;margin:0;">Se não solicitou este reset, entre em contato com o administrador imediatamente.</p>
+        </td></tr>
+        <tr><td style="padding:16px 40px;text-align:center;border-top:1px solid #d1c9bf;">
+          <p style="margin:0;font-size:0.72rem;color:#a0a0a0;">© 2026 AMSI — Este é um email automático.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>
+"""
     try:
         enviar_email(usuario.email, "Redefinição de senha — AMSI Project", corpo)
     except Exception:
