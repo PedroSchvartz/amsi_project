@@ -23,7 +23,7 @@ CREATE TABLE Usuario (
     Cargo cargo_enum NOT NULL,
     Perfil_de_Acesso acesso_enum NOT NULL,
     Notificacao BOOLEAN NOT NULL DEFAULT FALSE,
-    Suspenso TIMESTAMP DEFAULT NULL,
+    Suspenso TIMESTAMP DEFAULT NULL,    
     Qtd_suspensao INT DEFAULT 0,
     Bloqueado BOOLEAN NOT NULL DEFAULT FALSE,
     Exclusao TIMESTAMP DEFAULT NULL,
