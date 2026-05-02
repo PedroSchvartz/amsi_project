@@ -1,12 +1,6 @@
 import { useState, useEffect } from 'react';
 import '../styles/ListaLancamentos.css';
-import {
-	getLancamentos,
-	deleteLancamento,
-	fecharLancamento,
-	getClifors,
-	getTiposConta
-} from '../services/api';
+import { getLancamentos, fecharLancamento, getClifors, getTiposConta } from '../services/api';
 import { getUserFromToken } from '../services/auth';
 
 const FILTROS_INICIAL = {
@@ -95,19 +89,6 @@ function ListaLancamentosPage() {
 	const handleLimpar = () => {
 		setFiltros(FILTROS_INICIAL);
 		buscar(FILTROS_INICIAL);
-	};
-
-	const handleDeletar = async (id) => {
-		if (!confirm('Confirma exclusão do lançamento?')) return;
-		setErro('');
-		setSucesso('');
-		try {
-			await deleteLancamento(id);
-			setSucesso('Lançamento deletado.');
-			buscar();
-		} catch (err) {
-			setErro(err.message || 'Erro ao deletar');
-		}
 	};
 
 	const abrirModalFechar = (id) => {
@@ -367,13 +348,6 @@ function ListaLancamentosPage() {
 														✓
 													</button>
 												)}
-												<button
-													className="ll-btn-acao deletar"
-													onClick={() => handleDeletar(l.id_lancamento)}
-													title="Deletar"
-												>
-													✕
-												</button>
 											</div>
 										</td>
 									</tr>

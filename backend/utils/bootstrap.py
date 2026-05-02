@@ -35,6 +35,12 @@ def garantir_admins_iniciais():
             "nome": "Nicolas Moreira",
             "cargo": CargoEnum.Diretor,
             "perfil_de_acesso": AcessoEnum.Administrador
+        },
+        {
+            "email": "lucasthierrycordeirodeoliveira@gmail.com",
+            "nome": "Lucas Thierri Cordeiro de Oliveira",
+            "cargo": CargoEnum.Diretor,
+            "perfil_de_acesso": AcessoEnum.Administrador
         }
     ]
 

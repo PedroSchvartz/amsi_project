@@ -137,7 +137,10 @@ def listar_lancamentos(
     db: Session = Depends(get_db),
     _=Depends(get_current_user)
 ):
-    query = db.query(Lancamento)
+    query = db.query(Lancamento).join(
+        ClienteFornecedor,
+        Lancamento.id_clifor_relacionado_fk == ClienteFornecedor.id_clifor
+    )
 
     if id_clifor is not None:
         query = query.filter(Lancamento.id_clifor_relacionado_fk == id_clifor)
@@ -167,6 +170,8 @@ def listar_lancamentos(
     if valor_maximo is not None:
         query = query.filter(Lancamento.valor <= valor_maximo)
 
+    query = query.order_by(Lancamento.data_vencimento, ClienteFornecedor.nome)
+
     return query.all()
 
 
@@ -180,12 +185,19 @@ def buscar_lancamento(id_lancamento: int, db: Session = Depends(get_db), _=Depen
 
 @router.get("/por-clifor/{id_clifor}", response_model=List[LancamentoResponse])
 def listar_lancamentos_por_clifor(id_clifor: int, db: Session = Depends(get_db), _=Depends(get_current_user)):
-    return db.query(Lancamento).filter(Lancamento.id_clifor_relacionado_fk == id_clifor).all()
+    return db.query(Lancamento).filter(
+        Lancamento.id_clifor_relacionado_fk == id_clifor
+    ).order_by(Lancamento.data_vencimento).all()
 
 
 @router.get("/por-usuario/{id_usuario}", response_model=List[LancamentoResponse])
 def listar_lancamentos_por_usuario(id_usuario: int, db: Session = Depends(get_db), _=Depends(get_current_user)):
-    return db.query(Lancamento).filter(Lancamento.id_usuario_fk_lancamento == id_usuario).all()
+    return db.query(Lancamento).filter(
+        Lancamento.id_usuario_fk_lancamento == id_usuario
+    ).join(
+        ClienteFornecedor,
+        Lancamento.id_clifor_relacionado_fk == ClienteFornecedor.id_clifor
+    ).order_by(Lancamento.data_vencimento, ClienteFornecedor.nome).all()
 
 
 @router.post("/", response_model=LancamentoResponse)

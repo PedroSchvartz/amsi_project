@@ -139,6 +139,9 @@ CREATE INDEX idx_lancamento_data_vencimento ON Lancamento(Data_vencimento);
 CREATE INDEX idx_lancamento_data_lancamento ON Lancamento(Data_lancamento);
 CREATE INDEX idx_lancamento_estorno ON Lancamento(Estorno);
 CREATE INDEX idx_lancamento_clifor ON Lancamento(id_CliFor_Relacionado_FK);
+CREATE INDEX idx_lancamento_data_pagamento ON Lancamento(data_pagamento);
+CREATE INDEX idx_lancamento_natureza ON Lancamento(Natureza_Lancamento);
+CREATE INDEX idx_lancamento_tipo_conta ON Lancamento(id_tipo_conta_fk);
 
 -- Registro de Tokens idx_token_ativo_usuario
 -- Para exigir o token no login e dificultar o acesso por histórico.
