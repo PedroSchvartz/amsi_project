@@ -22,16 +22,12 @@ function ClientRegister() {
   });
 
   const handleChange = (e) => {
-    setForm({
-      ...form,
-      [e.target.name]: e.target.value,
-    });
+    setForm({ ...form, [e.target.name]: e.target.value });
   };
 
   // 📞 FORMATADOR
   const formatTelefone = (value) => {
     value = value.replace(/\D/g, "");
-
     if (value.length <= 10) {
       return value
         .replace(/^(\d{2})(\d)/g, "($1) $2")
@@ -45,6 +41,22 @@ function ClientRegister() {
 
   const limparTelefone = (tel) => tel.replace(/\D/g, "");
 
+  // ✅ HELPERS de validação para liberar o botão +
+  const ultimoTelefonePreenchido = () => {
+    const ultimo = form.telefones[form.telefones.length - 1];
+    return limparTelefone(ultimo.numero).length >= 10;
+  };
+
+  const ultimoEmailPreenchido = () => {
+    const ultimo = form.emails[form.emails.length - 1];
+    return ultimo.email.trim() !== "";
+  };
+
+  const ultimoEnderecoPreenchido = () => {
+    const ultimo = form.enderecos[form.enderecos.length - 1];
+    return ultimo.rua.trim() !== "";
+  };
+
   // 📞 TELEFONES
   const handleTelefoneChange = (index, value) => {
     const novos = [...form.telefones];
@@ -53,11 +65,13 @@ function ClientRegister() {
   };
 
   const setTelefonePrincipal = (index) => {
+    // Move o favorito para o início
     const novos = form.telefones.map((tel, i) => ({
       ...tel,
       principal: i === index,
     }));
-    setForm({ ...form, telefones: novos });
+    const [favorito] = novos.splice(index, 1);
+    setForm({ ...form, telefones: [favorito, ...novos] });
   };
 
   const addTelefone = () => {
@@ -80,11 +94,9 @@ function ClientRegister() {
   };
 
   const setEmailPrincipal = (index) => {
-    const novos = form.emails.map((e, i) => ({
-      ...e,
-      principal: i === index,
-    }));
-    setForm({ ...form, emails: novos });
+    const novos = form.emails.map((e, i) => ({ ...e, principal: i === index }));
+    const [favorito] = novos.splice(index, 1);
+    setForm({ ...form, emails: [favorito, ...novos] });
   };
 
   const addEmail = () => {
@@ -111,7 +123,8 @@ function ClientRegister() {
       ...end,
       principal: i === index,
     }));
-    setForm({ ...form, enderecos: novos });
+    const [favorito] = novos.splice(index, 1);
+    setForm({ ...form, enderecos: [favorito, ...novos] });
   };
 
   const addEndereco = () => {
@@ -139,7 +152,6 @@ function ClientRegister() {
   // 🚀 SUBMIT
   const handleSubmit = (e) => {
     e.preventDefault();
-
     const data = {
       ...form,
       telefones: form.telefones.map((t) => ({
@@ -147,7 +159,6 @@ function ClientRegister() {
         principal: t.principal,
       })),
     };
-
     console.log("ENVIANDO:", data);
     alert("Cadastro realizado!");
   };
@@ -201,15 +212,18 @@ function ClientRegister() {
             </div>
           ))}
 
-          <div className="text-center mt-1">
-            <button
-              type="button"
-              className="btn btn-sm btn-outline-primary icon-btn"
-              onClick={addTelefone}
-            >
-              <i className="bi bi-plus"></i>
-            </button>
-          </div>
+          {/* Botão + só aparece se o último telefone estiver preenchido */}
+          {ultimoTelefonePreenchido() && (
+            <div className="text-center mt-1">
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-primary icon-btn"
+                onClick={addTelefone}
+              >
+                <i className="bi bi-plus"></i>
+              </button>
+            </div>
+          )}
 
           {/* EMAIL */}
           <h4 className="mt-3">Emails</h4>
@@ -245,15 +259,18 @@ function ClientRegister() {
             </div>
           ))}
 
-          <div className="text-center mt-1">
-            <button
-              type="button"
-              className="btn btn-sm btn-outline-primary icon-btn"
-              onClick={addEmail}
-            >
-              <i className="bi bi-plus"></i>
-            </button>
-          </div>
+          {/* Botão + só aparece se o último email estiver preenchido */}
+          {ultimoEmailPreenchido() && (
+            <div className="text-center mt-1">
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-primary icon-btn"
+                onClick={addEmail}
+              >
+                <i className="bi bi-plus"></i>
+              </button>
+            </div>
+          )}
 
           {/* ENDEREÇOS */}
           <h4 className="mt-3">Endereços</h4>
@@ -304,7 +321,6 @@ function ClientRegister() {
                     handleEnderecoChange(index, "numero", e.target.value)
                   }
                 />
-
                 <input
                   className="form-control"
                   placeholder="Complemento"
@@ -324,7 +340,6 @@ function ClientRegister() {
                     handleEnderecoChange(index, "estado", e.target.value)
                   }
                 />
-
                 <input
                   className="form-control"
                   placeholder="Cidade"
@@ -337,15 +352,18 @@ function ClientRegister() {
             </div>
           ))}
 
-          <div className="text-center mt-1">
-            <button
-              type="button"
-              className="btn btn-sm btn-outline-primary icon-btn"
-              onClick={addEndereco}
-            >
-              <i className="bi bi-plus"></i>
-            </button>
-          </div>
+          {/* Botão + só aparece se o último endereço tiver rua preenchida */}
+          {ultimoEnderecoPreenchido() && (
+            <div className="text-center mt-1">
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-primary icon-btn"
+                onClick={addEndereco}
+              >
+                <i className="bi bi-plus"></i>
+              </button>
+            </div>
+          )}
 
           <br />
 
