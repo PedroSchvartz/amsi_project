@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate, useLocation, Outlet } from "react-router-dom";
 import "../styles/layout.css";
 import logo from "../assets/AMSI_Logo.png";
 
-function Layout({ children }) {
+function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [tema, setTema] = useState(
@@ -163,7 +163,7 @@ function Layout({ children }) {
 
       {/* ── Conteúdo ── */}
       <main className="layout-content">
-        {children}
+        <Outlet />
       </main>
 
       {/* ── Rodapé ── */}
