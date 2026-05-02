@@ -17,15 +17,17 @@ scaffolding inicial. O projeto roda em React — ignorar esses arquivos.
 
 ESTRUTURA DE ARQUIVOS:
   src/
-  ├── App.jsx              — roteamento completo (react-router-dom)
+  ├── App.jsx              — roteamento + LoadingProvider + Spinner global
   ├── main.jsx
   ├── index.css
   ├── assets/
   ├── components/
   │   ├── AdminRoute.jsx       — guard: exige perfil Administrador (lê JWT via isAdmin())
   │   ├── PrivateRoute.jsx     — guard: exige autenticação
+  │   ├── Layout.jsx           — wrapper com Navbar para rotas protegidas (usa Outlet)
+  │   ├── Navbar.jsx           — navbar global com logout funcional e nome do JWT
   │   ├── Login.jsx
-  │   ├── Home.jsx
+  │   ├── Home.jsx             — cards com links para rotas reais; cards admin condicionais
   │   ├── ClientRegister.jsx
   │   ├── UserList.jsx
   │   ├── UserRegister.jsx
@@ -36,12 +38,13 @@ ESTRUTURA DE ARQUIVOS:
   │   ├── ClientRegisterPage.jsx
   │   ├── UserListPage.jsx
   │   ├── UserRegisterPage.jsx
-  │   ├── TrocarSenhaPage.jsx      — fluxo de primeiro acesso
-  │   ├── LancamentoPage.jsx       — ESQUELETO (sem lógica)
-  │   └── ListaLancamentosPage.jsx — ESQUELETO (sem lógica)
+  │   ├── TrocarSenhaPage.jsx          — fluxo de primeiro acesso
+  │   ├── LancamentoPage.jsx           — IMPLEMENTADO (formulário completo)
+  │   └── ListaLancamentosPage.jsx     — IMPLEMENTADO (tabela + filtros + fechar/deletar)
   ├── services/
-  │   ├── api.js           — todas as chamadas HTTP ao backend
-  │   └── auth.js          — token JWT (localStorage), isAdmin, isAuthenticated
+  │   ├── api.js               — todas as chamadas HTTP; fetchComLoading integrado
+  │   ├── auth.js              — token JWT, isAdmin, isAuthenticated, logout com POST backend
+  │   └── LoadingContext.jsx   — contexto global de loading com singleton para api.js
   └── styles/
       ├── home.css
       ├── login.css
@@ -53,18 +56,21 @@ ESTRUTURA DE ARQUIVOS:
 
 ROTAS CONFIGURADAS (App.jsx):
   /                  → LoginPage           (pública)
-  /trocar-senha      → TrocarSenhaPage     (privada)
-  /home              → HomePage            (privada)
-  /usuarios          → UserListPage        (privada)
-  /cliente_fornecedor → ClientRegisterPage (privada)
-  /lancamento        → LancamentoPage      (privada)
-  /tipo_lancamento   → ListaLancamentosPage (privada)
-  /cadastro          → UserRegisterPage    (privada + admin)
+  /trocar-senha      → TrocarSenhaPage     (privada, sem navbar)
+  /home              → HomePage            (privada + navbar)
+  /usuarios          → UserListPage        (privada + navbar)
+  /cliente_fornecedor → ClientRegisterPage (privada + navbar)
+  /lancamento        → LancamentoPage      (privada + admin + navbar)
+  /tipo_lancamento   → ListaLancamentosPage (privada + navbar)
+  /cadastro          → UserRegisterPage    (privada + admin + navbar)
+
+  Rotas protegidas usam Layout (Navbar + Outlet).
+  Rotas admin usam AdminRoute dentro do Layout.
 
 AUTH (services/auth.js):
   - Token armazenado em localStorage
   - getUserFromToken() — decodifica JWT (atob)
-  - isAdmin() — verifica payload.perfil === "Administrador" (lê do JWT, não do localStorage)
+  - isAdmin() — verifica payload.perfil === "Administrador" (lê do JWT)
   - isAuthenticated() — valida token + expiração local
   - logout() — chama POST /auth/logout no backend antes de limpar localStorage
 
@@ -73,7 +79,8 @@ AUTH (services/auth.js):
 
 API (services/api.js):
   Totalmente alinhado ao contrato real do backend (openapi_ai.yaml com request_body
-  e response_200). Cobertura completa de endpoints:
+  e response_200 — gerado com função atualizada que resolve arrays e refs).
+  Cobertura completa de endpoints:
   - Auth: login, logout, trocar-senha
   - Usuários: CRUD + resetar-senha
   - Cliente/Fornecedor: CRUD + resumo + filtros em getClifors
@@ -83,13 +90,31 @@ API (services/api.js):
   - Tipo de Conta: CRUD
   - Login/Sessões: listagem + por-usuario
 
-  handleResponse trata 401 com logout automático (exceto trocarSenha que usa
-  noLogout: true para exibir erro sem deslogar).
+  fetchComLoading envolve todo fetch — aciona spinner global via loadingBus.
+  handleResponse trata 401 com logout automático (exceto trocarSenha: noLogout: true).
+  detail array do Pydantic tratado corretamente.
 
-  Campos corrigidos em relação à versão anterior:
-    - trocarSenha: nova_senha → senha_nova (alinhado ao backend)
-    - createUser: perfil → perfil_de_acesso (alinhado ao backend)
-    - detail array do FastAPI/Pydantic tratado corretamente (não exibe [object Object])
+LOADING GLOBAL (services/LoadingContext.jsx):
+  - LoadingProvider envolve o App inteiro
+  - loadingBus singleton permite api.js acionar o contexto sem import React
+  - Spinner overlay aparece durante qualquer requisição HTTP
+
+LANÇAMENTO (pages/LancamentoPage.jsx):
+  - Select de clifors e tipos de conta populados da API
+  - Natureza derivada do tipo de conta selecionado (read-only)
+  - Checkbox de reembolso inverte a natureza antes de enviar
+  - Popup "+ Novo Tipo" cria tipo de conta inline, recarrega select e seleciona o novo
+  - Somente admin acessa (/lancamento protegida por AdminRoute)
+
+LISTA DE LANÇAMENTOS (pages/ListaLancamentosPage.jsx):
+  - Carrega lançamentos ao montar, sem filtros
+  - Filtros: clifor, tipo de conta, natureza, datas de vencimento/lançamento,
+    apenas abertos, apenas vencidos, reembolso, valor mínimo/máximo
+  - Badges de status: Aberto, Pago, Vencido, Estorno
+  - Ação fechar: modal com data pagamento, valor pago, multa, juros, observação, reembolso
+    (botão só aparece se lançamento ainda não foi pago e não é estorno)
+  - Ação deletar: confirm() nativo + DELETE no backend
+  - Nomes de clifor e tipo de conta resolvidos localmente (sem requisições extras)
 
 ENUMS DO BANCO (fonte da verdade: tabelas_do_banco.txt):
   cargo_enum:       'Diretor','Tesoureiro','Secretário','Conselheiro','Associado'
@@ -101,11 +126,10 @@ ENUMS DO BANCO (fonte da verdade: tabelas_do_banco.txt):
   PRÓXIMOS PASSOS IMEDIATOS
 --------------------------------------------------------------------------------
 
-1. Implementar LancamentoPage — formulário de cadastro conectado à API
-   (createLancamento, getClifors, getTiposConta)
+1. Implementar ClientRegister — formulário completo conectado à API
+   (createClifor, com endereços e contatos)
 
-2. Implementar ListaLancamentosPage — tabela conectada com filtros funcionais
-   (getLancamentos com todos os filtros disponíveis)
+2. Implementar UserList — tabela de usuários com ações (editar, resetar senha, deletar)
 
 3. Implementar leitura de X-Session-Expires:
    - A cada response autenticado, ler o header e atualizar timer de sessão
@@ -117,10 +141,9 @@ ENUMS DO BANCO (fonte da verdade: tabelas_do_banco.txt):
 
 - AMSI_Frontend tem arquivos SvelteKit órfãos — não afetam o build React mas
   podem confundir. Remover quando conveniente.
-- vite.config.js está dentro de src/services/ — lugar errado, mas funciona se
-  não conflitar com o vite.config.js na raiz. Verificar qual está sendo usado.
-- db.json na raiz do frontend — arquivo de mock? Verificar se ainda é usado.
-- Componentes Home.jsx e News.jsx estão em components/ (não em pages/) —
-  inconsistência de organização, baixa prioridade.
+- vite.config.js está dentro de src/services/ — lugar errado, não está sendo usado
+  (o correto está na raiz). Pode ser deletado.
+- db.json na raiz do frontend — arquivo de mock, verificar se ainda é usado.
+- News.jsx em components/ — sem uso aparente, verificar se pode ser removido.
 
 ================================================================================

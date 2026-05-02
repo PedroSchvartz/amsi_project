@@ -66,8 +66,16 @@ def gerar_doc_ia(app, output_file="openapi_ai.yaml"):
         return components.get(nome, {})
 
     def extrair_campos(schema_obj):
+        if not schema_obj:
+            return None
         if "$ref" in schema_obj:
             schema_obj = resolve_ref(schema_obj["$ref"])
+        # array — extrai campos do item
+        if schema_obj.get("type") == "array":
+            items = schema_obj.get("items", {})
+            if "$ref" in items:
+                items = resolve_ref(items["$ref"])
+            schema_obj = items
         campos = {}
         for nome, info in schema_obj.get("properties", {}).items():
             tipo = info.get("type", "desconhecido")
@@ -81,7 +89,7 @@ def gerar_doc_ia(app, output_file="openapi_ai.yaml"):
                 campos[nome]["enum"] = info["enum"]
             if "default" in info:
                 campos[nome]["default"] = info["default"]
-        return campos
+        return campos if campos else None
 
     for path, methods in schema.get("paths", {}).items():
         for method, data in methods.items():
@@ -94,7 +102,6 @@ def gerar_doc_ia(app, output_file="openapi_ai.yaml"):
                 "respostas": list(data.get("responses", {}).keys())
             }
 
-            # parâmetros de path/query
             for param in data.get("parameters", []):
                 endpoint["parametros"].append({
                     "nome": param.get("name"),
@@ -103,14 +110,12 @@ def gerar_doc_ia(app, output_file="openapi_ai.yaml"):
                     "tipo": param.get("schema", {}).get("type", "desconhecido")
                 })
 
-            # request body
             body = data.get("requestBody", {})
             if body:
                 content = body.get("content", {}).get("application/json", {})
                 body_schema = content.get("schema", {})
                 endpoint["request_body"] = extrair_campos(body_schema)
 
-            # response 200
             resp_200 = data.get("responses", {}).get("200", {})
             if resp_200:
                 content = resp_200.get("content", {}).get("application/json", {})
@@ -125,7 +130,6 @@ def gerar_doc_ia(app, output_file="openapi_ai.yaml"):
 
     print(f"\n📄 Documento para IA gerado em: {output_file}\n")
     return
-
 
 from utils.config import NGROK_TOKEN, NGROK_DOMAIN, APP_HOST, APP_PORT
 

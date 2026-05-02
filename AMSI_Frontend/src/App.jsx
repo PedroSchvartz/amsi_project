@@ -11,83 +11,92 @@ import 'bootstrap-icons/font/bootstrap-icons.css';
 
 import PrivateRoute from './components/PrivateRoute';
 import AdminRoute from './components/AdminRoute';
+import Layout from './components/Layout';
+import { LoadingProvider, useLoading } from './services/LoadingContext';
+
+function Spinner() {
+	const { carregando } = useLoading();
+	if (!carregando) return null;
+	return (
+		<div
+			style={{
+				position: 'fixed',
+				inset: 0,
+				background: 'rgba(0,0,0,0.25)',
+				display: 'flex',
+				alignItems: 'center',
+				justifyContent: 'center',
+				zIndex: 9999
+			}}
+		>
+			<div
+				style={{
+					width: 48,
+					height: 48,
+					border: '5px solid #fff',
+					borderTop: '5px solid #8da87c',
+					borderRadius: '50%',
+					animation: 'spin 0.7s linear infinite'
+				}}
+			/>
+			<style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+		</div>
+	);
+}
 
 function App() {
 	return (
-		<BrowserRouter>
-			<Routes>
-				{/* pública */}
-				<Route path="/" element={<LoginPage />} />
+		<LoadingProvider>
+			<Spinner />
+			<BrowserRouter>
+				<Routes>
+					{/* pública */}
+					<Route path="/" element={<LoginPage />} />
 
-				{/* primeiro acesso */}
-				<Route
-					path="/trocar-senha"
-					element={
-						<PrivateRoute>
-							<TrocarSenhaPage />
-						</PrivateRoute>
-					}
-				/>
+					{/* primeiro acesso — sem navbar */}
+					<Route
+						path="/trocar-senha"
+						element={
+							<PrivateRoute>
+								<TrocarSenhaPage />
+							</PrivateRoute>
+						}
+					/>
 
-				{/* protegidas */}
-				<Route
-					path="/home"
-					element={
-						<PrivateRoute>
-							<HomePage />
-						</PrivateRoute>
-					}
-				/>
+					{/* protegidas — com navbar via Layout */}
+					<Route
+						element={
+							<PrivateRoute>
+								<Layout />
+							</PrivateRoute>
+						}
+					>
+						<Route path="/home" element={<HomePage />} />
+						<Route path="/usuarios" element={<UserListPage />} />
+						<Route path="/cliente_fornecedor" element={<ClientRegisterPage />} />
+						<Route path="/tipo_lancamento" element={<ListaLancamentosPage />} />
 
-				<Route
-					path="/usuarios"
-					element={
-						<PrivateRoute>
-							<UserListPage />
-						</PrivateRoute>
-					}
-				/>
-
-				<Route
-					path="/cliente_fornecedor"
-					element={
-						<PrivateRoute>
-							<ClientRegisterPage />
-						</PrivateRoute>
-					}
-				/>
-
-				<Route
-					path="/lancamento"
-					element={
-						<PrivateRoute>
-							<LancamentoPage />
-						</PrivateRoute>
-					}
-				/>
-
-				<Route
-					path="/tipo_lancamento"
-					element={
-						<PrivateRoute>
-							<ListaLancamentosPage />
-						</PrivateRoute>
-					}
-				/>
-
-				{/* 🔐 ADMIN ONLY */}
-				<Route
-					path="/cadastro"
-					element={
-						<PrivateRoute>
-							<AdminRoute>
-								<UserRegisterPage />
-							</AdminRoute>
-						</PrivateRoute>
-					}
-				/>
-			</Routes>
-		</BrowserRouter>
+						{/* admin only */}
+						<Route
+							path="/lancamento"
+							element={
+								<AdminRoute>
+									<LancamentoPage />
+								</AdminRoute>
+							}
+						/>
+						<Route
+							path="/cadastro"
+							element={
+								<AdminRoute>
+									<UserRegisterPage />
+								</AdminRoute>
+							}
+						/>
+					</Route>
+				</Routes>
+			</BrowserRouter>
+		</LoadingProvider>
 	);
 }
 

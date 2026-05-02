@@ -1,6 +1,16 @@
 import { getToken, logout } from './auth';
+import { loadingBus } from './LoadingContext';
 
 const BASE_URL = 'https://amsi-project-chzs.vercel.app';
+
+async function fetchComLoading(url, options) {
+	loadingBus.iniciar();
+	try {
+		return await fetch(url, options);
+	} finally {
+		loadingBus.finalizar();
+	}
+}
 
 // ─── Utilitário interno ────────────────────────────────────────────────────
 
@@ -36,7 +46,7 @@ async function handleResponse(response, { noLogout = false } = {}) {
 // ======================
 
 export const loginUser = async (email, senha) => {
-	const response = await fetch(`${BASE_URL}/auth/token`, {
+	const response = await fetchComLoading(`${BASE_URL}/auth/token`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({ email, senha })
@@ -50,7 +60,7 @@ export const loginUser = async (email, senha) => {
 };
 
 export const logoutUser = async () => {
-	const response = await fetch(`${BASE_URL}/auth/logout`, {
+	const response = await fetchComLoading(`${BASE_URL}/auth/logout`, {
 		method: 'POST',
 		headers: authHeaders()
 	});
@@ -59,7 +69,7 @@ export const logoutUser = async () => {
 
 // body: { senha_atual, senha_nova }
 export const trocarSenha = async ({ senha_atual, nova_senha }) => {
-	const response = await fetch(`${BASE_URL}/auth/trocar-senha`, {
+	const response = await fetchComLoading(`${BASE_URL}/auth/trocar-senha`, {
 		method: 'POST',
 		headers: authHeaders(),
 		body: JSON.stringify({ senha_atual, senha_nova: nova_senha })
@@ -72,7 +82,7 @@ export const trocarSenha = async ({ senha_atual, nova_senha }) => {
 // ======================
 
 export const getUsers = async () => {
-	const response = await fetch(`${BASE_URL}/usuarios/`, {
+	const response = await fetchComLoading(`${BASE_URL}/usuarios/`, {
 		method: 'GET',
 		headers: authHeaders()
 	});
@@ -80,7 +90,7 @@ export const getUsers = async () => {
 };
 
 export const getUser = async (id_usuario) => {
-	const response = await fetch(`${BASE_URL}/usuarios/${id_usuario}`, {
+	const response = await fetchComLoading(`${BASE_URL}/usuarios/${id_usuario}`, {
 		method: 'GET',
 		headers: authHeaders()
 	});
@@ -89,7 +99,7 @@ export const getUser = async (id_usuario) => {
 
 // body: { nome, email, cargo, perfil_de_acesso, notificacao? }
 export const createUser = async (data) => {
-	const response = await fetch(`${BASE_URL}/usuarios/`, {
+	const response = await fetchComLoading(`${BASE_URL}/usuarios/`, {
 		method: 'POST',
 		headers: authHeaders(),
 		body: JSON.stringify({
@@ -104,7 +114,7 @@ export const createUser = async (data) => {
 };
 
 export const updateUser = async (id_usuario, data) => {
-	const response = await fetch(`${BASE_URL}/usuarios/${id_usuario}`, {
+	const response = await fetchComLoading(`${BASE_URL}/usuarios/${id_usuario}`, {
 		method: 'PUT',
 		headers: authHeaders(),
 		body: JSON.stringify(data)
@@ -113,7 +123,7 @@ export const updateUser = async (id_usuario, data) => {
 };
 
 export const deleteUser = async (id_usuario) => {
-	const response = await fetch(`${BASE_URL}/usuarios/${id_usuario}`, {
+	const response = await fetchComLoading(`${BASE_URL}/usuarios/${id_usuario}`, {
 		method: 'DELETE',
 		headers: authHeaders()
 	});
@@ -121,7 +131,7 @@ export const deleteUser = async (id_usuario) => {
 };
 
 export const resetarSenhaUsuario = async (id_usuario) => {
-	const response = await fetch(`${BASE_URL}/usuarios/${id_usuario}/resetar-senha`, {
+	const response = await fetchComLoading(`${BASE_URL}/usuarios/${id_usuario}/resetar-senha`, {
 		method: 'POST',
 		headers: authHeaders()
 	});
@@ -142,7 +152,7 @@ export const getClifors = async (filtros = {}) => {
 	if (filtros.pessoafisica_juridica != null)
 		params.append('pessoafisica_juridica', filtros.pessoafisica_juridica);
 	const query = params.toString() ? `?${params.toString()}` : '';
-	const response = await fetch(`${BASE_URL}/cliente_fornecedor/${query}`, {
+	const response = await fetchComLoading(`${BASE_URL}/cliente_fornecedor/${query}`, {
 		method: 'GET',
 		headers: authHeaders()
 	});
@@ -150,7 +160,7 @@ export const getClifors = async (filtros = {}) => {
 };
 
 export const getClifor = async (id_clifor) => {
-	const response = await fetch(`${BASE_URL}/cliente_fornecedor/${id_clifor}`, {
+	const response = await fetchComLoading(`${BASE_URL}/cliente_fornecedor/${id_clifor}`, {
 		method: 'GET',
 		headers: authHeaders()
 	});
@@ -158,7 +168,7 @@ export const getClifor = async (id_clifor) => {
 };
 
 export const getCliforResumo = async (id_clifor) => {
-	const response = await fetch(`${BASE_URL}/cliente_fornecedor/${id_clifor}/resumo`, {
+	const response = await fetchComLoading(`${BASE_URL}/cliente_fornecedor/${id_clifor}/resumo`, {
 		method: 'GET',
 		headers: authHeaders()
 	});
@@ -168,7 +178,7 @@ export const getCliforResumo = async (id_clifor) => {
 // body: { pessoafisica_juridica, cpf_cnpj, rg_inscricaoestadual, nome, datanascimento,
 //         tipo_clifor ("C"|"F"|"A"), ativo?, inadimplente?, id_usuario_fk? }
 export const createClifor = async (data) => {
-	const response = await fetch(`${BASE_URL}/cliente_fornecedor/`, {
+	const response = await fetchComLoading(`${BASE_URL}/cliente_fornecedor/`, {
 		method: 'POST',
 		headers: authHeaders(),
 		body: JSON.stringify(data)
@@ -177,7 +187,7 @@ export const createClifor = async (data) => {
 };
 
 export const updateClifor = async (id_clifor, data) => {
-	const response = await fetch(`${BASE_URL}/cliente_fornecedor/${id_clifor}`, {
+	const response = await fetchComLoading(`${BASE_URL}/cliente_fornecedor/${id_clifor}`, {
 		method: 'PUT',
 		headers: authHeaders(),
 		body: JSON.stringify(data)
@@ -186,7 +196,7 @@ export const updateClifor = async (id_clifor, data) => {
 };
 
 export const deleteClifor = async (id_clifor) => {
-	const response = await fetch(`${BASE_URL}/cliente_fornecedor/${id_clifor}`, {
+	const response = await fetchComLoading(`${BASE_URL}/cliente_fornecedor/${id_clifor}`, {
 		method: 'DELETE',
 		headers: authHeaders()
 	});
@@ -198,7 +208,7 @@ export const deleteClifor = async (id_clifor) => {
 // ======================
 
 export const getEnderecos = async () => {
-	const response = await fetch(`${BASE_URL}/endereco/`, {
+	const response = await fetchComLoading(`${BASE_URL}/endereco/`, {
 		method: 'GET',
 		headers: authHeaders()
 	});
@@ -206,7 +216,7 @@ export const getEnderecos = async () => {
 };
 
 export const getEndereco = async (id_endereco) => {
-	const response = await fetch(`${BASE_URL}/endereco/${id_endereco}`, {
+	const response = await fetchComLoading(`${BASE_URL}/endereco/${id_endereco}`, {
 		method: 'GET',
 		headers: authHeaders()
 	});
@@ -214,7 +224,7 @@ export const getEndereco = async (id_endereco) => {
 };
 
 export const getEnderecosPorClifor = async (id_clifor) => {
-	const response = await fetch(`${BASE_URL}/endereco/por-clifor/${id_clifor}`, {
+	const response = await fetchComLoading(`${BASE_URL}/endereco/por-clifor/${id_clifor}`, {
 		method: 'GET',
 		headers: authHeaders()
 	});
@@ -224,7 +234,7 @@ export const getEnderecosPorClifor = async (id_clifor) => {
 // body: { id_clifor_fk, logradouro, numero, bairro, cidade, uf, cep,
 //         enderecoprimario?, complemento? }
 export const createEndereco = async (data) => {
-	const response = await fetch(`${BASE_URL}/endereco/`, {
+	const response = await fetchComLoading(`${BASE_URL}/endereco/`, {
 		method: 'POST',
 		headers: authHeaders(),
 		body: JSON.stringify(data)
@@ -233,7 +243,7 @@ export const createEndereco = async (data) => {
 };
 
 export const updateEndereco = async (id_endereco, data) => {
-	const response = await fetch(`${BASE_URL}/endereco/${id_endereco}`, {
+	const response = await fetchComLoading(`${BASE_URL}/endereco/${id_endereco}`, {
 		method: 'PUT',
 		headers: authHeaders(),
 		body: JSON.stringify(data)
@@ -242,7 +252,7 @@ export const updateEndereco = async (id_endereco, data) => {
 };
 
 export const deleteEndereco = async (id_endereco) => {
-	const response = await fetch(`${BASE_URL}/endereco/${id_endereco}`, {
+	const response = await fetchComLoading(`${BASE_URL}/endereco/${id_endereco}`, {
 		method: 'DELETE',
 		headers: authHeaders()
 	});
@@ -254,7 +264,7 @@ export const deleteEndereco = async (id_endereco) => {
 // ======================
 
 export const getContatos = async () => {
-	const response = await fetch(`${BASE_URL}/contato/`, {
+	const response = await fetchComLoading(`${BASE_URL}/contato/`, {
 		method: 'GET',
 		headers: authHeaders()
 	});
@@ -262,7 +272,7 @@ export const getContatos = async () => {
 };
 
 export const getContato = async (id_contato) => {
-	const response = await fetch(`${BASE_URL}/contato/${id_contato}`, {
+	const response = await fetchComLoading(`${BASE_URL}/contato/${id_contato}`, {
 		method: 'GET',
 		headers: authHeaders()
 	});
@@ -270,7 +280,7 @@ export const getContato = async (id_contato) => {
 };
 
 export const getContatosPorClifor = async (id_clifor) => {
-	const response = await fetch(`${BASE_URL}/contato/por-clifor/${id_clifor}`, {
+	const response = await fetchComLoading(`${BASE_URL}/contato/por-clifor/${id_clifor}`, {
 		method: 'GET',
 		headers: authHeaders()
 	});
@@ -279,7 +289,7 @@ export const getContatosPorClifor = async (id_clifor) => {
 
 // body: { id_clifor_fk, tipocontato, info_do_contato, contato_principal? }
 export const createContato = async (data) => {
-	const response = await fetch(`${BASE_URL}/contato/`, {
+	const response = await fetchComLoading(`${BASE_URL}/contato/`, {
 		method: 'POST',
 		headers: authHeaders(),
 		body: JSON.stringify(data)
@@ -288,7 +298,7 @@ export const createContato = async (data) => {
 };
 
 export const updateContato = async (id_contato, data) => {
-	const response = await fetch(`${BASE_URL}/contato/${id_contato}`, {
+	const response = await fetchComLoading(`${BASE_URL}/contato/${id_contato}`, {
 		method: 'PUT',
 		headers: authHeaders(),
 		body: JSON.stringify(data)
@@ -297,7 +307,7 @@ export const updateContato = async (id_contato, data) => {
 };
 
 export const deleteContato = async (id_contato) => {
-	const response = await fetch(`${BASE_URL}/contato/${id_contato}`, {
+	const response = await fetchComLoading(`${BASE_URL}/contato/${id_contato}`, {
 		method: 'DELETE',
 		headers: authHeaders()
 	});
@@ -333,7 +343,7 @@ export const getLancamentos = async (filtros = {}) => {
 	if (filtros.valor_minimo != null) params.append('valor_minimo', filtros.valor_minimo);
 	if (filtros.valor_maximo != null) params.append('valor_maximo', filtros.valor_maximo);
 	const query = params.toString() ? `?${params.toString()}` : '';
-	const response = await fetch(`${BASE_URL}/lancamento/${query}`, {
+	const response = await fetchComLoading(`${BASE_URL}/lancamento/${query}`, {
 		method: 'GET',
 		headers: authHeaders()
 	});
@@ -359,7 +369,7 @@ export const getLancamentosResumo = async (filtros = {}) => {
 	if (filtros.valor_minimo != null) params.append('valor_minimo', filtros.valor_minimo);
 	if (filtros.valor_maximo != null) params.append('valor_maximo', filtros.valor_maximo);
 	const query = params.toString() ? `?${params.toString()}` : '';
-	const response = await fetch(`${BASE_URL}/lancamento/resumo${query}`, {
+	const response = await fetchComLoading(`${BASE_URL}/lancamento/resumo${query}`, {
 		method: 'GET',
 		headers: authHeaders()
 	});
@@ -367,7 +377,7 @@ export const getLancamentosResumo = async (filtros = {}) => {
 };
 
 export const getLancamento = async (id_lancamento) => {
-	const response = await fetch(`${BASE_URL}/lancamento/${id_lancamento}`, {
+	const response = await fetchComLoading(`${BASE_URL}/lancamento/${id_lancamento}`, {
 		method: 'GET',
 		headers: authHeaders()
 	});
@@ -375,7 +385,7 @@ export const getLancamento = async (id_lancamento) => {
 };
 
 export const getLancamentosPorClifor = async (id_clifor) => {
-	const response = await fetch(`${BASE_URL}/lancamento/por-clifor/${id_clifor}`, {
+	const response = await fetchComLoading(`${BASE_URL}/lancamento/por-clifor/${id_clifor}`, {
 		method: 'GET',
 		headers: authHeaders()
 	});
@@ -383,7 +393,7 @@ export const getLancamentosPorClifor = async (id_clifor) => {
 };
 
 export const getLancamentosPorUsuario = async (id_usuario) => {
-	const response = await fetch(`${BASE_URL}/lancamento/por-usuario/${id_usuario}`, {
+	const response = await fetchComLoading(`${BASE_URL}/lancamento/por-usuario/${id_usuario}`, {
 		method: 'GET',
 		headers: authHeaders()
 	});
@@ -393,7 +403,7 @@ export const getLancamentosPorUsuario = async (id_usuario) => {
 // body: { id_usuario_fk_lancamento, id_clifor_relacionado_fk, id_tipo_conta_fk,
 //         valor, data_vencimento, natureza_lancamento ("Debito"|"Credito"), observacao? }
 export const createLancamento = async (data) => {
-	const response = await fetch(`${BASE_URL}/lancamento/`, {
+	const response = await fetchComLoading(`${BASE_URL}/lancamento/`, {
 		method: 'POST',
 		headers: authHeaders(),
 		body: JSON.stringify(data)
@@ -404,7 +414,7 @@ export const createLancamento = async (data) => {
 // body: { id_usuario_fk_fechamento?, data_pagamento?, valor_pago?,
 //         multa?, juros?, observacao?, estorno? }
 export const fecharLancamento = async (id_lancamento, data) => {
-	const response = await fetch(`${BASE_URL}/lancamento/${id_lancamento}`, {
+	const response = await fetchComLoading(`${BASE_URL}/lancamento/${id_lancamento}`, {
 		method: 'PUT',
 		headers: authHeaders(),
 		body: JSON.stringify(data)
@@ -413,7 +423,7 @@ export const fecharLancamento = async (id_lancamento, data) => {
 };
 
 export const deleteLancamento = async (id_lancamento) => {
-	const response = await fetch(`${BASE_URL}/lancamento/${id_lancamento}`, {
+	const response = await fetchComLoading(`${BASE_URL}/lancamento/${id_lancamento}`, {
 		method: 'DELETE',
 		headers: authHeaders()
 	});
@@ -425,7 +435,7 @@ export const deleteLancamento = async (id_lancamento) => {
 // ======================
 
 export const getTiposConta = async () => {
-	const response = await fetch(`${BASE_URL}/tipo_conta/`, {
+	const response = await fetchComLoading(`${BASE_URL}/tipo_conta/`, {
 		method: 'GET',
 		headers: authHeaders()
 	});
@@ -433,7 +443,7 @@ export const getTiposConta = async () => {
 };
 
 export const getTipoConta = async (id_tipo_conta) => {
-	const response = await fetch(`${BASE_URL}/tipo_conta/${id_tipo_conta}`, {
+	const response = await fetchComLoading(`${BASE_URL}/tipo_conta/${id_tipo_conta}`, {
 		method: 'GET',
 		headers: authHeaders()
 	});
@@ -442,7 +452,7 @@ export const getTipoConta = async (id_tipo_conta) => {
 
 // body: { descricao_conta, natureza_conta ("Debito"|"Credito"), observacao? }
 export const createTipoConta = async (data) => {
-	const response = await fetch(`${BASE_URL}/tipo_conta/`, {
+	const response = await fetchComLoading(`${BASE_URL}/tipo_conta/`, {
 		method: 'POST',
 		headers: authHeaders(),
 		body: JSON.stringify(data)
@@ -451,7 +461,7 @@ export const createTipoConta = async (data) => {
 };
 
 export const updateTipoConta = async (id_tipo_conta, data) => {
-	const response = await fetch(`${BASE_URL}/tipo_conta/${id_tipo_conta}`, {
+	const response = await fetchComLoading(`${BASE_URL}/tipo_conta/${id_tipo_conta}`, {
 		method: 'PUT',
 		headers: authHeaders(),
 		body: JSON.stringify(data)
@@ -460,7 +470,7 @@ export const updateTipoConta = async (id_tipo_conta, data) => {
 };
 
 export const deleteTipoConta = async (id_tipo_conta) => {
-	const response = await fetch(`${BASE_URL}/tipo_conta/${id_tipo_conta}`, {
+	const response = await fetchComLoading(`${BASE_URL}/tipo_conta/${id_tipo_conta}`, {
 		method: 'DELETE',
 		headers: authHeaders()
 	});
@@ -472,7 +482,7 @@ export const deleteTipoConta = async (id_tipo_conta) => {
 // ======================
 
 export const getLogins = async () => {
-	const response = await fetch(`${BASE_URL}/login/`, {
+	const response = await fetchComLoading(`${BASE_URL}/login/`, {
 		method: 'GET',
 		headers: authHeaders()
 	});
@@ -480,7 +490,7 @@ export const getLogins = async () => {
 };
 
 export const getLoginsPorUsuario = async (id_usuario) => {
-	const response = await fetch(`${BASE_URL}/login/por-usuario/${id_usuario}`, {
+	const response = await fetchComLoading(`${BASE_URL}/login/por-usuario/${id_usuario}`, {
 		method: 'GET',
 		headers: authHeaders()
 	});

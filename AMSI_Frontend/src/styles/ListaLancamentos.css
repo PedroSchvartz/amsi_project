@@ -1,144 +1,243 @@
-/* FUNDO */
-body {
-  margin: 0;
-  background: #dcdcdc;
-  font-family: Arial, Helvetica, sans-serif;
+/* CONTAINER */
+.ll-container {
+	padding: 30px;
+	max-width: 1200px;
+	margin: 0 auto;
+	display: flex;
+	flex-direction: column;
+	gap: 24px;
 }
 
-/* CONTAINER CENTRAL */
-.container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+/* CARD */
+.ll-card {
+	background: #fff;
+	border-radius: 12px;
+	padding: 24px;
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 
-/* HEADER */
-.header {
-  width: 100%;
-  max-width: 1100px;
-  background: #8fc9a3;
-  display: flex;
-  align-items: center;
-  padding: 15px;
-  border-radius: 10px 10px 0 0;
-  margin-top: 40px;
+.ll-card h2 {
+	text-align: center;
+	margin-bottom: 20px;
+	font-size: 20px;
 }
 
-.logo {
-  font-weight: bold;
-  margin-right: 15px;
-}
-
-.header h2 {
-  margin: 0;
-  font-size: 18px;
-}
-
-/* MENU */
-.menu {
-  width: 100%;
-  max-width: 1100px;
-  background: #a7d7b5;
-  display: flex;
-  justify-content: space-around;
-  padding: 10px;
-  font-size: 13px;
-}
-
-/* CARD PRINCIPAL */
-.content {
-  background: #f5f5f5;
-  width: 100%;
-  max-width: 600px;
-  margin-top: 40px;
-  padding: 25px;
-  border-radius: 12px;
-  box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-}
-
-/* TITULOS */
-h2 {
-  text-align: center;
-  margin-bottom: 10px;
-}
-
-h4 {
-  text-align: center;
-  margin-top: 20px;
-  font-size: 12px;
-  color: #555;
+.ll-card h4 {
+	font-size: 11px;
+	color: #777;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	margin-bottom: 16px;
 }
 
 /* FILTROS */
-.filtros {
-  display: flex;
-  gap: 10px;
-  margin-top: 10px;
+.ll-row {
+	display: flex;
+	gap: 12px;
+	margin-bottom: 12px;
+	flex-wrap: wrap;
 }
 
-.filtros input {
-  flex: 1;
-  padding: 8px;
-  border-radius: 6px;
-  border: none;
-  background: #d9d9d9;
-  font-size: 12px;
+.ll-field {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-width: 140px;
 }
 
-/* LINHA 2 */
-.filtros-secundario {
-  display: flex;
-  gap: 10px;
-  margin-top: 10px;
+.ll-field label {
+	font-size: 11px;
+	color: #555;
+	margin-bottom: 4px;
 }
 
-.filtros-secundario input {
-  flex: 1;
-  padding: 8px;
-  border-radius: 6px;
-  border: none;
-  background: #d9d9d9;
+.ll-field input,
+.ll-field select,
+.ll-field textarea {
+	padding: 8px;
+	border-radius: 6px;
+	border: none;
+	background: #efefef;
+	font-size: 13px;
 }
 
-/* BOTÃO */
-.btn-filtrar {
-  width: 100%;
-  margin-top: 15px;
-  background: #4fa0c7;
-  color: white;
-  border: none;
-  padding: 10px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: bold;
+.ll-checkbox {
+	flex-direction: row;
+	align-items: center;
+	gap: 8px;
 }
 
-.btn-filtrar:hover {
-  background: #3a8ab0;
+.ll-checkbox input {
+	width: auto;
+}
+
+.ll-checkbox label {
+	margin-bottom: 0;
+}
+
+/* BOTÕES FILTRO */
+.ll-buttons {
+	display: flex;
+	justify-content: flex-end;
+	gap: 10px;
+	margin-top: 16px;
+}
+
+.ll-btn-filtrar {
+	background: #8da87c;
+	color: #fff;
+	border: none;
+	padding: 9px 20px;
+	border-radius: 6px;
+	cursor: pointer;
+	font-weight: 600;
+	font-size: 13px;
+}
+
+.ll-btn-filtrar:hover {
+	background: #7a9469;
+}
+
+.ll-btn-limpar {
+	background: #ccc;
+	color: #333;
+	border: none;
+	padding: 9px 20px;
+	border-radius: 6px;
+	cursor: pointer;
+	font-size: 13px;
+}
+
+/* FEEDBACK */
+.ll-erro {
+	color: #c0392b;
+	font-size: 13px;
+	margin: 0;
+}
+
+.ll-sucesso {
+	color: #27ae60;
+	font-size: 13px;
+	margin: 0;
 }
 
 /* TABELA */
-table {
-  width: 100%;
-  margin-top: 15px;
-  border-collapse: collapse;
+.ll-table-wrapper {
+	overflow-x: auto;
 }
 
-/* HEADER DA TABELA */
-thead {
-  background: #9cab83;
-  color: white;
+.ll-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 13px;
 }
 
-th {
-  padding: 10px;
-  font-size: 12px;
-  text-align: left;
+.ll-table thead {
+	background: #8da87c;
+	color: #fff;
 }
 
-/* LINHA VAZIA */
-.empty {
-  text-align: center;
-  padding: 20px;
-  color: #777;
+.ll-table th {
+	padding: 10px 12px;
+	text-align: left;
+	font-weight: 600;
+	font-size: 12px;
+}
+
+.ll-table td {
+	padding: 10px 12px;
+	border-bottom: 1px solid #f0f0f0;
+}
+
+.ll-table tbody tr:hover {
+	background: #f9f9f9;
+}
+
+.ll-empty {
+	text-align: center;
+	color: #999;
+	padding: 30px !important;
+}
+
+/* BADGES */
+.badge {
+	display: inline-block;
+	padding: 3px 8px;
+	border-radius: 12px;
+	font-size: 11px;
+	font-weight: 600;
+}
+
+.badge-aberto {
+	background: #d5e8d4;
+	color: #2d6a2d;
+}
+.badge-pago {
+	background: #dae8fc;
+	color: #1a5276;
+}
+.badge-vencido {
+	background: #f8cecc;
+	color: #922b21;
+}
+.badge-estorno {
+	background: #fff2cc;
+	color: #7d6608;
+}
+
+/* AÇÕES */
+.ll-acoes {
+	display: flex;
+	gap: 6px;
+}
+
+.ll-btn-acao {
+	width: 28px;
+	height: 28px;
+	border: none;
+	border-radius: 6px;
+	cursor: pointer;
+	font-size: 14px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.ll-btn-acao.fechar {
+	background: #d5e8d4;
+	color: #2d6a2d;
+}
+.ll-btn-acao.fechar:hover {
+	background: #b7d7b5;
+}
+.ll-btn-acao.deletar {
+	background: #f8cecc;
+	color: #922b21;
+}
+.ll-btn-acao.deletar:hover {
+	background: #f0a8a4;
+}
+
+/* MODAL */
+.ll-overlay {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.4);
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	z-index: 1000;
+}
+
+.ll-modal {
+	background: #fff;
+	padding: 30px;
+	border-radius: 12px;
+	width: 440px;
+	box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.ll-modal h3 {
+	text-align: center;
+	margin-bottom: 20px;
 }
