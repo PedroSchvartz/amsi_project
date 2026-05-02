@@ -1,76 +1,132 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { trocarSenha } from '../services/api.js';
+import '../styles/login.css';
+import logo from '../assets/AMSI_Logo.png';
 
 function TrocarSenhaPage() {
-	const navigate = useNavigate();
-	const [senhaAtual, setSenhaAtual] = useState('');
-	const [senhaNova, setSenhaNova] = useState('');
-	const [confirma, setConfirma] = useState('');
-	const [erro, setErro] = useState('');
-	const [carregando, setCarregando] = useState(false);
+  const navigate = useNavigate();
+  const [senhaAtual, setSenhaAtual] = useState('');
+  const [senhaNova, setSenhaNova] = useState('');
+  const [confirma, setConfirma] = useState('');
+  const [erro, setErro] = useState('');
+  const [carregando, setCarregando] = useState(false);
+  const [tema, setTema] = useState(
+    () => localStorage.getItem('amsi_tema') || 'verde'
+  );
 
-	const handleSubmit = async (e) => {
-		e.preventDefault();
+  useEffect(() => {
+    if (tema === 'corporativo') {
+      document.documentElement.setAttribute('data-theme', 'corporativo');
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
+    localStorage.setItem('amsi_tema', tema);
+  }, [tema]);
 
-		if (senhaNova !== confirma) {
-			setErro('As senhas não coincidem');
-			return;
-		}
+  const toggleTema = () => setTema((t) => (t === 'verde' ? 'corporativo' : 'verde'));
 
-		setCarregando(true);
-		try {
-			await trocarSenha({ senha_atual: senhaAtual, nova_senha: senhaNova });
-			navigate('/home');
-		} catch (err) {
-			setErro(err.message || 'Erro ao trocar senha');
-		} finally {
-			setCarregando(false);
-		}
-	};
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-	return (
-		<div className="login-container">
-			<div className="login-box">
-				<h2>Troca de Senha</h2>
-				<p style={{ marginBottom: '1rem', fontSize: '0.9rem', color: '#666' }}>
-					Este é seu primeiro acesso. Defina uma nova senha para continuar.
-				</p>
+    if (senhaNova !== confirma) {
+      setErro('As senhas não coincidem');
+      return;
+    }
 
-				<form onSubmit={handleSubmit}>
-					<input
-						type="password"
-						placeholder="Senha atual"
-						value={senhaAtual}
-						onChange={(e) => setSenhaAtual(e.target.value)}
-						required
-					/>
+    setCarregando(true);
+    try {
+      await trocarSenha({ senha_atual: senhaAtual, nova_senha: senhaNova });
+      navigate('/home');
+    } catch (err) {
+      setErro(err.message || 'Erro ao trocar senha');
+    } finally {
+      setCarregando(false);
+    }
+  };
 
-					<input
-						type="password"
-						placeholder="Nova senha"
-						value={senhaNova}
-						onChange={(e) => setSenhaNova(e.target.value)}
-						required
-					/>
+  useEffect(() => {
+    if (erro) {
+      const timer = setTimeout(() => setErro(''), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [erro]);
 
-					<input
-						type="password"
-						placeholder="Confirmar nova senha"
-						value={confirma}
-						onChange={(e) => setConfirma(e.target.value)}
-						required
-					/>
+  return (
+    <>
+      <button className="theme-toggle" onClick={toggleTema}>
+        <span className="dot" />
+        {tema === 'verde' ? 'Tema Corporativo' : 'Tema Verde'}
+      </button>
 
-					<button type="submit" disabled={carregando}>
-						{carregando ? 'Salvando...' : 'Salvar'}
-					</button>
+      <div className="login-container">
+        {/* Lado esquerdo — branding */}
+        <div className="login-branding">
+          <img src={logo} alt="AMSI Logo" className="branding-logo" />
+          <h1 className="branding-title">AMSI</h1>
+          <p className="branding-subtitle">Associação de Moradores de Santa Isabel</p>
+          <div className="branding-divider" />
+          <p className="branding-tagline">
+            Defina sua senha para continuar acessando o sistema.
+          </p>
+        </div>
 
-					{erro && <p style={{ color: 'red' }}>{erro}</p>}
-				</form>
-			</div>
-		</div>
-	);
+        {/* Lado direito — formulário */}
+        <div className="login-form-side">
+          <div className="login-box">
+            <h2>Trocar de Senha </h2>
+            <p className="login-welcome">
+              Este é seu primeiro acesso. Defina uma nova senha para continuar.
+            </p>
+
+            <form onSubmit={handleSubmit}>
+              <div className="input-group">
+                <label htmlFor="senhaAtual">Senha atual</label>
+                <input
+                  id="senhaAtual"
+                  type="password"
+                  placeholder="••••••••"
+                  value={senhaAtual}
+                  onChange={(e) => setSenhaAtual(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="input-group">
+                <label htmlFor="senhaNova">Nova senha</label>
+                <input
+                  id="senhaNova"
+                  type="password"
+                  placeholder="••••••••"
+                  value={senhaNova}
+                  onChange={(e) => setSenhaNova(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="input-group">
+                <label htmlFor="confirma">Confirmar nova senha</label>
+                <input
+                  id="confirma"
+                  type="password"
+                  placeholder="••••••••"
+                  value={confirma}
+                  onChange={(e) => setConfirma(e.target.value)}
+                  required
+                />
+              </div>
+
+              <button type="submit" disabled={carregando}>
+                {carregando ? 'Salvando...' : 'Salvar'}
+              </button>
+
+              {erro && <p className="login-erro">{erro}</p>}
+            </form>
+          </div>
+        </div>
+      </div>
+    </>
+  );
 }
 
 export default TrocarSenhaPage;
