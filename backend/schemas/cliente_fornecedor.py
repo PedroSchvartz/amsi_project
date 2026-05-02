@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict
-from typing import Optional
+from typing import Optional, List
 from datetime import date
 from decimal import Decimal
 from enum import Enum
@@ -11,7 +11,39 @@ class TipoCliForEnum(str, Enum):
     Ambos = "A"
 
 
-# O que o frontend manda para criar um cliente/fornecedor
+# ─── Inline (sem id_clifor_fk — preenchido pela route) ────────────────────────
+
+class EnderecoInline(BaseModel):
+    enderecoprimario: bool = False
+    logradouro: str
+    numero: str
+    complemento: Optional[str] = None
+    bairro: str
+    cidade: str
+    uf: str
+    cep: str
+
+
+class EnderecoInlineResponse(EnderecoInline):
+    id_endereco: int
+    id_clifor_fk: int
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ContatoInline(BaseModel):
+    tipocontato: str
+    info_do_contato: str
+    contato_principal: bool = False
+
+
+class ContatoInlineResponse(ContatoInline):
+    id_contato: int
+    id_clifor_fk: int
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ─── Create ───────────────────────────────────────────────────────────────────
+
 class ClienteFornecedorCreate(BaseModel):
     id_usuario_fk: Optional[int] = None
     pessoafisica_juridica: bool
@@ -22,9 +54,12 @@ class ClienteFornecedorCreate(BaseModel):
     tipo_clifor: TipoCliForEnum
     ativo: bool = True
     inadimplente: bool = False
+    enderecos: Optional[List[EnderecoInline]] = None
+    contatos: Optional[List[ContatoInline]] = None
 
 
-# O que o frontend manda para atualizar um cliente/fornecedor
+# ─── Update ───────────────────────────────────────────────────────────────────
+
 class ClienteFornecedorUpdate(BaseModel):
     id_usuario_fk: Optional[int] = None
     pessoafisica_juridica: Optional[bool] = None
@@ -35,9 +70,12 @@ class ClienteFornecedorUpdate(BaseModel):
     tipo_clifor: Optional[TipoCliForEnum] = None
     ativo: Optional[bool] = None
     inadimplente: Optional[bool] = None
+    enderecos: Optional[List[EnderecoInline]] = None
+    contatos: Optional[List[ContatoInline]] = None
 
 
-# O que a API devolve
+# ─── Response ─────────────────────────────────────────────────────────────────
+
 class ClienteFornecedorResponse(BaseModel):
     id_clifor: int
     id_usuario_fk: Optional[int] = None
@@ -49,11 +87,14 @@ class ClienteFornecedorResponse(BaseModel):
     tipo_clifor: TipoCliForEnum
     ativo: bool
     inadimplente: bool
+    enderecos: List[EnderecoInlineResponse] = []
+    contatos: List[ContatoInlineResponse] = []
 
     model_config = ConfigDict(from_attributes=True)
 
 
-# Resumo consolidado de um clifor
+# ─── Resumo ───────────────────────────────────────────────────────────────────
+
 class CliForResumo(BaseModel):
     id_clifor: int
     nome: str

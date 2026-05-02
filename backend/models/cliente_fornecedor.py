@@ -27,5 +27,5 @@ class ClienteFornecedor(Base):
     inadimplente = Column(Boolean, nullable=False, default=False)
 
     usuario = relationship("Usuario", backref="clientes_fornecedores")
-    enderecos = relationship("Endereco", backref="cliente_fornecedor")
-    contatos = relationship("Contato", backref="cliente_fornecedor")
+    enderecos = relationship("Endereco", backref="cliente_fornecedor", cascade="all, delete-orphan")
+    contatos = relationship("Contato", backref="cliente_fornecedor", cascade="all, delete-orphan")

@@ -3,9 +3,16 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, exists
 from database import get_db
 from models.cliente_fornecedor import ClienteFornecedor
+from models.endereco import Endereco
+from models.contato import Contato
 from models.lancamento import Lancamento
 from models.usuario import Usuario
-from schemas.cliente_fornecedor import ClienteFornecedorCreate, ClienteFornecedorUpdate, ClienteFornecedorResponse, CliForResumo
+from schemas.cliente_fornecedor import (
+    ClienteFornecedorCreate,
+    ClienteFornecedorUpdate,
+    ClienteFornecedorResponse,
+    CliForResumo
+)
 from auth.dependencies import get_current_user
 from typing import List, Optional
 from datetime import date
@@ -130,8 +137,20 @@ def criar_clifor(dados: ClienteFornecedorCreate, db: Session = Depends(get_db), 
     if dados.id_usuario_fk:
         if not db.query(Usuario).filter(Usuario.id_usuario == dados.id_usuario_fk).first():
             raise HTTPException(status_code=404, detail="Usuário não encontrado")
-    clifor = ClienteFornecedor(**dados.model_dump())
+
+    clifor_data = dados.model_dump(exclude={"enderecos", "contatos"})
+    clifor = ClienteFornecedor(**clifor_data)
     db.add(clifor)
+    db.flush()  # gera id_clifor sem commitar
+
+    if dados.enderecos:
+        for end in dados.enderecos:
+            db.add(Endereco(id_clifor_fk=clifor.id_clifor, **end.model_dump()))
+
+    if dados.contatos:
+        for cont in dados.contatos:
+            db.add(Contato(id_clifor_fk=clifor.id_clifor, **cont.model_dump()))
+
     db.commit()
     db.refresh(clifor)
     return clifor
@@ -142,11 +161,22 @@ def atualizar_clifor(id_clifor: int, dados: ClienteFornecedorUpdate, db: Session
     clifor = db.query(ClienteFornecedor).filter(ClienteFornecedor.id_clifor == id_clifor).first()
     if not clifor:
         raise HTTPException(status_code=404, detail="Cliente/Fornecedor não encontrado")
+
     if dados.id_usuario_fk:
         if not db.query(Usuario).filter(Usuario.id_usuario == dados.id_usuario_fk).first():
             raise HTTPException(status_code=404, detail="Usuário não encontrado")
-    for campo, valor in dados.model_dump(exclude_unset=True).items():
+
+    for campo, valor in dados.model_dump(exclude_unset=True, exclude={"enderecos", "contatos"}).items():
         setattr(clifor, campo, valor)
+
+    if dados.enderecos:
+        for end in dados.enderecos:
+            db.add(Endereco(id_clifor_fk=clifor.id_clifor, **end.model_dump()))
+
+    if dados.contatos:
+        for cont in dados.contatos:
+            db.add(Contato(id_clifor_fk=clifor.id_clifor, **cont.model_dump()))
+
     db.commit()
     db.refresh(clifor)
     return clifor
