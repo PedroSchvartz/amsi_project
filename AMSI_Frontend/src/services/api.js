@@ -489,9 +489,45 @@ export const getLogins = async () => {
 	return handleResponse(response);
 };
 
+export const getLogin = async (id_login) => {
+	const response = await fetchComLoading(`${BASE_URL}/login/${id_login}`, {
+		method: 'GET',
+		headers: authHeaders()
+	});
+	return handleResponse(response);
+};
+
 export const getLoginsPorUsuario = async (id_usuario) => {
 	const response = await fetchComLoading(`${BASE_URL}/login/por-usuario/${id_usuario}`, {
 		method: 'GET',
+		headers: authHeaders()
+	});
+	return handleResponse(response);
+};
+
+// body: { id_usuario_fk, dispositivo_logado, localizacao, navegador }
+export const registrarLogin = async (data) => {
+	const response = await fetchComLoading(`${BASE_URL}/login/`, {
+		method: 'POST',
+		headers: authHeaders(),
+		body: JSON.stringify(data)
+	});
+	return handleResponse(response);
+};
+
+// body: { data_logout? }
+export const registrarLogout = async (id_login, data) => {
+	const response = await fetchComLoading(`${BASE_URL}/login/${id_login}`, {
+		method: 'PUT',
+		headers: authHeaders(),
+		body: JSON.stringify(data)
+	});
+	return handleResponse(response);
+};
+
+export const deleteLogin = async (id_login) => {
+	const response = await fetchComLoading(`${BASE_URL}/login/${id_login}`, {
+		method: 'DELETE',
 		headers: authHeaders()
 	});
 	return handleResponse(response);

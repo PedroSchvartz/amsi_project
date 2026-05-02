@@ -653,6 +653,14 @@
     inadimplente:
       tipo: boolean
       obrigatorio: true
+    enderecos:
+      tipo: array
+      obrigatorio: false
+      default: &id001 []
+    contatos:
+      tipo: array
+      obrigatorio: false
+      default: &id002 []
   respostas:
   - '200'
   - '422'
@@ -689,6 +697,12 @@
       tipo: boolean
       obrigatorio: false
       default: false
+    enderecos:
+      tipo: desconhecido
+      obrigatorio: false
+    contatos:
+      tipo: desconhecido
+      obrigatorio: false
   response_200:
     id_clifor:
       tipo: integer
@@ -720,6 +734,14 @@
     inadimplente:
       tipo: boolean
       obrigatorio: true
+    enderecos:
+      tipo: array
+      obrigatorio: false
+      default: *id001
+    contatos:
+      tipo: array
+      obrigatorio: false
+      default: *id002
   respostas:
   - '200'
   - '422'
@@ -801,6 +823,14 @@
     inadimplente:
       tipo: boolean
       obrigatorio: true
+    enderecos:
+      tipo: array
+      obrigatorio: false
+      default: *id001
+    contatos:
+      tipo: array
+      obrigatorio: false
+      default: *id002
   respostas:
   - '200'
   - '422'
@@ -839,6 +869,12 @@
     inadimplente:
       tipo: desconhecido
       obrigatorio: false
+    enderecos:
+      tipo: desconhecido
+      obrigatorio: false
+    contatos:
+      tipo: desconhecido
+      obrigatorio: false
   response_200:
     id_clifor:
       tipo: integer
@@ -870,6 +906,14 @@
     inadimplente:
       tipo: boolean
       obrigatorio: true
+    enderecos:
+      tipo: array
+      obrigatorio: false
+      default: *id001
+    contatos:
+      tipo: array
+      obrigatorio: false
+      default: *id002
   respostas:
   - '200'
   - '422'
