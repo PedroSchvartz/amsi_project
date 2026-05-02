@@ -92,7 +92,7 @@ function Home() {
                     Cadastre um novo lançamento financeiro.
                   </p>
                   <Link to="/lancamento" className="btn btn-dark w-100">
-                    Cadastrar
+                    Cadastrar Lançamento
                   </Link>
                 </div>
               </div>
@@ -139,7 +139,7 @@ function Home() {
                     Adicione novos usuários ao sistema.
                   </p>
                   <Link to="/cadastro" className="btn btn-dark w-100">
-                    Cadastrar
+                    Cadastrar Usuário
                   </Link>
                 </div>
               </div>

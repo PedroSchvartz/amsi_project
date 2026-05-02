@@ -83,18 +83,6 @@ function UserList() {
     }
   };
 
-  const handleDelete = async (id) => {
-    const confirmDelete = window.confirm("Deseja excluir este usuário?");
-    if (!confirmDelete) return;
-
-    try {
-      await deleteUser(id);
-      setUsuarios((prev) => prev.filter((u) => u.id_usuario !== id));
-    } catch (err) {
-      setErro(err.message || "Erro ao excluir usuário");
-    }
-  };
-
   // 🔥 resetar senha
   const handleResetSenha = async (id) => {
     const confirmar = window.confirm("Deseja resetar a senha deste usuário? Ele sreá obrigado a criar um nova senha");
@@ -150,14 +138,6 @@ function UserList() {
                   title="Resetar senha"
                 >
                   <i className="bi bi-key"></i>
-                </button>
-
-                <button
-                  className="btn btn-sm btn-outline-danger"
-                  onClick={() => handleDelete(user.id_usuario)}
-                  title="Excluir"
-                >
-                  <i className="bi bi-trash"></i>
                 </button>
               </td>
             </tr>
