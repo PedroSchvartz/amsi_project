@@ -40,12 +40,12 @@ function Layout() {
   const isActive = (path) => location.pathname === path;
 
   const menuLinks = [
-    { to: "/home",               label: "Dashboard",             icon: "📊" },
-    { to: "/usuarios",           label: "Usuários",              icon: "👥" },
-    { to: "/cliente_fornecedor", label: "Clientes/Fornecedores", icon: "🏢" },
-    { to: "/lancamento",         label: "Lançamentos",           icon: "💰" },
-    { to: "/tipo_lancamento",    label: "Lista Lançamentos",     icon: "📋" },
-    { to: "/cadastro",           label: "Cadastrar Usuário",     icon: "➕" },
+    { to: "/home",               label: "Dashboard" },
+    { to: "/usuarios",           label: "Usuários" },
+    { to: "/cliente_fornecedor", label: "Clientes/Fornecedores" },
+    { to: "/lancamento",         label: "Lançamentos" },
+    { to: "/tipo_lancamento",    label: "Lista Lançamentos" },
+    { to: "/cadastro",           label: "Cadastrar Usuário" },
   ];
 
   const corPrimaria = "var(--primary)";
@@ -67,7 +67,6 @@ function Layout() {
         width: "100%",
         boxSizing: "border-box",
       }}>
-        {/* Lado esquerdo */}
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <img src={logo} alt="AMSI Logo" style={{
             width: "44px", height: "44px", objectFit: "contain",
@@ -84,7 +83,6 @@ function Layout() {
           </span>
         </div>
 
-        {/* Lado direito */}
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           {!isMobile && (
             <>
@@ -130,7 +128,6 @@ function Layout() {
               className={`menu-mobile-item ${isActive(link.to) ? "active" : ""}`}
               onClick={() => setMenuAberto(false)}
             >
-              <span className="menu-icon">{link.icon}</span>
               {link.label}
             </Link>
           ))}
@@ -150,13 +147,12 @@ function Layout() {
                 to={link.to}
                 className={`menu-item ${isActive(link.to) ? "active" : ""}`}
               >
-                <span className="menu-icon">{link.icon}</span>
                 {link.label}
               </Link>
             ))}
           </div>
           <button className="menu-sair" onClick={handleSair}>
-            🚪 Sair
+            Sair
           </button>
         </nav>
       )}
