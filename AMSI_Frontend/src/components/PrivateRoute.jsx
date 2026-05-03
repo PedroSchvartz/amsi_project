@@ -1,8 +1,10 @@
 import { Navigate } from "react-router-dom";
-import { isAuthenticated } from "../services/auth";
+import { isAuthenticated, isConsulta } from "../services/auth";
 
-function PrivateRoute({ children }) {
-  return isAuthenticated() ? children : <Navigate to="/" />;
+function PrivateRoute({ children, adminOnly = false }) {
+  if (!isAuthenticated()) return <Navigate to="/" />;
+  if (adminOnly && isConsulta()) return <Navigate to="/home" />;
+  return children;
 }
 
 export default PrivateRoute;

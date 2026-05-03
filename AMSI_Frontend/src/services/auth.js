@@ -14,6 +14,15 @@ export const getUserFromToken = () => {
 	}
 };
 
+export const getPerfil = () => {
+  const user = getUserFromToken();
+  return user?.perfil ?? null;
+};
+
+export const isConsulta = () => {
+  return getPerfil() === 'Consulta';
+};
+
 export const isAdmin = () => {
 	const user = getUserFromToken();
 	if (!user) return false;
