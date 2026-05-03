@@ -1,16 +1,16 @@
 ================================================================================
-  AMSI PROJECT — FASE ATUAL E DIREÇÕES
+  AMSI PROJECT — FASE ATUAL BACKEND
 ================================================================================
- 
-DATA: 2026-04-30
+
+DATA: 2026-05-03
 REFERÊNCIAS: comentarios/projeto_auth.txt, comentarios/projeto_notificador.txt,
              comentarios/projeto_bateria_pytest.txt, comentarios/projeto_sessao_token.txt,
              comentarios/projeto_pesquisas.txt
- 
+
 --------------------------------------------------------------------------------
-  O QUE JÁ ESTÁ FUNCIONANDO
+  O QUE ESTÁ FUNCIONANDO
 --------------------------------------------------------------------------------
- 
+
 - CRUD completo: usuario, login, tipo_conta, cliente_fornecedor,
                  endereco, contato, lancamento
 - Auth JWT completo:
@@ -22,72 +22,66 @@ REFERÊNCIAS: comentarios/projeto_auth.txt, comentarios/projeto_notificador.txt,
 - Controle de sessão com token_ativo:
   - Tabela token_ativo no banco (jti, id_usuario_fk, criado_em, exp)
   - Token expirado é deletado ao ser usado — limpeza lazy
-  - Expiração renovada a cada request autenticado
+  - Expiração renovada a cada request autenticado (sliding session)
   - Header X-Session-Expires retornado em todo response autenticado
+    como timestamp Unix ms (str(int(novo_exp.timestamp() * 1000)))
   - JWT_EXPIRE_MINUTES configurável via config.env
 - Rotas protegidas: todas com get_current_user ou exige_admin
+- GET /usuarios/{id} acessível por qualquer usuário autenticado (não só admin)
 - Senha provisória no cadastro com envio por email
 - Validação de domínio MX e email duplicado
 - config.env com todas as configurações sensíveis
 - CORS, ngrok, logs/ui funcionando
 - Swagger com HTTPBearer
-- Bootstrap funcional
-- Pesquisas e filtros (projeto_pesquisas.txt — implementado completo):
-  - GET /lancamento/ — filtros: id_clifor, id_tipo_conta, natureza, apenas_abertos,
-    apenas_vencidos, data_vencimento_de/ate, data_lancamento_de/ate, estorno,
-    valor_minimo, valor_maximo
-  - GET /lancamento/resumo — mesmos filtros, retorna LancamentoResumo agregado
-  - GET /cliente_fornecedor/ — filtros: nome (ilike), tipo_clifor, ativo,
-    inadimplente, apenas_pendentes, pessoafisica_juridica
-  - GET /cliente_fornecedor/{id}/resumo — retorna CliForResumo consolidado
-- Pytest (tests/): 95/95 — suite completa com teardown automático
- 
+- Pesquisas e filtros:
+  - GET /lancamento/ — filtros completos
+  - GET /lancamento/resumo — retorna LancamentoResumo agregado
+  - GET /lancamento/por-usuario/{id} — lançamentos por usuário
+  - GET /lancamento/por-clifor/{id} — lançamentos por clifor
+  - GET /cliente_fornecedor/ — filtros: nome, tipo_clifor, ativo, inadimplente
+  - GET /cliente_fornecedor/{id}/resumo — CliForResumo consolidado
+  - GET /login/por-usuario/{id} — logins por usuário
+- cliente_fornecedor: endereços e contatos inline no POST/PUT
+  - PUT só adiciona, nunca remove endereços/contatos
+  - cascade="all, delete-orphan" nos relacionamentos
+- Pytest: 102/102 passando
+  - Rodar de dentro de backend/: cd backend && pytest
+  - pytest.ini em backend/ com testpaths = tests e pythonpath = .
+
 --------------------------------------------------------------------------------
-  PRÓXIMO PASSO IMEDIATO
+  ADMIN PERMANENTE
 --------------------------------------------------------------------------------
- 
-Iniciar o frontend React.
- 
-O backend está pronto para o MVP. O frontend pode consumir a API.
-Documentação dos endpoints: /docs (Swagger)
- 
-Fluxo de autenticação para o frontend:
-  1. POST /auth/token → recebe access_token + primeiro_acesso
-  2. Se primeiro_acesso == true → redirecionar para tela de troca de senha
-  3. POST /auth/trocar-senha com token no header
-  4. A cada response 200 autenticado → ler header X-Session-Expires e atualizar timer
-  5. Se timer expirar sem atividade → fazer POST /auth/logout e redirecionar para login
-  6. Se receber 401 → token expirado ou inválido → redirecionar para login
- 
+
+  Email: opedroschvartz@gmail.com
+  ID: 5
+  NUNCA deletar este usuário
+
 --------------------------------------------------------------------------------
   PENDÊNCIAS DE BACKEND (não bloqueiam frontend)
 --------------------------------------------------------------------------------
- 
+
 1. Renomear ANSI → AMSI em todo o código (baixa prioridade)
 2. Pydantic warning: trocar `class Config` por `model_config = ConfigDict(from_attributes=True)`
    nos schemas — cosmético, não afeta funcionamento
 3. Telegram (pós MVP) — ver comentarios/projeto_notificador.txt
-4. bateria_testes.py pode ser removida — suite pytest está completa e atualizada
- 
+
 --------------------------------------------------------------------------------
-  ESTADO DOS TESTES
+  PÓS MVP
 --------------------------------------------------------------------------------
- 
-pytest tests/ -v    → 95/95 passando
-Admin permanente: opedroschvartz@gmail.com, id=5 — NÃO deletar
-pytest.ini na raiz do projeto com pythonpath = .
- 
+  - Telegram (porteiro + braço)
+  - Atualização do log
+  - Endpoint de perfil rico por usuário (resumo + lançamentos + último login)
+
 --------------------------------------------------------------------------------
   AVISOS IMPORTANTES
 --------------------------------------------------------------------------------
- 
+
 - POST /usuarios/ exige exige_admin — para criar o primeiro admin comentar
   temporariamente o Depends(exige_admin), criar pelo Swagger, e reverter
-- O admin permanente NUNCA deve ser deletado manualmente ou pelos testes
 - config.env NÃO deve ser commitado — adicionar ao .gitignore
 - JWT_EXPIRE_MINUTES no config.env controla o timeout de inatividade
 - dnspython e python-dotenv são dependências obrigatórias
 - UsuarioCreate não tem campo senha — gerada automaticamente pelo sistema
 - Troca de senha: POST /auth/trocar-senha (usuário) ou /usuarios/{id}/resetar-senha (admin)
- 
+
 ================================================================================

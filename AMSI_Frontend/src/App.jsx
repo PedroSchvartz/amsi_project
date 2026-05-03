@@ -15,6 +15,7 @@ import AdminRoute from './components/AdminRoute';
 import Layout from './components/Layout';
 import { LoadingProvider, useLoading } from './services/LoadingContext';
 import { logout } from './services/auth';
+import Dashboard from './pages/dashboard';
 
 function Spinner() {
 	const { carregando } = useLoading();
@@ -148,6 +149,14 @@ function App() {
 						}
 					>
 						<Route path="/home" element={<HomePage />} />
+						<Route
+							path="/dashboard"
+							element={
+								<AdminRoute>
+									<Dashboard />
+								</AdminRoute>
+							}
+						/>
 
 						<Route
 							path="/usuarios"

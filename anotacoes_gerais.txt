@@ -1,0 +1,64 @@
+================================================================================
+  AMSI PROJECT — BACKLOG DE UPGRADES
+================================================================================
+
+DATA: 2026-05-03
+
+--------------------------------------------------------------------------------
+  BUGS / PROBLEMAS CONHECIDOS
+--------------------------------------------------------------------------------
+
+1. HomePage.jsx — useNavigate() fora do componente (vai causar erro em produção)
+2. home.css — .card { cursor: pointer } pode interferir em outras páginas
+3. vite.config.js dentro de src/services/ — arquivo morto, pode ser deletado
+4. News.jsx — sem uso aparente, pode ser deletado
+
+--------------------------------------------------------------------------------
+  SEGURANÇA / AUTH
+--------------------------------------------------------------------------------
+
+5. isAuthenticated() verifica user.exp * 1000 mas o expiresAt do localStorage
+   (sliding session) pode ser mais recente — dois timers dessincronizados
+6. Logout não garante limpeza do localStorage('user') em todos os fluxos de erro
+
+--------------------------------------------------------------------------------
+  UX / FRONTEND
+--------------------------------------------------------------------------------
+
+7.  Home para usuário comum — tela em branco (<div />) — deveria mostrar algo útil
+8.  Navbar não exibe cargo/perfil em lugar nenhum além do popup
+9.  Dashboard — gráfico de barras sem dados fica vazio sem mensagem explicativa
+10. Feedback de erro inconsistente entre páginas (alguns alert(), outros estado)
+11. ListaLancamentosPage — sem paginação, pode ficar lento com muitos lançamentos
+12. ClientRegister — ainda não conectado à API real (colega trabalhando)
+
+--------------------------------------------------------------------------------
+  BACKEND
+--------------------------------------------------------------------------------
+
+13. pytest.ini na raiz do projeto (resquício) — pode ser deletado
+14. Renomear ANSI → AMSI no database.py (DB_NAME = "ANSI_Project")
+15. Schemas com class Config deprecado — migrar para model_config = ConfigDict
+16. Logs acumulando em backend/logs/ e logs/ raiz sem rotação ou limpeza
+17. delte.py na raiz do backend — arquivo de 10 bytes, provavelmente lixo
+
+--------------------------------------------------------------------------------
+  TESTES
+--------------------------------------------------------------------------------
+
+18. Nenhum teste para o frontend — adicionar testes básicos com Vitest
+19. Testes do backend não cobrem fluxo de X-Session-Expires
+
+--------------------------------------------------------------------------------
+  PÓS-MVP CONFIRMADOS
+--------------------------------------------------------------------------------
+
+20. Timer de inatividade com popup de suspensão
+21. Telegram (porteiro + braço)
+22. Popup perfil — seção notificação Telegram (só admin)
+23. Atualização do log de requisições
+24. Atualização automática dos lançamentos
+25. Dashboard — filtro por período de lançamento (além de vencimento)
+26. Endpoint de perfil rico por usuário no backend (resumo + lançamentos + último login)
+
+================================================================================
