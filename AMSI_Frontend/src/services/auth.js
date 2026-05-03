@@ -1,4 +1,4 @@
-const BASE_URL = 'https://amsi-project-chzs.vercel.app';
+const BASE_URL = import.meta.env.VITE_API_URL;
 
 export const getToken = () => {
 	return localStorage.getItem('token');

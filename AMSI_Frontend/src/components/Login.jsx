@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../styles/login.css';
-import { loginUser } from '../services/api.js';
+import { loginUser, getUser } from '../services/api.js';
 
 function Login() {
 	const navigate = useNavigate();
@@ -28,6 +28,15 @@ function Login() {
 				localStorage.setItem('expiresAt', payload.exp * 1000);
 			} catch {
 				localStorage.setItem('expiresAt', Date.now() + 240 * 240 * 1000);
+			}
+
+			// Busca dados completos do usuário e salva localmente
+			try {
+				const payload = JSON.parse(atob(token.split('.')[1]));
+				const usuario = await getUser(payload.sub);
+				localStorage.setItem('user', JSON.stringify(usuario));
+			} catch (errUser) {
+				console.error('Erro ao buscar usuário:', errUser);
 			}
 
 			if (data.primeiro_acesso) {

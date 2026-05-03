@@ -16,7 +16,7 @@ def _renovar_token(token_ativo: TokenAtivo, db: Session, response: Response) -> 
     novo_exp = datetime.utcnow() + timedelta(minutes=JWT_EXPIRE_MINUTES)
     token_ativo.exp = novo_exp
     db.commit()
-    response.headers["X-Session-Expires"] = novo_exp.strftime("%Y-%m-%dT%H:%M:%SZ")
+    response.headers["X-Session-Expires"] = str(int(novo_exp.timestamp() * 1000))
     return novo_exp
 
 

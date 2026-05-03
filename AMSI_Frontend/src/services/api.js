@@ -1,7 +1,7 @@
 import { getToken, logout } from './auth';
 import { loadingBus } from './LoadingContext';
 
-const BASE_URL = 'https://amsi-project-chzs.vercel.app';
+const BASE_URL = import.meta.env.VITE_API_URL;
 
 async function fetchComLoading(url, options) {
 	loadingBus.iniciar();
@@ -22,6 +22,12 @@ function authHeaders() {
 }
 
 async function handleResponse(response, { noLogout = false } = {}) {
+	// Atualiza expiresAt com o header do backend (sliding session)
+	const sessionExpires = response.headers.get('X-Session-Expires');
+	if (sessionExpires) {
+		localStorage.setItem('expiresAt', sessionExpires);
+	}
+
 	if (response.status === 401) {
 		if (!noLogout) {
 			logout();
@@ -51,9 +57,9 @@ export const loginUser = async (email, senha) => {
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({ email, senha })
 	});
-	const data = await response.json();
+	const data = await response.json().catch(() => ({}));
 	if (!response.ok) {
-		const message = data?.detail?.[0]?.msg || 'Usuário ou Senha inválidos';
+		const message = data?.detail?.[0]?.msg || data?.detail || 'Usuário ou Senha inválidos';
 		throw new Error(message);
 	}
 	return data;
