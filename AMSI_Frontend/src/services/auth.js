@@ -15,12 +15,12 @@ export const getUserFromToken = () => {
 };
 
 export const getPerfil = () => {
-  const user = getUserFromToken();
-  return user?.perfil ?? null;
+	const user = getUserFromToken();
+	return user?.perfil ?? null;
 };
 
 export const isConsulta = () => {
-  return getPerfil() === 'Consulta';
+	return getPerfil() === 'Consulta';
 };
 
 export const isAdmin = () => {
@@ -31,13 +31,15 @@ export const isAdmin = () => {
 
 export const isAuthenticated = () => {
 	const token = getToken();
-	const user = getUserFromToken();
-	if (!token || !user) return false;
-	if (Date.now() > user.exp * 1000) {
-		logout();
-		return false;
+	const expiresAt = localStorage.getItem('expiresAt');
+	if (!token) return false;
+	// Usa expiresAt (sliding session) se disponível, senão fallback para JWT exp
+	if (expiresAt) {
+		return Date.now() <= parseInt(expiresAt);
 	}
-	return true;
+	const user = getUserFromToken();
+	if (!user) return false;
+	return Date.now() <= user.exp * 1000;
 };
 
 export const logout = () => {

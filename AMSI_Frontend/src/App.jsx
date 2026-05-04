@@ -53,6 +53,13 @@ function MonitorSessao() {
 	const intervalRef = useRef(null);
 
 	useEffect(() => {
+		const handleExpirado = () => {
+			setExpirado(true);
+			clearInterval(intervalRef.current);
+		};
+
+		window.addEventListener('sessao-expirada', handleExpirado);
+
 		intervalRef.current = setInterval(() => {
 			const token = localStorage.getItem('token');
 			const expiresAt = localStorage.getItem('expiresAt');
@@ -64,7 +71,10 @@ function MonitorSessao() {
 			}
 		}, 10000);
 
-		return () => clearInterval(intervalRef.current);
+		return () => {
+			clearInterval(intervalRef.current);
+			window.removeEventListener('sessao-expirada', handleExpirado);
+		};
 	}, []);
 
 	const handleFechar = () => {

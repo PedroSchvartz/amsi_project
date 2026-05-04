@@ -31,7 +31,7 @@ async function handleResponse(response, { noLogout = false } = {}) {
 	if (response.status === 401) {
 		if (!noLogout) {
 			logout();
-			window.location.href = '/';
+			window.dispatchEvent(new CustomEvent('sessao-expirada'));
 			return;
 		}
 	}

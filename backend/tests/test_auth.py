@@ -4,7 +4,7 @@ import pytest
 def test_login_sucesso(client):
     r = client.post("/auth/token", json={
         "email": "opedroschvartz@gmail.com",
-        "senha": "senhaSecreta"
+        "senha": "123"
     })
     assert r.status_code == 200
     assert "access_token" in r.json()
@@ -58,7 +58,7 @@ def test_logout(client, headers_admin):
     # e imediatamente reautenticamos
     r_login = client.post("/auth/token", json={
         "email": "opedroschvartz@gmail.com",
-        "senha": "senhaSecreta"
+        "senha": "123"
     })
     token_temp = r_login.json()["access_token"]
     headers_temp = {"Authorization": f"Bearer {token_temp}"}
@@ -74,7 +74,7 @@ def test_logout(client, headers_admin):
     # Reautenticar admin para restaurar sessão
     r_re = client.post("/auth/token", json={
         "email": "opedroschvartz@gmail.com",
-        "senha": "senhaSecreta"
+        "senha": "123"
     })
     novo_token = r_re.json()["access_token"]
     headers_admin["Authorization"] = f"Bearer {novo_token}"

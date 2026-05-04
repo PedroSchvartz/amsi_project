@@ -1,414 +1,757 @@
-import { useState } from "react";
-import "../styles/clientRegister.css";
+import { useState, useEffect } from 'react';
+import { createClifor, getUsers } from '../services/api';
+
+const FORM_INICIAL = {
+	tipo_clifor: '',
+	pessoafisica_juridica: '',
+	nome: '',
+	cpf_cnpj: '',
+	rg_inscricaoestadual: '',
+	datanascimento: '',
+	id_usuario_fk: '',
+	ativo: true,
+	inadimplente: false
+};
+
+const ENDERECO_INICIAL = {
+	logradouro: '',
+	numero: '',
+	complemento: '',
+	bairro: '',
+	cidade: '',
+	uf: '',
+	cep: '',
+	endereco_primario: true
+};
+
+const novoContato = (tipo) => ({
+	tipo_contato: tipo,
+	info_do_contato: '',
+	contato_principal: false
+});
+
+const validarCPF = (cpf) => {
+	const n = cpf.replace(/\D/g, '');
+	if (n.length !== 11 || /^(\d)\1+$/.test(n)) return false;
+	let sum = 0;
+	for (let i = 0; i < 9; i++) sum += parseInt(n[i]) * (10 - i);
+	let r = (sum * 10) % 11;
+	if (r === 10 || r === 11) r = 0;
+	if (r !== parseInt(n[9])) return false;
+	sum = 0;
+	for (let i = 0; i < 10; i++) sum += parseInt(n[i]) * (11 - i);
+	r = (sum * 10) % 11;
+	if (r === 10 || r === 11) r = 0;
+	return r === parseInt(n[10]);
+};
+
+const validarCNPJ = (cnpj) => {
+	const n = cnpj.replace(/\D/g, '');
+	if (n.length !== 14 || /^(\d)\1+$/.test(n)) return false;
+	const calc = (len) => {
+		let sum = 0,
+			pos = len - 7;
+		for (let i = len; i >= 1; i--) {
+			sum += parseInt(n[len - i]) * pos--;
+			if (pos < 2) pos = 9;
+		}
+		return sum % 11 < 2 ? 0 : 11 - (sum % 11);
+	};
+	return calc(12) === parseInt(n[12]) && calc(13) === parseInt(n[13]);
+};
+
+const formatarCPF = (v) => {
+	const n = v.replace(/\D/g, '').slice(0, 11);
+	if (n.length <= 3) return n;
+	if (n.length <= 6) return `${n.slice(0, 3)}.${n.slice(3)}`;
+	if (n.length <= 9) return `${n.slice(0, 3)}.${n.slice(3, 6)}.${n.slice(6)}`;
+	return `${n.slice(0, 3)}.${n.slice(3, 6)}.${n.slice(6, 9)}-${n.slice(9)}`;
+};
+
+const formatarCNPJ = (v) => {
+	const n = v.replace(/\D/g, '').slice(0, 14);
+	if (n.length <= 2) return n;
+	if (n.length <= 5) return `${n.slice(0, 2)}.${n.slice(2)}`;
+	if (n.length <= 8) return `${n.slice(0, 2)}.${n.slice(2, 5)}.${n.slice(5)}`;
+	if (n.length <= 12) return `${n.slice(0, 2)}.${n.slice(2, 5)}.${n.slice(5, 8)}/${n.slice(8)}`;
+	return `${n.slice(0, 2)}.${n.slice(2, 5)}.${n.slice(5, 8)}/${n.slice(8, 12)}-${n.slice(12)}`;
+};
+
+const formatarCEP = (v) => {
+	const n = v.replace(/\D/g, '').slice(0, 8);
+	if (n.length <= 5) return n;
+	return `${n.slice(0, 5)}-${n.slice(5)}`;
+};
+
+const formatarTelefone = (v) => {
+	const n = v.replace(/\D/g, '').slice(0, 11);
+	if (n.length <= 2) return n;
+	if (n.length <= 6) return `(${n.slice(0, 2)}) ${n.slice(2)}`;
+	if (n.length <= 10) return `(${n.slice(0, 2)}) ${n.slice(2, 6)}-${n.slice(6)}`;
+	return `(${n.slice(0, 2)}) ${n.slice(2, 7)}-${n.slice(7)}`;
+};
+
+const UFS = [
+	'AC',
+	'AL',
+	'AM',
+	'AP',
+	'BA',
+	'CE',
+	'DF',
+	'ES',
+	'GO',
+	'MA',
+	'MG',
+	'MS',
+	'MT',
+	'PA',
+	'PB',
+	'PE',
+	'PI',
+	'PR',
+	'RJ',
+	'RN',
+	'RO',
+	'RR',
+	'RS',
+	'SC',
+	'SE',
+	'SP',
+	'TO'
+];
 
 function ClientRegister() {
-  const [form, setForm] = useState({
-    tipo: "",
-    cpf_cnpj: "",
-    nome: "",
-    obs: "",
-    emails: [{ email: "", principal: true }],
-    telefones: [{ numero: "", principal: true }],
-    enderecos: [
-      {
-        logradouro: "",
-        numero: "",
-        complemento: "",
-        estado: "",
-        cidade: "",
-        principal: true,
-      },
-    ],
-  });
+	const [form, setForm] = useState(FORM_INICIAL);
+	const [enderecos, setEnderecos] = useState([{ ...ENDERECO_INICIAL }]);
+	const [telefones, setTelefones] = useState([
+		{ tipo_contato: 'Telefone', info_do_contato: '', contato_principal: true }
+	]);
+	const [emails, setEmails] = useState([
+		{ tipo_contato: 'Email', info_do_contato: '', contato_principal: true }
+	]);
+	const [usuarios, setUsuarios] = useState([]);
+	const [erros, setErros] = useState({});
+	const [erro, setErro] = useState('');
+	const [sucesso, setSucesso] = useState('');
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
+	useEffect(() => {
+		getUsers()
+			.then(setUsuarios)
+			.catch(() => {});
+	}, []);
 
-  const formatTelefone = (value) => {
-    value = value.replace(/\D/g, "");
-    if (value.length <= 10) {
-      return value
-        .replace(/^(\d{2})(\d)/g, "($1) $2")
-        .replace(/(\d{4})(\d)/, "$1-$2");
-    } else {
-      return value
-        .replace(/^(\d{2})(\d)/g, "($1) $2")
-        .replace(/(\d{5})(\d)/, "$1-$2");
-    }
-  };
+	const isPF = form.pessoafisica_juridica === 'true' || form.pessoafisica_juridica === true;
 
-  const limparTelefone = (tel) => tel.replace(/\D/g, "");
+	const handleChange = (e) => {
+		const { name, value, type, checked } = e.target;
+		setForm({ ...form, [name]: type === 'checkbox' ? checked : value });
+		setErros((prev) => ({ ...prev, [name]: '' }));
+	};
 
-  const ultimoTelefonePreenchido = () => {
-    const ultimo = form.telefones[form.telefones.length - 1];
-    return limparTelefone(ultimo.numero).length >= 10;
-  };
+	const togglePrincipal = (list, setList, index) => {
+		const jaE = list[index].contato_principal;
+		setList(
+			list.map((item, i) => ({
+				...item,
+				contato_principal: jaE ? false : i === index
+			}))
+		);
+	};
 
-  const ultimoEmailPreenchido = () => {
-    const ultimo = form.emails[form.emails.length - 1];
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(ultimo.email.trim());
-  };
+	const toggleEnderecoPrimario = (index) => {
+		const jaE = enderecos[index].endereco_primario;
+		setEnderecos(
+			enderecos.map((end, i) => ({
+				...end,
+				endereco_primario: jaE ? false : i === index
+			}))
+		);
+	};
 
-  const ultimoEnderecoPreenchido = () => {
-    const ultimo = form.enderecos[form.enderecos.length - 1];
-    return (
-      ultimo.logradouro.trim().length >= 3 &&
-      ultimo.numero.trim().length >= 1 &&
-      ultimo.estado.trim().length >= 2 &&
-      ultimo.cidade.trim().length >= 3
-    );
-  };
+	const atualizarEndereco = (index, field, value) => {
+		const novos = [...enderecos];
+		novos[index] = { ...novos[index], [field]: value };
+		setEnderecos(novos);
+		setErros((prev) => ({ ...prev, [`end_${field}_${index}`]: '' }));
+	};
 
-  // 📞 TELEFONES
-  const handleTelefoneChange = (index, value) => {
-    const novos = [...form.telefones];
-    novos[index].numero = formatTelefone(value);
-    setForm({ ...form, telefones: novos });
-  };
+	const validar = () => {
+		const e = {};
+		if (!form.tipo_clifor) e.tipo_clifor = 'Selecione o tipo.';
+		if (form.pessoafisica_juridica === '')
+			e.pessoafisica_juridica = 'Selecione pessoa física ou jurídica.';
+		if (!form.nome.trim() || form.nome.trim().length < 3)
+			e.nome = 'Nome deve ter pelo menos 3 caracteres.';
+		if (!form.datanascimento) e.datanascimento = 'Data de nascimento obrigatória.';
+		if (!form.rg_inscricaoestadual.trim())
+			e.rg_inscricaoestadual = isPF ? 'RG obrigatório.' : 'Inscrição Estadual obrigatória.';
 
-  const setTelefonePrincipal = (index) => {
-    const novos = form.telefones.map((tel, i) => ({
-      ...tel,
-      principal: i === index,
-    }));
-    const [favorito] = novos.splice(index, 1);
-    setForm({ ...form, telefones: [favorito, ...novos] });
-  };
+		const doc = form.cpf_cnpj.replace(/\D/g, '');
+		if (isPF && !validarCPF(doc)) e.cpf_cnpj = 'CPF inválido.';
+		if (!isPF && form.pessoafisica_juridica !== '' && !validarCNPJ(doc))
+			e.cpf_cnpj = 'CNPJ inválido.';
 
-  const addTelefone = () => {
-    setForm({
-      ...form,
-      telefones: [...form.telefones, { numero: "", principal: false }],
-    });
-  };
+		enderecos.forEach((end, i) => {
+			if (!end.logradouro.trim()) e[`end_logradouro_${i}`] = 'Obrigatório.';
+			if (!end.numero.trim()) e[`end_numero_${i}`] = 'Obrigatório.';
+			if (!end.bairro.trim()) e[`end_bairro_${i}`] = 'Obrigatório.';
+			if (!end.cidade.trim()) e[`end_cidade_${i}`] = 'Obrigatório.';
+			if (!end.uf) e[`end_uf_${i}`] = 'Obrigatório.';
+			if (end.cep.replace(/\D/g, '').length !== 8) e[`end_cep_${i}`] = 'CEP inválido.';
+		});
 
-  const removeTelefone = (index) => {
-    const novos = form.telefones.filter((_, i) => i !== index);
-    setForm({ ...form, telefones: novos });
-  };
+		telefones.forEach((t, i) => {
+			if (t.info_do_contato.replace(/\D/g, '').length < 10) e[`tel_${i}`] = 'Telefone inválido.';
+		});
 
-  // 📧 EMAILS
-  const handleEmailChange = (index, value) => {
-    const novos = [...form.emails];
-    novos[index].email = value;
-    setForm({ ...form, emails: novos });
-  };
+		emails.forEach((em, i) => {
+			if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em.info_do_contato.trim()))
+				e[`email_${i}`] = 'Email inválido.';
+		});
 
-  const setEmailPrincipal = (index) => {
-    const novos = form.emails.map((e, i) => ({ ...e, principal: i === index }));
-    const [favorito] = novos.splice(index, 1);
-    setForm({ ...form, emails: [favorito, ...novos] });
-  };
+		setErros(e);
+		return Object.keys(e).length === 0;
+	};
 
-  const addEmail = () => {
-    setForm({
-      ...form,
-      emails: [...form.emails, { email: "", principal: false }],
-    });
-  };
+	const handleSubmit = async (e) => {
+		e.preventDefault();
+		setErro('');
+		setSucesso('');
+		if (!validar()) return;
 
-  const removeEmail = (index) => {
-    const novos = form.emails.filter((_, i) => i !== index);
-    setForm({ ...form, emails: novos });
-  };
+		const payload = {
+			tipo_clifor: form.tipo_clifor,
+			pessoafisica_juridica: isPF,
+			nome: form.nome.trim(),
+			cpf_cnpj: form.cpf_cnpj.replace(/\D/g, ''),
+			rg_inscricaoestadual: form.rg_inscricaoestadual.trim(),
+			datanascimento: form.datanascimento,
+			ativo: form.ativo,
+			inadimplente: form.inadimplente,
+			id_usuario_fk: form.id_usuario_fk ? parseInt(form.id_usuario_fk) : null,
+			enderecos: enderecos.map((end) => ({
+				logradouro: end.logradouro.trim(),
+				numero: end.numero.trim(),
+				complemento: end.complemento.trim() || null,
+				bairro: end.bairro.trim(),
+				cidade: end.cidade.trim(),
+				uf: end.uf,
+				cep: end.cep.replace(/\D/g, ''),
+				endereco_primario: end.endereco_primario
+			})),
+			contatos: [
+				...telefones.map((t) => ({
+					tipo_contato: 'Telefone',
+					info_do_contato: t.info_do_contato.replace(/\D/g, ''),
+					contato_principal: t.contato_principal
+				})),
+				...emails.map((em) => ({
+					tipo_contato: 'Email',
+					info_do_contato: em.info_do_contato.trim(),
+					contato_principal: em.contato_principal
+				}))
+			]
+		};
 
-  // 🏠 ENDEREÇOS
-  const handleEnderecoChange = (index, field, value) => {
-    const novos = [...form.enderecos];
-    novos[index][field] = value;
-    setForm({ ...form, enderecos: novos });
-  };
+		try {
+			await createClifor(payload);
+			setSucesso('Cliente/Fornecedor cadastrado com sucesso!');
+			setForm(FORM_INICIAL);
+			setEnderecos([{ ...ENDERECO_INICIAL }]);
+			setTelefones([{ tipo_contato: 'Telefone', info_do_contato: '', contato_principal: true }]);
+			setEmails([{ tipo_contato: 'Email', info_do_contato: '', contato_principal: true }]);
+			setErros({});
+		} catch (err) {
+			setErro(err.message || 'Erro ao cadastrar.');
+		}
+	};
 
-  const setEnderecoPrincipal = (index) => {
-    const novos = form.enderecos.map((end, i) => ({
-      ...end,
-      principal: i === index,
-    }));
-    const [favorito] = novos.splice(index, 1);
-    setForm({ ...form, enderecos: [favorito, ...novos] });
-  };
+	const limpar = () => {
+		setForm(FORM_INICIAL);
+		setEnderecos([{ ...ENDERECO_INICIAL }]);
+		setTelefones([{ tipo_contato: 'Telefone', info_do_contato: '', contato_principal: true }]);
+		setEmails([{ tipo_contato: 'Email', info_do_contato: '', contato_principal: true }]);
+		setErros({});
+		setErro('');
+		setSucesso('');
+	};
 
-  const addEndereco = () => {
-    setForm({
-      ...form,
-      enderecos: [
-        ...form.enderecos,
-        {
-          logradouro: "",
-          numero: "",
-          complemento: "",
-          estado: "",
-          cidade: "",
-          principal: false,
-        },
-      ],
-    });
-  };
+	return (
+		<div
+			className="container-fluid py-4 px-3 px-md-4"
+			style={{ background: '#f8f9fa', minHeight: '100vh' }}
+		>
+			<h4 className="fw-bold mb-4">Cadastro de Cliente / Fornecedor</h4>
 
-  const removeEndereco = (index) => {
-    const novos = form.enderecos.filter((_, i) => i !== index);
-    setForm({ ...form, enderecos: novos });
-  };
+			{sucesso && <div className="alert alert-success alert-dismissible">{sucesso}</div>}
+			{erro && <div className="alert alert-danger alert-dismissible">{erro}</div>}
 
-  // 🚀 SUBMIT
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const data = {
-      ...form,
-      telefones: form.telefones.map((t) => ({
-        numero: limparTelefone(t.numero),
-        principal: t.principal,
-      })),
-    };
-    console.log("ENVIANDO:", data);
-    alert("Cadastro realizado!");
-  };
+			<form onSubmit={handleSubmit}>
+				{/* INFORMAÇÕES BÁSICAS */}
+				<div className="card border-0 shadow-sm mb-4">
+					<div className="card-header bg-white border-bottom py-3 px-4">
+						<h6 className="fw-semibold mb-0">Informações Básicas</h6>
+					</div>
+					<div className="card-body p-4">
+						{/* Tipo CliFor + Pessoa Física/Jurídica na mesma linha */}
+						<div className="row g-4 mb-4">
+							<div className="col-12 col-md-auto">
+								<label className="form-label small fw-semibold">
+									Tipo <span className="text-danger">*</span>
+								</label>
+								<div className="d-flex flex-wrap gap-4">
+									{[
+										['C', 'Cliente'],
+										['F', 'Fornecedor'],
+										['A', 'Ambos']
+									].map(([val, label]) => (
+										<div key={val} className="form-check">
+											<input
+												className="form-check-input"
+												type="radio"
+												name="tipo_clifor"
+												id={`tipo_${val}`}
+												value={val}
+												checked={form.tipo_clifor === val}
+												onChange={handleChange}
+											/>
+											<label className="form-check-label" htmlFor={`tipo_${val}`}>
+												{label}
+											</label>
+										</div>
+									))}
+								</div>
+								{erros.tipo_clifor && (
+									<div className="text-danger small mt-1">{erros.tipo_clifor}</div>
+								)}
+							</div>
+							<div className="col-12 col-md-auto">
+								<label className="form-label small fw-semibold">
+									Tipo de Pessoa <span className="text-danger">*</span>
+								</label>
+								<div className="d-flex flex-wrap gap-4">
+									{[
+										['true', 'Pessoa Física'],
+										['false', 'Pessoa Jurídica']
+									].map(([val, label]) => (
+										<div key={val} className="form-check">
+											<input
+												className="form-check-input"
+												type="radio"
+												name="pessoafisica_juridica"
+												id={`pf_${val}`}
+												value={val}
+												checked={form.pessoafisica_juridica === val}
+												onChange={handleChange}
+											/>
+											<label className="form-check-label" htmlFor={`pf_${val}`}>
+												{label}
+											</label>
+										</div>
+									))}
+								</div>
+								{erros.pessoafisica_juridica && (
+									<div className="text-danger small mt-1">{erros.pessoafisica_juridica}</div>
+								)}
+							</div>
+						</div>
 
-  return (
-    <div className="container">
-      <div className="box">
-        <h2>Cadastro Cliente / Fornecedor</h2>
+						<div className="row g-3">
+							<div className="col-12 col-md-6">
+								<label className="form-label small fw-semibold">
+									Nome Completo / Razão Social <span className="text-danger">*</span>
+								</label>
+								<input
+									className={`form-control ${erros.nome ? 'is-invalid' : ''}`}
+									name="nome"
+									value={form.nome}
+									onChange={handleChange}
+									placeholder="Nome completo ou razão social"
+								/>
+								{erros.nome && <div className="invalid-feedback">{erros.nome}</div>}
+							</div>
 
-        <form onSubmit={handleSubmit}>
+							<div className="col-12 col-md-3">
+								<label className="form-label small fw-semibold">
+									{isPF ? 'CPF' : 'CNPJ'} <span className="text-danger">*</span>
+								</label>
+								<input
+									className={`form-control ${erros.cpf_cnpj ? 'is-invalid' : ''}`}
+									name="cpf_cnpj"
+									value={form.cpf_cnpj}
+									onChange={(e) => {
+										const val = isPF ? formatarCPF(e.target.value) : formatarCNPJ(e.target.value);
+										setForm((prev) => ({ ...prev, cpf_cnpj: val }));
+										setErros((prev) => ({ ...prev, cpf_cnpj: '' }));
+									}}
+									placeholder={isPF ? '000.000.000-00' : '00.000.000/0000-00'}
+								/>
+								{erros.cpf_cnpj && <div className="invalid-feedback">{erros.cpf_cnpj}</div>}
+							</div>
 
-          {/* INFORMAÇÕES BÁSICAS */}
-          <h4>Informações Básicas</h4>
+							<div className="col-12 col-md-3">
+								<label className="form-label small fw-semibold">
+									{isPF ? 'RG' : 'Inscrição Estadual'} <span className="text-danger">*</span>
+								</label>
+								<input
+									className={`form-control ${erros.rg_inscricaoestadual ? 'is-invalid' : ''}`}
+									name="rg_inscricaoestadual"
+									value={form.rg_inscricaoestadual}
+									onChange={handleChange}
+									placeholder={isPF ? 'RG' : 'Inscrição Estadual'}
+								/>
+								{erros.rg_inscricaoestadual && (
+									<div className="invalid-feedback">{erros.rg_inscricaoestadual}</div>
+								)}
+							</div>
 
-          {/* TIPO */}
-          <div className="d-flex gap-3 mb-3">
-            {["Cliente", "Fornecedor", "Ambos"].map((opcao) => (
-              <div key={opcao} className="form-check">
-                <input
-                  className="form-check-input"
-                  type="radio"
-                  name="tipo"
-                  id={`tipo-${opcao}`}
-                  value={opcao}
-                  checked={form.tipo === opcao}
-                  onChange={handleChange}
-                />
-                <label className="form-check-label" htmlFor={`tipo-${opcao}`}>
-                  {opcao}
-                </label>
-              </div>
-            ))}
-          </div>
+							<div className="col-12 col-md-3">
+								<label className="form-label small fw-semibold">
+									Data de Nascimento <span className="text-danger">*</span>
+								</label>
+								<input
+									type="date"
+									className={`form-control ${erros.datanascimento ? 'is-invalid' : ''}`}
+									name="datanascimento"
+									value={form.datanascimento}
+									onChange={handleChange}
+								/>
+								{erros.datanascimento && (
+									<div className="invalid-feedback">{erros.datanascimento}</div>
+								)}
+							</div>
 
-          <input
-            className="form-control mb-2"
-            placeholder="Nome Completo / Razão Social"
-            name="nome"
-            value={form.nome}
-            onChange={handleChange}
-          />
+							<div className="col-12 col-md-5">
+								<label className="form-label small fw-semibold">
+									Vincular a Usuário <span className="text-muted fw-normal">(opcional)</span>
+								</label>
+								<select
+									className="form-select"
+									name="id_usuario_fk"
+									value={form.id_usuario_fk}
+									onChange={handleChange}
+								>
+									<option value="">Nenhum</option>
+									{usuarios.map((u) => (
+										<option key={u.id_usuario} value={u.id_usuario}>
+											{u.nome} ({u.email})
+										</option>
+									))}
+								</select>
+							</div>
 
-          <input
-            className="form-control mb-2"
-            placeholder="CPF / CNPJ"
-            name="cpf_cnpj"
-            value={form.cpf_cnpj}
-            onChange={handleChange}
-          />
+							<div className="col-12 col-md-4 d-flex align-items-end gap-4 pb-1">
+								<div className="form-check">
+									<input
+										type="checkbox"
+										className="form-check-input"
+										id="ativo"
+										name="ativo"
+										checked={form.ativo}
+										onChange={handleChange}
+									/>
+									<label className="form-check-label" htmlFor="ativo">
+										Ativo
+									</label>
+								</div>
+								<div className="form-check">
+									<input
+										type="checkbox"
+										className="form-check-input"
+										id="inadimplente"
+										name="inadimplente"
+										checked={form.inadimplente}
+										onChange={handleChange}
+									/>
+									<label className="form-check-label" htmlFor="inadimplente">
+										Inadimplente
+									</label>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
 
-          {/* TELEFONES */}
-          <h4>Telefones</h4>
+				{/* ENDEREÇOS */}
+				<div className="card border-0 shadow-sm mb-4">
+					<div className="card-header bg-white border-bottom py-3 px-4">
+						<h6 className="fw-semibold mb-0">Endereços</h6>
+					</div>
+					<div className="card-body p-4">
+						{enderecos.map((end, i) => (
+							<div
+								key={i}
+								className={`p-3 mb-3 rounded border ${end.endereco_primario ? 'border-dark' : ''}`}
+							>
+								<div className="d-flex justify-content-between align-items-center mb-3">
+									<span className="small fw-semibold">
+										Endereço {i + 1}
+										{end.endereco_primario && <span className="badge bg-dark ms-2">Principal</span>}
+									</span>
+									<div className="d-flex gap-2">
+										<button
+											type="button"
+											className={`btn btn-sm ${end.endereco_primario ? 'btn-warning' : 'btn-outline-secondary'}`}
+											style={{ width: 38 }}
+											onClick={() => toggleEnderecoPrimario(i)}
+											title="Marcar como principal"
+										>
+											<i className="bi bi-star-fill"></i>
+										</button>
+										{enderecos.length > 1 && (
+											<button
+												type="button"
+												className="btn btn-sm btn-outline-danger"
+												onClick={() => setEnderecos(enderecos.filter((_, j) => j !== i))}
+											>
+												<i className="bi bi-trash"></i>
+											</button>
+										)}
+									</div>
+								</div>
 
-          {form.telefones.map((tel, index) => (
-            <div key={index} className="d-flex align-items-end gap-2 mb-2">
-              <input
-                className="form-control"
-                placeholder="(11) 91234-5678"
-                value={tel.numero}
-                onChange={(e) => handleTelefoneChange(index, e.target.value)}
-              />
-              <button
-                type="button"
-                className={`btn btn-sm icon-btn ${
-                  tel.principal ? "btn-success" : "btn-outline-secondary"
-                }`}
-                onClick={() => setTelefonePrincipal(index)}
-              >
-                <i className="bi bi-star-fill"></i>
-              </button>
-              {index > 0 && (
-                <button
-                  type="button"
-                  className="btn btn-sm btn-outline-danger icon-btn"
-                  onClick={() => removeTelefone(index)}
-                >
-                  <i className="bi bi-trash"></i>
-                </button>
-              )}
-            </div>
-          ))}
+								<div className="row g-2">
+									<div className="col-12 col-md-7">
+										<label className="form-label small">
+											Logradouro <span className="text-danger">*</span>
+										</label>
+										<input
+											className={`form-control form-control-sm ${erros[`end_logradouro_${i}`] ? 'is-invalid' : ''}`}
+											value={end.logradouro}
+											onChange={(e) => atualizarEndereco(i, 'logradouro', e.target.value)}
+											placeholder="Rua, Avenida..."
+										/>
+										{erros[`end_logradouro_${i}`] && (
+											<div className="invalid-feedback">{erros[`end_logradouro_${i}`]}</div>
+										)}
+									</div>
+									<div className="col-6 col-md-2">
+										<label className="form-label small">
+											Número <span className="text-danger">*</span>
+										</label>
+										<input
+											className={`form-control form-control-sm ${erros[`end_numero_${i}`] ? 'is-invalid' : ''}`}
+											value={end.numero}
+											onChange={(e) => atualizarEndereco(i, 'numero', e.target.value)}
+										/>
+										{erros[`end_numero_${i}`] && (
+											<div className="invalid-feedback">{erros[`end_numero_${i}`]}</div>
+										)}
+									</div>
+									<div className="col-6 col-md-3">
+										<label className="form-label small">Complemento</label>
+										<input
+											className="form-control form-control-sm"
+											value={end.complemento}
+											onChange={(e) => atualizarEndereco(i, 'complemento', e.target.value)}
+											placeholder="Apto, Sala..."
+										/>
+									</div>
+									<div className="col-12 col-md-4">
+										<label className="form-label small">
+											Bairro <span className="text-danger">*</span>
+										</label>
+										<input
+											className={`form-control form-control-sm ${erros[`end_bairro_${i}`] ? 'is-invalid' : ''}`}
+											value={end.bairro}
+											onChange={(e) => atualizarEndereco(i, 'bairro', e.target.value)}
+										/>
+										{erros[`end_bairro_${i}`] && (
+											<div className="invalid-feedback">{erros[`end_bairro_${i}`]}</div>
+										)}
+									</div>
+									<div className="col-12 col-md-4">
+										<label className="form-label small">
+											Cidade <span className="text-danger">*</span>
+										</label>
+										<input
+											className={`form-control form-control-sm ${erros[`end_cidade_${i}`] ? 'is-invalid' : ''}`}
+											value={end.cidade}
+											onChange={(e) => atualizarEndereco(i, 'cidade', e.target.value)}
+										/>
+										{erros[`end_cidade_${i}`] && (
+											<div className="invalid-feedback">{erros[`end_cidade_${i}`]}</div>
+										)}
+									</div>
+									<div className="col-4 col-md-2">
+										<label className="form-label small">
+											UF <span className="text-danger">*</span>
+										</label>
+										<select
+											className={`form-select form-select-sm ${erros[`end_uf_${i}`] ? 'is-invalid' : ''}`}
+											value={end.uf}
+											onChange={(e) => atualizarEndereco(i, 'uf', e.target.value)}
+										>
+											<option value="">UF</option>
+											{UFS.map((uf) => (
+												<option key={uf} value={uf}>
+													{uf}
+												</option>
+											))}
+										</select>
+										{erros[`end_uf_${i}`] && (
+											<div className="invalid-feedback">{erros[`end_uf_${i}`]}</div>
+										)}
+									</div>
+									<div className="col-8 col-md-2">
+										<label className="form-label small">
+											CEP <span className="text-danger">*</span>
+										</label>
+										<input
+											className={`form-control form-control-sm ${erros[`end_cep_${i}`] ? 'is-invalid' : ''}`}
+											value={end.cep}
+											onChange={(e) => atualizarEndereco(i, 'cep', formatarCEP(e.target.value))}
+											placeholder="00000-000"
+										/>
+										{erros[`end_cep_${i}`] && (
+											<div className="invalid-feedback">{erros[`end_cep_${i}`]}</div>
+										)}
+									</div>
+								</div>
+							</div>
+						))}
+						<button
+							type="button"
+							className="btn btn-outline-dark btn-sm mt-2"
+							onClick={() =>
+								setEnderecos([...enderecos, { ...ENDERECO_INICIAL, endereco_primario: false }])
+							}
+						>
+							<i className="bi bi-plus me-1"></i>Adicionar Endereço
+						</button>
+					</div>
+				</div>
 
-          {ultimoTelefonePreenchido() && (
-            <div className="text-center mt-1">
-              <button
-                type="button"
-                className="btn btn-sm btn-outline-primary icon-btn"
-                onClick={addTelefone}
-              >
-                <i className="bi bi-plus"></i>
-              </button>
-            </div>
-          )}
+				{/* TELEFONES */}
+				<div className="card border-0 shadow-sm mb-4">
+					<div className="card-header bg-white border-bottom py-3 px-4">
+						<h6 className="fw-semibold mb-0">Telefones</h6>
+					</div>
+					<div className="card-body p-4">
+						{telefones.map((tel, i) => (
+							<div key={i} className="row g-2 align-items-center mb-3">
+								<div className="col">
+									<input
+										className={`form-control ${erros[`tel_${i}`] ? 'is-invalid' : ''}`}
+										value={tel.info_do_contato}
+										onChange={(e) => {
+											const n = [...telefones];
+											n[i] = { ...n[i], info_do_contato: formatarTelefone(e.target.value) };
+											setTelefones(n);
+											setErros((prev) => ({ ...prev, [`tel_${i}`]: '' }));
+										}}
+										placeholder="(00) 00000-0000"
+									/>
+									{erros[`tel_${i}`] && (
+										<div className="invalid-feedback d-block">{erros[`tel_${i}`]}</div>
+									)}
+								</div>
+								<div className="col-auto">
+									<button
+										type="button"
+										className={`btn btn-sm ${tel.contato_principal ? 'btn-warning' : 'btn-outline-secondary'}`}
+										style={{ width: 38 }}
+										onClick={() => togglePrincipal(telefones, setTelefones, i)}
+										title="Marcar como principal"
+									>
+										<i className="bi bi-star-fill"></i>
+									</button>
+								</div>
+								{telefones.length > 1 && (
+									<div className="col-auto">
+										<button
+											type="button"
+											className="btn btn-sm btn-outline-danger"
+											onClick={() => setTelefones(telefones.filter((_, j) => j !== i))}
+										>
+											<i className="bi bi-trash"></i>
+										</button>
+									</div>
+								)}
+							</div>
+						))}
+						<button
+							type="button"
+							className="btn btn-outline-dark btn-sm mt-2"
+							onClick={() => setTelefones([...telefones, novoContato('Telefone')])}
+						>
+							<i className="bi bi-plus me-1"></i>Adicionar Telefone
+						</button>
+					</div>
+				</div>
 
-          {/* EMAIL */}
-          <h4 className="mt-3">Emails</h4>
+				{/* EMAILS */}
+				<div className="card border-0 shadow-sm mb-4">
+					<div className="card-header bg-white border-bottom py-3 px-4">
+						<h6 className="fw-semibold mb-0">Emails</h6>
+					</div>
+					<div className="card-body p-4">
+						{emails.map((em, i) => (
+							<div key={i} className="row g-2 align-items-center mb-3">
+								<div className="col">
+									<input
+										type="email"
+										className={`form-control ${erros[`email_${i}`] ? 'is-invalid' : ''}`}
+										value={em.info_do_contato}
+										onChange={(e) => {
+											const n = [...emails];
+											n[i] = { ...n[i], info_do_contato: e.target.value };
+											setEmails(n);
+											setErros((prev) => ({ ...prev, [`email_${i}`]: '' }));
+										}}
+										placeholder="email@exemplo.com"
+									/>
+									{erros[`email_${i}`] && (
+										<div className="invalid-feedback d-block">{erros[`email_${i}`]}</div>
+									)}
+								</div>
+								<div className="col-auto">
+									<button
+										type="button"
+										className={`btn btn-sm ${em.contato_principal ? 'btn-warning' : 'btn-outline-secondary'}`}
+										style={{ width: 38 }}
+										onClick={() => togglePrincipal(emails, setEmails, i)}
+										title="Marcar como principal"
+									>
+										<i className="bi bi-star-fill"></i>
+									</button>
+								</div>
+								{emails.length > 1 && (
+									<div className="col-auto">
+										<button
+											type="button"
+											className="btn btn-sm btn-outline-danger"
+											onClick={() => setEmails(emails.filter((_, j) => j !== i))}
+										>
+											<i className="bi bi-trash"></i>
+										</button>
+									</div>
+								)}
+							</div>
+						))}
+						<button
+							type="button"
+							className="btn btn-outline-dark btn-sm mt-2"
+							onClick={() => setEmails([...emails, novoContato('Email')])}
+						>
+							<i className="bi bi-plus me-1"></i>Adicionar Email
+						</button>
+					</div>
+				</div>
 
-          {form.emails.map((e, index) => (
-            <div key={index} className="d-flex align-items-end gap-2 mb-2">
-              <input
-                className="form-control"
-                placeholder="email@email.com"
-                value={e.email}
-                onChange={(ev) => handleEmailChange(index, ev.target.value)}
-              />
-              <button
-                type="button"
-                className={`btn btn-sm icon-btn ${
-                  e.principal ? "btn-success" : "btn-outline-secondary"
-                }`}
-                onClick={() => setEmailPrincipal(index)}
-              >
-                <i className="bi bi-star-fill"></i>
-              </button>
-              {index > 0 && (
-                <button
-                  type="button"
-                  className="btn btn-sm btn-outline-danger icon-btn"
-                  onClick={() => removeEmail(index)}
-                >
-                  <i className="bi bi-trash"></i>
-                </button>
-              )}
-            </div>
-          ))}
-
-          {ultimoEmailPreenchido() && (
-            <div className="text-center mt-1">
-              <button
-                type="button"
-                className="btn btn-sm btn-outline-primary icon-btn"
-                onClick={addEmail}
-              >
-                <i className="bi bi-plus"></i>
-              </button>
-            </div>
-          )}
-
-          {/* ENDEREÇOS */}
-          <h4 className="mt-3">Endereços</h4>
-
-          {form.enderecos.map((end, index) => (
-            <div key={index} className="box-endereco mb-3">
-              <div className="d-flex justify-content-between mb-2">
-                <span>Endereço {index + 1}</span>
-                <div className="d-flex gap-1">
-                  <button
-                    type="button"
-                    className={`btn btn-sm icon-btn ${
-                      end.principal ? "btn-success" : "btn-outline-secondary"
-                    }`}
-                    onClick={() => setEnderecoPrincipal(index)}
-                  >
-                    <i className="bi bi-star-fill"></i>
-                  </button>
-                  {index > 0 && (
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-outline-danger icon-btn"
-                      onClick={() => removeEndereco(index)}
-                    >
-                      <i className="bi bi-trash"></i>
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <input
-                className="form-control mb-2"
-                placeholder="Logradouro"
-                value={end.logradouro}
-                onChange={(e) =>
-                  handleEnderecoChange(index, "logradouro", e.target.value)
-                }
-              />
-
-              <div className="d-flex gap-2 mb-2">
-                <input
-                  className="form-control"
-                  placeholder="Número"
-                  value={end.numero}
-                  onChange={(e) =>
-                    handleEnderecoChange(index, "numero", e.target.value)
-                  }
-                />
-                <input
-                  className="form-control"
-                  placeholder="Complemento"
-                  value={end.complemento}
-                  onChange={(e) =>
-                    handleEnderecoChange(index, "complemento", e.target.value)
-                  }
-                />
-              </div>
-
-              <div className="d-flex gap-2">
-                <input
-                  className="form-control"
-                  placeholder="Estado"
-                  value={end.estado}
-                  onChange={(e) =>
-                    handleEnderecoChange(index, "estado", e.target.value)
-                  }
-                />
-                <input
-                  className="form-control"
-                  placeholder="Cidade"
-                  value={end.cidade}
-                  onChange={(e) =>
-                    handleEnderecoChange(index, "cidade", e.target.value)
-                  }
-                />
-              </div>
-            </div>
-          ))}
-
-          {ultimoEnderecoPreenchido() && (
-            <div className="text-center mt-1">
-              <button
-                type="button"
-                className="btn btn-sm btn-outline-primary icon-btn"
-                onClick={addEndereco}
-              >
-                <i className="bi bi-plus"></i>
-              </button>
-            </div>
-          )}
-
-          {/* OBSERVAÇÕES */}
-          <h4 className="mt-3">Observações</h4>
-          <textarea
-            className="form-control mb-3"
-            placeholder="Observações"
-            name="obs"
-            rows={3}
-            value={form.obs}
-            onChange={handleChange}
-          />
-
-          <button className="btn btn-dark w-100" type="submit">
-            Salvar
-          </button>
-
-        </form>
-      </div>
-    </div>
-  );
+				{/* BOTÕES */}
+				<div className="d-flex flex-column flex-sm-row justify-content-end gap-3 mb-4">
+					<button type="button" className="btn btn-outline-secondary px-4" onClick={limpar}>
+						Limpar
+					</button>
+					<button type="submit" className="btn btn-dark px-5">
+						Salvar
+					</button>
+				</div>
+			</form>
+		</div>
+	);
 }
 
 export default ClientRegister;

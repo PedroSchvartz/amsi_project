@@ -23,20 +23,21 @@ function Login() {
 
 			localStorage.setItem('token', token);
 
-			try {
-				const payload = JSON.parse(atob(token.split('.')[1]));
-				localStorage.setItem('expiresAt', payload.exp * 1000);
-			} catch {
-				localStorage.setItem('expiresAt', Date.now() + 240 * 240 * 1000);
-			}
-
-			// Busca dados completos do usuário e salva localmente
+			// Busca dados completos do usuário — o handleResponse grava o expiresAt
+			// correto via X-Session-Expires. Fallback para payload.exp só se falhar.
 			try {
 				const payload = JSON.parse(atob(token.split('.')[1]));
 				const usuario = await getUser(payload.sub);
 				localStorage.setItem('user', JSON.stringify(usuario));
 			} catch (errUser) {
 				console.error('Erro ao buscar usuário:', errUser);
+				// fallback: usa exp do JWT se o getUser falhou e expiresAt ainda não foi gravado
+				if (!localStorage.getItem('expiresAt')) {
+					try {
+						const payload = JSON.parse(atob(token.split('.')[1]));
+						localStorage.setItem('expiresAt', payload.exp * 1000);
+					} catch {}
+				}
 			}
 
 			if (data.primeiro_acesso) {

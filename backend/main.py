@@ -35,6 +35,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Session-Expires"],
 )
 app.add_middleware(RequestLoggerMiddleware)
 

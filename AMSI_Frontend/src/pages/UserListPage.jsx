@@ -1,7 +1,5 @@
-import UserList from "../components/UserList";
+import UserList from '../components/UserList';
 
-function UserListPage() {
-  return <UserList />;
+export default function UserListPage() {
+	return <UserList />;
 }
-
-export default UserListPage;

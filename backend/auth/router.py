@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
 from datetime import datetime, timedelta
@@ -34,7 +34,7 @@ class TrocarSenhaRequest(BaseModel):
 
 
 @router.post("/token", response_model=TokenResponse)
-def login(dados: LoginRequest, request: Request, db: Session = Depends(get_db)):
+def login(dados: LoginRequest, request: Request, response: Response, db: Session = Depends(get_db)):
     usuario = db.query(Usuario).filter(Usuario.email == dados.email).first()
 
     if not usuario or not verificar_senha(dados.senha, usuario.senha):
@@ -85,6 +85,10 @@ def login(dados: LoginRequest, request: Request, db: Session = Depends(get_db)):
     )
     db.add(token_ativo)
     db.commit()
+
+    # Injetar X-Session-Expires no response do login
+    exp_ms = int(datetime.utcfromtimestamp(payload["exp"]).timestamp() * 1000)
+    response.headers["X-Session-Expires"] = str(exp_ms)
 
     return TokenResponse(access_token=token, primeiro_acesso=usuario.primeiro_acesso)
 
