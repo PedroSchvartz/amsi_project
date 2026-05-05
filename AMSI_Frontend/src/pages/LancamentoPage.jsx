@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import '../styles/Lancamento.css';
+import '../styles/lancamento.css';
 import { createLancamento, getClifors, getTiposConta, createTipoConta } from '../services/api';
 import { getUserFromToken } from '../services/auth';
 
