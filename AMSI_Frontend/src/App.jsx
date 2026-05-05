@@ -13,7 +13,7 @@ import 'bootstrap-icons/font/bootstrap-icons.css';
 import PrivateRoute from './components/PrivateRoute';
 import AdminRoute from './components/AdminRoute';
 import Layout from './components/Layout';
-import { LoadingProvider, useLoading } from './services/LoadingContext';
+import { LoadingProvider, useLoading } from './services/loadingContext';
 import { logout } from './services/auth';
 
 function Spinner() {
