@@ -1,125 +1,125 @@
+/* AMSI — Lista de Usuários */
+@import './theme.css';
+
 .user-list-container {
-	padding: 20px;
+  max-width: 1000px;
+  margin: 0 auto;
 }
 
-table {
-	width: 100%;
-	border-collapse: collapse;
-	background: white;
+.user-list-container h2 {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 24px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
 }
 
-th,
-td {
-	padding: 10px;
-	border-bottom: 1px solid #ddd;
-	text-align: left;
+/* ── Tabela ── */
+.user-list-container .table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-body);
+  font-size: 0.87rem;
+  color: var(--text);
+  background: var(--bg-card);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
 }
 
-th {
-	background-color: #a3b18a;
-	color: white;
+.user-list-container .table thead tr {
+  background: var(--accent) !important;
+  border-bottom: 2px solid var(--border);
 }
 
-tr:hover {
-	background-color: #f5f5f5;
+[data-theme="corporativo"] .user-list-container .table thead tr {
+  background: var(--bg-card);
 }
 
-/* ── Toast ── */
-.ul-toast {
-	position: fixed;
-	bottom: 24px;
-	right: 24px;
-	display: flex;
-	align-items: center;
-	gap: 12px;
-	padding: 14px 20px;
-	border-radius: 8px;
-	font-size: 0.9rem;
-	font-weight: 500;
-	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-	z-index: 9999;
-	max-width: 420px;
-	animation: ul-slide-in 0.25s ease;
+.user-list-container .table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--primary);
 }
 
-.ul-toast--sucesso {
-	background: #d1e7dd;
-	color: #0f5132;
-	border-left: 4px solid #198754;
+[data-theme="corporativo"] .user-list-container .table th {
+  color: var(--text-muted);
 }
 
-.ul-toast--erro {
-	background: #f8d7da;
-	color: #842029;
-	border-left: 4px solid #dc3545;
+.user-list-container .table tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s ease;
+  background: var(--bg-card);
 }
 
-.ul-toast-close {
-	background: none;
-	border: none;
-	font-size: 1.2rem;
-	cursor: pointer;
-	color: inherit;
-	line-height: 1;
-	padding: 0;
-	margin-left: auto;
+.user-list-container .table tbody tr:hover {
+  background: var(--input-bg);
 }
 
-@keyframes ul-slide-in {
-	from {
-		opacity: 0;
-		transform: translateY(12px);
-	}
-	to {
-		opacity: 1;
-		transform: translateY(0);
-	}
+.user-list-container .table tbody tr:last-child {
+  border-bottom: none;
 }
 
-/* ── Erros inline no modal ── */
-.ul-erro-modal {
-	color: #dc3545;
-	margin-top: 8px;
+.user-list-container .table td {
+  padding: 12px 16px;
+  vertical-align: middle;
+  white-space: nowrap;
 }
 
-.ul-sucesso-modal {
-	color: #198754;
-	margin-top: 8px;
+/* ── Botões de ação ── */
+.user-list-container .btn-outline-primary {
+  border: 1px solid var(--primary);
+  color: var(--primary);
+  background: transparent;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-/* ── Modal de confirmação ── */
-.ul-overlay {
-	position: fixed;
-	inset: 0;
-	background: rgba(0, 0, 0, 0.45);
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	z-index: 1050;
+.user-list-container .btn-outline-primary:hover {
+  background: var(--primary);
+  color: #ffffff;
 }
 
-.ul-modal-confirm {
-	background: #fff;
-	border-radius: 10px;
-	padding: 32px 40px;
-	max-width: 400px;
-	width: 100%;
-	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+.user-list-container .btn-outline-danger {
+  border: 1px solid #ef4444;
+  color: #ef4444;
+  background: transparent;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.ul-modal-confirm h5 {
-	margin-bottom: 12px;
-	font-size: 1.1rem;
-	font-weight: 600;
+.user-list-container .btn-outline-danger:hover {
+  background: #ef4444;
+  color: #ffffff;
 }
 
-.ul-modal-confirm p {
-	color: #555;
-	margin-bottom: 24px;
+.user-list-container .d-flex {
+  display: flex !important;
 }
 
-.ul-confirm-buttons {
-	display: flex;
-	gap: 12px;
-	justify-content: flex-end;
+.user-list-container .gap-2 {
+  gap: 8px !important;
+}
+
+/* ── Responsivo ── */
+@media (max-width: 768px) {
+  .user-list-container {
+    overflow-x: auto;
+  }
+
+  .user-list-container .table {
+    min-width: 700px;
+  }
 }

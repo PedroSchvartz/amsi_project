@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import '../styles/ListaLancamentos.css';
+import '../styles/listaLancamentos.css';
 import { getLancamentos, fecharLancamento, getClifors, getTiposConta } from '../services/api';
 import { getUserFromToken } from '../services/auth';
 

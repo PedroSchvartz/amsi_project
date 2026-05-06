@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
 import HomePage from './components/Home';
 import UserRegisterPage from './pages/UserRegisterPage';
@@ -13,7 +13,7 @@ import 'bootstrap-icons/font/bootstrap-icons.css';
 import PrivateRoute from './components/PrivateRoute';
 import AdminRoute from './components/AdminRoute';
 import Layout from './components/Layout';
-import { LoadingProvider, useLoading } from './services/LoadingContext';
+import { LoadingProvider, useLoading } from './services/loadingContext';
 import { logout } from './services/auth';
 import Dashboard from './pages/dashboard';
 
@@ -48,6 +48,7 @@ function Spinner() {
 }
 
 function MonitorSessao() {
+	const location = useLocation();
 	const [expirado, setExpirado] = useState(false);
 	const navigate = useNavigate();
 	const intervalRef = useRef(null);
@@ -82,6 +83,7 @@ function MonitorSessao() {
 		navigate('/');
 	};
 
+	if (location.pathname === '/') return null;
 	if (!expirado) return null;
 
 	return (

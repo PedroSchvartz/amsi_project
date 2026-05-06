@@ -1,10 +1,150 @@
 import { useState, useEffect } from 'react';
-import {
-	getUser,
-	getLancamentosPorUsuario,
-	getLoginsPorUsuario,
-	trocarSenha
-} from '../services/api';
+import { getLancamentosPorUsuario, getLoginsPorUsuario, trocarSenha } from '../services/api';
+
+const s = {
+	overlay: {
+		position: 'fixed',
+		inset: 0,
+		background: 'rgba(0,0,0,0.55)',
+		display: 'flex',
+		alignItems: 'center',
+		justifyContent: 'center',
+		zIndex: 9990,
+		animation: 'fadeIn 0.2s ease'
+	},
+	box: {
+		background: 'var(--bg-card)',
+		color: 'var(--text)',
+		borderRadius: 14,
+		width: '100%',
+		maxWidth: 520,
+		maxHeight: '88vh',
+		overflowY: 'auto',
+		padding: '32px 36px',
+		boxShadow: '0 16px 48px var(--shadow)',
+		animation: 'fadeInDown 0.25s ease'
+	},
+	header: {
+		display: 'flex',
+		justifyContent: 'space-between',
+		alignItems: 'center',
+		marginBottom: 20
+	},
+	title: {
+		fontFamily: 'var(--font-display)',
+		fontSize: '1.35rem',
+		fontWeight: 700,
+		color: 'var(--primary)',
+		margin: 0
+	},
+	closeBtn: {
+		background: 'transparent',
+		border: 'none',
+		cursor: 'pointer',
+		fontSize: '1.2rem',
+		color: 'var(--text-muted)',
+		lineHeight: 1,
+		padding: '2px 6px',
+		borderRadius: 6
+	},
+	divider: {
+		border: 'none',
+		borderTop: '1px solid var(--border)',
+		margin: '16px 0'
+	},
+	label: {
+		fontWeight: 600,
+		color: 'var(--text)'
+	},
+	muted: {
+		fontSize: 13,
+		color: 'var(--text-muted)'
+	},
+	statBox: (highlight) => ({
+		flex: 1,
+		textAlign: 'center',
+		padding: '10px 8px',
+		borderRadius: 10,
+		background: highlight ? 'var(--accent)' : 'var(--bg)'
+	}),
+	statNum: {
+		fontSize: 22,
+		fontWeight: 700,
+		color: 'var(--text)'
+	},
+	statLabel: {
+		fontSize: 12,
+		color: 'var(--text-muted)',
+		marginTop: 2
+	},
+	input: {
+		width: '100%',
+		padding: '8px 12px',
+		borderRadius: 8,
+		border: '1px solid var(--border)',
+		background: 'var(--input-bg)',
+		color: 'var(--text)',
+		fontSize: '0.875rem',
+		marginBottom: 10,
+		outline: 'none'
+	},
+	btnPrimary: {
+		flex: 1,
+		padding: '9px 0',
+		borderRadius: 8,
+		border: 'none',
+		background: 'var(--primary)',
+		color: '#fff',
+		fontWeight: 600,
+		cursor: 'pointer',
+		fontSize: '0.875rem'
+	},
+	btnSecondary: {
+		flex: 1,
+		padding: '9px 0',
+		borderRadius: 8,
+		border: '1px solid var(--border)',
+		background: 'transparent',
+		color: 'var(--text)',
+		fontWeight: 500,
+		cursor: 'pointer',
+		fontSize: '0.875rem'
+	},
+	btnOutline: {
+		width: '100%',
+		padding: '9px 0',
+		borderRadius: 8,
+		border: '1px solid var(--border)',
+		background: 'transparent',
+		color: 'var(--text)',
+		fontWeight: 500,
+		cursor: 'pointer',
+		fontSize: '0.875rem'
+	},
+	badge: (credito) => ({
+		display: 'inline-block',
+		padding: '2px 8px',
+		borderRadius: 50,
+		fontSize: 11,
+		fontWeight: 600,
+		background: credito ? 'rgba(74,222,128,0.2)' : 'rgba(248,113,113,0.2)',
+		color: credito ? '#16a34a' : '#dc2626'
+	}),
+	th: {
+		fontSize: 12,
+		fontWeight: 600,
+		color: 'var(--text-muted)',
+		padding: '6px 8px',
+		borderBottom: '1px solid var(--border)',
+		textAlign: 'left'
+	},
+	td: {
+		fontSize: 13,
+		color: 'var(--text)',
+		padding: '6px 8px',
+		borderBottom: '1px solid var(--border)'
+	}
+};
 
 function PerfilPopup({ onFechar }) {
 	const usuarioLocal = JSON.parse(localStorage.getItem('user') || 'null');
@@ -14,7 +154,6 @@ function PerfilPopup({ onFechar }) {
 	const [ultimoLogin, setUltimoLogin] = useState(null);
 	const [carregando, setCarregando] = useState(true);
 
-	// Trocar senha
 	const [trocandoSenha, setTrocandoSenha] = useState(false);
 	const [senhaAtual, setSenhaAtual] = useState('');
 	const [senhaNova, setSenhaNova] = useState('');
@@ -70,102 +209,92 @@ function PerfilPopup({ onFechar }) {
 		parseFloat(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 	return (
-		<div
-			onClick={onFechar}
-			style={{
-				position: 'fixed',
-				inset: 0,
-				background: 'rgba(0,0,0,0.45)',
-				display: 'flex',
-				alignItems: 'center',
-				justifyContent: 'center',
-				zIndex: 9990
-			}}
-		>
-			<div
-				onClick={(e) => e.stopPropagation()}
-				style={{
-					background: '#fff',
-					borderRadius: 12,
-					width: '100%',
-					maxWidth: 560,
-					maxHeight: '85vh',
-					overflowY: 'auto',
-					padding: '32px 36px',
-					boxShadow: '0 10px 40px rgba(0,0,0,0.2)'
-				}}
-			>
+		<div onClick={onFechar} style={s.overlay}>
+			<div onClick={(e) => e.stopPropagation()} style={s.box}>
 				{/* Header */}
-				<div className="d-flex justify-content-between align-items-center mb-3">
-					<h5 className="mb-0 fw-bold">Meu Perfil</h5>
-					<button className="btn-close" onClick={onFechar} />
+				<div style={s.header}>
+					<h5 style={s.title}>Meu Perfil</h5>
+					<button style={s.closeBtn} onClick={onFechar}>
+						✕
+					</button>
 				</div>
 
 				{/* Dados do usuário */}
-				<div className="mb-3">
-					<p className="mb-1">
-						<strong>Nome:</strong> {usuarioLocal?.nome || '—'}
+				<div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+					<p style={{ margin: 0 }}>
+						<span style={s.label}>Nome:</span> {usuarioLocal?.nome || '—'}
 					</p>
-					<p className="mb-1">
-						<strong>Email:</strong> {usuarioLocal?.email || '—'}
+					<p style={{ margin: 0 }}>
+						<span style={s.label}>Email:</span> {usuarioLocal?.email || '—'}
 					</p>
-					<p className="mb-1">
-						<strong>Cargo:</strong> {usuarioLocal?.cargo || '—'}
+					<p style={{ margin: 0 }}>
+						<span style={s.label}>Cargo:</span> {usuarioLocal?.cargo || '—'}
 					</p>
-					<p className="mb-1">
-						<strong>Perfil:</strong> {usuarioLocal?.perfil_de_acesso || '—'}
+					<p style={{ margin: 0 }}>
+						<span style={s.label}>Perfil:</span> {usuarioLocal?.perfil_de_acesso || '—'}
 					</p>
 					{ultimoLogin && (
-						<p className="mb-1 text-muted" style={{ fontSize: 13 }}>
-							<strong>Último login:</strong> {formatData(ultimoLogin.data_login)}
+						<p style={{ margin: 0, ...s.muted }}>
+							<span style={s.label}>Último login:</span> {formatData(ultimoLogin.data_login)}
 						</p>
 					)}
 				</div>
 
-				<hr />
+				<hr style={s.divider} />
 
 				{/* Resumo lançamentos */}
 				{carregando ? (
-					<p className="text-muted text-center">Carregando lançamentos...</p>
+					<p style={{ ...s.muted, textAlign: 'center' }}>Carregando lançamentos...</p>
 				) : (
 					<>
-						<h6 className="fw-semibold mb-2">Resumo de Lançamentos</h6>
-						<div className="d-flex gap-3 mb-3">
-							<div className="flex-fill text-center p-2 rounded" style={{ background: '#f8f9fa' }}>
-								<div style={{ fontSize: 22, fontWeight: 700 }}>{abertos.length}</div>
-								<div style={{ fontSize: 12, color: '#666' }}>Em aberto</div>
+						<p style={{ fontWeight: 600, marginBottom: 10, color: 'var(--text)' }}>
+							Resumo de Lançamentos
+						</p>
+						<div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+							<div style={s.statBox(false)}>
+								<div style={s.statNum}>{abertos.length}</div>
+								<div style={s.statLabel}>Em aberto</div>
 							</div>
-							<div className="flex-fill text-center p-2 rounded" style={{ background: '#f8f9fa' }}>
-								<div style={{ fontSize: 22, fontWeight: 700 }}>{fechados.length}</div>
-								<div style={{ fontSize: 12, color: '#666' }}>Fechados</div>
+							<div style={s.statBox(false)}>
+								<div style={s.statNum}>{fechados.length}</div>
+								<div style={s.statLabel}>Fechados</div>
 							</div>
-							<div className="flex-fill text-center p-2 rounded" style={{ background: '#fff3cd' }}>
-								<div style={{ fontSize: 16, fontWeight: 700 }}>{formatValor(valorEmAberto)}</div>
-								<div style={{ fontSize: 12, color: '#666' }}>Total em aberto</div>
+							<div style={s.statBox(true)}>
+								<div style={{ ...s.statNum, fontSize: 16 }}>{formatValor(valorEmAberto)}</div>
+								<div style={s.statLabel}>Total em aberto</div>
 							</div>
 						</div>
 
 						{abertos.length > 0 && (
 							<>
-								<h6 className="fw-semibold mb-2">Lançamentos em Aberto</h6>
-								<div style={{ maxHeight: 180, overflowY: 'auto' }}>
-									<table className="table table-sm table-hover mb-0">
-										<thead className="table-light">
+								<p style={{ fontWeight: 600, marginBottom: 8, color: 'var(--text)' }}>
+									Lançamentos em Aberto
+								</p>
+								<div
+									style={{
+										maxHeight: 180,
+										overflowY: 'auto',
+										borderRadius: 8,
+										border: '1px solid var(--border)'
+									}}
+								>
+									<table style={{ width: '100%', borderCollapse: 'collapse' }}>
+										<thead>
 											<tr>
-												<th>Vencimento</th>
-												<th>Valor</th>
-												<th>Natureza</th>
+												<th style={s.th}>Vencimento</th>
+												<th style={s.th}>Valor</th>
+												<th style={s.th}>Natureza</th>
 											</tr>
 										</thead>
 										<tbody>
 											{abertos.map((l) => (
 												<tr key={l.id_lancamento}>
-													<td>{new Date(l.data_vencimento).toLocaleDateString('pt-BR')}</td>
-													<td>{formatValor(l.valor)}</td>
-													<td>
-														<span
-															className={`badge ${l.natureza_lancamento === 'Credito' ? 'bg-success' : 'bg-danger'}`}
-														>
+													<td style={s.td}>
+														{new Date(l.data_vencimento).toLocaleDateString('pt-BR')}
+													</td>
+													<td style={s.td}>{formatValor(l.valor)}</td>
+													<td style={s.td}>
+														<span style={s.badge(l.natureza_lancamento === 'Credito')}>
 															{l.natureza_lancamento}
 														</span>
 													</td>
@@ -179,54 +308,51 @@ function PerfilPopup({ onFechar }) {
 					</>
 				)}
 
-				<hr />
+				<hr style={s.divider} />
 
 				{/* Trocar senha */}
 				{!trocandoSenha ? (
-					<button
-						className="btn btn-outline-secondary btn-sm w-100"
-						onClick={() => setTrocandoSenha(true)}
-					>
+					<button style={s.btnOutline} onClick={() => setTrocandoSenha(true)}>
 						Trocar Senha
 					</button>
 				) : (
 					<form onSubmit={handleTrocarSenha}>
-						<h6 className="fw-semibold mb-2">Trocar Senha</h6>
+						<p style={{ fontWeight: 600, marginBottom: 10, color: 'var(--text)' }}>Trocar Senha</p>
 						<input
+							style={s.input}
 							type="password"
-							className="form-control form-control-sm mb-2"
 							placeholder="Senha atual"
 							value={senhaAtual}
 							onChange={(e) => setSenhaAtual(e.target.value)}
 							required
 						/>
 						<input
+							style={s.input}
 							type="password"
-							className="form-control form-control-sm mb-2"
 							placeholder="Nova senha"
 							value={senhaNova}
 							onChange={(e) => setSenhaNova(e.target.value)}
 							required
 						/>
 						<input
+							style={s.input}
 							type="password"
-							className="form-control form-control-sm mb-2"
 							placeholder="Confirmar nova senha"
 							value={senhaConfirm}
 							onChange={(e) => setSenhaConfirm(e.target.value)}
 							required
 						/>
-						{erroSenha && <p className="text-danger small mb-1">{erroSenha}</p>}
-						{sucessoSenha && <p className="text-success small mb-1">{sucessoSenha}</p>}
-						<div className="d-flex gap-2">
-							<button type="submit" className="btn btn-sm btn-dark flex-fill">
+						{erroSenha && (
+							<p style={{ color: '#dc2626', fontSize: 13, marginBottom: 8 }}>{erroSenha}</p>
+						)}
+						{sucessoSenha && (
+							<p style={{ color: '#16a34a', fontSize: 13, marginBottom: 8 }}>{sucessoSenha}</p>
+						)}
+						<div style={{ display: 'flex', gap: 8 }}>
+							<button type="submit" style={s.btnPrimary}>
 								Salvar
 							</button>
-							<button
-								type="button"
-								className="btn btn-sm btn-outline-secondary flex-fill"
-								onClick={() => setTrocandoSenha(false)}
-							>
+							<button type="button" style={s.btnSecondary} onClick={() => setTrocandoSenha(false)}>
 								Cancelar
 							</button>
 						</div>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import '../styles/Lancamento.css';
+import '../styles/lancamento.css';
 import { createLancamento, getClifors, getTiposConta, createTipoConta } from '../services/api';
 import { getUserFromToken } from '../services/auth';
 
@@ -153,14 +153,15 @@ function LancamentoPage() {
 						</div>
 					</div>
 
-					<div className="row">
-						<div className="field">
-							<label>Tipo de Conta</label>
+					<div className="field">
+						<label>Tipo de Conta</label>
+						<div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
 							<select
 								name="id_tipo_conta_fk"
 								value={form.id_tipo_conta_fk}
 								onChange={handleChange}
 								required
+								style={{ flex: 1 }}
 							>
 								<option value="">Selecione</option>
 								{tiposConta.map((t) => (
@@ -169,10 +170,10 @@ function LancamentoPage() {
 									</option>
 								))}
 							</select>
+							<button type="button" className="novo-tipo" onClick={() => setPopup(true)}>
+								+ Novo Tipo
+							</button>
 						</div>
-						<button type="button" className="novo-tipo" onClick={() => setPopup(true)}>
-							+ Novo Tipo
-						</button>
 					</div>
 
 					<div className="field">

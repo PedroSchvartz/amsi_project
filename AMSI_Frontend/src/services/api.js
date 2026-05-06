@@ -1,5 +1,5 @@
 import { getToken, logout } from './auth';
-import { loadingBus } from './LoadingContext';
+import { loadingBus } from './loadingContext';
 
 const BASE_URL = import.meta.env.VITE_API_URL;
 

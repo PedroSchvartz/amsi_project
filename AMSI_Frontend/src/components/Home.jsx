@@ -4,6 +4,8 @@ import { isAdmin } from '../services/auth';
 
 function Home() {
 	const admin = isAdmin();
+	const user = JSON.parse(localStorage.getItem('user') || '{}');
+	const nome = user?.nome || 'Usuário';
 
 	if (!admin) {
 		return <div className="bg-light min-vh-100" />;
@@ -12,6 +14,11 @@ function Home() {
 	return (
 		<div className="bg-light min-vh-100">
 			<div className="container py-5">
+				<div className="home-welcome">
+					<h1>Olá, {nome} 👋</h1>
+					<p>Bem-vindo ao sistema de gestão financeira da AMSI.</p>
+				</div>
+
 				<div className="row g-4">
 					{/* DASHBOARD */}
 					<div className="col-md-4">
