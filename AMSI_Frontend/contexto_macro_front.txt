@@ -5,7 +5,7 @@
 NOME DO PROJETO: AMSI Project
 DESCRIÇÃO: Sistema de gestão financeira para associação de moradores.
            TCC do Pedro com aplicação real — não é exercício acadêmico.
-STATUS: Backend MVP finalizado. Frontend em desenvolvimento.
+STATUS: Backend MVP finalizado. Frontend MVP concluído e em produção.
 
 --------------------------------------------------------------------------------
   STACK
@@ -16,6 +16,17 @@ Backend  : FastAPI (Python) + PostgreSQL 17.4 — FINALIZADO, não mexer
 Auth     : JWT próprio (implementado no backend)
 Deploy   : Vercel (frontend)
 API Base : https://amsi-project-chzs.vercel.app
+
+--------------------------------------------------------------------------------
+  REPOSITÓRIOS
+--------------------------------------------------------------------------------
+
+Pedro (principal, deploy Vercel): https://github.com/PedroSchvartz/amsi_project
+Lucas (fork, responsável pelo CSS): https://github.com/Thierry0liveira/amsi_project
+
+O fork do Lucas foi mergeado no main do Pedro em 2026-05-06.
+CSS e visual: versão do Lucas.
+Lógica de negócio, auth, sessão: versão do Pedro.
 
 --------------------------------------------------------------------------------
   ATENÇÃO — ARQUIVOS ÓRFÃOS
@@ -30,48 +41,77 @@ O projeto roda em React — ignorar esses arquivos completamente.
   ESTRUTURA DO FRONTEND
 --------------------------------------------------------------------------------
 
-Caminho  : C:\Codigos\ANSI_Project_Desenvolvimento\AMSI_Frontend
+Caminho  : C:\Codigos\AMSI_Project_Desenvolvimento\AMSI_Frontend
 
 AMSI_Frontend
 ├── public/
 │   ├── favicon.svg
 │   └── icons.svg
 ├── src/
-│   ├── App.jsx                  — roteamento principal
+│   ├── App.jsx                  — roteamento principal + MonitorSessao + Spinner
 │   ├── main.jsx                 — entry point
 │   ├── index.css
 │   ├── assets/
+│   │   └── AMSI_Logo.png        — logo da associação
 │   ├── components/              — componentes reutilizáveis
 │   │   ├── AdminRoute.jsx       — proteção de rota admin
 │   │   ├── PrivateRoute.jsx     — proteção de rota autenticada
-│   │   ├── ClientRegister.jsx
-│   │   ├── Home.jsx             — usado diretamente na rota /home (sem wrapper Page)
+│   │   ├── Layout.jsx           — topbar + menu + footer (substitui NavBar.jsx)
+│   │   ├── NavBar.jsx           — NÃO USADO (substituído pelo Layout.jsx)
+│   │   ├── Perfilpopup.jsx      — popup de perfil com temas
 │   │   ├── Login.jsx
-│   │   ├── News.jsx
+│   │   ├── Home.jsx             — usado diretamente na rota /home
+│   │   ├── ClientRegister.jsx
 │   │   ├── UserList.jsx
-│   │   └── UserRegister.jsx
+│   │   ├── UserRegister.jsx
+│   │   └── News.jsx             — sem uso aparente
 │   ├── pages/                   — wrappers de página (um por rota)
 │   │   ├── ClientRegisterPage.jsx
-│   │   ├── HomePage.jsx         — existe mas NÃO está em uso (App.jsx usa Home.jsx direto)
+│   │   ├── HomePage.jsx
 │   │   ├── LancamentoPage.jsx
 │   │   ├── ListaLancamentosPage.jsx
 │   │   ├── LoginPage.jsx
+│   │   ├── TrocarSenhaPage.jsx
 │   │   ├── UserListPage.jsx
-│   │   └── UserRegisterPage.jsx
+│   │   ├── UserRegisterPage.jsx
+│   │   └── dashboard.jsx
 │   ├── services/                — camada de comunicação com a API
 │   │   ├── api.js               — todas as chamadas HTTP
-│   │   └── auth.js              — token, sessão, logout
+│   │   ├── auth.js              — token, sessão, logout
+│   │   └── loadingContext.jsx   — contexto global de loading
 │   └── styles/                  — CSS por componente
-│       ├── Lancamento.css
-│       ├── ListaLancamentos.css
-│       ├── clientRegister.css
+│       ├── theme.css            — variáveis dos dois temas + reset global
+│       ├── layout.css           — topbar, menu, footer
+│       ├── forms.css            — estilos compartilhados de formulários
+│       ├── lancamento.css
+│       ├── listaLancamentos.css
 │       ├── home.css
 │       ├── login.css
+│       ├── clientRegister.css
 │       ├── userList.css
 │       └── userregister.css
 ├── vite.config.js
 ├── package.json
-└── contexto_macro.txt           — este arquivo
+├── contexto_macro_front.txt     — este arquivo
+└── fase_atual_front.txt
+
+--------------------------------------------------------------------------------
+  SISTEMA DE TEMAS
+--------------------------------------------------------------------------------
+
+Dois temas implementados via variáveis CSS em styles/theme.css:
+  - Verde (padrão): tons de verde escuro e bege
+  - Corporativo: azul claro sobre fundo escuro
+
+Variáveis principais:
+  --bg, --bg-card, --primary, --secondary, --accent
+  --text, --text-muted, --border, --input-bg, --btn-hover, --shadow
+
+Alternado via botão no topbar do Layout.jsx.
+Preferência salva em localStorage('amsi_tema').
+Aplicado via data-theme="corporativo" no documentElement.
+
+Todo CSS novo deve usar essas variáveis — nunca cores hardcoded.
 
 --------------------------------------------------------------------------------
   CONTRATO COM O BACKEND
@@ -82,32 +122,25 @@ Swagger local: /docs (backend rodando)
 
 Fluxo de autenticação (implementado):
   1. POST /auth/token → recebe { access_token, primeiro_acesso }
-  2. Token armazenado em localStorage
-  3. Se receber 401 → handleResponse() em api.js chama logout() e redireciona para /
+  2. Token salvo em localStorage('token')
+  3. GET /usuarios/{sub} → dados completos salvos em localStorage('user')
+  4. expiresAt salvo em localStorage('expiresAt') — timestamp ms
+  5. Se primeiro_acesso == true → redireciona para /trocar-senha
+  6. Se receber 401 → handleResponse() chama logout() e dispara evento sessao-expirada
 
-Fluxo de autenticação (PENDENTE — não implementado):
-  - Se primeiro_acesso == true → redirecionar para tela de troca de senha
-  - POST /auth/trocar-senha com token no header
-  - Leitura do header X-Session-Expires a cada response autenticado
-  - Timer de inatividade → POST /auth/logout + redirecionar para /
+Logout:
+  - logoutUser() chama POST /auth/logout (invalida token no banco)
+  - logout() de auth.js limpa localStorage
+  - Sempre chamar logoutUser() antes de logout()
 
-ATENÇÃO — logout atual:
-  - logout() em auth.js faz localStorage.clear() mas NÃO chama POST /auth/logout
-  - O token permanece válido no backend até expirar naturalmente
-  - Corrigir: logout manual deve chamar logoutUser() da api.js antes de limpar localStorage
-
-Regras de contrato (o backend sempre):
+Regras de contrato:
   - Aceita e retorna JSON
   - Nunca retorna o campo `senha`
   - Datas em ISO 8601 (ex: "2026-04-19T10:00:00")
   - Decimais como string no JSON
+  - Header X-Session-Expires em todo response autenticado (timestamp Unix ms)
 
-O frontend sempre:
-  - Manda Authorization: Bearer <token> em todas as requisições autenticadas
-  - Trata 401 → redireciona para login (já implementado em handleResponse)
-  - Trata 403 → exibe mensagem de permissão insuficiente
-
-ENUMs relevantes (vindos do banco):
+ENUMs relevantes:
   - natureza_enum: "Debito" / "Credito" (sem acento)
   - tipo_clifor_enum: "C" / "F" / "A"
 
@@ -119,7 +152,7 @@ Nomenclatura:
   - Componentes: PascalCase (ex: LancamentoForm, ClienteList)
   - Pages: PascalCase + sufixo Page (ex: LancamentoPage)
   - Services: camelCase, agrupados por domínio em api.js
-  - Estilos: arquivo CSS por componente, mesmo nome (ex: Lancamento.css)
+  - Estilos: arquivo CSS por componente, mesmo nome (ex: lancamento.css)
   - Variáveis de domínio: português (seguindo o backend)
 
 Padrões de estrutura:
@@ -127,6 +160,7 @@ Padrões de estrutura:
   - Componentes não chamam fetch diretamente — usam services/api.js
   - Pages são wrappers leves — não contêm lógica pesada
   - Rotas protegidas usam PrivateRoute ou AdminRoute
+  - Todo CSS usa variáveis do tema — nunca cores hardcoded
 
 Antes de criar componente novo:
   1. Verificar se já existe algo aproveitável em components/
@@ -139,8 +173,8 @@ Antes de criar componente novo:
 
 Enviar na ordem:
   1. meu_perfil_de_trabalho_verde.txt
-  2. contexto_macro.txt (este arquivo)
-  3. fase_atual.txt
+  2. contexto_macro_front.txt (este arquivo)
+  3. fase_atual_front.txt
   4. App.jsx
   5. services/api.js + services/auth.js
   6. Componente/page específico do que for trabalhar
@@ -153,8 +187,8 @@ O backend está finalizado para o MVP. Qualquer necessidade nova do frontend
 que exija mudança no backend deve ser discutida antes de implementar.
 
 Stack: FastAPI + PostgreSQL 17.4 + SQLAlchemy + JWT com bcrypt
-Caminho: C:\Codigos\ANSI_Project_Desenvolvimento\backend
-Testes: 95/95 passando (pytest tests/)
+Caminho: C:\Codigos\AMSI_Project_Desenvolvimento\backend
+Testes: 102 passando (pytest tests/)
 Admin permanente: opedroschvartz@gmail.com, id=5 — nunca deletar
 
 ================================================================================

@@ -2,7 +2,7 @@
   AMSI PROJECT — FASE ATUAL FRONTEND
 ================================================================================
 
-DATA: 2026-05-03
+DATA: 2026-05-06
 STACK: React + Vite (JSX) — hospedado na Vercel
 REPOSITÓRIO: https://github.com/PedroSchvartz/amsi_project
 BASE_URL da API: configurada via AMSI_Frontend/.env → VITE_API_URL
@@ -21,15 +21,20 @@ ESTRUTURA DE ARQUIVOS:
   ├── main.jsx
   ├── index.css
   ├── assets/
+  │   └── AMSI_Logo.png    — logo da associação (adicionado pelo Lucas)
   ├── components/
   │   ├── AdminRoute.jsx       — guard: exige perfil Administrador (lê JWT via isAdmin())
   │   ├── PrivateRoute.jsx     — guard: exige autenticação; adminOnly redireciona para /home
-  │   ├── Layout.jsx           — wrapper com Navbar para rotas protegidas (usa Outlet)
-  │   ├── NavBar.jsx           — navbar global; links condicionais por isAdmin();
-  │   │                          clique no nome abre PerfilPopup
+  │   ├── Layout.jsx           — topbar com logo + nome associação (link → /home) +
+  │   │                          nome do usuário clicável (abre PerfilPopup) +
+  │   │                          toggle de tema + menu horizontal desktop +
+  │   │                          menu mobile hamburguer + footer
+  │   ├── NavBar.jsx           — NÃO USADO — substituído pelo Layout.jsx
   │   ├── Perfilpopup.jsx      — popup de perfil: dados do usuário, resumo de lançamentos,
   │   │                          último login, troca de senha inline
+  │   │                          Estilizado com variáveis do tema (--bg-card, --primary etc.)
   │   ├── Login.jsx            — após login: busca getUser(sub) e salva em localStorage('user')
+  │   │                          MonitorSessao não dispara na rota /
   │   ├── Home.jsx             — cards com links; visível apenas para admin
   │   ├── ClientRegister.jsx   — formulário completo de cadastro de clifor (colega)
   │   ├── UserList.jsx
@@ -43,6 +48,7 @@ ESTRUTURA DE ARQUIVOS:
   │   ├── UserRegisterPage.jsx
   │   ├── TrocarSenhaPage.jsx          — fluxo de primeiro acesso
   │   ├── LancamentoPage.jsx           — formulário completo de novo lançamento
+  │   │                                  botão "+ Novo Tipo" inline no campo Tipo de Conta
   │   ├── ListaLancamentosPage.jsx     — tabela + filtros + modal fechar lançamento
   │   └── dashboard.jsx                — dashboard com cards de resumo, gráficos (recharts),
   │                                      filtros e tabela de próximos a vencer
@@ -51,13 +57,16 @@ ESTRUTURA DE ARQUIVOS:
   │   ├── auth.js              — token JWT, isAdmin, isConsulta, isAuthenticated, logout
   │   └── loadingContext.jsx   — contexto global de loading com singleton para api.js
   └── styles/
+      ├── theme.css            — variáveis dos dois temas (verde e corporativo) + reset global
       ├── home.css
       ├── login.css
+      ├── layout.css           — estilos do Layout: topbar, menu horizontal, menu mobile, footer
+      ├── lancamento.css       — importa forms.css; estilos específicos do formulário
+      ├── forms.css            — estilos compartilhados de formulários
+      ├── listaLancamentos.css
       ├── clientRegister.css
       ├── userList.css
-      ├── userregister.css
-      ├── Lancamento.css
-      └── ListaLancamentos.css
+      └── userregister.css
 
 ROTAS CONFIGURADAS (App.jsx):
   /                   → LoginPage             (pública)
@@ -83,7 +92,7 @@ AUTH (services/auth.js):
 SESSÃO (App.jsx — MonitorSessao):
   - Verifica localStorage('token') e localStorage('expiresAt') a cada 10s
   - Se expirado: logout() + popup "Sessão expirada" + botão navega para /
-  - Não dispara na tela de login (sem token = sem verificação)
+  - Não dispara na rota / (guard por useLocation)
   - X-Session-Expires lido em todo response autenticado (handleResponse no api.js)
     e salvo como timestamp ms em localStorage('expiresAt')
   - Backend envia X-Session-Expires como timestamp Unix ms (não ISO string)
@@ -95,15 +104,24 @@ API (services/api.js):
   - handleResponse trata 401 com logout automático (exceto trocarSenha: noLogout: true)
   - loginUser trata response sem body com .catch(() => ({}))
 
-NAVBAR:
-  - Links visíveis apenas para admin (isAdmin())
-  - Ordem: Dashboard → Lista de Lançamentos → Novo Lançamento →
-           Clientes / Fornecedores → Usuários → Cadastrar Usuário
-  - Nome do usuário clicável abre PerfilPopup
+TEMAS (styles/theme.css):
+  - Tema Verde (padrão): --primary #1B4332, --bg #EFE6DD, --accent #A3B18A
+  - Tema Corporativo: --primary #38BDF8, --bg #0F172A, --bg-card #1e293b
+  - Alternado via botão no topbar; preferência salva em localStorage('amsi_tema')
+  - Aplicado via data-theme="corporativo" no documentElement
 
-HOME:
+NAVBAR (Layout.jsx):
+  - Links visíveis apenas para admin (isAdmin())
+  - Ordem: Dashboard → Usuários → Cadastrar Usuário → Novo Lançamento →
+           Lista de Lançamentos → Clientes / Fornecedores
+  - Nome do usuário clicável abre PerfilPopup
+  - Logo/nome da associação clicável navega para /home
+  - Mobile: menu hamburguer com dropdown
+
+HOME (Home.jsx):
   - Visível apenas para admin
-  - Cards na mesma ordem da navbar
+  - Cards: Dashboard, Lista de Lançamentos, Novo Lançamento,
+           Clientes / Fornecedores, Usuários, Cadastrar Usuário
 
 DASHBOARD (pages/dashboard.jsx):
   - Filtros: natureza, clifor, tipo de conta, vencimento de/até
@@ -119,10 +137,7 @@ PERFIL POPUP (components/Perfilpopup.jsx):
   - Resumo: lançamentos abertos, fechados, valor total em aberto
   - Lista de lançamentos em aberto
   - Formulário inline de troca de senha
-  - Pós-MVP: notificação Telegram (só admin)
-
-DEPENDÊNCIAS ADICIONAIS:
-  - recharts (instalado via npm)
+  - Totalmente estilizado com variáveis do tema (sem Bootstrap, sem cores hardcoded)
 
 --------------------------------------------------------------------------------
   MVP — STATUS
@@ -137,12 +152,15 @@ CONCLUÍDO:
   ✓ Novo lançamento
   ✓ ClientRegister (colega)
   ✓ Permissões por perfil (admin vs consulta)
-  ✓ Navbar com nome do usuário
+  ✓ Merge do fork do Lucas (CSS/visual) integrado sem perda de lógica
+  ✓ Sistema de temas (verde / corporativo)
+  ✓ Layout responsivo com topbar, menu horizontal e mobile
 
 FALTA:
   - Revisão/ajustes do ClientRegister integrado à API
   - Popup perfil: seção de notificação Telegram (pós-MVP)
   - Timer de inatividade com popup de suspensão (pós-MVP)
+  - Refatoração para Bootstrap (pós-MVP — não urgente)
 
 --------------------------------------------------------------------------------
   PÓS MVP
@@ -152,6 +170,7 @@ FALTA:
   - Atualização do log
   - Atualização dos lançamentos
   - Atualizações requeridas pelos usuários
+  - Refatoração CSS → Bootstrap com suporte a temas
 
 --------------------------------------------------------------------------------
   PENDÊNCIAS / AVISOS
@@ -160,6 +179,7 @@ FALTA:
   - vite.config.js dentro de src/services/ — lugar errado, não está sendo usado
   - db.json na raiz do frontend — verificar se ainda é usado
   - News.jsx em components/ — sem uso aparente
+  - NavBar.jsx em components/ — sem uso aparente (substituído pelo Layout.jsx)
   - pytest deve ser rodado de dentro de backend/ (cd backend && pytest)
   - pytest.ini em backend/ com testpaths = tests e pythonpath = .
   - 102 testes passando
