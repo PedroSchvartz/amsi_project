@@ -314,3 +314,106 @@ def test_resumo_filtro_valor_minimo(client, headers_admin, lancamento, lancament
     data = r.json()
     # total_a_receber não deve incluir o lançamento de 100
     assert float(data["total_a_receber"]) == 0  # lancamento_vencido é Credito mas < 200
+
+
+# ================================================
+# COMPROVANTE
+# ================================================
+
+def test_anexar_comprovante(client, headers_admin, lancamento):
+    """Anexa um PDF ao lançamento e verifica resposta."""
+    pdf_bytes = b"%PDF-1.4 fake pdf content for testing"
+    r = client.post(
+        f"/lancamento/{lancamento['id_lancamento']}/comprovante",
+        files={"arquivo": ("comprovante.pdf", pdf_bytes, "application/pdf")},
+        headers=headers_admin
+    )
+    assert r.status_code == 200
+    assert r.json()["nome"] == "comprovante.pdf"
+
+
+def test_anexar_comprovante_tipo_invalido(client, headers_admin, lancamento):
+    """Arquivo não-PDF deve retornar 400."""
+    r = client.post(
+        f"/lancamento/{lancamento['id_lancamento']}/comprovante",
+        files={"arquivo": ("imagem.png", b"fakepng", "image/png")},
+        headers=headers_admin
+    )
+    assert r.status_code == 400
+
+
+def test_baixar_comprovante(client, headers_admin, lancamento):
+    """Após anexar, deve ser possível baixar o comprovante."""
+    pdf_bytes = b"%PDF-1.4 fake pdf content for testing"
+    client.post(
+        f"/lancamento/{lancamento['id_lancamento']}/comprovante",
+        files={"arquivo": ("comprovante.pdf", pdf_bytes, "application/pdf")},
+        headers=headers_admin
+    )
+    r = client.get(
+        f"/lancamento/{lancamento['id_lancamento']}/comprovante",
+        headers=headers_admin
+    )
+    assert r.status_code == 200
+    assert r.headers["content-type"] == "application/pdf"
+    assert r.content == pdf_bytes
+
+
+def test_baixar_comprovante_sem_arquivo(client, headers_admin, lancamento):
+    """Lançamento sem comprovante deve retornar 404."""
+    r = client.get(
+        f"/lancamento/{lancamento['id_lancamento']}/comprovante",
+        headers=headers_admin
+    )
+    assert r.status_code == 404
+
+
+def test_tem_comprovante_no_response(client, headers_admin, lancamento):
+    """Campo tem_comprovante deve ser False antes e True após anexar."""
+    r = client.get(f"/lancamento/{lancamento['id_lancamento']}", headers=headers_admin)
+    assert r.json()["tem_comprovante"] is False
+
+    pdf_bytes = b"%PDF-1.4 fake pdf content"
+    client.post(
+        f"/lancamento/{lancamento['id_lancamento']}/comprovante",
+        files={"arquivo": ("comp.pdf", pdf_bytes, "application/pdf")},
+        headers=headers_admin
+    )
+
+    r = client.get(f"/lancamento/{lancamento['id_lancamento']}", headers=headers_admin)
+    assert r.json()["tem_comprovante"] is True
+
+
+def test_remover_comprovante(client, headers_admin, lancamento):
+    """Anexa e depois remove o comprovante — deve retornar 200 e 404 na sequência."""
+    pdf_bytes = b"%PDF-1.4 fake pdf content"
+    client.post(
+        f"/lancamento/{lancamento['id_lancamento']}/comprovante",
+        files={"arquivo": ("comp.pdf", pdf_bytes, "application/pdf")},
+        headers=headers_admin
+    )
+    r = client.delete(f"/lancamento/{lancamento['id_lancamento']}/comprovante", headers=headers_admin)
+    assert r.status_code == 200
+
+    r2 = client.get(f"/lancamento/{lancamento['id_lancamento']}/comprovante", headers=headers_admin)
+    assert r2.status_code == 404
+
+
+def test_remover_comprovante_inexistente(client, headers_admin, lancamento):
+    """Tentar remover comprovante de lançamento sem comprovante retorna 404."""
+    r = client.delete(f"/lancamento/{lancamento['id_lancamento']}/comprovante", headers=headers_admin)
+    assert r.status_code == 404
+
+
+def test_tem_comprovante_false_apos_remocao(client, headers_admin, lancamento):
+    """Após remover comprovante, tem_comprovante deve ser False."""
+    pdf_bytes = b"%PDF-1.4 fake pdf content"
+    client.post(
+        f"/lancamento/{lancamento['id_lancamento']}/comprovante",
+        files={"arquivo": ("comp.pdf", pdf_bytes, "application/pdf")},
+        headers=headers_admin
+    )
+    client.delete(f"/lancamento/{lancamento['id_lancamento']}/comprovante", headers=headers_admin)
+
+    r = client.get(f"/lancamento/{lancamento['id_lancamento']}", headers=headers_admin)
+    assert r.json()["tem_comprovante"] is False

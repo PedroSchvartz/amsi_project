@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 from typing import Optional
 from datetime import datetime, date
 from decimal import Decimal
@@ -49,6 +49,17 @@ class LancamentoResponse(BaseModel):
     observacao: Optional[str] = None
     natureza_lancamento: NaturezaEnum
     estorno: bool
+    tem_comprovante: bool = False
+    comprovante_nome: Optional[str] = None
+
+    @model_validator(mode='before')
+    @classmethod
+    def calcular_tem_comprovante(cls, values):
+        if hasattr(values, '__dict__'):
+            values.__dict__['tem_comprovante'] = values.comprovante is not None
+        elif isinstance(values, dict):
+            values['tem_comprovante'] = values.get('comprovante') is not None
+        return values
 
     model_config = ConfigDict(from_attributes=True)
 

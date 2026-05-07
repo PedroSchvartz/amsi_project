@@ -127,11 +127,14 @@ CREATE TABLE Lancamento (
     Observacao TEXT,
     Natureza_Lancamento natureza_enum NOT NULL,
     Estorno BOOLEAN NOT NULL DEFAULT FALSE,
+    Comprovante BYTEA DEFAULT NULL;
+    Comprovante_nome VARCHAR(255) DEFAULT NULL;
     PRIMARY KEY (id_lancamento),
     FOREIGN KEY (id_Usuario_FK_Lancamento) REFERENCES Usuario(id_usuario),
     FOREIGN KEY (id_CliFor_Relacionado_FK) REFERENCES ClienteFornecedor(id_CliFor),
     FOREIGN KEY (id_tipo_conta_FK) REFERENCES tipo_conta(id_tipo_conta),
     FOREIGN KEY (id_Usuario_FK_Fechamento) REFERENCES Usuario(id_usuario)
+    
 );
 
 

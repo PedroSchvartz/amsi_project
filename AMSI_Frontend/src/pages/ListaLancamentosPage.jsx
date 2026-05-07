@@ -1,9 +1,18 @@
 import { useState, useEffect } from 'react';
 import LancamentoModal from '../components/LancamentoModal.jsx';
 import { useNavigate } from 'react-router-dom';
+import ModalConfirm from '../components/ModalConfirm.jsx';
 import ToastStack, { useToast } from '../components/ToastStack.jsx';
 import '../styles/listaLancamentos.css';
-import { getLancamentos, fecharLancamento, getClifors, getTiposConta } from '../services/api';
+import {
+	getLancamentos,
+	fecharLancamento,
+	getClifors,
+	getTiposConta,
+	anexarComprovante,
+	baixarComprovante,
+	removerComprovante
+} from '../services/api';
 import { getUserFromToken } from '../services/auth';
 
 const FILTROS_INICIAL = {
@@ -41,6 +50,9 @@ function ListaLancamentosPage() {
 
 	const [modalFechar, setModalFechar] = useState(null); // id_lancamento
 	const [formFechar, setFormFechar] = useState(FECHAR_INICIAL);
+	const [comprovante, setComprovante] = useState(null);
+	const [lancamentoSelecionado, setLancamentoSelecionado] = useState(null);
+	const [confirmarRemoverComprovante, setConfirmarRemoverComprovante] = useState(false);
 
 	const usuario = getUserFromToken();
 
@@ -93,9 +105,32 @@ function ListaLancamentosPage() {
 		buscar(FILTROS_INICIAL);
 	};
 
-	const abrirModalFechar = (id) => {
-		setModalFechar(id);
-		setFormFechar({ ...FECHAR_INICIAL, id_usuario_fk_fechamento: usuario?.sub });
+	const abrirModalFechar = (l) => {
+		setModalFechar(l.id_lancamento);
+		setLancamentoSelecionado(l);
+		setFormFechar({
+			...FECHAR_INICIAL,
+			id_usuario_fk_fechamento: usuario?.sub,
+			observacao: l.observacao || '',
+			valor_pago: l.valor_pago ? String(l.valor_pago) : String(l.valor)
+		});
+		setComprovante(null);
+	};
+
+	const handleRemoverComprovante = async () => {
+		try {
+			await removerComprovante(lancamentoSelecionado.id_lancamento);
+			setLancamentoSelecionado({
+				...lancamentoSelecionado,
+				tem_comprovante: false,
+				comprovante_nome: null
+			});
+			setConfirmarRemoverComprovante(false);
+			mostrarToast('Comprovante removido com sucesso.');
+		} catch (err) {
+			mostrarToast(err.message || 'Erro ao remover comprovante', 'erro');
+			setConfirmarRemoverComprovante(false);
+		}
 	};
 
 	const handleFecharChange = (e) => {
@@ -115,9 +150,18 @@ function ListaLancamentosPage() {
 				observacao: formFechar.observacao || null,
 				estorno: formFechar.estorno
 			};
-			await fecharLancamento(modalFechar, payload);
+			const id = modalFechar;
+			await fecharLancamento(id, payload);
+			if (comprovante) {
+				try {
+					await anexarComprovante(id, comprovante);
+				} catch {
+					mostrarToast('Lançamento fechado, mas falha ao anexar comprovante.', 'aviso');
+				}
+			}
 			mostrarToast('Lançamento fechado com sucesso.');
 			setModalFechar(null);
+			setComprovante(null);
 			buscar();
 		} catch (err) {
 			mostrarToast(err.message || 'Erro ao fechar lançamento', 'erro');
@@ -365,10 +409,19 @@ function ListaLancamentosPage() {
 													{!l.data_pagamento && !l.estorno && (
 														<button
 															className="ll-btn-acao fechar"
-															onClick={() => abrirModalFechar(l.id_lancamento)}
+															onClick={() => abrirModalFechar(l)}
 															title="Fechar lançamento"
 														>
-															✓
+															<i className="bi bi-journal-check"></i>
+														</button>
+													)}
+													{l.tem_comprovante && (
+														<button
+															className="ll-btn-acao"
+															onClick={() => baixarComprovante(l.id_lancamento)}
+															title="Ver comprovante"
+														>
+															<i className="bi bi-file-earmark-pdf"></i>
 														</button>
 													)}
 												</div>
@@ -406,6 +459,12 @@ function ListaLancamentosPage() {
 										onChange={handleFecharChange}
 										min="0"
 										step="0.01"
+										readOnly={!!lancamentoSelecionado?.valor_pago}
+										style={
+											lancamentoSelecionado?.valor_pago
+												? { background: 'var(--input-bg)', opacity: 0.7 }
+												: {}
+										}
 									/>
 								</div>
 								<div className="ll-row">
@@ -441,16 +500,63 @@ function ListaLancamentosPage() {
 										rows="2"
 									/>
 								</div>
-								<div className="ll-field ll-checkbox">
-									<input
-										type="checkbox"
-										name="estorno"
-										id="estorno_fechar"
-										checked={formFechar.estorno}
-										onChange={handleFecharChange}
-									/>
-									<label htmlFor="estorno_fechar">Marcar como reembolso</label>
-								</div>
+
+								{lancamentoSelecionado?.tem_comprovante && (
+									<div className="ll-field">
+										<label>Comprovante Atual</label>
+										<div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+											<span style={{ fontSize: 13, color: 'var(--text)' }}>
+												<i className="bi bi-file-earmark-pdf" style={{ marginRight: 6 }}></i>
+												{lancamentoSelecionado.comprovante_nome || 'comprovante.pdf'}
+											</span>
+											<button
+												type="button"
+												onClick={() => setConfirmarRemoverComprovante(true)}
+												style={{
+													padding: '4px 10px',
+													borderRadius: 6,
+													border: '1px solid #ef4444',
+													background: 'transparent',
+													color: '#ef4444',
+													cursor: 'pointer',
+													fontSize: 12
+												}}
+											>
+												Remover
+											</button>
+										</div>
+									</div>
+								)}
+
+								{!lancamentoSelecionado?.tem_comprovante && (
+									<div className="ll-field">
+										<label>
+											Comprovante de Pagamento (PDF){' '}
+											<span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>
+												— opcional
+											</span>
+										</label>
+										<input
+											type="file"
+											accept="application/pdf"
+											onChange={(e) => {
+												const arquivo = e.target.files[0] || null;
+												if (arquivo && arquivo.size > 5 * 1024 * 1024) {
+													mostrarToast('O arquivo excede o limite de 5MB.', 'erro');
+													e.target.value = '';
+													return;
+												}
+												setComprovante(arquivo);
+											}}
+											style={{ padding: '6px 0' }}
+										/>
+										{comprovante && (
+											<span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+												{comprovante.name}
+											</span>
+										)}
+									</div>
+								)}
 
 								<div className="ll-buttons">
 									<button
@@ -469,6 +575,18 @@ function ListaLancamentosPage() {
 					</div>
 				)}
 			</div>
+			{confirmarRemoverComprovante && (
+				<ModalConfirm
+					titulo="Remover comprovante"
+					mensagem="Tem certeza que deseja remover o comprovante deste lançamento?"
+					textoBotaoConfirmar="Remover"
+					textoBotaoCancelar="Cancelar"
+					onConfirmar={handleRemoverComprovante}
+					onCancelar={() => setConfirmarRemoverComprovante(false)}
+					variante="perigo"
+				/>
+			)}
+
 			{modalAberto && (
 				<LancamentoModal
 					onFechar={() => {

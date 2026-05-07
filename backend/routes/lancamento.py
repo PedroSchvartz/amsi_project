@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Response
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from database import get_db
@@ -228,6 +228,66 @@ def fechar_lancamento(id_lancamento: int, dados: LancamentoUpdate, db: Session =
     db.commit()
     db.refresh(lancamento)
     return lancamento
+
+
+@router.post("/{id_lancamento}/comprovante")
+async def anexar_comprovante(
+    id_lancamento: int,
+    arquivo: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    _=Depends(get_current_user)
+):
+    lancamento = db.query(Lancamento).filter(Lancamento.id_lancamento == id_lancamento).first()
+    if not lancamento:
+        raise HTTPException(status_code=404, detail="Lançamento não encontrado")
+
+    if arquivo.content_type != "application/pdf":
+        raise HTTPException(status_code=400, detail="Apenas arquivos PDF são aceitos")
+
+    conteudo = await arquivo.read()
+    if len(conteudo) > 5 * 1024 * 1024:  # 5MB
+        raise HTTPException(status_code=400, detail="Arquivo muito grande. Máximo 5MB.")
+
+    lancamento.comprovante = conteudo
+    lancamento.comprovante_nome = arquivo.filename
+    db.commit()
+    return {"detail": "Comprovante anexado com sucesso", "nome": arquivo.filename}
+
+
+@router.get("/{id_lancamento}/comprovante")
+def baixar_comprovante(
+    id_lancamento: int,
+    db: Session = Depends(get_db),
+    _=Depends(get_current_user)
+):
+    lancamento = db.query(Lancamento).filter(Lancamento.id_lancamento == id_lancamento).first()
+    if not lancamento:
+        raise HTTPException(status_code=404, detail="Lançamento não encontrado")
+    if not lancamento.comprovante:
+        raise HTTPException(status_code=404, detail="Este lançamento não possui comprovante")
+
+    return Response(
+        content=lancamento.comprovante,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{lancamento.comprovante_nome or "comprovante.pdf"}"'}
+    )
+
+
+@router.delete("/{id_lancamento}/comprovante")
+def remover_comprovante(
+    id_lancamento: int,
+    db: Session = Depends(get_db),
+    _=Depends(get_current_user)
+):
+    lancamento = db.query(Lancamento).filter(Lancamento.id_lancamento == id_lancamento).first()
+    if not lancamento:
+        raise HTTPException(status_code=404, detail="Lançamento não encontrado")
+    if not lancamento.comprovante:
+        raise HTTPException(status_code=404, detail="Este lançamento não possui comprovante")
+    lancamento.comprovante = None
+    lancamento.comprovante_nome = None
+    db.commit()
+    return {"detail": "Comprovante removido com sucesso"}
 
 
 @router.delete("/{id_lancamento}")

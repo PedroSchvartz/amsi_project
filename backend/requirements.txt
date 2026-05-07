@@ -10,3 +10,4 @@ python-dotenv
 python-multipart
 pydantic[email]
 cryptography
+python-multipart

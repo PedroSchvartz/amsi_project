@@ -7,170 +7,122 @@ STACK: React + Vite (JSX) — hospedado na Vercel
 REPOSITÓRIO: https://github.com/PedroSchvartz/amsi_project
 BASE_URL da API: configurada via AMSI_Frontend/.env → VITE_API_URL
 
-ATENÇÃO: A pasta AMSI_Frontend contém arquivos de configuração SvelteKit
-(.svelte-kit/, svelte.config.js) que são resquícios do scaffolding inicial.
-O projeto roda em React — ignorar esses arquivos.
-
 --------------------------------------------------------------------------------
   ESTRUTURA DE ARQUIVOS
 --------------------------------------------------------------------------------
 
   src/
-  ├── App.jsx (5.7KB)
+  ├── App.jsx (5.3KB)
   │     Roteamento + LoadingProvider + Spinner global + MonitorSessao
-  │     MonitorSessao não dispara na rota / (guard por useLocation)
-  │     Modal de sessão expirada usa variáveis do tema
+  │     Rotas /lancamento e /cadastro REMOVIDAS — funcionalidades via modal
   ├── components/
   │   ├── AdminRoute.jsx (220B)
   │   ├── PrivateRoute.jsx (345B)
-  │   ├── Layout.jsx (7.0KB)       — topbar + menu desktop/mobile + footer
-  │   ├── NavBar.jsx (2.9KB)       — NÃO USADO
-  │   ├── ModalConfirm.jsx (2.1KB) — popup de confirmação reutilizável
-  │   │     props: titulo, mensagem, textoBotaoConfirmar, textoBotaoCancelar,
-  │   │     onConfirmar, onCancelar, variante ('perigo'|'primario'), desabilitado
-  │   ├── ToastStack.jsx (2.5KB)   — notificações flutuantes + hook useToast
-  │   │     mostrarToast(msg, tipo) / mostrarToasts([msgs]) escalonado
-  │   ├── Perfilpopup.jsx (11.0KB) — perfil do usuário logado (navbar)
+  │   ├── Layout.jsx (7.0KB)
+  │   │     Importa PerfilCompletoPopup (não Perfilpopup — arquivo deletado)
+  │   │     Scroll para topo ao abrir menu mobile
+  │   │     Navbar: Dashboard, Usuários, Lista de Lançamentos, Clientes/Fornecedores
+  │   ├── ModalConfirm.jsx (2.1KB)   — popup confirmação reutilizável
+  │   ├── ToastStack.jsx (2.5KB)     — notificações flutuantes + hook useToast
   │   ├── PerfilCompletoPopup.jsx (12.6KB)
   │   │     Perfil completo + clifor vinculado (rasurado) + associar/desvincular
-  │   ├── Login.jsx (3.6KB)        — sempre inicia no tema verde
-  │   ├── Home.jsx (2.7KB)         — cards CSS Grid 3 colunas, centralizados
-  │   ├── ClientList.jsx (4.9KB)
-  │   │     Listagem de clifors: CPF rasurado, saldo líquido colorido,
-  │   │     filtros Tipo/Status, ordenação alfabética, botão editar
-  │   ├── ClientRegister.jsx (29.1KB)
-  │   │     Cadastro clifor: toasts escalonados, CEP automático via ViaCEP,
-  │   │     autopreenchimento por usuário vinculado, estrela exclusiva,
-  │   │     confirmação antes de deletar item preenchido (ModalConfirm)
-  │   ├── ClientEdit.jsx (27.3KB)
-  │   │     Edição clifor: mesmas regras do cadastro, carrega dados existentes,
-  │   │     envia PUT no backend
-  │   ├── UserList.jsx (8.3KB)
-  │   │     Lista usuários + editar + resetar senha (ModalConfirm) +
-  │   │     ver perfil completo (PerfilCompletoPopup)
-  │   ├── UserRegister.jsx (2.5KB)
-  │   └── News.jsx (442B)          — sem uso aparente
+  │   ├── Login.jsx (3.6KB)          — sempre inicia no tema verde
+  │   ├── Home.jsx (2.6KB)
+  │   │     4 cards CSS Grid 2x2 centralizados
+  │   │     Cards: Dashboard, Lista de Lançamentos, Clientes/Fornecedores, Usuários
+  │   ├── LancamentoModal.jsx (13.8KB)
+  │   │     Formulário de novo lançamento como popup (CSS inline)
+  │   │     Aberto pelo botão "+ Novo Lançamento" na ListaLancamentosPage
+  │   ├── ClientList.jsx (9.0KB)
+  │   │     CPF rasurado, saldo líquido, filtros Tipo/Status, ordenação alfabética
+  │   ├── ClientRegister.jsx (29.1KB) — cadastro clifor completo
+  │   ├── ClientEdit.jsx (27.3KB)    — edição clifor
+  │   ├── UserList.jsx (9.3KB)
+  │   │     Lista + botão "+ Cadastrar Usuário" → UserRegisterModal
+  │   │     Cargo Desenvolvedor no select de edição
+  │   ├── UserRegisterModal.jsx (5.0KB)
+  │   │     Cadastro usuário como popup, inclui cargo Desenvolvedor
+  │   └── UserRegister.jsx (2.5KB)   — componente legado, sem rota ativa
   ├── pages/
-  │   ├── ClientListPage.jsx (145B)      — wrapper /cliente_fornecedor
-  │   ├── ClientRegisterPage.jsx (164B)  — wrapper /cliente_fornecedor/novo
-  │   ├── ClientEditPage.jsx (145B)      — wrapper /cliente_fornecedor/:id/editar
+  │   ├── ListaLancamentosPage.jsx (17.9KB)
+  │   │     Botão "+ Novo Lançamento" → LancamentoModal
+  │   │     Popup fechar lançamento:
+  │   │       - Pré-preenche observacao e valor_pago com valores existentes
+  │   │       - valor_pago readOnly se já preenchido
+  │   │       - Upload PDF comprovante opcional (máx 5MB, somente PDF)
+  │   │       - Exibe comprovante atual com nome + botão Remover (ModalConfirm)
+  │   │       - Campo upload oculto quando já há comprovante
+  │   │     Ícone bi-journal-check para fechar lançamento
+  │   │     Ícone bi-file-earmark-pdf para ver comprovante
+  │   │     Filtros Abertos/Vencidos/Quitados como checkboxes (não exclusivos)
+  │   │     [PENDENTE] filtro apenas_quitados — backend ok, falta testar
   │   ├── Dashboard.jsx (10.9KB)
-  │   ├── LancamentoPage.jsx (8.0KB)
-  │   ├── ListaLancamentosPage.jsx (12.9KB)
-  │   ├── TrocarSenhaPage.jsx (4.2KB)
-  │   ├── UserListPage.jsx / UserRegisterPage.jsx
-  │   └── LoginPage.jsx / HomePage.jsx
+  │   ├── ClientListPage / ClientRegisterPage / ClientEditPage — wrappers
+  │   ├── LancamentoPage.jsx (8.0KB) — arquivo existe mas rota removida
+  │   ├── UserRegisterPage.jsx       — arquivo existe mas rota removida
+  │   └── (outros wrappers)
   ├── services/
-  │   ├── api.js (18.7KB)          — todas as chamadas HTTP
+  │   ├── api.js (19.7KB)
+  │   │     getSaldosClifors, anexarComprovante, baixarComprovante,
+  │   │     removerComprovante, getSugestaoClifor, associarCliforAoUsuario,
+  │   │     desvincularCliforDoUsuario
   │   ├── auth.js (1.3KB)
-  │   └── loadingContext.jsx (852B)
-  └── styles/
-      ├── theme.css (3.0KB)        — variáveis dos dois temas
-      ├── clientList.css (3.5KB)   — listagem + CPF rasurado + saldo
-      ├── layout.css (6.4KB)
-      ├── forms.css (5.1KB)
-      ├── lancamento.css / listaLancamentos.css
-      ├── home.css / login.css
-      ├── userList.css / userregister.css / clientRegister.css
+  │   └── loadingContext.jsx
+  └── styles/ — theme.css, clientList.css, forms.css, layout.css, etc.
 
 --------------------------------------------------------------------------------
   ROTAS (App.jsx)
 --------------------------------------------------------------------------------
 
   /                              → LoginPage             (pública)
-  /trocar-senha                  → TrocarSenhaPage       (privada, sem navbar)
-  /home                          → HomePage              (privada + navbar)
+  /trocar-senha                  → TrocarSenhaPage       (privada)
+  /home                          → HomePage              (admin)
   /dashboard                     → Dashboard             (admin)
   /tipo_lancamento               → ListaLancamentosPage  (admin)
-  /lancamento                    → LancamentoPage        (admin)
   /cliente_fornecedor            → ClientListPage        (admin)
   /cliente_fornecedor/novo       → ClientRegisterPage    (admin)
   /cliente_fornecedor/:id/editar → ClientEditPage        (admin)
   /usuarios                      → UserListPage          (admin)
-  /cadastro                      → UserRegisterPage      (admin)
+  /cadastro                      → UserRegisterPage      (admin — mantida)
 
 --------------------------------------------------------------------------------
-  PADRÕES REUTILIZÁVEIS
+  BACKEND — ESTADO ATUAL
 --------------------------------------------------------------------------------
 
-  ToastStack + useToast:
-    import ToastStack, { useToast } from './ToastStack.jsx';
-    const { toasts, mostrarToast, mostrarToasts, removerToast } = useToast();
-    mostrarToast('msg', 'sucesso'|'erro'|'aviso')
-    mostrarToasts(['erro1', 'erro2']) — escalonado, limpa anteriores
+  124 testes passando, sem warnings
+  python-multipart instalado e no requirements.txt
 
-  ModalConfirm:
-    import ModalConfirm from './ModalConfirm.jsx';
-    <ModalConfirm titulo="..." mensagem="..." textoBotaoConfirmar="..."
-      onConfirmar={fn} onCancelar={fn} variante="perigo" />
+  Comprovante de pagamento (BYTEA no banco):
+    POST   /lancamento/{id}/comprovante   — anexar PDF (máx 5MB)
+    GET    /lancamento/{id}/comprovante   — baixar PDF
+    DELETE /lancamento/{id}/comprovante   — remover
 
---------------------------------------------------------------------------------
-  BACKEND — ENDPOINTS RELEVANTES
---------------------------------------------------------------------------------
+  Cargo Desenvolvedor:
+    CargoEnum atualizado (schemas + models)
+    Migration: ALTER TYPE cargo_enum ADD VALUE 'Desenvolvedor'
+    Bootstrap: admins com CargoEnum.Desenvolvedor
 
-  GET    /cliente_fornecedor/             — lista ordenada alfabeticamente
-  GET    /cliente_fornecedor/saldos       — saldo líquido de todos (1 query SQL)
-  GET    /cliente_fornecedor/:id/resumo   — resumo financeiro completo
-  PUT    /cliente_fornecedor/:id          — atualiza clifor
-  GET    /usuarios/{id}/clifor            — clifor vinculado (404 se não houver)
-  GET    /usuarios/{id}/clifor/sugestao   — sugestões por pg_trgm
-  POST   /usuarios/{id}/clifor/{id}/associar
-  DELETE /usuarios/{id}/clifor/desvincular
+  Validação email no cadastro:
+    Lookup MX (bloqueia domínios inválidos)
+    Cadastro revertido (db.delete) se envio falhar
 
-BANCO:
-  - Trigger trigger_inadimplente — atualiza clifor.inadimplente automaticamente
-    Regra: inadimplente = true se lançamento Crédito, não pago, vencido
-  - FRONTEND_URL no config.env → https://amsi-project-chzs.vercel.app
+  Filtros de lançamento:
+    apenas_abertos, apenas_vencidos, apenas_quitados (novo)
+    [PENDENTE] apenas_quitados adicionado ao route, não testado ainda
 
 --------------------------------------------------------------------------------
-  REGRAS DE NEGÓCIO — ClientRegister / ClientEdit
+  PENDÊNCIAS
 --------------------------------------------------------------------------------
 
-  - Sempre exatamente 1 endereço principal e 1 contato principal de cada tipo
-  - Estrela desabilitada quando item é único (não pode desmarcar)
-  - Ao remover o principal → primeiro da lista assume automaticamente
-  - Clicar na estrela de outro → exclusivo (desmarca os demais)
-  - Deletar item preenchido → ModalConfirm; vazio → deleta direto
-  - CPF/CNPJ: formatação automática conforme tipo pessoa
-  - CEP: preenchimento automático via ViaCEP ao digitar 8 dígitos
-  - Usuário vinculado: preenche nome e email, campos ficam readOnly
+  [PENDENTE] pytest com apenas_quitados — rodar antes do próximo push
+  [PENDENTE] Push final desta sessão
+  [PENDENTE] Limpar arquivos órfãos: LancamentoPage.jsx, UserRegisterPage.jsx,
+             NavBar.jsx, News.jsx
 
---------------------------------------------------------------------------------
-  MVP — STATUS
---------------------------------------------------------------------------------
-
-CONCLUÍDO:
-  ✓ Autenticação completa (login, logout, primeiro acesso, trocar senha)
-  ✓ Sessão única + MonitorSessao (não dispara em /)
-  ✓ Sistema de temas (verde / corporativo) — login sempre inicia no verde
-  ✓ Layout responsivo com topbar, menu horizontal e mobile
-  ✓ ToastStack e ModalConfirm reutilizáveis em todo o projeto
-  ✓ Dashboard com cards e gráficos recharts
-  ✓ Lista de lançamentos com filtros e modal fechar
-  ✓ Novo lançamento com CEP automático
-  ✓ Cadastro e edição de clifor completos
-  ✓ Listagem de clifors com saldo líquido, CPF rasurado, filtros
-  ✓ Perfil completo de usuário com clifor vinculado (rasura)
-  ✓ Associação e desvinculação de clifor com confirmação
-  ✓ Trigger de inadimplência automática no banco
-  ✓ Emails HTML com botão de acesso ao sistema
-  ✓ 114 testes passando, sem warnings
-
-FALTA (pós-MVP):
-  - Timer de inatividade com popup de suspensão
-  - Telegram (porteiro + braço)
-  - Popup perfil: seção Telegram
-  - Refatoração CSS → Bootstrap
-  - Vitest (testes frontend)
-
---------------------------------------------------------------------------------
-  PENDÊNCIAS / AVISOS
---------------------------------------------------------------------------------
-  - AMSI_Frontend tem arquivos SvelteKit órfãos — não afetam o build
-  - vite.config.js dentro de src/services/ — não está sendo usado
-  - db.json na raiz do frontend — verificar se ainda é usado
-  - News.jsx / NavBar.jsx — sem uso aparente
-  - src.zip dentro de AMSI_Frontend — pode ser removido
-  - pytest deve ser rodado de dentro de backend/ (cd backend && pytest)
+  Pós-MVP:
+    - Timer de inatividade
+    - Telegram (porteiro + braço)
+    - Refatoração CSS → Bootstrap
+    - Vitest
 
 ================================================================================

@@ -247,6 +247,36 @@ export const updateClifor = async (id_clifor, data) => {
 	return handleResponse(response);
 };
 
+export const anexarComprovante = async (id_lancamento, arquivo) => {
+	const formData = new FormData();
+	formData.append('arquivo', arquivo);
+	const response = await fetchComLoading(`${BASE_URL}/lancamento/${id_lancamento}/comprovante`, {
+		method: 'POST',
+		headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+		body: formData
+	});
+	return handleResponse(response);
+};
+
+export const removerComprovante = async (id_lancamento) => {
+	const response = await fetchComLoading(`${BASE_URL}/lancamento/${id_lancamento}/comprovante`, {
+		method: 'DELETE',
+		headers: authHeaders()
+	});
+	return handleResponse(response);
+};
+
+export const baixarComprovante = async (id_lancamento) => {
+	const response = await fetchComLoading(`${BASE_URL}/lancamento/${id_lancamento}/comprovante`, {
+		method: 'GET',
+		headers: authHeaders()
+	});
+	if (!response.ok) throw new Error('Comprovante não encontrado');
+	const blob = await response.blob();
+	const url = URL.createObjectURL(blob);
+	window.open(url, '_blank');
+};
+
 export const deleteClifor = async (id_clifor) => {
 	const response = await fetchComLoading(`${BASE_URL}/cliente_fornecedor/${id_clifor}`, {
 		method: 'DELETE',

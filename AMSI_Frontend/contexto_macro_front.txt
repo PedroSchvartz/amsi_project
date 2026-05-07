@@ -4,7 +4,7 @@
 
 NOME DO PROJETO: AMSI Project
 DESCRIÇÃO: Sistema de gestão financeira para associação de moradores.
-           TCC do Pedro com aplicação real — não é exercício acadêmico.
+           TCC do Pedro com aplicação real.
 STATUS: Backend MVP finalizado. Frontend MVP concluído e em produção.
 
 --------------------------------------------------------------------------------
@@ -12,28 +12,26 @@ STATUS: Backend MVP finalizado. Frontend MVP concluído e em produção.
 --------------------------------------------------------------------------------
 
 Frontend : React.js + Vite (JSX)
-Backend  : FastAPI (Python) + PostgreSQL 17.4 — FINALIZADO, não mexer sem necessidade
-Auth     : JWT próprio (HS256, assinado com JWT_SECRET_KEY)
+Backend  : FastAPI (Python) + PostgreSQL 17.4
+Auth     : JWT próprio (HS256)
 Deploy   : Vercel (frontend) — https://amsi-project-chzs.vercel.app
-API Base : configurada via AMSI_Frontend/.env → VITE_API_URL
+API Base : AMSI_Frontend/.env → VITE_API_URL
 
 --------------------------------------------------------------------------------
-  REPOSITÓRIOS
+  REPOSITÓRIO
 --------------------------------------------------------------------------------
 
 Pedro (principal, deploy Vercel): https://github.com/PedroSchvartz/amsi_project
-Lucas (fork, responsável pelo CSS): https://github.com/Thierry0liveira/amsi_project
-
-Fork do Lucas mergeado em 2026-05-06.
-CSS e visual: versão do Lucas. Lógica e auth: versão do Pedro.
 
 --------------------------------------------------------------------------------
   ATENÇÃO — ARQUIVOS ÓRFÃOS
 --------------------------------------------------------------------------------
 
 A pasta AMSI_Frontend contém resquícios de scaffolding SvelteKit:
-  .svelte-kit/, svelte.config.js, static/, tsconfig.json, vite.config.ts
-O projeto roda em React — ignorar completamente.
+  .svelte-kit/, svelte.config.js, static/ — ignorar completamente.
+
+Componentes sem uso aparente: NavBar.jsx, News.jsx
+Páginas com rota removida: LancamentoPage.jsx, UserRegisterPage.jsx
 
 --------------------------------------------------------------------------------
   ESTRUTURA RESUMIDA
@@ -46,34 +44,32 @@ AMSI_Frontend/src/
     ToastStack.jsx                 — notificações flutuantes + hook useToast
     Layout.jsx                     — topbar + menu + footer
     Login.jsx                      — sempre inicia no tema verde
-    Home.jsx                       — cards CSS Grid 3 colunas
+    Home.jsx                       — 4 cards CSS Grid 2x2
+    LancamentoModal.jsx            — novo lançamento como popup
     ClientList.jsx                 — listagem clifors
     ClientRegister.jsx             — cadastro clifor
     ClientEdit.jsx                 — edição clifor
-    UserList.jsx                   — lista usuários
+    UserList.jsx                   — lista usuários + modal cadastro
+    UserRegisterModal.jsx          — cadastro usuário como popup
     PerfilCompletoPopup.jsx        — perfil + clifor vinculado
-    Perfilpopup.jsx                — perfil do usuário logado
-    UserRegister.jsx
-  pages/                           — wrappers de rota
+  pages/
+    ListaLancamentosPage.jsx       — lista + fechar + comprovante
+    Dashboard.jsx
+    (wrappers de rota)
   services/
     api.js                         — todas as chamadas HTTP
     auth.js                        — JWT, isAdmin, logout
-    loadingContext.jsx             — loading global
+    loadingContext.jsx
   styles/
     theme.css                      — variáveis dos dois temas
-    clientList.css / clientRegister.css / forms.css / layout.css / ...
+    (outros CSS por componente)
 
 --------------------------------------------------------------------------------
   SISTEMA DE TEMAS
 --------------------------------------------------------------------------------
 
-Dois temas via variáveis CSS em styles/theme.css:
-  Verde (padrão): --primary #1B4332, --bg #EFE6DD
-  Corporativo:    --primary #38BDF8, --bg #0F172A
-
-Variáveis principais:
-  --bg, --bg-card, --primary, --secondary, --accent
-  --text, --text-muted, --border, --input-bg, --shadow
+Verde (padrão): --primary #1B4332, --bg #EFE6DD
+Corporativo:    --primary #38BDF8, --bg #0F172A
 
 Alternado via botão no topbar. Salvo em localStorage('amsi_tema').
 Login sempre reinicia no tema verde.
@@ -86,11 +82,8 @@ Todo CSS novo deve usar variáveis — nunca cores hardcoded.
 ToastStack + useToast (components/ToastStack.jsx):
   import ToastStack, { useToast } from './ToastStack.jsx';
   const { toasts, mostrarToast, mostrarToasts, removerToast } = useToast();
-  mostrarToast('msg', 'sucesso'|'erro'|'aviso')
-  mostrarToasts(['erro1', 'erro2']) — escalonado, limpa anteriores
 
 ModalConfirm (components/ModalConfirm.jsx):
-  import ModalConfirm from './ModalConfirm.jsx';
   <ModalConfirm
     titulo="Título"
     mensagem="Mensagem"
@@ -105,31 +98,32 @@ ModalConfirm (components/ModalConfirm.jsx):
 --------------------------------------------------------------------------------
 
 Fonte da verdade da API: openapi_ai.yaml (raiz do projeto)
-Swagger local: /docs (backend rodando)
 Admin permanente: opedroschvartz@gmail.com, id=5 — nunca deletar
 
 Fluxo de autenticação:
   1. POST /auth/token → { access_token, primeiro_acesso }
   2. GET /usuarios/{sub} → dados completos em localStorage('user')
   3. Se primeiro_acesso → /trocar-senha
-  4. 401 em qualquer request → evento 'sessao-expirada' → logout + modal
+  4. 401 → evento 'sessao-expirada' → logout + modal
 
-Endpoints clifor relevantes:
+Endpoints relevantes:
   GET    /cliente_fornecedor/             — lista alfabética
   GET    /cliente_fornecedor/saldos       — saldo líquido de todos (1 query)
-  PUT    /cliente_fornecedor/:id          — atualizar clifor
+  POST   /lancamento/{id}/comprovante     — anexar PDF
+  GET    /lancamento/{id}/comprovante     — baixar PDF
+  DELETE /lancamento/{id}/comprovante     — remover
   GET    /usuarios/{id}/clifor            — clifor vinculado
-  GET    /usuarios/{id}/clifor/sugestao   — sugestões pg_trgm
   POST   /usuarios/{id}/clifor/{id}/associar
   DELETE /usuarios/{id}/clifor/desvincular
 
-ENUMs relevantes:
-  - natureza_lancamento: "Debito" / "Credito" (sem acento)
-  - tipo_clifor: "C" / "F" / "A"
+ENUMs:
+  natureza_lancamento: "Debito" / "Credito"
+  tipo_clifor: "C" / "F" / "A"
+  cargo: Diretor / Tesoureiro / Secretário / Conselheiro / Associado / Desenvolvedor
 
 Banco:
-  - Trigger trigger_inadimplente atualiza clifor.inadimplente automaticamente
-  - FRONTEND_URL no config.env → https://amsi-project-chzs.vercel.app
+  - Trigger trigger_inadimplente atualiza clifor automaticamente
+  - lancamento.comprovante BYTEA + lancamento.comprovante_nome VARCHAR(255)
 
 --------------------------------------------------------------------------------
   CONVENÇÕES
@@ -138,13 +132,9 @@ Banco:
 - Componentes: PascalCase
 - Pages: PascalCase + sufixo Page
 - Services: camelCase, agrupados em api.js
-- Estilos: CSS por componente com variáveis do tema
-- Variáveis de domínio: português
-
-Antes de criar componente novo:
-  1. Verificar se já existe em components/
-  2. Verificar se a rota da API já existe em openapi_ai.yaml
-  3. Verificar se o serviço já está em api.js
+- CSS por componente com variáveis do tema
+- Variáveis de domínio em português
+- Nunca cores hardcoded — sempre var(--nome)
 
 --------------------------------------------------------------------------------
   COMO ENVIAR CONTEXTO PARA NOVO CHAT
@@ -154,18 +144,8 @@ Enviar na ordem:
   1. meu_perfil_de_trabalho_verde.txt
   2. contexto_macro_front.txt (este arquivo)
   3. fase_atual_front.txt
-  4. App.jsx
-  5. services/api.js + services/auth.js
-  6. Componente/page específico do que for trabalhar
+  4. App.jsx + services/api.js + services/auth.js
+  5. Componente/page específico do que for trabalhar
   + Árvore do projeto (mapeia_diretorio.py)
-
---------------------------------------------------------------------------------
-  BACKEND — REFERÊNCIA (NÃO MODIFICAR SEM NECESSIDADE)
---------------------------------------------------------------------------------
-
-Stack: FastAPI + PostgreSQL 17.4 + SQLAlchemy + JWT com bcrypt
-Caminho: C:\Codigos\AMSI_Project_Desenvolvimento\backend
-Testes: 114 passando, sem warnings (pytest tests/)
-Admin permanente: opedroschvartz@gmail.com, id=5 — nunca deletar
 
 ================================================================================

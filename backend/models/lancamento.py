@@ -1,4 +1,4 @@
-from sqlalchemy import Column, BigInteger, TIMESTAMP, Date, DECIMAL, Boolean, Text, ForeignKey
+from sqlalchemy import Column, BigInteger, TIMESTAMP, Date, DECIMAL, Boolean, Text, ForeignKey, LargeBinary, String
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
@@ -30,6 +30,8 @@ class Lancamento(Base):
     observacao = Column(Text, nullable=True)
     natureza_lancamento = Column(SAEnum(NaturezaLancamentoEnum, name="natureza_enum", values_callable=lambda x: [e.value for e in x]), nullable=False)
     estorno = Column(Boolean, nullable=False, default=False)
+    comprovante = Column(LargeBinary, nullable=True)
+    comprovante_nome = Column(String(255), nullable=True)
 
     usuario_lancamento = relationship("Usuario", foreign_keys=[id_usuario_fk_lancamento], backref="lancamentos_criados")
     usuario_fechamento = relationship("Usuario", foreign_keys=[id_usuario_fk_fechamento], backref="lancamentos_fechados")
