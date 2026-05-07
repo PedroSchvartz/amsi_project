@@ -8,6 +8,7 @@ CREATE TYPE acesso_enum AS ENUM ('Administrador','Consulta');
 CREATE TYPE natureza_enum AS ENUM ('Debito','Credito');
 CREATE TYPE tipo_clifor_enum AS ENUM ('C','F','A');
 
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 -- ================================================
 -- ORDEM DE CRIAÇÃO: Usuario > tipo_conta > ClienteFornecedor > Endereco > Contato > Login > Lancamento
@@ -155,3 +156,43 @@ CREATE TABLE token_ativo (
 
 CREATE INDEX idx_token_ativo_jti ON token_ativo(jti);
 CREATE INDEX idx_token_ativo_usuario ON token_ativo(id_usuario_fk);
+
+-- ============================================================
+-- TRIGGER: atualiza inadimplente em ClienteFornecedor
+-- Dispara após INSERT, UPDATE ou DELETE em Lancamento
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION atualizar_inadimplente()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_id_clifor BIGINT;
+BEGIN
+    -- Determina qual clifor foi afetado
+    IF TG_OP = 'DELETE' THEN
+        v_id_clifor := OLD.id_CliFor_Relacionado_FK;
+    ELSE
+        v_id_clifor := NEW.id_CliFor_Relacionado_FK;
+    END IF;
+
+    -- Atualiza inadimplente com base nos lançamentos vencidos e não pagos
+    UPDATE clientefornecedor
+    SET inadimplente = EXISTS (
+        SELECT 1
+        FROM lancamento
+        WHERE id_CliFor_Relacionado_FK = v_id_clifor
+          AND natureza_lancamento = 'Credito'
+          AND data_pagamento IS NULL
+          AND estorno = FALSE
+          AND data_vencimento < CURRENT_DATE
+    )
+    WHERE id_clifor = v_id_clifor;
+
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+
+CREATE OR REPLACE TRIGGER trigger_inadimplente
+AFTER INSERT OR UPDATE OR DELETE ON lancamento
+FOR EACH ROW
+EXECUTE FUNCTION atualizar_inadimplente();

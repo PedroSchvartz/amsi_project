@@ -143,6 +143,44 @@ export const resetarSenhaUsuario = async (id_usuario) => {
 	});
 	return handleResponse(response);
 };
+export const getCliforDoUsuario = async (id_usuario) => {
+	const response = await fetchComLoading(`${BASE_URL}/usuarios/${id_usuario}/clifor`, {
+		method: 'GET',
+		headers: authHeaders()
+	});
+	return handleResponse(response, { noLogout: false });
+};
+
+export const getSugestaoClifor = async (id_usuario, nome = null) => {
+	const params = nome ? `?nome=${encodeURIComponent(nome)}` : '';
+	const response = await fetchComLoading(
+		`${BASE_URL}/usuarios/${id_usuario}/clifor/sugestao${params}`,
+		{
+			method: 'GET',
+			headers: authHeaders()
+		}
+	);
+	return handleResponse(response);
+};
+
+export const associarCliforAoUsuario = async (id_usuario, id_clifor) => {
+	const response = await fetchComLoading(
+		`${BASE_URL}/usuarios/${id_usuario}/clifor/${id_clifor}/associar`,
+		{
+			method: 'POST',
+			headers: authHeaders()
+		}
+	);
+	return handleResponse(response);
+};
+
+export const desvincularCliforDoUsuario = async (id_usuario) => {
+	const response = await fetchComLoading(`${BASE_URL}/usuarios/${id_usuario}/clifor/desvincular`, {
+		method: 'DELETE',
+		headers: authHeaders()
+	});
+	return handleResponse(response);
+};
 
 // ======================
 // 🏢 CLIENTE / FORNECEDOR

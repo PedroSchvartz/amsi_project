@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { createClifor, getUsers } from '../services/api';
+import { useState, useEffect, useRef } from 'react';
+import { createClifor, getUsers, getUser } from '../services/api';
 
 const FORM_INICIAL = {
 	tipo_clifor: '',
@@ -9,8 +9,7 @@ const FORM_INICIAL = {
 	rg_inscricaoestadual: '',
 	datanascimento: '',
 	id_usuario_fk: '',
-	ativo: true,
-	inadimplente: false
+	ativo: true
 };
 
 const ENDERECO_INICIAL = {
@@ -134,6 +133,9 @@ function ClientRegister() {
 	const [erros, setErros] = useState({});
 	const [erro, setErro] = useState('');
 	const [sucesso, setSucesso] = useState('');
+	const [usuarioVinculado, setUsuarioVinculado] = useState(null);
+	const [toasts, setToasts] = useState([]);
+	const toastCounterRef = useRef(0);
 
 	useEffect(() => {
 		getUsers()
@@ -147,6 +149,21 @@ function ClientRegister() {
 		const { name, value, type, checked } = e.target;
 		setForm({ ...form, [name]: type === 'checkbox' ? checked : value });
 		setErros((prev) => ({ ...prev, [name]: '' }));
+		if (name === 'id_usuario_fk') {
+			if (value) {
+				getUser(parseInt(value))
+					.then((u) => {
+						setUsuarioVinculado(u);
+						setForm((prev) => ({ ...prev, nome: u.nome, id_usuario_fk: value }));
+						setEmails([
+							{ tipo_contato: 'Email', info_do_contato: u.email, contato_principal: true }
+						]);
+					})
+					.catch(() => {});
+			} else {
+				setUsuarioVinculado(null);
+			}
+		}
 	};
 
 	const togglePrincipal = (list, setList, index) => {
@@ -174,11 +191,56 @@ function ClientRegister() {
 		novos[index] = { ...novos[index], [field]: value };
 		setEnderecos(novos);
 		setErros((prev) => ({ ...prev, [`end_${field}_${index}`]: '' }));
+
+		if (field === 'cep') {
+			const digits = value.replace(/\D/g, '');
+			if (digits.length === 8) {
+				fetch(`https://viacep.com.br/ws/${digits}/json/`)
+					.then((r) => r.json())
+					.then((data) => {
+						if (data.erro) return;
+						setEnderecos((prev) => {
+							const atualizado = [...prev];
+							atualizado[index] = {
+								...atualizado[index],
+								logradouro: data.logradouro || atualizado[index].logradouro,
+								bairro: data.bairro || atualizado[index].bairro,
+								cidade: data.localidade || atualizado[index].cidade,
+								uf: data.uf || atualizado[index].uf
+							};
+							return atualizado;
+						});
+						setErros((prev) => ({
+							...prev,
+							[`end_logradouro_${index}`]: '',
+							[`end_bairro_${index}`]: '',
+							[`end_cidade_${index}`]: '',
+							[`end_uf_${index}`]: ''
+						}));
+					})
+					.catch(() => {});
+			}
+		}
+	};
+
+	const dispararToasts = (erros) => {
+		const mensagens = Object.values(erros);
+		const novos = mensagens.map((msg, i) => ({
+			id: ++toastCounterRef.current,
+			mensagem: msg,
+			duracao: (5 + i) * 1000
+		}));
+		setToasts((prev) => [...prev, ...novos]);
+		novos.forEach((t) => {
+			setTimeout(() => {
+				setToasts((prev) => prev.filter((x) => x.id !== t.id));
+			}, t.duracao);
+		});
 	};
 
 	const validar = () => {
 		const e = {};
-		if (!form.tipo_clifor) e.tipo_clifor = 'Selecione o tipo.';
+		if (!form.tipo_clifor) e.tipo_clifor = 'Selecione o tipo de cliente/fornecedor.';
 		if (form.pessoafisica_juridica === '')
 			e.pessoafisica_juridica = 'Selecione pessoa física ou jurídica.';
 		if (!form.nome.trim() || form.nome.trim().length < 3)
@@ -193,12 +255,13 @@ function ClientRegister() {
 			e.cpf_cnpj = 'CNPJ inválido.';
 
 		enderecos.forEach((end, i) => {
-			if (!end.logradouro.trim()) e[`end_logradouro_${i}`] = 'Obrigatório.';
-			if (!end.numero.trim()) e[`end_numero_${i}`] = 'Obrigatório.';
-			if (!end.bairro.trim()) e[`end_bairro_${i}`] = 'Obrigatório.';
-			if (!end.cidade.trim()) e[`end_cidade_${i}`] = 'Obrigatório.';
-			if (!end.uf) e[`end_uf_${i}`] = 'Obrigatório.';
-			if (end.cep.replace(/\D/g, '').length !== 8) e[`end_cep_${i}`] = 'CEP inválido.';
+			const n = enderecos.length > 1 ? ` (Endereço ${i + 1})` : '';
+			if (!end.logradouro.trim()) e[`end_logradouro_${i}`] = `Logradouro obrigatório${n}.`;
+			if (!end.numero.trim()) e[`end_numero_${i}`] = `Número obrigatório${n}.`;
+			if (!end.bairro.trim()) e[`end_bairro_${i}`] = `Bairro obrigatório${n}.`;
+			if (!end.cidade.trim()) e[`end_cidade_${i}`] = `Cidade obrigatória${n}.`;
+			if (!end.uf) e[`end_uf_${i}`] = `UF obrigatória${n}.`;
+			if (end.cep.replace(/\D/g, '').length !== 8) e[`end_cep_${i}`] = `CEP inválido${n}.`;
 		});
 
 		telefones.forEach((t, i) => {
@@ -211,6 +274,10 @@ function ClientRegister() {
 		});
 
 		setErros(e);
+		if (Object.keys(e).length > 0) {
+			setToasts([]);
+			dispararToasts(e);
+		}
 		return Object.keys(e).length === 0;
 	};
 
@@ -228,7 +295,6 @@ function ClientRegister() {
 			rg_inscricaoestadual: form.rg_inscricaoestadual.trim(),
 			datanascimento: form.datanascimento,
 			ativo: form.ativo,
-			inadimplente: form.inadimplente,
 			id_usuario_fk: form.id_usuario_fk ? parseInt(form.id_usuario_fk) : null,
 			enderecos: enderecos.map((end) => ({
 				logradouro: end.logradouro.trim(),
@@ -238,16 +304,16 @@ function ClientRegister() {
 				cidade: end.cidade.trim(),
 				uf: end.uf,
 				cep: end.cep.replace(/\D/g, ''),
-				endereco_primario: end.endereco_primario
+				enderecoprimario: end.endereco_primario
 			})),
 			contatos: [
 				...telefones.map((t) => ({
-					tipo_contato: 'Telefone',
+					tipocontato: 'Telefone',
 					info_do_contato: t.info_do_contato.replace(/\D/g, ''),
 					contato_principal: t.contato_principal
 				})),
 				...emails.map((em) => ({
-					tipo_contato: 'Email',
+					tipocontato: 'Email',
 					info_do_contato: em.info_do_contato.trim(),
 					contato_principal: em.contato_principal
 				}))
@@ -257,11 +323,13 @@ function ClientRegister() {
 		try {
 			await createClifor(payload);
 			setSucesso('Cliente/Fornecedor cadastrado com sucesso!');
+			window.scrollTo({ top: 0, behavior: 'smooth' });
 			setForm(FORM_INICIAL);
 			setEnderecos([{ ...ENDERECO_INICIAL }]);
 			setTelefones([{ tipo_contato: 'Telefone', info_do_contato: '', contato_principal: true }]);
 			setEmails([{ tipo_contato: 'Email', info_do_contato: '', contato_principal: true }]);
 			setErros({});
+			setUsuarioVinculado(null);
 		} catch (err) {
 			setErro(err.message || 'Erro ao cadastrar.');
 		}
@@ -275,482 +343,528 @@ function ClientRegister() {
 		setErros({});
 		setErro('');
 		setSucesso('');
+		setUsuarioVinculado(null);
 	};
 
 	return (
-		<div
-			className="container-fluid py-4 px-3 px-md-4"
-			style={{ background: '#f8f9fa', minHeight: '100vh' }}
-		>
-			<h4 className="fw-bold mb-4">Cadastro de Cliente / Fornecedor</h4>
-
-			{sucesso && <div className="alert alert-success alert-dismissible">{sucesso}</div>}
-			{erro && <div className="alert alert-danger alert-dismissible">{erro}</div>}
-
-			<form onSubmit={handleSubmit}>
-				{/* INFORMAÇÕES BÁSICAS */}
-				<div className="card border-0 shadow-sm mb-4">
-					<div className="card-header bg-white border-bottom py-3 px-4">
-						<h6 className="fw-semibold mb-0">Informações Básicas</h6>
+		<>
+			{/* TOAST STACK */}
+			<div
+				style={{
+					position: 'fixed',
+					top: 20,
+					right: 20,
+					display: 'flex',
+					flexDirection: 'column',
+					gap: 8,
+					zIndex: 99999,
+					maxWidth: 320
+				}}
+			>
+				{toasts.map((t) => (
+					<div
+						key={t.id}
+						style={{
+							background: '#dc2626',
+							color: '#fff',
+							padding: '10px 16px',
+							borderRadius: 8,
+							boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+							fontSize: '0.85rem',
+							fontWeight: 500,
+							display: 'flex',
+							justifyContent: 'space-between',
+							alignItems: 'center',
+							gap: 12
+						}}
+					>
+						<span>{t.mensagem}</span>
+						<button
+							onClick={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))}
+							style={{
+								background: 'transparent',
+								border: 'none',
+								color: '#fff',
+								cursor: 'pointer',
+								fontSize: '1rem',
+								lineHeight: 1
+							}}
+						>
+							×
+						</button>
 					</div>
-					<div className="card-body p-4">
-						{/* Tipo CliFor + Pessoa Física/Jurídica na mesma linha */}
-						<div className="row g-4 mb-4">
-							<div className="col-12 col-md-auto">
-								<label className="form-label small fw-semibold">
-									Tipo <span className="text-danger">*</span>
-								</label>
-								<div className="d-flex flex-wrap gap-4">
-									{[
-										['C', 'Cliente'],
-										['F', 'Fornecedor'],
-										['A', 'Ambos']
-									].map(([val, label]) => (
-										<div key={val} className="form-check">
-											<input
-												className="form-check-input"
-												type="radio"
-												name="tipo_clifor"
-												id={`tipo_${val}`}
-												value={val}
-												checked={form.tipo_clifor === val}
-												onChange={handleChange}
-											/>
-											<label className="form-check-label" htmlFor={`tipo_${val}`}>
-												{label}
-											</label>
-										</div>
-									))}
+				))}
+			</div>
+			<div
+				className="container-fluid py-4 px-3 px-md-4"
+				style={{ background: '#f8f9fa', minHeight: '100vh' }}
+			>
+				<h4 className="fw-bold mb-4">Cadastro de Cliente / Fornecedor</h4>
+
+				{sucesso && <div className="alert alert-success alert-dismissible">{sucesso}</div>}
+				{erro && <div className="alert alert-danger alert-dismissible">{erro}</div>}
+
+				<form onSubmit={handleSubmit}>
+					{/* INFORMAÇÕES BÁSICAS */}
+					<div className="card border-0 shadow-sm mb-4">
+						<div className="card-header bg-white border-bottom py-3 px-4">
+							<h6 className="fw-semibold mb-0">Informações Básicas</h6>
+						</div>
+						<div className="card-body p-4">
+							{/* Tipo CliFor + Pessoa Física/Jurídica na mesma linha */}
+							<div className="row g-4 mb-4">
+								<div className="col-12 col-md-auto">
+									<label className="form-label small fw-semibold">
+										Tipo <span className="text-danger">*</span>
+									</label>
+									<div className="d-flex flex-wrap gap-4">
+										{[
+											['C', 'Cliente'],
+											['F', 'Fornecedor'],
+											['A', 'Ambos']
+										].map(([val, label]) => (
+											<div key={val} className="form-check">
+												<input
+													className="form-check-input"
+													type="radio"
+													name="tipo_clifor"
+													id={`tipo_${val}`}
+													value={val}
+													checked={form.tipo_clifor === val}
+													onChange={handleChange}
+												/>
+												<label className="form-check-label" htmlFor={`tipo_${val}`}>
+													{label}
+												</label>
+											</div>
+										))}
+									</div>
+									{erros.tipo_clifor && (
+										<div className="text-danger small mt-1">{erros.tipo_clifor}</div>
+									)}
 								</div>
-								{erros.tipo_clifor && (
-									<div className="text-danger small mt-1">{erros.tipo_clifor}</div>
-								)}
+								<div className="col-12 col-md-auto">
+									<label className="form-label small fw-semibold">
+										Tipo de Pessoa <span className="text-danger">*</span>
+									</label>
+									<div className="d-flex flex-wrap gap-4">
+										{[
+											['true', 'Pessoa Física'],
+											['false', 'Pessoa Jurídica']
+										].map(([val, label]) => (
+											<div key={val} className="form-check">
+												<input
+													className="form-check-input"
+													type="radio"
+													name="pessoafisica_juridica"
+													id={`pf_${val}`}
+													value={val}
+													checked={form.pessoafisica_juridica === val}
+													onChange={handleChange}
+												/>
+												<label className="form-check-label" htmlFor={`pf_${val}`}>
+													{label}
+												</label>
+											</div>
+										))}
+									</div>
+									{erros.pessoafisica_juridica && (
+										<div className="text-danger small mt-1">{erros.pessoafisica_juridica}</div>
+									)}
+								</div>
 							</div>
-							<div className="col-12 col-md-auto">
-								<label className="form-label small fw-semibold">
-									Tipo de Pessoa <span className="text-danger">*</span>
-								</label>
-								<div className="d-flex flex-wrap gap-4">
-									{[
-										['true', 'Pessoa Física'],
-										['false', 'Pessoa Jurídica']
-									].map(([val, label]) => (
-										<div key={val} className="form-check">
-											<input
-												className="form-check-input"
-												type="radio"
-												name="pessoafisica_juridica"
-												id={`pf_${val}`}
-												value={val}
-												checked={form.pessoafisica_juridica === val}
-												onChange={handleChange}
-											/>
-											<label className="form-check-label" htmlFor={`pf_${val}`}>
-												{label}
-											</label>
+
+							<div className="row g-3">
+								<div className="col-12 col-md-6">
+									<label className="form-label small fw-semibold">
+										Nome Completo / Razão Social <span className="text-danger">*</span>
+									</label>
+									<input
+										className={`form-control ${erros.nome ? 'is-invalid' : ''}`}
+										name="nome"
+										value={form.nome}
+										onChange={handleChange}
+										placeholder="Nome completo ou razão social"
+										readOnly={!!usuarioVinculado}
+										style={usuarioVinculado ? { background: 'var(--input-bg)', opacity: 0.7 } : {}}
+									/>
+									{usuarioVinculado && (
+										<div className="form-text text-muted">
+											Preenchido pelo usuário vinculado. Desassocie para editar.
 										</div>
-									))}
+									)}
+									{erros.nome && <div className="invalid-feedback">{erros.nome}</div>}
 								</div>
-								{erros.pessoafisica_juridica && (
-									<div className="text-danger small mt-1">{erros.pessoafisica_juridica}</div>
-								)}
+
+								<div className="col-12 col-md-3">
+									<label className="form-label small fw-semibold">
+										{isPF ? 'CPF' : 'CNPJ'} <span className="text-danger">*</span>
+									</label>
+									<input
+										className={`form-control ${erros.cpf_cnpj ? 'is-invalid' : ''}`}
+										name="cpf_cnpj"
+										value={form.cpf_cnpj}
+										onChange={(e) => {
+											const val = isPF ? formatarCPF(e.target.value) : formatarCNPJ(e.target.value);
+											setForm((prev) => ({ ...prev, cpf_cnpj: val }));
+											setErros((prev) => ({ ...prev, cpf_cnpj: '' }));
+										}}
+										placeholder={isPF ? '000.000.000-00' : '00.000.000/0000-00'}
+									/>
+									{erros.cpf_cnpj && <div className="invalid-feedback">{erros.cpf_cnpj}</div>}
+								</div>
+
+								<div className="col-12 col-md-3">
+									<label className="form-label small fw-semibold">
+										{isPF ? 'RG' : 'Inscrição Estadual'} <span className="text-danger">*</span>
+									</label>
+									<input
+										className={`form-control ${erros.rg_inscricaoestadual ? 'is-invalid' : ''}`}
+										name="rg_inscricaoestadual"
+										value={form.rg_inscricaoestadual}
+										onChange={handleChange}
+										placeholder={isPF ? 'RG' : 'Inscrição Estadual'}
+									/>
+									{erros.rg_inscricaoestadual && (
+										<div className="invalid-feedback">{erros.rg_inscricaoestadual}</div>
+									)}
+								</div>
+
+								<div className="col-12 col-md-3">
+									<label className="form-label small fw-semibold">
+										Data de Nascimento <span className="text-danger">*</span>
+									</label>
+									<input
+										type="date"
+										className={`form-control ${erros.datanascimento ? 'is-invalid' : ''}`}
+										name="datanascimento"
+										value={form.datanascimento}
+										onChange={handleChange}
+									/>
+									{erros.datanascimento && (
+										<div className="invalid-feedback">{erros.datanascimento}</div>
+									)}
+								</div>
+
+								<div className="col-12 col-md-5">
+									<label className="form-label small fw-semibold">
+										Vincular a Usuário <span className="text-muted fw-normal">(opcional)</span>
+									</label>
+									<select
+										className="form-select"
+										name="id_usuario_fk"
+										value={form.id_usuario_fk}
+										onChange={handleChange}
+									>
+										<option value="">Nenhum</option>
+										{usuarios.map((u) => (
+											<option key={u.id_usuario} value={u.id_usuario}>
+												{u.nome} ({u.email})
+											</option>
+										))}
+									</select>
+								</div>
+
+								<div className="col-12 col-md-4 d-flex align-items-end gap-4 pb-1">
+									<div className="form-check">
+										<input
+											type="checkbox"
+											className="form-check-input"
+											id="ativo"
+											name="ativo"
+											checked={form.ativo}
+											onChange={handleChange}
+										/>
+										<label className="form-check-label" htmlFor="ativo">
+											Ativo
+										</label>
+									</div>
+								</div>
 							</div>
 						</div>
+					</div>
 
-						<div className="row g-3">
-							<div className="col-12 col-md-6">
-								<label className="form-label small fw-semibold">
-									Nome Completo / Razão Social <span className="text-danger">*</span>
-								</label>
-								<input
-									className={`form-control ${erros.nome ? 'is-invalid' : ''}`}
-									name="nome"
-									value={form.nome}
-									onChange={handleChange}
-									placeholder="Nome completo ou razão social"
-								/>
-								{erros.nome && <div className="invalid-feedback">{erros.nome}</div>}
-							</div>
-
-							<div className="col-12 col-md-3">
-								<label className="form-label small fw-semibold">
-									{isPF ? 'CPF' : 'CNPJ'} <span className="text-danger">*</span>
-								</label>
-								<input
-									className={`form-control ${erros.cpf_cnpj ? 'is-invalid' : ''}`}
-									name="cpf_cnpj"
-									value={form.cpf_cnpj}
-									onChange={(e) => {
-										const val = isPF ? formatarCPF(e.target.value) : formatarCNPJ(e.target.value);
-										setForm((prev) => ({ ...prev, cpf_cnpj: val }));
-										setErros((prev) => ({ ...prev, cpf_cnpj: '' }));
-									}}
-									placeholder={isPF ? '000.000.000-00' : '00.000.000/0000-00'}
-								/>
-								{erros.cpf_cnpj && <div className="invalid-feedback">{erros.cpf_cnpj}</div>}
-							</div>
-
-							<div className="col-12 col-md-3">
-								<label className="form-label small fw-semibold">
-									{isPF ? 'RG' : 'Inscrição Estadual'} <span className="text-danger">*</span>
-								</label>
-								<input
-									className={`form-control ${erros.rg_inscricaoestadual ? 'is-invalid' : ''}`}
-									name="rg_inscricaoestadual"
-									value={form.rg_inscricaoestadual}
-									onChange={handleChange}
-									placeholder={isPF ? 'RG' : 'Inscrição Estadual'}
-								/>
-								{erros.rg_inscricaoestadual && (
-									<div className="invalid-feedback">{erros.rg_inscricaoestadual}</div>
-								)}
-							</div>
-
-							<div className="col-12 col-md-3">
-								<label className="form-label small fw-semibold">
-									Data de Nascimento <span className="text-danger">*</span>
-								</label>
-								<input
-									type="date"
-									className={`form-control ${erros.datanascimento ? 'is-invalid' : ''}`}
-									name="datanascimento"
-									value={form.datanascimento}
-									onChange={handleChange}
-								/>
-								{erros.datanascimento && (
-									<div className="invalid-feedback">{erros.datanascimento}</div>
-								)}
-							</div>
-
-							<div className="col-12 col-md-5">
-								<label className="form-label small fw-semibold">
-									Vincular a Usuário <span className="text-muted fw-normal">(opcional)</span>
-								</label>
-								<select
-									className="form-select"
-									name="id_usuario_fk"
-									value={form.id_usuario_fk}
-									onChange={handleChange}
+					{/* ENDEREÇOS */}
+					<div className="card border-0 shadow-sm mb-4">
+						<div className="card-header bg-white border-bottom py-3 px-4">
+							<h6 className="fw-semibold mb-0">Endereços</h6>
+						</div>
+						<div className="card-body p-4">
+							{enderecos.map((end, i) => (
+								<div
+									key={i}
+									className={`p-3 mb-3 rounded border ${end.endereco_primario ? 'border-dark' : ''}`}
 								>
-									<option value="">Nenhum</option>
-									{usuarios.map((u) => (
-										<option key={u.id_usuario} value={u.id_usuario}>
-											{u.nome} ({u.email})
-										</option>
-									))}
-								</select>
-							</div>
+									<div className="d-flex justify-content-between align-items-center mb-3">
+										<span className="small fw-semibold">
+											Endereço {i + 1}
+											{end.endereco_primario && (
+												<span className="badge bg-dark ms-2">Principal</span>
+											)}
+										</span>
+										<div className="d-flex gap-2">
+											<button
+												type="button"
+												className={`btn btn-sm ${end.endereco_primario ? 'btn-warning' : 'btn-outline-secondary'}`}
+												style={{ width: 38 }}
+												onClick={() => toggleEnderecoPrimario(i)}
+												title="Marcar como principal"
+											>
+												<i className="bi bi-star-fill"></i>
+											</button>
+											{enderecos.length > 1 && (
+												<button
+													type="button"
+													className="btn btn-sm btn-outline-danger"
+													onClick={() => setEnderecos(enderecos.filter((_, j) => j !== i))}
+												>
+													<i className="bi bi-trash"></i>
+												</button>
+											)}
+										</div>
+									</div>
 
-							<div className="col-12 col-md-4 d-flex align-items-end gap-4 pb-1">
-								<div className="form-check">
-									<input
-										type="checkbox"
-										className="form-check-input"
-										id="ativo"
-										name="ativo"
-										checked={form.ativo}
-										onChange={handleChange}
-									/>
-									<label className="form-check-label" htmlFor="ativo">
-										Ativo
-									</label>
+									<div className="row g-2">
+										<div className="col-12 col-md-7">
+											<label className="form-label small">
+												Logradouro <span className="text-danger">*</span>
+											</label>
+											<input
+												className={`form-control form-control-sm ${erros[`end_logradouro_${i}`] ? 'is-invalid' : ''}`}
+												value={end.logradouro}
+												onChange={(e) => atualizarEndereco(i, 'logradouro', e.target.value)}
+												placeholder="Rua, Avenida..."
+											/>
+											{erros[`end_logradouro_${i}`] && (
+												<div className="invalid-feedback">{erros[`end_logradouro_${i}`]}</div>
+											)}
+										</div>
+										<div className="col-6 col-md-2">
+											<label className="form-label small">
+												Número <span className="text-danger">*</span>
+											</label>
+											<input
+												className={`form-control form-control-sm ${erros[`end_numero_${i}`] ? 'is-invalid' : ''}`}
+												value={end.numero}
+												onChange={(e) => atualizarEndereco(i, 'numero', e.target.value)}
+											/>
+											{erros[`end_numero_${i}`] && (
+												<div className="invalid-feedback">{erros[`end_numero_${i}`]}</div>
+											)}
+										</div>
+										<div className="col-6 col-md-3">
+											<label className="form-label small">Complemento</label>
+											<input
+												className="form-control form-control-sm"
+												value={end.complemento}
+												onChange={(e) => atualizarEndereco(i, 'complemento', e.target.value)}
+												placeholder="Apto, Sala..."
+											/>
+										</div>
+										<div className="col-12 col-md-4">
+											<label className="form-label small">
+												Bairro <span className="text-danger">*</span>
+											</label>
+											<input
+												className={`form-control form-control-sm ${erros[`end_bairro_${i}`] ? 'is-invalid' : ''}`}
+												value={end.bairro}
+												onChange={(e) => atualizarEndereco(i, 'bairro', e.target.value)}
+											/>
+											{erros[`end_bairro_${i}`] && (
+												<div className="invalid-feedback">{erros[`end_bairro_${i}`]}</div>
+											)}
+										</div>
+										<div className="col-12 col-md-4">
+											<label className="form-label small">
+												Cidade <span className="text-danger">*</span>
+											</label>
+											<input
+												className={`form-control form-control-sm ${erros[`end_cidade_${i}`] ? 'is-invalid' : ''}`}
+												value={end.cidade}
+												onChange={(e) => atualizarEndereco(i, 'cidade', e.target.value)}
+											/>
+											{erros[`end_cidade_${i}`] && (
+												<div className="invalid-feedback">{erros[`end_cidade_${i}`]}</div>
+											)}
+										</div>
+										<div className="col-4 col-md-2">
+											<label className="form-label small">
+												UF <span className="text-danger">*</span>
+											</label>
+											<select
+												className={`form-select form-select-sm ${erros[`end_uf_${i}`] ? 'is-invalid' : ''}`}
+												value={end.uf}
+												onChange={(e) => atualizarEndereco(i, 'uf', e.target.value)}
+											>
+												<option value="">UF</option>
+												{UFS.map((uf) => (
+													<option key={uf} value={uf}>
+														{uf}
+													</option>
+												))}
+											</select>
+											{erros[`end_uf_${i}`] && (
+												<div className="invalid-feedback">{erros[`end_uf_${i}`]}</div>
+											)}
+										</div>
+										<div className="col-8 col-md-2">
+											<label className="form-label small">
+												CEP <span className="text-danger">*</span>
+											</label>
+											<input
+												className={`form-control form-control-sm ${erros[`end_cep_${i}`] ? 'is-invalid' : ''}`}
+												value={end.cep}
+												onChange={(e) => atualizarEndereco(i, 'cep', formatarCEP(e.target.value))}
+												placeholder="00000-000"
+											/>
+											{erros[`end_cep_${i}`] && (
+												<div className="invalid-feedback">{erros[`end_cep_${i}`]}</div>
+											)}
+										</div>
+									</div>
 								</div>
-								<div className="form-check">
-									<input
-										type="checkbox"
-										className="form-check-input"
-										id="inadimplente"
-										name="inadimplente"
-										checked={form.inadimplente}
-										onChange={handleChange}
-									/>
-									<label className="form-check-label" htmlFor="inadimplente">
-										Inadimplente
-									</label>
-								</div>
-							</div>
+							))}
+							<button
+								type="button"
+								className="btn btn-outline-dark btn-sm mt-2"
+								onClick={() =>
+									setEnderecos([...enderecos, { ...ENDERECO_INICIAL, endereco_primario: false }])
+								}
+							>
+								<i className="bi bi-plus me-1"></i>Adicionar Endereço
+							</button>
 						</div>
 					</div>
-				</div>
 
-				{/* ENDEREÇOS */}
-				<div className="card border-0 shadow-sm mb-4">
-					<div className="card-header bg-white border-bottom py-3 px-4">
-						<h6 className="fw-semibold mb-0">Endereços</h6>
-					</div>
-					<div className="card-body p-4">
-						{enderecos.map((end, i) => (
-							<div
-								key={i}
-								className={`p-3 mb-3 rounded border ${end.endereco_primario ? 'border-dark' : ''}`}
-							>
-								<div className="d-flex justify-content-between align-items-center mb-3">
-									<span className="small fw-semibold">
-										Endereço {i + 1}
-										{end.endereco_primario && <span className="badge bg-dark ms-2">Principal</span>}
-									</span>
-									<div className="d-flex gap-2">
+					{/* TELEFONES */}
+					<div className="card border-0 shadow-sm mb-4">
+						<div className="card-header bg-white border-bottom py-3 px-4">
+							<h6 className="fw-semibold mb-0">Telefones</h6>
+						</div>
+						<div className="card-body p-4">
+							{telefones.map((tel, i) => (
+								<div key={i} className="row g-2 align-items-center mb-3">
+									<div className="col">
+										<input
+											className={`form-control ${erros[`tel_${i}`] ? 'is-invalid' : ''}`}
+											value={tel.info_do_contato}
+											onChange={(e) => {
+												const n = [...telefones];
+												n[i] = { ...n[i], info_do_contato: formatarTelefone(e.target.value) };
+												setTelefones(n);
+												setErros((prev) => ({ ...prev, [`tel_${i}`]: '' }));
+											}}
+											placeholder="(00) 00000-0000"
+										/>
+										{erros[`tel_${i}`] && (
+											<div className="invalid-feedback d-block">{erros[`tel_${i}`]}</div>
+										)}
+									</div>
+									<div className="col-auto">
 										<button
 											type="button"
-											className={`btn btn-sm ${end.endereco_primario ? 'btn-warning' : 'btn-outline-secondary'}`}
+											className={`btn btn-sm ${tel.contato_principal ? 'btn-warning' : 'btn-outline-secondary'}`}
 											style={{ width: 38 }}
-											onClick={() => toggleEnderecoPrimario(i)}
+											onClick={() => togglePrincipal(telefones, setTelefones, i)}
 											title="Marcar como principal"
 										>
 											<i className="bi bi-star-fill"></i>
 										</button>
-										{enderecos.length > 1 && (
+									</div>
+									{telefones.length > 1 && (
+										<div className="col-auto">
 											<button
 												type="button"
 												className="btn btn-sm btn-outline-danger"
-												onClick={() => setEnderecos(enderecos.filter((_, j) => j !== i))}
+												onClick={() => setTelefones(telefones.filter((_, j) => j !== i))}
 											>
 												<i className="bi bi-trash"></i>
 											</button>
-										)}
-									</div>
-								</div>
-
-								<div className="row g-2">
-									<div className="col-12 col-md-7">
-										<label className="form-label small">
-											Logradouro <span className="text-danger">*</span>
-										</label>
-										<input
-											className={`form-control form-control-sm ${erros[`end_logradouro_${i}`] ? 'is-invalid' : ''}`}
-											value={end.logradouro}
-											onChange={(e) => atualizarEndereco(i, 'logradouro', e.target.value)}
-											placeholder="Rua, Avenida..."
-										/>
-										{erros[`end_logradouro_${i}`] && (
-											<div className="invalid-feedback">{erros[`end_logradouro_${i}`]}</div>
-										)}
-									</div>
-									<div className="col-6 col-md-2">
-										<label className="form-label small">
-											Número <span className="text-danger">*</span>
-										</label>
-										<input
-											className={`form-control form-control-sm ${erros[`end_numero_${i}`] ? 'is-invalid' : ''}`}
-											value={end.numero}
-											onChange={(e) => atualizarEndereco(i, 'numero', e.target.value)}
-										/>
-										{erros[`end_numero_${i}`] && (
-											<div className="invalid-feedback">{erros[`end_numero_${i}`]}</div>
-										)}
-									</div>
-									<div className="col-6 col-md-3">
-										<label className="form-label small">Complemento</label>
-										<input
-											className="form-control form-control-sm"
-											value={end.complemento}
-											onChange={(e) => atualizarEndereco(i, 'complemento', e.target.value)}
-											placeholder="Apto, Sala..."
-										/>
-									</div>
-									<div className="col-12 col-md-4">
-										<label className="form-label small">
-											Bairro <span className="text-danger">*</span>
-										</label>
-										<input
-											className={`form-control form-control-sm ${erros[`end_bairro_${i}`] ? 'is-invalid' : ''}`}
-											value={end.bairro}
-											onChange={(e) => atualizarEndereco(i, 'bairro', e.target.value)}
-										/>
-										{erros[`end_bairro_${i}`] && (
-											<div className="invalid-feedback">{erros[`end_bairro_${i}`]}</div>
-										)}
-									</div>
-									<div className="col-12 col-md-4">
-										<label className="form-label small">
-											Cidade <span className="text-danger">*</span>
-										</label>
-										<input
-											className={`form-control form-control-sm ${erros[`end_cidade_${i}`] ? 'is-invalid' : ''}`}
-											value={end.cidade}
-											onChange={(e) => atualizarEndereco(i, 'cidade', e.target.value)}
-										/>
-										{erros[`end_cidade_${i}`] && (
-											<div className="invalid-feedback">{erros[`end_cidade_${i}`]}</div>
-										)}
-									</div>
-									<div className="col-4 col-md-2">
-										<label className="form-label small">
-											UF <span className="text-danger">*</span>
-										</label>
-										<select
-											className={`form-select form-select-sm ${erros[`end_uf_${i}`] ? 'is-invalid' : ''}`}
-											value={end.uf}
-											onChange={(e) => atualizarEndereco(i, 'uf', e.target.value)}
-										>
-											<option value="">UF</option>
-											{UFS.map((uf) => (
-												<option key={uf} value={uf}>
-													{uf}
-												</option>
-											))}
-										</select>
-										{erros[`end_uf_${i}`] && (
-											<div className="invalid-feedback">{erros[`end_uf_${i}`]}</div>
-										)}
-									</div>
-									<div className="col-8 col-md-2">
-										<label className="form-label small">
-											CEP <span className="text-danger">*</span>
-										</label>
-										<input
-											className={`form-control form-control-sm ${erros[`end_cep_${i}`] ? 'is-invalid' : ''}`}
-											value={end.cep}
-											onChange={(e) => atualizarEndereco(i, 'cep', formatarCEP(e.target.value))}
-											placeholder="00000-000"
-										/>
-										{erros[`end_cep_${i}`] && (
-											<div className="invalid-feedback">{erros[`end_cep_${i}`]}</div>
-										)}
-									</div>
-								</div>
-							</div>
-						))}
-						<button
-							type="button"
-							className="btn btn-outline-dark btn-sm mt-2"
-							onClick={() =>
-								setEnderecos([...enderecos, { ...ENDERECO_INICIAL, endereco_primario: false }])
-							}
-						>
-							<i className="bi bi-plus me-1"></i>Adicionar Endereço
-						</button>
-					</div>
-				</div>
-
-				{/* TELEFONES */}
-				<div className="card border-0 shadow-sm mb-4">
-					<div className="card-header bg-white border-bottom py-3 px-4">
-						<h6 className="fw-semibold mb-0">Telefones</h6>
-					</div>
-					<div className="card-body p-4">
-						{telefones.map((tel, i) => (
-							<div key={i} className="row g-2 align-items-center mb-3">
-								<div className="col">
-									<input
-										className={`form-control ${erros[`tel_${i}`] ? 'is-invalid' : ''}`}
-										value={tel.info_do_contato}
-										onChange={(e) => {
-											const n = [...telefones];
-											n[i] = { ...n[i], info_do_contato: formatarTelefone(e.target.value) };
-											setTelefones(n);
-											setErros((prev) => ({ ...prev, [`tel_${i}`]: '' }));
-										}}
-										placeholder="(00) 00000-0000"
-									/>
-									{erros[`tel_${i}`] && (
-										<div className="invalid-feedback d-block">{erros[`tel_${i}`]}</div>
+										</div>
 									)}
 								</div>
-								<div className="col-auto">
-									<button
-										type="button"
-										className={`btn btn-sm ${tel.contato_principal ? 'btn-warning' : 'btn-outline-secondary'}`}
-										style={{ width: 38 }}
-										onClick={() => togglePrincipal(telefones, setTelefones, i)}
-										title="Marcar como principal"
-									>
-										<i className="bi bi-star-fill"></i>
-									</button>
-								</div>
-								{telefones.length > 1 && (
+							))}
+							<button
+								type="button"
+								className="btn btn-outline-dark btn-sm mt-2"
+								onClick={() => setTelefones([...telefones, novoContato('Telefone')])}
+							>
+								<i className="bi bi-plus me-1"></i>Adicionar Telefone
+							</button>
+						</div>
+					</div>
+
+					{/* EMAILS */}
+					<div className="card border-0 shadow-sm mb-4">
+						<div className="card-header bg-white border-bottom py-3 px-4">
+							<h6 className="fw-semibold mb-0">Emails</h6>
+						</div>
+						<div className="card-body p-4">
+							{emails.map((em, i) => (
+								<div key={i} className="row g-2 align-items-center mb-3">
+									<div className="col">
+										<input
+											type="email"
+											className={`form-control ${erros[`email_${i}`] ? 'is-invalid' : ''}`}
+											value={em.info_do_contato}
+											onChange={(e) => {
+												const n = [...emails];
+												n[i] = { ...n[i], info_do_contato: e.target.value };
+												setEmails(n);
+												setErros((prev) => ({ ...prev, [`email_${i}`]: '' }));
+											}}
+											placeholder="email@exemplo.com"
+										/>
+										{erros[`email_${i}`] && (
+											<div className="invalid-feedback d-block">{erros[`email_${i}`]}</div>
+										)}
+									</div>
 									<div className="col-auto">
 										<button
 											type="button"
-											className="btn btn-sm btn-outline-danger"
-											onClick={() => setTelefones(telefones.filter((_, j) => j !== i))}
+											className={`btn btn-sm ${em.contato_principal ? 'btn-warning' : 'btn-outline-secondary'}`}
+											style={{ width: 38 }}
+											onClick={() => togglePrincipal(emails, setEmails, i)}
+											title="Marcar como principal"
 										>
-											<i className="bi bi-trash"></i>
+											<i className="bi bi-star-fill"></i>
 										</button>
 									</div>
-								)}
-							</div>
-						))}
-						<button
-							type="button"
-							className="btn btn-outline-dark btn-sm mt-2"
-							onClick={() => setTelefones([...telefones, novoContato('Telefone')])}
-						>
-							<i className="bi bi-plus me-1"></i>Adicionar Telefone
-						</button>
-					</div>
-				</div>
-
-				{/* EMAILS */}
-				<div className="card border-0 shadow-sm mb-4">
-					<div className="card-header bg-white border-bottom py-3 px-4">
-						<h6 className="fw-semibold mb-0">Emails</h6>
-					</div>
-					<div className="card-body p-4">
-						{emails.map((em, i) => (
-							<div key={i} className="row g-2 align-items-center mb-3">
-								<div className="col">
-									<input
-										type="email"
-										className={`form-control ${erros[`email_${i}`] ? 'is-invalid' : ''}`}
-										value={em.info_do_contato}
-										onChange={(e) => {
-											const n = [...emails];
-											n[i] = { ...n[i], info_do_contato: e.target.value };
-											setEmails(n);
-											setErros((prev) => ({ ...prev, [`email_${i}`]: '' }));
-										}}
-										placeholder="email@exemplo.com"
-									/>
-									{erros[`email_${i}`] && (
-										<div className="invalid-feedback d-block">{erros[`email_${i}`]}</div>
+									{emails.length > 1 && (
+										<div className="col-auto">
+											<button
+												type="button"
+												className="btn btn-sm btn-outline-danger"
+												onClick={() => setEmails(emails.filter((_, j) => j !== i))}
+											>
+												<i className="bi bi-trash"></i>
+											</button>
+										</div>
 									)}
 								</div>
-								<div className="col-auto">
-									<button
-										type="button"
-										className={`btn btn-sm ${em.contato_principal ? 'btn-warning' : 'btn-outline-secondary'}`}
-										style={{ width: 38 }}
-										onClick={() => togglePrincipal(emails, setEmails, i)}
-										title="Marcar como principal"
-									>
-										<i className="bi bi-star-fill"></i>
-									</button>
-								</div>
-								{emails.length > 1 && (
-									<div className="col-auto">
-										<button
-											type="button"
-											className="btn btn-sm btn-outline-danger"
-											onClick={() => setEmails(emails.filter((_, j) => j !== i))}
-										>
-											<i className="bi bi-trash"></i>
-										</button>
-									</div>
-								)}
-							</div>
-						))}
-						<button
-							type="button"
-							className="btn btn-outline-dark btn-sm mt-2"
-							onClick={() => setEmails([...emails, novoContato('Email')])}
-						>
-							<i className="bi bi-plus me-1"></i>Adicionar Email
+							))}
+							<button
+								type="button"
+								className="btn btn-outline-dark btn-sm mt-2"
+								onClick={() => setEmails([...emails, novoContato('Email')])}
+							>
+								<i className="bi bi-plus me-1"></i>Adicionar Email
+							</button>
+						</div>
+					</div>
+
+					{/* BOTÕES */}
+					<div className="d-flex flex-column flex-sm-row justify-content-end gap-3 mb-4">
+						<button type="button" className="btn btn-outline-secondary px-4" onClick={limpar}>
+							Limpar
+						</button>
+						<button type="submit" className="btn btn-dark px-5">
+							Salvar
 						</button>
 					</div>
-				</div>
-
-				{/* BOTÕES */}
-				<div className="d-flex flex-column flex-sm-row justify-content-end gap-3 mb-4">
-					<button type="button" className="btn btn-outline-secondary px-4" onClick={limpar}>
-						Limpar
-					</button>
-					<button type="submit" className="btn btn-dark px-5">
-						Salvar
-					</button>
-				</div>
-			</form>
-		</div>
+				</form>
+			</div>
+		</>
 	);
 }
 

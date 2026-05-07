@@ -182,3 +182,112 @@ def resetar_senha(id_usuario: int, db: Session = Depends(get_db), _=Depends(exig
         pass
 
     return {"detail": "Senha redefinida e enviada por email"}
+
+# ─── Clifor vinculado ao usuário ──────────────────────────────────────────────
+
+from models.cliente_fornecedor import ClienteFornecedor
+from schemas.cliente_fornecedor import ClienteFornecedorResponse
+from sqlalchemy import func
+from typing import Optional as Opt
+
+
+@router.get("/{id_usuario}/clifor", response_model=ClienteFornecedorResponse)
+def buscar_clifor_do_usuario(
+    id_usuario: int,
+    db: Session = Depends(get_db),
+    _=Depends(exige_admin)
+):
+    usuario = db.query(Usuario).filter(Usuario.id_usuario == id_usuario).first()
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+
+    clifor = db.query(ClienteFornecedor).filter(
+        ClienteFornecedor.id_usuario_fk == id_usuario
+    ).first()
+
+    if not clifor:
+        raise HTTPException(status_code=404, detail="Nenhum cliente/fornecedor vinculado a este usuário")
+
+    return clifor
+
+
+@router.get("/{id_usuario}/clifor/sugestao", response_model=List[ClienteFornecedorResponse])
+def sugerir_clifor_para_usuario(
+    id_usuario: int,
+    nome: Opt[str] = None,
+    db: Session = Depends(get_db),
+    _=Depends(exige_admin)
+):
+    usuario = db.query(Usuario).filter(Usuario.id_usuario == id_usuario).first()
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+
+    termo = nome if nome else usuario.nome
+
+    # Similaridade via trigramas (pg_trgm) — fallback para ILIKE se extensão não disponível
+    try:
+        resultados = (
+            db.query(ClienteFornecedor)
+            .filter(ClienteFornecedor.id_usuario_fk == None)
+            .filter(ClienteFornecedor.ativo == True)
+            .order_by(func.similarity(ClienteFornecedor.nome, termo).desc())
+            .limit(5)
+            .all()
+        )
+    except Exception:
+        resultados = (
+            db.query(ClienteFornecedor)
+            .filter(ClienteFornecedor.id_usuario_fk == None)
+            .filter(ClienteFornecedor.ativo == True)
+            .filter(ClienteFornecedor.nome.ilike(f"%{termo}%"))
+            .limit(5)
+            .all()
+        )
+
+    return resultados
+
+
+@router.post("/{id_usuario}/clifor/{id_clifor}/associar", response_model=ClienteFornecedorResponse)
+def associar_clifor_ao_usuario(
+    id_usuario: int,
+    id_clifor: int,
+    db: Session = Depends(get_db),
+    _=Depends(exige_admin)
+):
+    usuario = db.query(Usuario).filter(Usuario.id_usuario == id_usuario).first()
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+
+    clifor = db.query(ClienteFornecedor).filter(ClienteFornecedor.id_clifor == id_clifor).first()
+    if not clifor:
+        raise HTTPException(status_code=404, detail="Cliente/Fornecedor não encontrado")
+
+    if clifor.id_usuario_fk and clifor.id_usuario_fk != id_usuario:
+        raise HTTPException(status_code=409, detail="Este cliente/fornecedor já está vinculado a outro usuário")
+
+    clifor.id_usuario_fk = id_usuario
+    db.commit()
+    db.refresh(clifor)
+    return clifor
+
+
+@router.delete("/{id_usuario}/clifor/desvincular")
+def desvincular_clifor_do_usuario(
+    id_usuario: int,
+    db: Session = Depends(get_db),
+    _=Depends(exige_admin)
+):
+    usuario = db.query(Usuario).filter(Usuario.id_usuario == id_usuario).first()
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+
+    clifor = db.query(ClienteFornecedor).filter(
+        ClienteFornecedor.id_usuario_fk == id_usuario
+    ).first()
+
+    if not clifor:
+        raise HTTPException(status_code=404, detail="Nenhum cliente/fornecedor vinculado a este usuário")
+
+    clifor.id_usuario_fk = None
+    db.commit()
+    return {"detail": "Cliente/Fornecedor desvinculado com sucesso"}

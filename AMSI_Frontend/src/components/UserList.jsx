@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getUsers, updateUser, resetarSenhaUsuario } from '../services/api.js';
+import PerfilCompletoPopup from './PerfilCompletoPopup.jsx';
 import '../styles/userList.css';
 
 function Toast({ mensagem, tipo, onClose }) {
@@ -37,6 +38,7 @@ function UserList() {
 	const [sucessoModal, setSucessoModal] = useState('');
 
 	const [modalConfirmarReset, setModalConfirmarReset] = useState(null);
+	const [perfilCompletoUsuario, setPerfilCompletoUsuario] = useState(null);
 
 	const mostrarToast = (mensagem, tipo = 'sucesso') => setToast({ mensagem, tipo });
 	const fecharToast = () => setToast({ mensagem: '', tipo: 'sucesso' });
@@ -122,6 +124,13 @@ function UserList() {
 		<div className="user-list-container">
 			<Toast mensagem={toast.mensagem} tipo={toast.tipo} onClose={fecharToast} />
 
+			{perfilCompletoUsuario && (
+				<PerfilCompletoPopup
+					usuario={perfilCompletoUsuario}
+					onFechar={() => setPerfilCompletoUsuario(null)}
+				/>
+			)}
+
 			<h2>Lista de Usuários</h2>
 
 			<table className="table table-striped">
@@ -142,6 +151,13 @@ function UserList() {
 							<td>{user.cargo}</td>
 							<td>{user.perfil_de_acesso}</td>
 							<td className="d-flex gap-2">
+								<button
+									className="btn btn-sm btn-outline-secondary"
+									onClick={() => setPerfilCompletoUsuario(user)}
+									title="Ver perfil completo"
+								>
+									<i className="bi bi-person-lines-fill"></i>
+								</button>
 								<button
 									className="btn btn-sm btn-outline-primary"
 									onClick={() => handleEdit(user)}
