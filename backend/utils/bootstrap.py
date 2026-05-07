@@ -28,19 +28,19 @@ def garantir_admins_iniciais():
         {
             "email": "opedroschvartz@gmail.com",
             "nome": "Pedro Schvartz",
-            "cargo": CargoEnum.Diretor,
+            "cargo": CargoEnum.Desenvolvedor,
             "perfil_de_acesso": AcessoEnum.Administrador
         },
         {
             "email": "nicolasmoreira206profissional@gmail.com",
             "nome": "Nicolas Moreira",
-            "cargo": CargoEnum.Diretor,
+            "cargo": CargoEnum.Desenvolvedor,
             "perfil_de_acesso": AcessoEnum.Administrador
         },
         {
             "email": "lucasthierrycordeirodeoliveira@gmail.com",
             "nome": "Lucas Thierri Cordeiro de Oliveira",
-            "cargo": CargoEnum.Diretor,
+            "cargo": CargoEnum.Desenvolvedor,
             "perfil_de_acesso": AcessoEnum.Administrador
         }
     ]

@@ -2,131 +2,138 @@
   AMSI PROJECT — FASE ATUAL FRONTEND
 ================================================================================
 
-DATA: 2026-05-07
+DATA: 2026-05-08
 STACK: React + Vite (JSX) — hospedado na Vercel
 REPOSITÓRIO: https://github.com/PedroSchvartz/amsi_project
 BASE_URL da API: configurada via AMSI_Frontend/.env → VITE_API_URL
 
 ATENÇÃO: A pasta AMSI_Frontend contém arquivos de configuração SvelteKit
-(.svelte-kit/, svelte.config.js, vite.config.ts) que são resquícios do
-scaffolding inicial. O projeto roda em React — ignorar esses arquivos.
+(.svelte-kit/, svelte.config.js) que são resquícios do scaffolding inicial.
+O projeto roda em React — ignorar esses arquivos.
 
 --------------------------------------------------------------------------------
-  O QUE ESTÁ IMPLEMENTADO
+  ESTRUTURA DE ARQUIVOS
 --------------------------------------------------------------------------------
 
-ESTRUTURA DE ARQUIVOS:
   src/
-  ├── App.jsx              — roteamento + LoadingProvider + Spinner global + MonitorSessao
-  ├── main.jsx
-  ├── index.css
-  ├── assets/
-  │   └── AMSI_Logo.png
+  ├── App.jsx (5.7KB)
+  │     Roteamento + LoadingProvider + Spinner global + MonitorSessao
+  │     MonitorSessao não dispara na rota / (guard por useLocation)
+  │     Modal de sessão expirada usa variáveis do tema
   ├── components/
-  │   ├── AdminRoute.jsx           — guard: exige perfil Administrador
-  │   ├── PrivateRoute.jsx         — guard: exige autenticação
-  │   ├── Layout.jsx               — topbar com logo + link /home + menu desktop/mobile +
-  │   │                              toggle de tema + footer (substitui NavBar.jsx)
-  │   ├── NavBar.jsx               — NÃO USADO (substituído pelo Layout.jsx)
-  │   ├── ModalConfirm.jsx         — popup de confirmação reutilizável
-  │   │                              props: titulo, mensagem, textoBotaoConfirmar,
-  │   │                              textoBotaoCancelar, onConfirmar, onCancelar,
-  │   │                              variante ('perigo'|'primario'), desabilitado
-  │   ├── ToastStack.jsx           — notificações flutuantes reutilizáveis + hook useToast
-  │   │                              mostrarToast(msg, tipo) / mostrarToasts([msgs]) escalonado
-  │   ├── Perfilpopup.jsx          — popup de perfil do usuário logado (navbar)
-  │   ├── PerfilCompletoPopup.jsx  — popup de perfil completo de outro usuário:
-  │   │                              dados, clifor vinculado (rasura), associar/desvincular
-  │   ├── Login.jsx                — após login: getUser(sub) → localStorage('user')
-  │   ├── Home.jsx                 — cards com links; visível apenas para admin
-  │   ├── ClientRegister.jsx       — cadastro de clifor: toasts de validação escalonados,
-  │   │                              CEP automático via ViaCEP, autopreenchimento por usuário
-  │   │                              vinculado (nome + email bloqueados enquanto vinculado)
-  │   ├── UserList.jsx             — lista de usuários: editar, resetar senha (ModalConfirm),
-  │   │                              ver perfil completo (PerfilCompletoPopup), ToastStack
-  │   ├── UserRegister.jsx         — cadastro de usuário com ToastStack
-  │   └── News.jsx                 — sem uso aparente
+  │   ├── AdminRoute.jsx (220B)
+  │   ├── PrivateRoute.jsx (345B)
+  │   ├── Layout.jsx (7.0KB)       — topbar + menu desktop/mobile + footer
+  │   ├── NavBar.jsx (2.9KB)       — NÃO USADO
+  │   ├── ModalConfirm.jsx (2.1KB) — popup de confirmação reutilizável
+  │   │     props: titulo, mensagem, textoBotaoConfirmar, textoBotaoCancelar,
+  │   │     onConfirmar, onCancelar, variante ('perigo'|'primario'), desabilitado
+  │   ├── ToastStack.jsx (2.5KB)   — notificações flutuantes + hook useToast
+  │   │     mostrarToast(msg, tipo) / mostrarToasts([msgs]) escalonado
+  │   ├── Perfilpopup.jsx (11.0KB) — perfil do usuário logado (navbar)
+  │   ├── PerfilCompletoPopup.jsx (12.6KB)
+  │   │     Perfil completo + clifor vinculado (rasurado) + associar/desvincular
+  │   ├── Login.jsx (3.6KB)        — sempre inicia no tema verde
+  │   ├── Home.jsx (2.7KB)         — cards CSS Grid 3 colunas, centralizados
+  │   ├── ClientList.jsx (4.9KB)
+  │   │     Listagem de clifors: CPF rasurado, saldo líquido colorido,
+  │   │     filtros Tipo/Status, ordenação alfabética, botão editar
+  │   ├── ClientRegister.jsx (29.1KB)
+  │   │     Cadastro clifor: toasts escalonados, CEP automático via ViaCEP,
+  │   │     autopreenchimento por usuário vinculado, estrela exclusiva,
+  │   │     confirmação antes de deletar item preenchido (ModalConfirm)
+  │   ├── ClientEdit.jsx (27.3KB)
+  │   │     Edição clifor: mesmas regras do cadastro, carrega dados existentes,
+  │   │     envia PUT no backend
+  │   ├── UserList.jsx (8.3KB)
+  │   │     Lista usuários + editar + resetar senha (ModalConfirm) +
+  │   │     ver perfil completo (PerfilCompletoPopup)
+  │   ├── UserRegister.jsx (2.5KB)
+  │   └── News.jsx (442B)          — sem uso aparente
   ├── pages/
-  │   ├── LoginPage.jsx
-  │   ├── HomePage.jsx
-  │   ├── ClientRegisterPage.jsx
-  │   ├── UserListPage.jsx
-  │   ├── UserRegisterPage.jsx
-  │   ├── TrocarSenhaPage.jsx      — fluxo de primeiro acesso
-  │   ├── LancamentoPage.jsx       — formulário de novo lançamento com ToastStack
-  │   ├── ListaLancamentosPage.jsx — tabela + filtros + modal fechar lançamento + ToastStack
-  │   └── dashboard.jsx            — dashboard com cards, gráficos recharts, ToastStack
+  │   ├── ClientListPage.jsx (145B)      — wrapper /cliente_fornecedor
+  │   ├── ClientRegisterPage.jsx (164B)  — wrapper /cliente_fornecedor/novo
+  │   ├── ClientEditPage.jsx (145B)      — wrapper /cliente_fornecedor/:id/editar
+  │   ├── Dashboard.jsx (10.9KB)
+  │   ├── LancamentoPage.jsx (8.0KB)
+  │   ├── ListaLancamentosPage.jsx (12.9KB)
+  │   ├── TrocarSenhaPage.jsx (4.2KB)
+  │   ├── UserListPage.jsx / UserRegisterPage.jsx
+  │   └── LoginPage.jsx / HomePage.jsx
   ├── services/
-  │   ├── api.js               — todas as chamadas HTTP; inclui endpoints de clifor por usuário:
-  │   │                          getCliforDoUsuario, getSugestaoClifor,
-  │   │                          associarCliforAoUsuario, desvincularCliforDoUsuario
-  │   ├── auth.js              — token JWT, isAdmin, isConsulta, isAuthenticated, logout
-  │   └── loadingContext.jsx   — contexto global de loading com singleton para api.js
+  │   ├── api.js (18.7KB)          — todas as chamadas HTTP
+  │   ├── auth.js (1.3KB)
+  │   └── loadingContext.jsx (852B)
   └── styles/
-      ├── theme.css            — variáveis dos dois temas (verde / corporativo) + reset global
-      ├── layout.css
-      ├── forms.css            — estilos compartilhados de formulários
-      ├── lancamento.css
-      ├── listaLancamentos.css
-      ├── home.css
-      ├── login.css
-      ├── clientRegister.css
-      ├── userList.css
-      └── userregister.css
+      ├── theme.css (3.0KB)        — variáveis dos dois temas
+      ├── clientList.css (3.5KB)   — listagem + CPF rasurado + saldo
+      ├── layout.css (6.4KB)
+      ├── forms.css (5.1KB)
+      ├── lancamento.css / listaLancamentos.css
+      ├── home.css / login.css
+      ├── userList.css / userregister.css / clientRegister.css
 
-ROTAS CONFIGURADAS (App.jsx):
-  /                   → LoginPage             (pública)
-  /trocar-senha       → TrocarSenhaPage       (privada, sem navbar)
-  /home               → HomePage              (privada + navbar)
-  /dashboard          → dashboard             (privada + admin + navbar)
-  /tipo_lancamento    → ListaLancamentosPage  (privada + admin + navbar)
-  /lancamento         → LancamentoPage        (privada + admin + navbar)
-  /cliente_fornecedor → ClientRegisterPage    (privada + admin + navbar)
-  /usuarios           → UserListPage          (privada + admin + navbar)
-  /cadastro           → UserRegisterPage      (privada + admin + navbar)
+--------------------------------------------------------------------------------
+  ROTAS (App.jsx)
+--------------------------------------------------------------------------------
 
-COMPONENTES REUTILIZÁVEIS:
+  /                              → LoginPage             (pública)
+  /trocar-senha                  → TrocarSenhaPage       (privada, sem navbar)
+  /home                          → HomePage              (privada + navbar)
+  /dashboard                     → Dashboard             (admin)
+  /tipo_lancamento               → ListaLancamentosPage  (admin)
+  /lancamento                    → LancamentoPage        (admin)
+  /cliente_fornecedor            → ClientListPage        (admin)
+  /cliente_fornecedor/novo       → ClientRegisterPage    (admin)
+  /cliente_fornecedor/:id/editar → ClientEditPage        (admin)
+  /usuarios                      → UserListPage          (admin)
+  /cadastro                      → UserRegisterPage      (admin)
 
-  ToastStack + useToast (components/ToastStack.jsx):
-    - Notificações flutuantes no canto superior direito
-    - mostrarToast(mensagem, tipo) — 'sucesso' | 'erro' | 'aviso'
-    - mostrarToasts([msgs]) — escalonado: 1ª some em 5s, 2ª em 6s, 3ª em 7s...
-    - Limpa toasts anteriores antes de disparar novo lote
-    - Usado em: ClientRegister, UserList, UserRegister, LancamentoPage,
-                ListaLancamentosPage, dashboard, PerfilCompletoPopup
+--------------------------------------------------------------------------------
+  PADRÕES REUTILIZÁVEIS
+--------------------------------------------------------------------------------
 
-  ModalConfirm (components/ModalConfirm.jsx):
-    - CSS inline com variáveis do tema — funciona nos dois temas
-    - Usado em: UserList (reset senha), PerfilCompletoPopup (associar/desvincular)
+  ToastStack + useToast:
+    import ToastStack, { useToast } from './ToastStack.jsx';
+    const { toasts, mostrarToast, mostrarToasts, removerToast } = useToast();
+    mostrarToast('msg', 'sucesso'|'erro'|'aviso')
+    mostrarToasts(['erro1', 'erro2']) — escalonado, limpa anteriores
 
-AUTH (services/auth.js):
-  - Token armazenado em localStorage('token')
-  - Dados do usuário em localStorage('user') — populado no login via GET /usuarios/{id}
-  - Expiração em localStorage('expiresAt') — timestamp Unix ms
-  - getUserFromToken(), isAdmin(), isConsulta(), isAuthenticated(), logout()
+  ModalConfirm:
+    import ModalConfirm from './ModalConfirm.jsx';
+    <ModalConfirm titulo="..." mensagem="..." textoBotaoConfirmar="..."
+      onConfirmar={fn} onCancelar={fn} variante="perigo" />
 
-SESSÃO (App.jsx — MonitorSessao):
-  - Verifica token/expiresAt a cada 10s
-  - Se expirado: logout() + popup + navega para /
-  - Não dispara na rota / (guard por useLocation)
+--------------------------------------------------------------------------------
+  BACKEND — ENDPOINTS RELEVANTES
+--------------------------------------------------------------------------------
 
-TEMAS (styles/theme.css):
-  - Verde (padrão): --primary #1B4332, --bg #EFE6DD
-  - Corporativo: --primary #38BDF8, --bg #0F172A
-  - Alternado via botão no topbar; salvo em localStorage('amsi_tema')
-  - Todo CSS novo deve usar variáveis — nunca cores hardcoded
+  GET    /cliente_fornecedor/             — lista ordenada alfabeticamente
+  GET    /cliente_fornecedor/saldos       — saldo líquido de todos (1 query SQL)
+  GET    /cliente_fornecedor/:id/resumo   — resumo financeiro completo
+  PUT    /cliente_fornecedor/:id          — atualiza clifor
+  GET    /usuarios/{id}/clifor            — clifor vinculado (404 se não houver)
+  GET    /usuarios/{id}/clifor/sugestao   — sugestões por pg_trgm
+  POST   /usuarios/{id}/clifor/{id}/associar
+  DELETE /usuarios/{id}/clifor/desvincular
 
-BACKEND — ENDPOINTS NOVOS (routes/usuario.py):
-  GET    /usuarios/{id}/clifor                      — retorna clifor vinculado (404 se não houver)
-  GET    /usuarios/{id}/clifor/sugestao?nome=...    — sugestões por similaridade (pg_trgm)
-  POST   /usuarios/{id}/clifor/{id_clifor}/associar — vincula clifor ao usuário
-  DELETE /usuarios/{id}/clifor/desvincular          — desvincula clifor do usuário
+BANCO:
+  - Trigger trigger_inadimplente — atualiza clifor.inadimplente automaticamente
+    Regra: inadimplente = true se lançamento Crédito, não pago, vencido
+  - FRONTEND_URL no config.env → https://amsi-project-chzs.vercel.app
 
-BANCO DE DADOS:
-  - Trigger trigger_inadimplente: atualiza clifor.inadimplente automaticamente
-    após INSERT/UPDATE/DELETE em lancamento
-    Regra: inadimplente = true se existir lançamento Crédito, não pago,
-    não estornado, com data_vencimento < hoje
+--------------------------------------------------------------------------------
+  REGRAS DE NEGÓCIO — ClientRegister / ClientEdit
+--------------------------------------------------------------------------------
+
+  - Sempre exatamente 1 endereço principal e 1 contato principal de cada tipo
+  - Estrela desabilitada quando item é único (não pode desmarcar)
+  - Ao remover o principal → primeiro da lista assume automaticamente
+  - Clicar na estrela de outro → exclusivo (desmarca os demais)
+  - Deletar item preenchido → ModalConfirm; vazio → deleta direto
+  - CPF/CNPJ: formatação automática conforme tipo pessoa
+  - CEP: preenchimento automático via ViaCEP ao digitar 8 dígitos
+  - Usuário vinculado: preenche nome e email, campos ficam readOnly
 
 --------------------------------------------------------------------------------
   MVP — STATUS
@@ -134,41 +141,36 @@ BANCO DE DADOS:
 
 CONCLUÍDO:
   ✓ Autenticação completa (login, logout, primeiro acesso, trocar senha)
-  ✓ X-Session-Expires + MonitorSessao
-  ✓ Popup de perfil do usuário logado
-  ✓ Perfil completo de outros usuários com clifor vinculado (rasura)
-  ✓ Associação e desvinculação de clifor por usuário com confirmação
-  ✓ Dashboard com resumo financeiro e gráficos
-  ✓ Lista de lançamentos com filtros e modal fechar
-  ✓ Novo lançamento com CEP automático (ViaCEP)
-  ✓ ClientRegister com validação por toasts escalonados e autopreenchimento
-  ✓ Permissões por perfil (admin vs consulta)
-  ✓ Sistema de temas (verde / corporativo)
+  ✓ Sessão única + MonitorSessao (não dispara em /)
+  ✓ Sistema de temas (verde / corporativo) — login sempre inicia no verde
   ✓ Layout responsivo com topbar, menu horizontal e mobile
   ✓ ToastStack e ModalConfirm reutilizáveis em todo o projeto
+  ✓ Dashboard com cards e gráficos recharts
+  ✓ Lista de lançamentos com filtros e modal fechar
+  ✓ Novo lançamento com CEP automático
+  ✓ Cadastro e edição de clifor completos
+  ✓ Listagem de clifors com saldo líquido, CPF rasurado, filtros
+  ✓ Perfil completo de usuário com clifor vinculado (rasura)
+  ✓ Associação e desvinculação de clifor com confirmação
   ✓ Trigger de inadimplência automática no banco
+  ✓ Emails HTML com botão de acesso ao sistema
+  ✓ 114 testes passando, sem warnings
 
-FALTA:
-  - Popup perfil: seção de notificação Telegram (pós-MVP)
-  - Timer de inatividade com popup de suspensão (pós-MVP)
-  - Refatoração CSS → Bootstrap com suporte a temas (pós-MVP)
-
---------------------------------------------------------------------------------
-  PÓS MVP
---------------------------------------------------------------------------------
+FALTA (pós-MVP):
   - Timer de inatividade com popup de suspensão
   - Telegram (porteiro + braço)
-  - Atualizações requeridas pelos usuários
+  - Popup perfil: seção Telegram
   - Refatoração CSS → Bootstrap
+  - Vitest (testes frontend)
 
 --------------------------------------------------------------------------------
   PENDÊNCIAS / AVISOS
 --------------------------------------------------------------------------------
   - AMSI_Frontend tem arquivos SvelteKit órfãos — não afetam o build
-  - vite.config.js dentro de src/services/ — lugar errado, não está sendo usado
+  - vite.config.js dentro de src/services/ — não está sendo usado
   - db.json na raiz do frontend — verificar se ainda é usado
   - News.jsx / NavBar.jsx — sem uso aparente
+  - src.zip dentro de AMSI_Frontend — pode ser removido
   - pytest deve ser rodado de dentro de backend/ (cd backend && pytest)
-  - 110 testes passando
 
 ================================================================================

@@ -1,32 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { getUsers, updateUser, resetarSenhaUsuario } from '../services/api.js';
 import PerfilCompletoPopup from './PerfilCompletoPopup.jsx';
+import UserRegisterModal from './UserRegisterModal.jsx';
 import ToastStack, { useToast } from './ToastStack.jsx';
 import ModalConfirm from './ModalConfirm.jsx';
 import '../styles/userList.css';
 
-function Toast({ mensagem, tipo, onClose }) {
-	useEffect(() => {
-		const t = setTimeout(onClose, 4000);
-		return () => clearTimeout(t);
-	}, [mensagem]);
-
-	if (!mensagem) return null;
-
-	return (
-		<div className={`ul-toast ul-toast--${tipo}`}>
-			<span>{mensagem}</span>
-			<button className="ul-toast-close" onClick={onClose}>
-				×
-			</button>
-		</div>
-	);
-}
-
 function UserList() {
 	const [usuarios, setUsuarios] = useState([]);
 	const [loading, setLoading] = useState(true);
-	const [toast, setToast] = useState({ mensagem: '', tipo: 'sucesso' });
+	const [toasts, setToasts] = useState([]);
+	const toastCounterRef = useRef(0);
+	const [modalCadastro, setModalCadastro] = useState(false);
 
 	const [modalAberto, setModalAberto] = useState(false);
 	const [usuarioSelecionado, setUsuarioSelecionado] = useState(null);
@@ -36,14 +21,14 @@ function UserList() {
 		cargo: '',
 		perfil_de_acesso: ''
 	});
-	const [erroModal, setErroModal] = useState('');
-	const [sucessoModal, setSucessoModal] = useState('');
-
 	const [modalConfirmarReset, setModalConfirmarReset] = useState(null);
 	const [perfilCompletoUsuario, setPerfilCompletoUsuario] = useState(null);
 
-	const mostrarToast = (mensagem, tipo = 'sucesso') => setToast({ mensagem, tipo });
-	const fecharToast = () => setToast({ mensagem: '', tipo: 'sucesso' });
+	const mostrarToast = (mensagem, tipo = 'sucesso') => {
+		const id = ++toastCounterRef.current;
+		setToasts((prev) => [...prev, { id, mensagem, tipo }]);
+		setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 5000);
+	};
 
 	useEffect(() => {
 		fetchUsers();
@@ -69,8 +54,6 @@ function UserList() {
 			cargo: user.cargo,
 			perfil_de_acesso: user.perfil_de_acesso
 		});
-		setErroModal('');
-		setSucessoModal('');
 		setModalAberto(true);
 	};
 
@@ -84,8 +67,6 @@ function UserList() {
 	};
 
 	const handleSalvar = async () => {
-		setErroModal('');
-		setSucessoModal('');
 		try {
 			await updateUser(usuarioSelecionado.id_usuario, {
 				nome: formModal.nome,
@@ -94,18 +75,15 @@ function UserList() {
 				perfil_de_acesso: formModal.perfil_de_acesso,
 				notificacao: usuarioSelecionado.notificacao ?? false
 			});
-			setSucessoModal('Usuário atualizado com sucesso!');
 			setUsuarios((prev) =>
 				prev
 					.map((u) => (u.id_usuario === usuarioSelecionado.id_usuario ? { ...u, ...formModal } : u))
 					.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
 			);
-			setTimeout(() => {
-				handleFecharModal();
-				mostrarToast('Usuário atualizado com sucesso!');
-			}, 1200);
+			handleFecharModal();
+			mostrarToast('Usuário atualizado com sucesso!');
 		} catch (err) {
-			setErroModal(err.message || 'Erro ao atualizar usuário');
+			mostrarToast(err.message || 'Erro ao atualizar usuário', 'erro');
 		}
 	};
 
@@ -124,7 +102,60 @@ function UserList() {
 
 	return (
 		<div className="user-list-container">
-			<Toast mensagem={toast.mensagem} tipo={toast.tipo} onClose={fecharToast} />
+			<div
+				style={{
+					position: 'fixed',
+					top: 20,
+					right: 20,
+					display: 'flex',
+					flexDirection: 'column',
+					gap: 8,
+					zIndex: 99999,
+					maxWidth: 320
+				}}
+			>
+				{toasts.map((t) => (
+					<div
+						key={t.id}
+						style={{
+							background: t.tipo === 'erro' ? '#dc2626' : '#16a34a',
+							color: '#fff',
+							padding: '10px 16px',
+							borderRadius: 8,
+							boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+							fontSize: '0.85rem',
+							fontWeight: 500,
+							display: 'flex',
+							justifyContent: 'space-between',
+							alignItems: 'center',
+							gap: 12
+						}}
+					>
+						<span>{t.mensagem}</span>
+						<button
+							onClick={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))}
+							style={{
+								background: 'transparent',
+								border: 'none',
+								color: '#fff',
+								cursor: 'pointer',
+								fontSize: '1rem'
+							}}
+						>
+							×
+						</button>
+					</div>
+				))}
+			</div>
+
+			{modalCadastro && (
+				<UserRegisterModal
+					onFechar={() => {
+						setModalCadastro(false);
+						fetchUsers();
+					}}
+				/>
+			)}
 
 			{perfilCompletoUsuario && (
 				<PerfilCompletoPopup
@@ -133,7 +164,31 @@ function UserList() {
 				/>
 			)}
 
-			<h2>Lista de Usuários</h2>
+			<div
+				style={{
+					display: 'flex',
+					justifyContent: 'space-between',
+					alignItems: 'center',
+					marginBottom: 16
+				}}
+			>
+				<h2 style={{ margin: 0 }}>Lista de Usuários</h2>
+				<button
+					onClick={() => setModalCadastro(true)}
+					style={{
+						padding: '8px 18px',
+						borderRadius: 8,
+						border: 'none',
+						background: 'var(--primary)',
+						color: '#fff',
+						fontWeight: 600,
+						fontSize: '0.875rem',
+						cursor: 'pointer'
+					}}
+				>
+					+ Cadastrar Usuário
+				</button>
+			</div>
 
 			<table className="table table-striped">
 				<thead>
@@ -225,6 +280,7 @@ function UserList() {
 											<option value="Secretário">Secretário</option>
 											<option value="Conselheiro">Conselheiro</option>
 											<option value="Associado">Associado</option>
+											<option value="Desenvolvedor">Desenvolvedor</option>
 										</select>
 									</div>
 									<div className="mb-3">
@@ -240,8 +296,6 @@ function UserList() {
 											<option value="Consulta">Consulta</option>
 										</select>
 									</div>
-									{erroModal && <p className="ul-erro-modal">{erroModal}</p>}
-									{sucessoModal && <p className="ul-sucesso-modal">{sucessoModal}</p>}
 								</div>
 								<div className="modal-footer">
 									<button className="btn btn-secondary" onClick={handleFecharModal}>

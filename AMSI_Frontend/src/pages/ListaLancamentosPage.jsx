@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import LancamentoModal from '../components/LancamentoModal.jsx';
+import { useNavigate } from 'react-router-dom';
 import ToastStack, { useToast } from '../components/ToastStack.jsx';
 import '../styles/listaLancamentos.css';
 import { getLancamentos, fecharLancamento, getClifors, getTiposConta } from '../services/api';
@@ -29,6 +31,8 @@ const FECHAR_INICIAL = {
 };
 
 function ListaLancamentosPage() {
+	const navigate = useNavigate();
+	const [modalAberto, setModalAberto] = useState(false);
 	const [lancamentos, setLancamentos] = useState([]);
 	const [clifors, setClifors] = useState([]);
 	const [tiposConta, setTiposConta] = useState([]);
@@ -142,304 +146,338 @@ function ListaLancamentosPage() {
 	};
 
 	return (
-		<div className="ll-container">
-			{/* FILTROS */}
-			<div className="ll-card">
-				<h2>Lista de Lançamentos</h2>
-
-				<form onSubmit={handleAplicar}>
-					<h4>FILTROS</h4>
-
-					<div className="ll-row">
-						<div className="ll-field">
-							<label>Cliente / Fornecedor</label>
-							<select name="id_clifor" value={filtros.id_clifor} onChange={handleFiltroChange}>
-								<option value="">Todos</option>
-								{clifors.map((c) => (
-									<option key={c.id_clifor} value={c.id_clifor}>
-										{c.nome}
-									</option>
-								))}
-							</select>
-						</div>
-
-						<div className="ll-field">
-							<label>Tipo de Conta</label>
-							<select
-								name="id_tipo_conta"
-								value={filtros.id_tipo_conta}
-								onChange={handleFiltroChange}
-							>
-								<option value="">Todos</option>
-								{tiposConta.map((t) => (
-									<option key={t.id_tipo_conta} value={t.id_tipo_conta}>
-										{t.descricao_conta}
-									</option>
-								))}
-							</select>
-						</div>
-
-						<div className="ll-field">
-							<label>Natureza</label>
-							<select name="natureza" value={filtros.natureza} onChange={handleFiltroChange}>
-								<option value="">Todas</option>
-								<option value="Debito">Débito</option>
-								<option value="Credito">Crédito</option>
-							</select>
-						</div>
-					</div>
-
-					<div className="ll-row">
-						<div className="ll-field">
-							<label>Vencimento de</label>
-							<input
-								type="date"
-								name="data_vencimento_de"
-								value={filtros.data_vencimento_de}
-								onChange={handleFiltroChange}
-							/>
-						</div>
-						<div className="ll-field">
-							<label>Vencimento até</label>
-							<input
-								type="date"
-								name="data_vencimento_ate"
-								value={filtros.data_vencimento_ate}
-								onChange={handleFiltroChange}
-							/>
-						</div>
-						<div className="ll-field">
-							<label>Lançamento de</label>
-							<input
-								type="date"
-								name="data_lancamento_de"
-								value={filtros.data_lancamento_de}
-								onChange={handleFiltroChange}
-							/>
-						</div>
-						<div className="ll-field">
-							<label>Lançamento até</label>
-							<input
-								type="date"
-								name="data_lancamento_ate"
-								value={filtros.data_lancamento_ate}
-								onChange={handleFiltroChange}
-							/>
-						</div>
-					</div>
-
-					<div className="ll-row">
-						<div className="ll-field">
-							<label>Status</label>
-							<select
-								name="apenas_abertos"
-								value={filtros.apenas_abertos}
-								onChange={handleFiltroChange}
-							>
-								<option value="">Todos</option>
-								<option value="true">Apenas abertos</option>
-							</select>
-						</div>
-						<div className="ll-field">
-							<label>Vencimento</label>
-							<select
-								name="apenas_vencidos"
-								value={filtros.apenas_vencidos}
-								onChange={handleFiltroChange}
-							>
-								<option value="">Todos</option>
-								<option value="true">Apenas vencidos</option>
-							</select>
-						</div>
-						<div className="ll-field">
-							<label>Reembolso</label>
-							<select name="estorno" value={filtros.estorno} onChange={handleFiltroChange}>
-								<option value="">Todos</option>
-								<option value="true">Sim</option>
-								<option value="false">Não</option>
-							</select>
-						</div>
-					</div>
-
-					<div className="ll-row">
-						<div className="ll-field">
-							<label>Valor mínimo</label>
-							<input
-								type="number"
-								name="valor_minimo"
-								value={filtros.valor_minimo}
-								onChange={handleFiltroChange}
-								min="0"
-								step="0.01"
-							/>
-						</div>
-						<div className="ll-field">
-							<label>Valor máximo</label>
-							<input
-								type="number"
-								name="valor_maximo"
-								value={filtros.valor_maximo}
-								onChange={handleFiltroChange}
-								min="0"
-								step="0.01"
-							/>
-						</div>
-					</div>
-
-					<div className="ll-buttons">
-						<button type="button" className="ll-btn-limpar" onClick={handleLimpar}>
-							Limpar
-						</button>
-						<button type="submit" className="ll-btn-filtrar">
-							Aplicar Filtros
+		<>
+			<div className="ll-container">
+				{/* FILTROS */}
+				<div className="ll-card">
+					<div
+						style={{
+							display: 'flex',
+							justifyContent: 'space-between',
+							alignItems: 'center',
+							marginBottom: 16
+						}}
+					>
+						<h2 style={{ margin: 0 }}>Lista de Lançamentos</h2>
+						<button
+							onClick={() => setModalAberto(true)}
+							style={{
+								padding: '8px 18px',
+								borderRadius: 8,
+								border: 'none',
+								background: 'var(--primary)',
+								color: '#fff',
+								fontWeight: 600,
+								fontSize: '0.875rem',
+								cursor: 'pointer'
+							}}
+						>
+							+ Novo Lançamento
 						</button>
 					</div>
-				</form>
-			</div>
 
-			<ToastStack toasts={toasts} onRemover={removerToast} />
+					<form onSubmit={handleAplicar}>
+						<h4>FILTROS</h4>
 
-			{/* TABELA */}
-			<div className="ll-card">
-				<h4>TRANSAÇÕES ({lancamentos.length})</h4>
-				<div className="ll-table-wrapper">
-					<table className="ll-table">
-						<thead>
-							<tr>
-								<th>Cliente / Fornecedor</th>
-								<th>Tipo de Conta</th>
-								<th>Natureza</th>
-								<th>Vencimento</th>
-								<th>Valor</th>
-								<th>Status</th>
-								<th>Ações</th>
-							</tr>
-						</thead>
-						<tbody>
-							{lancamentos.length === 0 ? (
-								<tr>
-									<td colSpan="7" className="ll-empty">
-										Nenhum lançamento encontrado
-									</td>
-								</tr>
-							) : (
-								lancamentos.map((l) => (
-									<tr key={l.id_lancamento}>
-										<td>{nomeCliffor(l.id_clifor_relacionado_fk)}</td>
-										<td>{nomeTipo(l.id_tipo_conta_fk)}</td>
-										<td>{l.natureza_lancamento}</td>
-										<td>{formatarData(l.data_vencimento)}</td>
-										<td>{formatarValor(l.valor)}</td>
-										<td>{statusLabel(l)}</td>
-										<td>
-											<div className="ll-acoes">
-												{!l.data_pagamento && !l.estorno && (
-													<button
-														className="ll-btn-acao fechar"
-														onClick={() => abrirModalFechar(l.id_lancamento)}
-														title="Fechar lançamento"
-													>
-														✓
-													</button>
-												)}
-											</div>
-										</td>
-									</tr>
-								))
-							)}
-						</tbody>
-					</table>
-				</div>
-			</div>
-
-			{/* MODAL FECHAR */}
-			{modalFechar && (
-				<div className="ll-overlay" onClick={() => setModalFechar(null)}>
-					<div className="ll-modal" onClick={(e) => e.stopPropagation()}>
-						<h3>Fechar Lançamento</h3>
-
-						<form onSubmit={handleConfirmarFechar}>
+						<div className="ll-row">
 							<div className="ll-field">
-								<label>Data de Pagamento</label>
+								<label>Cliente / Fornecedor</label>
+								<select name="id_clifor" value={filtros.id_clifor} onChange={handleFiltroChange}>
+									<option value="">Todos</option>
+									{clifors.map((c) => (
+										<option key={c.id_clifor} value={c.id_clifor}>
+											{c.nome}
+										</option>
+									))}
+								</select>
+							</div>
+
+							<div className="ll-field">
+								<label>Tipo de Conta</label>
+								<select
+									name="id_tipo_conta"
+									value={filtros.id_tipo_conta}
+									onChange={handleFiltroChange}
+								>
+									<option value="">Todos</option>
+									{tiposConta.map((t) => (
+										<option key={t.id_tipo_conta} value={t.id_tipo_conta}>
+											{t.descricao_conta}
+										</option>
+									))}
+								</select>
+							</div>
+
+							<div className="ll-field">
+								<label>Natureza</label>
+								<select name="natureza" value={filtros.natureza} onChange={handleFiltroChange}>
+									<option value="">Todas</option>
+									<option value="Debito">Débito</option>
+									<option value="Credito">Crédito</option>
+								</select>
+							</div>
+						</div>
+
+						<div className="ll-row">
+							<div className="ll-field">
+								<label>Vencimento de</label>
 								<input
 									type="date"
-									name="data_pagamento"
-									value={formFechar.data_pagamento}
-									onChange={handleFecharChange}
+									name="data_vencimento_de"
+									value={filtros.data_vencimento_de}
+									onChange={handleFiltroChange}
 								/>
 							</div>
 							<div className="ll-field">
-								<label>Valor Pago (R$)</label>
+								<label>Vencimento até</label>
+								<input
+									type="date"
+									name="data_vencimento_ate"
+									value={filtros.data_vencimento_ate}
+									onChange={handleFiltroChange}
+								/>
+							</div>
+							<div className="ll-field">
+								<label>Lançamento de</label>
+								<input
+									type="date"
+									name="data_lancamento_de"
+									value={filtros.data_lancamento_de}
+									onChange={handleFiltroChange}
+								/>
+							</div>
+							<div className="ll-field">
+								<label>Lançamento até</label>
+								<input
+									type="date"
+									name="data_lancamento_ate"
+									value={filtros.data_lancamento_ate}
+									onChange={handleFiltroChange}
+								/>
+							</div>
+						</div>
+
+						<div className="ll-row">
+							<div className="ll-field">
+								<label>Status</label>
+								<select
+									name="apenas_abertos"
+									value={filtros.apenas_abertos}
+									onChange={handleFiltroChange}
+								>
+									<option value="">Todos</option>
+									<option value="true">Apenas abertos</option>
+								</select>
+							</div>
+							<div className="ll-field">
+								<label>Vencimento</label>
+								<select
+									name="apenas_vencidos"
+									value={filtros.apenas_vencidos}
+									onChange={handleFiltroChange}
+								>
+									<option value="">Todos</option>
+									<option value="true">Apenas vencidos</option>
+								</select>
+							</div>
+							<div className="ll-field">
+								<label>Reembolso</label>
+								<select name="estorno" value={filtros.estorno} onChange={handleFiltroChange}>
+									<option value="">Todos</option>
+									<option value="true">Sim</option>
+									<option value="false">Não</option>
+								</select>
+							</div>
+						</div>
+
+						<div className="ll-row">
+							<div className="ll-field">
+								<label>Valor mínimo</label>
 								<input
 									type="number"
-									name="valor_pago"
-									value={formFechar.valor_pago}
-									onChange={handleFecharChange}
+									name="valor_minimo"
+									value={filtros.valor_minimo}
+									onChange={handleFiltroChange}
 									min="0"
 									step="0.01"
 								/>
 							</div>
-							<div className="ll-row">
-								<div className="ll-field">
-									<label>Multa (R$)</label>
-									<input
-										type="number"
-										name="multa"
-										value={formFechar.multa}
-										onChange={handleFecharChange}
-										min="0"
-										step="0.01"
-									/>
-								</div>
-								<div className="ll-field">
-									<label>Juros (R$)</label>
-									<input
-										type="number"
-										name="juros"
-										value={formFechar.juros}
-										onChange={handleFecharChange}
-										min="0"
-										step="0.01"
-									/>
-								</div>
-							</div>
 							<div className="ll-field">
-								<label>Observação</label>
-								<textarea
-									name="observacao"
-									value={formFechar.observacao}
-									onChange={handleFecharChange}
-									rows="2"
-								/>
-							</div>
-							<div className="ll-field ll-checkbox">
+								<label>Valor máximo</label>
 								<input
-									type="checkbox"
-									name="estorno"
-									id="estorno_fechar"
-									checked={formFechar.estorno}
-									onChange={handleFecharChange}
+									type="number"
+									name="valor_maximo"
+									value={filtros.valor_maximo}
+									onChange={handleFiltroChange}
+									min="0"
+									step="0.01"
 								/>
-								<label htmlFor="estorno_fechar">Marcar como reembolso</label>
 							</div>
+						</div>
 
-							<div className="ll-buttons">
-								<button
-									type="button"
-									className="ll-btn-limpar"
-									onClick={() => setModalFechar(null)}
-								>
-									Cancelar
-								</button>
-								<button type="submit" className="ll-btn-filtrar">
-									Confirmar
-								</button>
-							</div>
-						</form>
+						<div className="ll-buttons">
+							<button type="button" className="ll-btn-limpar" onClick={handleLimpar}>
+								Limpar
+							</button>
+							<button type="submit" className="ll-btn-filtrar">
+								Aplicar Filtros
+							</button>
+						</div>
+					</form>
+				</div>
+
+				<ToastStack toasts={toasts} onRemover={removerToast} />
+
+				{/* TABELA */}
+				<div className="ll-card">
+					<h4>TRANSAÇÕES ({lancamentos.length})</h4>
+					<div className="ll-table-wrapper">
+						<table className="ll-table">
+							<thead>
+								<tr>
+									<th>Cliente / Fornecedor</th>
+									<th>Tipo de Conta</th>
+									<th>Natureza</th>
+									<th>Vencimento</th>
+									<th>Valor</th>
+									<th>Status</th>
+									<th>Ações</th>
+								</tr>
+							</thead>
+							<tbody>
+								{lancamentos.length === 0 ? (
+									<tr>
+										<td colSpan="7" className="ll-empty">
+											Nenhum lançamento encontrado
+										</td>
+									</tr>
+								) : (
+									lancamentos.map((l) => (
+										<tr key={l.id_lancamento}>
+											<td>{nomeCliffor(l.id_clifor_relacionado_fk)}</td>
+											<td>{nomeTipo(l.id_tipo_conta_fk)}</td>
+											<td>{l.natureza_lancamento}</td>
+											<td>{formatarData(l.data_vencimento)}</td>
+											<td>{formatarValor(l.valor)}</td>
+											<td>{statusLabel(l)}</td>
+											<td>
+												<div className="ll-acoes">
+													{!l.data_pagamento && !l.estorno && (
+														<button
+															className="ll-btn-acao fechar"
+															onClick={() => abrirModalFechar(l.id_lancamento)}
+															title="Fechar lançamento"
+														>
+															✓
+														</button>
+													)}
+												</div>
+											</td>
+										</tr>
+									))
+								)}
+							</tbody>
+						</table>
 					</div>
 				</div>
+
+				{/* MODAL FECHAR */}
+				{modalFechar && (
+					<div className="ll-overlay" onClick={() => setModalFechar(null)}>
+						<div className="ll-modal" onClick={(e) => e.stopPropagation()}>
+							<h3>Fechar Lançamento</h3>
+
+							<form onSubmit={handleConfirmarFechar}>
+								<div className="ll-field">
+									<label>Data de Pagamento</label>
+									<input
+										type="date"
+										name="data_pagamento"
+										value={formFechar.data_pagamento}
+										onChange={handleFecharChange}
+									/>
+								</div>
+								<div className="ll-field">
+									<label>Valor Pago (R$)</label>
+									<input
+										type="number"
+										name="valor_pago"
+										value={formFechar.valor_pago}
+										onChange={handleFecharChange}
+										min="0"
+										step="0.01"
+									/>
+								</div>
+								<div className="ll-row">
+									<div className="ll-field">
+										<label>Multa (R$)</label>
+										<input
+											type="number"
+											name="multa"
+											value={formFechar.multa}
+											onChange={handleFecharChange}
+											min="0"
+											step="0.01"
+										/>
+									</div>
+									<div className="ll-field">
+										<label>Juros (R$)</label>
+										<input
+											type="number"
+											name="juros"
+											value={formFechar.juros}
+											onChange={handleFecharChange}
+											min="0"
+											step="0.01"
+										/>
+									</div>
+								</div>
+								<div className="ll-field">
+									<label>Observação</label>
+									<textarea
+										name="observacao"
+										value={formFechar.observacao}
+										onChange={handleFecharChange}
+										rows="2"
+									/>
+								</div>
+								<div className="ll-field ll-checkbox">
+									<input
+										type="checkbox"
+										name="estorno"
+										id="estorno_fechar"
+										checked={formFechar.estorno}
+										onChange={handleFecharChange}
+									/>
+									<label htmlFor="estorno_fechar">Marcar como reembolso</label>
+								</div>
+
+								<div className="ll-buttons">
+									<button
+										type="button"
+										className="ll-btn-limpar"
+										onClick={() => setModalFechar(null)}
+									>
+										Cancelar
+									</button>
+									<button type="submit" className="ll-btn-filtrar">
+										Confirmar
+									</button>
+								</div>
+							</form>
+						</div>
+					</div>
+				)}
+			</div>
+			{modalAberto && (
+				<LancamentoModal
+					onFechar={() => {
+						setModalAberto(false);
+						handleAplicar({ preventDefault: () => {} });
+					}}
+				/>
 			)}
-		</div>
+		</>
 	);
 }
 

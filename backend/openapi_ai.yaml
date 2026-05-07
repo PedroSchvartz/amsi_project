@@ -915,6 +915,19 @@
   respostas:
   - '200'
   - '422'
+- endpoint: GET /cliente_fornecedor/saldos
+  descricao: Saldos Clifors
+  parametros: []
+  request_body: null
+  response_200:
+    id_clifor:
+      tipo: integer
+      obrigatorio: true
+    saldo_liquido:
+      tipo: string
+      obrigatorio: true
+  respostas:
+  - '200'
 - endpoint: GET /cliente_fornecedor/{id_clifor}/resumo
   descricao: Resumo Clifor
   parametros:

@@ -2,12 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
 import HomePage from './components/Home';
-import UserRegisterPage from './pages/UserRegisterPage';
 import UserListPage from './pages/UserListPage';
 import ClientRegisterPage from './pages/ClientRegisterPage';
 import ClientListPage from './pages/ClientListPage';
 import ClientEditPage from './pages/ClientEditPage';
-import LancamentoPage from './pages/LancamentoPage';
 import ListaLancamentosPage from './pages/ListaLancamentosPage';
 import TrocarSenhaPage from './pages/TrocarSenhaPage';
 import 'bootstrap-icons/font/bootstrap-icons.css';
@@ -211,22 +209,6 @@ function App() {
 								<PrivateRoute adminOnly>
 									<ListaLancamentosPage />
 								</PrivateRoute>
-							}
-						/>
-						<Route
-							path="/lancamento"
-							element={
-								<AdminRoute>
-									<LancamentoPage />
-								</AdminRoute>
-							}
-						/>
-						<Route
-							path="/cadastro"
-							element={
-								<AdminRoute>
-									<UserRegisterPage />
-								</AdminRoute>
 							}
 						/>
 					</Route>

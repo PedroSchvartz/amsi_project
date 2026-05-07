@@ -4,7 +4,7 @@ import '../styles/layout.css';
 import logo from '../assets/AMSI_Logo.png';
 import { getUserFromToken, logout, isAdmin } from '../services/auth';
 import { logoutUser } from '../services/api';
-import PerfilPopup from './Perfilpopup';
+import PerfilPopup from './PerfilCompletoPopup.jsx';
 
 function Layout() {
 	const navigate = useNavigate();
@@ -31,7 +31,10 @@ function Layout() {
 	}, [tema]);
 
 	const toggleTema = () => setTema((t) => (t === 'verde' ? 'corporativo' : 'verde'));
-	const toggleMenu = () => setMenuAberto((v) => !v);
+	const toggleMenu = () => {
+		setMenuAberto((v) => !v);
+		window.scrollTo({ top: 0, behavior: 'smooth' });
+	};
 
 	const handleSair = async () => {
 		try {
@@ -49,8 +52,6 @@ function Layout() {
 	const menuLinks = [
 		{ to: '/dashboard', label: 'Dashboard' },
 		{ to: '/usuarios', label: 'Usuários' },
-		{ to: '/cadastro', label: 'Cadastrar Usuário' },
-		{ to: '/lancamento', label: 'Novo Lançamento' },
 		{ to: '/tipo_lancamento', label: 'Lista de Lançamentos' },
 		{ to: '/cliente_fornecedor', label: 'Clientes / Fornecedores' }
 	].filter(() => admin);
@@ -59,7 +60,9 @@ function Layout() {
 
 	return (
 		<div className="layout-wrapper">
-			{perfilAberto && <PerfilPopup onFechar={() => setPerfilAberto(false)} />}
+			{perfilAberto && usuarioLocal && (
+				<PerfilPopup usuario={usuarioLocal} onFechar={() => setPerfilAberto(false)} />
+			)}
 
 			{/* ── Topbar ── */}
 			<header

@@ -300,3 +300,39 @@ def test_desvincular_clifor_sem_vinculo(client, headers_admin):
         for login in logins.json():
             client.delete(f"/login/{login['id_login']}", headers=headers_admin)
     client.delete(f"/usuarios/{usuario['id_usuario']}", headers=headers_admin)
+
+
+def test_criar_usuario_cargo_desenvolvedor(client, headers_admin):
+    """Cargo Desenvolvedor deve ser aceito como válido."""
+    r = client.post("/usuarios/", json={
+        "nome": "Dev Pytest",
+        "email": "pytest_dev@amsi.com",
+        "cargo": "Desenvolvedor",
+        "perfil_de_acesso": "Administrador",
+        "notificacao": False
+    }, headers=headers_admin)
+    if r.status_code == 409:
+        todos = client.get("/usuarios/", headers=headers_admin).json()
+        u = next(x for x in todos if x["email"] == "pytest_dev@amsi.com")
+    else:
+        assert r.status_code == 200
+        u = r.json()
+        assert u["cargo"] == "Desenvolvedor"
+
+    logins = client.get(f"/login/por-usuario/{u['id_usuario']}", headers=headers_admin)
+    if logins.is_success:
+        for login in logins.json():
+            client.delete(f"/login/{login['id_login']}", headers=headers_admin)
+    client.delete(f"/usuarios/{u['id_usuario']}", headers=headers_admin)
+
+
+def test_criar_usuario_cargo_invalido(client, headers_admin):
+    """Cargo inválido deve retornar 422."""
+    r = client.post("/usuarios/", json={
+        "nome": "Cargo Invalido Pytest",
+        "email": "pytest_cargo_invalido@amsi.com",
+        "cargo": "CargoQueNaoExiste",
+        "perfil_de_acesso": "Consulta",
+        "notificacao": False
+    }, headers=headers_admin)
+    assert r.status_code == 422

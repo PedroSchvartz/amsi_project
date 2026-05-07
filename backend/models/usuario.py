@@ -10,6 +10,7 @@ class CargoEnum(enum.Enum):
     Secretario = "Secretário"
     Conselheiro = "Conselheiro"
     Associado = "Associado"
+    Desenvolvedor = "Desenvolvedor"
 
 class AcessoEnum(enum.Enum):
     Administrador = "Administrador"

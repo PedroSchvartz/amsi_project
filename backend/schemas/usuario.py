@@ -10,6 +10,7 @@ class CargoEnum(str, Enum):
     Secretario = "Secretário"
     Conselheiro = "Conselheiro"
     Associado = "Associado"
+    Desenvolvedor = "Desenvolvedor"
 
 
 class AcessoEnum(str, Enum):

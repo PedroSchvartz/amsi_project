@@ -3,7 +3,7 @@
 -- TIPOS ENUM
 -- ================================================
 
-CREATE TYPE cargo_enum AS ENUM ('Diretor','Tesoureiro','Secretário','Conselheiro','Associado');
+CREATE TYPE cargo_enum AS ENUM ('Diretor','Tesoureiro','Secretário','Conselheiro','Associado','Desenvolvedor');
 CREATE TYPE acesso_enum AS ENUM ('Administrador','Consulta');
 CREATE TYPE natureza_enum AS ENUM ('Debito','Credito');
 CREATE TYPE tipo_clifor_enum AS ENUM ('C','F','A');

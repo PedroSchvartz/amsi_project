@@ -11,11 +11,11 @@ STATUS: Backend MVP finalizado. Frontend MVP concluído e em produção.
   STACK
 --------------------------------------------------------------------------------
 
-Frontend : React.js + Vite
-Backend  : FastAPI (Python) + PostgreSQL 17.4 — FINALIZADO, não mexer
-Auth     : JWT próprio (implementado no backend)
-Deploy   : Vercel (frontend)
-API Base : https://amsi-project-chzs.vercel.app
+Frontend : React.js + Vite (JSX)
+Backend  : FastAPI (Python) + PostgreSQL 17.4 — FINALIZADO, não mexer sem necessidade
+Auth     : JWT próprio (HS256, assinado com JWT_SECRET_KEY)
+Deploy   : Vercel (frontend) — https://amsi-project-chzs.vercel.app
+API Base : configurada via AMSI_Frontend/.env → VITE_API_URL
 
 --------------------------------------------------------------------------------
   REPOSITÓRIOS
@@ -24,76 +24,60 @@ API Base : https://amsi-project-chzs.vercel.app
 Pedro (principal, deploy Vercel): https://github.com/PedroSchvartz/amsi_project
 Lucas (fork, responsável pelo CSS): https://github.com/Thierry0liveira/amsi_project
 
-O fork do Lucas foi mergeado no main do Pedro em 2026-05-06.
-CSS e visual: versão do Lucas.
-Lógica de negócio, auth, sessão: versão do Pedro.
+Fork do Lucas mergeado em 2026-05-06.
+CSS e visual: versão do Lucas. Lógica e auth: versão do Pedro.
 
 --------------------------------------------------------------------------------
   ATENÇÃO — ARQUIVOS ÓRFÃOS
 --------------------------------------------------------------------------------
 
 A pasta AMSI_Frontend contém resquícios de scaffolding SvelteKit:
-  .svelte-kit/, svelte.config.js, vite.config.ts, static/, tsconfig.json
-
-O projeto roda em React — ignorar esses arquivos completamente.
+  .svelte-kit/, svelte.config.js, static/, tsconfig.json, vite.config.ts
+O projeto roda em React — ignorar completamente.
 
 --------------------------------------------------------------------------------
-  ESTRUTURA DO FRONTEND
+  ESTRUTURA RESUMIDA
 --------------------------------------------------------------------------------
 
-Caminho: C:\Codigos\AMSI_Project_Desenvolvimento\AMSI_Frontend
-
-AMSI_Frontend
-├── src/
-│   ├── App.jsx
-│   ├── main.jsx
-│   ├── assets/
-│   │   └── AMSI_Logo.png
-│   ├── components/
-│   │   ├── AdminRoute.jsx
-│   │   ├── PrivateRoute.jsx
-│   │   ├── Layout.jsx               — topbar + menu + footer (substitui NavBar.jsx)
-│   │   ├── NavBar.jsx               — NÃO USADO
-│   │   ├── ModalConfirm.jsx         — popup de confirmação reutilizável
-│   │   ├── ToastStack.jsx           — notificações flutuantes + hook useToast
-│   │   ├── Perfilpopup.jsx          — perfil do usuário logado
-│   │   ├── PerfilCompletoPopup.jsx  — perfil completo + clifor vinculado
-│   │   ├── Login.jsx
-│   │   ├── Home.jsx
-│   │   ├── ClientRegister.jsx
-│   │   ├── UserList.jsx
-│   │   ├── UserRegister.jsx
-│   │   └── News.jsx (sem uso)
-│   ├── pages/
-│   │   ├── LancamentoPage.jsx
-│   │   ├── ListaLancamentosPage.jsx
-│   │   ├── dashboard.jsx
-│   │   ├── TrocarSenhaPage.jsx
-│   │   └── (wrappers de página)
-│   ├── services/
-│   │   ├── api.js
-│   │   ├── auth.js
-│   │   └── loadingContext.jsx
-│   └── styles/
-│       ├── theme.css   — variáveis dos dois temas
-│       └── (css por componente)
-├── vite.config.js
-└── package.json
+AMSI_Frontend/src/
+  App.jsx                          — roteamento + MonitorSessao + Spinner
+  components/
+    ModalConfirm.jsx               — popup confirmação reutilizável
+    ToastStack.jsx                 — notificações flutuantes + hook useToast
+    Layout.jsx                     — topbar + menu + footer
+    Login.jsx                      — sempre inicia no tema verde
+    Home.jsx                       — cards CSS Grid 3 colunas
+    ClientList.jsx                 — listagem clifors
+    ClientRegister.jsx             — cadastro clifor
+    ClientEdit.jsx                 — edição clifor
+    UserList.jsx                   — lista usuários
+    PerfilCompletoPopup.jsx        — perfil + clifor vinculado
+    Perfilpopup.jsx                — perfil do usuário logado
+    UserRegister.jsx
+  pages/                           — wrappers de rota
+  services/
+    api.js                         — todas as chamadas HTTP
+    auth.js                        — JWT, isAdmin, logout
+    loadingContext.jsx             — loading global
+  styles/
+    theme.css                      — variáveis dos dois temas
+    clientList.css / clientRegister.css / forms.css / layout.css / ...
 
 --------------------------------------------------------------------------------
   SISTEMA DE TEMAS
 --------------------------------------------------------------------------------
 
 Dois temas via variáveis CSS em styles/theme.css:
-  - Verde (padrão): tons de verde escuro e bege
-  - Corporativo: azul claro sobre fundo escuro
+  Verde (padrão): --primary #1B4332, --bg #EFE6DD
+  Corporativo:    --primary #38BDF8, --bg #0F172A
 
 Variáveis principais:
   --bg, --bg-card, --primary, --secondary, --accent
-  --text, --text-muted, --border, --input-bg, --btn-hover, --shadow
+  --text, --text-muted, --border, --input-bg, --shadow
 
 Alternado via botão no topbar. Salvo em localStorage('amsi_tema').
-Todo CSS novo deve usar essas variáveis — nunca cores hardcoded.
+Login sempre reinicia no tema verde.
+Todo CSS novo deve usar variáveis — nunca cores hardcoded.
 
 --------------------------------------------------------------------------------
   PADRÃO DE NOTIFICAÇÕES E CONFIRMAÇÕES
@@ -102,14 +86,14 @@ Todo CSS novo deve usar essas variáveis — nunca cores hardcoded.
 ToastStack + useToast (components/ToastStack.jsx):
   import ToastStack, { useToast } from './ToastStack.jsx';
   const { toasts, mostrarToast, mostrarToasts, removerToast } = useToast();
-  // mostrarToast('msg', 'sucesso'|'erro'|'aviso')
-  // mostrarToasts(['erro1', 'erro2']) — escalonado, limpa anteriores
+  mostrarToast('msg', 'sucesso'|'erro'|'aviso')
+  mostrarToasts(['erro1', 'erro2']) — escalonado, limpa anteriores
 
 ModalConfirm (components/ModalConfirm.jsx):
   import ModalConfirm from './ModalConfirm.jsx';
   <ModalConfirm
     titulo="Título"
-    mensagem="Mensagem de confirmação"
+    mensagem="Mensagem"
     textoBotaoConfirmar="Confirmar"
     onConfirmar={handler}
     onCancelar={() => setModal(false)}
@@ -122,28 +106,33 @@ ModalConfirm (components/ModalConfirm.jsx):
 
 Fonte da verdade da API: openapi_ai.yaml (raiz do projeto)
 Swagger local: /docs (backend rodando)
+Admin permanente: opedroschvartz@gmail.com, id=5 — nunca deletar
 
 Fluxo de autenticação:
   1. POST /auth/token → { access_token, primeiro_acesso }
   2. GET /usuarios/{sub} → dados completos em localStorage('user')
   3. Se primeiro_acesso → /trocar-senha
-  4. 401 → handleResponse chama logout() + evento sessao-expirada
+  4. 401 em qualquer request → evento 'sessao-expirada' → logout + modal
 
-Endpoints de clifor por usuário:
-  GET    /usuarios/{id}/clifor
-  GET    /usuarios/{id}/clifor/sugestao?nome=...
-  POST   /usuarios/{id}/clifor/{id_clifor}/associar
+Endpoints clifor relevantes:
+  GET    /cliente_fornecedor/             — lista alfabética
+  GET    /cliente_fornecedor/saldos       — saldo líquido de todos (1 query)
+  PUT    /cliente_fornecedor/:id          — atualizar clifor
+  GET    /usuarios/{id}/clifor            — clifor vinculado
+  GET    /usuarios/{id}/clifor/sugestao   — sugestões pg_trgm
+  POST   /usuarios/{id}/clifor/{id}/associar
   DELETE /usuarios/{id}/clifor/desvincular
 
 ENUMs relevantes:
-  - natureza_enum: "Debito" / "Credito" (sem acento)
-  - tipo_clifor_enum: "C" / "F" / "A"
+  - natureza_lancamento: "Debito" / "Credito" (sem acento)
+  - tipo_clifor: "C" / "F" / "A"
 
 Banco:
   - Trigger trigger_inadimplente atualiza clifor.inadimplente automaticamente
+  - FRONTEND_URL no config.env → https://amsi-project-chzs.vercel.app
 
 --------------------------------------------------------------------------------
-  CONVENÇÕES DO FRONTEND
+  CONVENÇÕES
 --------------------------------------------------------------------------------
 
 - Componentes: PascalCase
@@ -168,14 +157,15 @@ Enviar na ordem:
   4. App.jsx
   5. services/api.js + services/auth.js
   6. Componente/page específico do que for trabalhar
+  + Árvore do projeto (mapeia_diretorio.py)
 
 --------------------------------------------------------------------------------
-  BACKEND — REFERÊNCIA (NÃO MODIFICAR)
+  BACKEND — REFERÊNCIA (NÃO MODIFICAR SEM NECESSIDADE)
 --------------------------------------------------------------------------------
 
 Stack: FastAPI + PostgreSQL 17.4 + SQLAlchemy + JWT com bcrypt
 Caminho: C:\Codigos\AMSI_Project_Desenvolvimento\backend
-Testes: 110 passando (pytest tests/)
+Testes: 114 passando, sem warnings (pytest tests/)
 Admin permanente: opedroschvartz@gmail.com, id=5 — nunca deletar
 
 ================================================================================

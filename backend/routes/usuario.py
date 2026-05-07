@@ -102,10 +102,14 @@ def criar_usuario(dados: UsuarioCreate, db: Session = Depends(get_db), _=Depends
 </body>
 </html>
 """
-    try:
-        enviar_email(usuario.email, "Sua senha de acesso — AMSI Project", corpo)
-    except Exception:
-        pass  # não bloqueia o cadastro se o email falhar
+    enviado = enviar_email(usuario.email, "Sua senha de acesso — AMSI Project", corpo)
+    if not enviado:
+        db.delete(usuario)
+        db.commit()
+        raise HTTPException(
+            status_code=400,
+            detail="Não foi possível enviar o email para este endereço. Verifique se o email é válido."
+        )
 
     return usuario
 
@@ -233,7 +237,6 @@ def sugerir_clifor_para_usuario(
 
     termo = nome if nome else usuario.nome
 
-    # Similaridade via trigramas (pg_trgm) — fallback para ILIKE se extensão não disponível
     try:
         resultados = (
             db.query(ClienteFornecedor)

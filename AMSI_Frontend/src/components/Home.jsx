@@ -16,12 +16,6 @@ const cards = [
 		label: 'Ver Lançamentos'
 	},
 	{
-		titulo: 'Novo Lançamento',
-		descricao: 'Cadastre um novo lançamento financeiro.',
-		link: '/lancamento',
-		label: 'Cadastrar Lançamento'
-	},
-	{
 		titulo: 'Clientes / Fornecedores',
 		descricao: 'Gerencie os clientes e fornecedores cadastrados.',
 		link: '/cliente_fornecedor',
@@ -32,12 +26,6 @@ const cards = [
 		descricao: 'Gerencie os usuários do sistema.',
 		link: '/usuarios',
 		label: 'Ver lista'
-	},
-	{
-		titulo: 'Cadastrar Usuário',
-		descricao: 'Adicione novos usuários ao sistema.',
-		link: '/cadastro',
-		label: 'Cadastrar Usuário'
 	}
 ];
 
@@ -61,7 +49,7 @@ function Home() {
 				<div
 					style={{
 						display: 'grid',
-						gridTemplateColumns: 'repeat(3, 1fr)',
+						gridTemplateColumns: 'repeat(2, 1fr)',
 						gap: '1.5rem'
 					}}
 				>
@@ -78,8 +66,18 @@ function Home() {
 								gap: '12px'
 							}}
 						>
-							<h5 style={{ margin: 0, fontWeight: 600, color: 'var(--text)' }}>{card.titulo}</h5>
-							<p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-muted)', flex: 1 }}>
+							<h5 style={{ margin: 0, fontWeight: 600, color: 'var(--text)', textAlign: 'center' }}>
+								{card.titulo}
+							</h5>
+							<p
+								style={{
+									margin: 0,
+									fontSize: '0.875rem',
+									color: 'var(--text-muted)',
+									flex: 1,
+									textAlign: 'center'
+								}}
+							>
 								{card.descricao}
 							</p>
 							<Link
