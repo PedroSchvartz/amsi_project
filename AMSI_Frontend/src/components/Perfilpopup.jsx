@@ -1,5 +1,11 @@
 import { useState, useEffect } from 'react';
-import { getLancamentosPorUsuario, getLoginsPorUsuario, trocarSenha } from '../services/api';
+import {
+	getCliforDoUsuario,
+	getSugestaoClifor,
+	associarCliforAoUsuario,
+	desvincularCliforDoUsuario
+} from '../services/api.js';
+import ModalConfirm from './ModalConfirm.jsx';
 
 const s = {
 	overlay: {
@@ -9,20 +15,18 @@ const s = {
 		display: 'flex',
 		alignItems: 'center',
 		justifyContent: 'center',
-		zIndex: 9990,
-		animation: 'fadeIn 0.2s ease'
+		zIndex: 9990
 	},
 	box: {
 		background: 'var(--bg-card)',
 		color: 'var(--text)',
 		borderRadius: 14,
 		width: '100%',
-		maxWidth: 520,
+		maxWidth: 560,
 		maxHeight: '88vh',
 		overflowY: 'auto',
 		padding: '32px 36px',
-		boxShadow: '0 16px 48px var(--shadow)',
-		animation: 'fadeInDown 0.25s ease'
+		boxShadow: '0 16px 48px var(--shadow)'
 	},
 	header: {
 		display: 'flex',
@@ -32,7 +36,7 @@ const s = {
 	},
 	title: {
 		fontFamily: 'var(--font-display)',
-		fontSize: '1.35rem',
+		fontSize: '1.25rem',
 		fontWeight: 700,
 		color: 'var(--primary)',
 		margin: 0
@@ -43,39 +47,30 @@ const s = {
 		cursor: 'pointer',
 		fontSize: '1.2rem',
 		color: 'var(--text-muted)',
-		lineHeight: 1,
 		padding: '2px 6px',
 		borderRadius: 6
 	},
-	divider: {
-		border: 'none',
-		borderTop: '1px solid var(--border)',
-		margin: '16px 0'
+	divider: { border: 'none', borderTop: '1px solid var(--border)', margin: '16px 0' },
+	label: { fontWeight: 600, color: 'var(--text)' },
+	muted: { fontSize: 13, color: 'var(--text-muted)' },
+	sectionTitle: { fontWeight: 600, fontSize: '0.85rem', color: 'var(--text)', marginBottom: 10 },
+	fieldRow: {
+		display: 'flex',
+		justifyContent: 'space-between',
+		alignItems: 'center',
+		marginBottom: 6
 	},
-	label: {
-		fontWeight: 600,
-		color: 'var(--text)'
-	},
-	muted: {
+	fieldLabel: { fontSize: 13, color: 'var(--text-muted)', fontWeight: 500 },
+	fieldValue: { fontSize: 13, color: 'var(--text)' },
+	rasura: {
 		fontSize: 13,
-		color: 'var(--text-muted)'
-	},
-	statBox: (highlight) => ({
-		flex: 1,
-		textAlign: 'center',
-		padding: '10px 8px',
-		borderRadius: 10,
-		background: highlight ? 'var(--accent)' : 'var(--bg)'
-	}),
-	statNum: {
-		fontSize: 22,
-		fontWeight: 700,
-		color: 'var(--text)'
-	},
-	statLabel: {
-		fontSize: 12,
 		color: 'var(--text-muted)',
-		marginTop: 2
+		background: 'var(--border)',
+		borderRadius: 4,
+		padding: '2px 8px',
+		letterSpacing: 2,
+		cursor: 'pointer',
+		userSelect: 'none'
 	},
 	input: {
 		width: '100%',
@@ -85,12 +80,12 @@ const s = {
 		background: 'var(--input-bg)',
 		color: 'var(--text)',
 		fontSize: '0.875rem',
-		marginBottom: 10,
-		outline: 'none'
+		marginBottom: 8,
+		outline: 'none',
+		boxSizing: 'border-box'
 	},
 	btnPrimary: {
-		flex: 1,
-		padding: '9px 0',
+		padding: '8px 18px',
 		borderRadius: 8,
 		border: 'none',
 		background: 'var(--primary)',
@@ -100,8 +95,7 @@ const s = {
 		fontSize: '0.875rem'
 	},
 	btnSecondary: {
-		flex: 1,
-		padding: '9px 0',
+		padding: '8px 18px',
 		borderRadius: 8,
 		border: '1px solid var(--border)',
 		background: 'transparent',
@@ -110,257 +104,295 @@ const s = {
 		cursor: 'pointer',
 		fontSize: '0.875rem'
 	},
-	btnOutline: {
-		width: '100%',
-		padding: '9px 0',
+	sugestaoItem: {
+		padding: '8px 12px',
 		borderRadius: 8,
 		border: '1px solid var(--border)',
-		background: 'transparent',
-		color: 'var(--text)',
-		fontWeight: 500,
+		background: 'var(--bg)',
 		cursor: 'pointer',
-		fontSize: '0.875rem'
+		marginBottom: 6,
+		fontSize: 13,
+		color: 'var(--text)',
+		transition: 'background 0.15s'
 	},
-	badge: (credito) => ({
+	badge: (ok) => ({
 		display: 'inline-block',
 		padding: '2px 8px',
 		borderRadius: 50,
 		fontSize: 11,
 		fontWeight: 600,
-		background: credito ? 'rgba(74,222,128,0.2)' : 'rgba(248,113,113,0.2)',
-		color: credito ? '#16a34a' : '#dc2626'
-	}),
-	th: {
-		fontSize: 12,
-		fontWeight: 600,
-		color: 'var(--text-muted)',
-		padding: '6px 8px',
-		borderBottom: '1px solid var(--border)',
-		textAlign: 'left'
-	},
-	td: {
-		fontSize: 13,
-		color: 'var(--text)',
-		padding: '6px 8px',
-		borderBottom: '1px solid var(--border)'
-	}
+		background: ok ? 'rgba(74,222,128,0.2)' : 'rgba(248,113,113,0.2)',
+		color: ok ? '#16a34a' : '#dc2626'
+	})
 };
 
-function PerfilPopup({ onFechar }) {
-	const usuarioLocal = JSON.parse(localStorage.getItem('user') || 'null');
-	const idUsuario = usuarioLocal?.id_usuario;
+function CampoRasurado({ valor, label }) {
+	const [visivel, setVisivel] = useState(false);
+	return (
+		<div style={s.fieldRow}>
+			<span style={s.fieldLabel}>{label}</span>
+			{visivel ? (
+				<span style={{ ...s.fieldValue, cursor: 'pointer' }} onClick={() => setVisivel(false)}>
+					{valor}
+				</span>
+			) : (
+				<span style={s.rasura} onClick={() => setVisivel(true)} title="Clique para exibir">
+					••••••••
+				</span>
+			)}
+		</div>
+	);
+}
 
-	const [lancamentos, setLancamentos] = useState([]);
-	const [ultimoLogin, setUltimoLogin] = useState(null);
+function PerfilCompletoPopup({ usuario, onFechar }) {
+	const [clifor, setClifor] = useState(null);
 	const [carregando, setCarregando] = useState(true);
+	const [semClifor, setSemClifor] = useState(false);
 
-	const [trocandoSenha, setTrocandoSenha] = useState(false);
-	const [senhaAtual, setSenhaAtual] = useState('');
-	const [senhaNova, setSenhaNova] = useState('');
-	const [senhaConfirm, setSenhaConfirm] = useState('');
-	const [erroSenha, setErroSenha] = useState('');
-	const [sucessoSenha, setSucessoSenha] = useState('');
+	// Associação
+	const [busca, setBusca] = useState('');
+	const [sugestoes, setSugestoes] = useState([]);
+	const [carregandoSugestao, setCarregandoSugestao] = useState(false);
+	const [erroAssoc, setErroAssoc] = useState('');
+	const [associando, setAssociando] = useState(false);
 
 	useEffect(() => {
-		if (!idUsuario) return;
-		Promise.all([
-			getLancamentosPorUsuario(idUsuario).catch(() => []),
-			getLoginsPorUsuario(idUsuario).catch(() => [])
-		]).then(([lancs, logins]) => {
-			setLancamentos(Array.isArray(lancs) ? lancs : []);
-			if (Array.isArray(logins) && logins.length > 0) {
-				const sorted = [...logins].sort((a, b) => new Date(b.data_login) - new Date(a.data_login));
-				setUltimoLogin(sorted[0]);
-			}
-			setCarregando(false);
-		});
-	}, [idUsuario]);
+		carregarClifor();
+	}, [usuario.id_usuario]);
 
-	const abertos = lancamentos.filter((l) => !l.data_pagamento && !l.estorno);
-	const fechados = lancamentos.filter((l) => l.data_pagamento || l.estorno);
-	const valorEmAberto = abertos.reduce((acc, l) => acc + parseFloat(l.valor || 0), 0);
-
-	const handleTrocarSenha = async (e) => {
-		e.preventDefault();
-		setErroSenha('');
-		setSucessoSenha('');
-		if (senhaNova !== senhaConfirm) {
-			setErroSenha('As senhas não coincidem.');
-			return;
-		}
+	async function carregarClifor() {
+		setCarregando(true);
 		try {
-			await trocarSenha({ senha_atual: senhaAtual, nova_senha: senhaNova });
-			setSucessoSenha('Senha alterada com sucesso!');
-			setSenhaAtual('');
-			setSenhaNova('');
-			setSenhaConfirm('');
-			setTimeout(() => setTrocandoSenha(false), 1500);
+			const data = await getCliforDoUsuario(usuario.id_usuario);
+			setClifor(data);
+			setSemClifor(false);
 		} catch (err) {
-			setErroSenha(err.message || 'Erro ao trocar senha.');
+			if (err.message?.includes('404') || err.message?.includes('vinculado')) {
+				setSemClifor(true);
+				carregarSugestoes('');
+			}
+		} finally {
+			setCarregando(false);
+		}
+	}
+
+	async function carregarSugestoes(nome) {
+		setCarregandoSugestao(true);
+		try {
+			const data = await getSugestaoClifor(usuario.id_usuario, nome || null);
+			setSugestoes(Array.isArray(data) ? data : []);
+		} catch {
+			setSugestoes([]);
+		} finally {
+			setCarregandoSugestao(false);
+		}
+	}
+
+	const handleBuscaChange = (e) => {
+		setBusca(e.target.value);
+		carregarSugestoes(e.target.value);
+	};
+
+	const handleAssociar = async (id_clifor) => {
+		setAssociando(true);
+		setErroAssoc('');
+		try {
+			await associarCliforAoUsuario(usuario.id_usuario, id_clifor);
+			await carregarClifor();
+		} catch (err) {
+			setErroAssoc(err.message || 'Erro ao associar');
+		} finally {
+			setAssociando(false);
 		}
 	};
 
 	const formatData = (str) => {
 		if (!str) return '—';
-		return new Date(str).toLocaleString('pt-BR');
+		// date string YYYY-MM-DD
+		if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+			const [y, m, d] = str.split('-');
+			return `${d}/${m}/${y}`;
+		}
+		return str;
 	};
 
-	const formatValor = (v) =>
-		parseFloat(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
 	return (
-		<div onClick={onFechar} style={s.overlay}>
-			<div onClick={(e) => e.stopPropagation()} style={s.box}>
+		<div style={s.overlay} onClick={onFechar}>
+			<div style={s.box} onClick={(e) => e.stopPropagation()}>
 				{/* Header */}
 				<div style={s.header}>
-					<h5 style={s.title}>Meu Perfil</h5>
+					<h5 style={s.title}>Perfil Completo — {usuario.nome}</h5>
 					<button style={s.closeBtn} onClick={onFechar}>
 						✕
 					</button>
 				</div>
 
 				{/* Dados do usuário */}
-				<div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-					<p style={{ margin: 0 }}>
-						<span style={s.label}>Nome:</span> {usuarioLocal?.nome || '—'}
-					</p>
-					<p style={{ margin: 0 }}>
-						<span style={s.label}>Email:</span> {usuarioLocal?.email || '—'}
-					</p>
-					<p style={{ margin: 0 }}>
-						<span style={s.label}>Cargo:</span> {usuarioLocal?.cargo || '—'}
-					</p>
-					<p style={{ margin: 0 }}>
-						<span style={s.label}>Perfil:</span> {usuarioLocal?.perfil_de_acesso || '—'}
-					</p>
-					{ultimoLogin && (
-						<p style={{ margin: 0, ...s.muted }}>
-							<span style={s.label}>Último login:</span> {formatData(ultimoLogin.data_login)}
-						</p>
-					)}
+				<div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 4 }}>
+					<div style={s.fieldRow}>
+						<span style={s.fieldLabel}>Email</span>
+						<span style={s.fieldValue}>{usuario.email}</span>
+					</div>
+					<div style={s.fieldRow}>
+						<span style={s.fieldLabel}>Cargo</span>
+						<span style={s.fieldValue}>{usuario.cargo}</span>
+					</div>
+					<div style={s.fieldRow}>
+						<span style={s.fieldLabel}>Perfil</span>
+						<span style={s.fieldValue}>{usuario.perfil_de_acesso}</span>
+					</div>
+					<div style={s.fieldRow}>
+						<span style={s.fieldLabel}>Status</span>
+						<span style={s.badge(!usuario.bloqueado)}>
+							{usuario.bloqueado ? 'Bloqueado' : 'Ativo'}
+						</span>
+					</div>
 				</div>
 
 				<hr style={s.divider} />
 
-				{/* Resumo lançamentos */}
+				{/* Clifor */}
 				{carregando ? (
-					<p style={{ ...s.muted, textAlign: 'center' }}>Carregando lançamentos...</p>
-				) : (
+					<p style={{ ...s.muted, textAlign: 'center' }}>Carregando...</p>
+				) : semClifor ? (
 					<>
-						<p style={{ fontWeight: 600, marginBottom: 10, color: 'var(--text)' }}>
-							Resumo de Lançamentos
+						<p style={{ ...s.sectionTitle, color: 'var(--text-muted)' }}>
+							Nenhum Cliente/Fornecedor vinculado.
 						</p>
-						<div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
-							<div style={s.statBox(false)}>
-								<div style={s.statNum}>{abertos.length}</div>
-								<div style={s.statLabel}>Em aberto</div>
+						<p style={{ ...s.sectionTitle, marginBottom: 6 }}>Associar a um Cliente/Fornecedor?</p>
+						<input
+							style={s.input}
+							placeholder="Buscar por nome..."
+							value={busca}
+							onChange={handleBuscaChange}
+						/>
+						{carregandoSugestao ? (
+							<p style={s.muted}>Buscando...</p>
+						) : sugestoes.length === 0 ? (
+							<p style={s.muted}>Nenhum resultado.</p>
+						) : (
+							sugestoes.map((c) => (
+								<div
+									key={c.id_clifor}
+									style={s.sugestaoItem}
+									onClick={() => !associando && handleAssociar(c.id_clifor)}
+								>
+									<strong>{c.nome}</strong>
+									<span style={{ ...s.muted, marginLeft: 8 }}>
+										{c.tipo_clifor === 'C'
+											? 'Cliente'
+											: c.tipo_clifor === 'F'
+												? 'Fornecedor'
+												: 'Ambos'}
+									</span>
+								</div>
+							))
+						)}
+						{erroAssoc && (
+							<p style={{ color: '#dc2626', fontSize: 13, marginTop: 8 }}>{erroAssoc}</p>
+						)}
+					</>
+				) : clifor ? (
+					<>
+						<p style={s.sectionTitle}>Cliente / Fornecedor Vinculado</p>
+						<div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 4 }}>
+							<div style={s.fieldRow}>
+								<span style={s.fieldLabel}>Nome</span>
+								<span style={s.fieldValue}>{clifor.nome}</span>
 							</div>
-							<div style={s.statBox(false)}>
-								<div style={s.statNum}>{fechados.length}</div>
-								<div style={s.statLabel}>Fechados</div>
+							<div style={s.fieldRow}>
+								<span style={s.fieldLabel}>Tipo</span>
+								<span style={s.fieldValue}>
+									{clifor.tipo_clifor === 'C'
+										? 'Cliente'
+										: clifor.tipo_clifor === 'F'
+											? 'Fornecedor'
+											: 'Ambos'}
+								</span>
 							</div>
-							<div style={s.statBox(true)}>
-								<div style={{ ...s.statNum, fontSize: 16 }}>{formatValor(valorEmAberto)}</div>
-								<div style={s.statLabel}>Total em aberto</div>
+							<div style={s.fieldRow}>
+								<span style={s.fieldLabel}>Data de Nascimento</span>
+								<span style={s.fieldValue}>{formatData(clifor.datanascimento)}</span>
+							</div>
+							<CampoRasurado valor={clifor.cpf_cnpj} label="CPF / CNPJ" />
+							<CampoRasurado valor={clifor.rg_inscricaoestadual} label="RG / Insc. Estadual" />
+							<div style={s.fieldRow}>
+								<span style={s.fieldLabel}>Inadimplente</span>
+								<span style={s.badge(!clifor.inadimplente)}>
+									{clifor.inadimplente ? 'Sim' : 'Não'}
+								</span>
 							</div>
 						</div>
 
-						{abertos.length > 0 && (
+						{/* Endereços */}
+						{clifor.enderecos?.length > 0 && (
 							<>
-								<p style={{ fontWeight: 600, marginBottom: 8, color: 'var(--text)' }}>
-									Lançamentos em Aberto
-								</p>
-								<div
-									style={{
-										maxHeight: 180,
-										overflowY: 'auto',
-										borderRadius: 8,
-										border: '1px solid var(--border)'
-									}}
-								>
-									<table style={{ width: '100%', borderCollapse: 'collapse' }}>
-										<thead>
-											<tr>
-												<th style={s.th}>Vencimento</th>
-												<th style={s.th}>Valor</th>
-												<th style={s.th}>Natureza</th>
-											</tr>
-										</thead>
-										<tbody>
-											{abertos.map((l) => (
-												<tr key={l.id_lancamento}>
-													<td style={s.td}>
-														{new Date(l.data_vencimento).toLocaleDateString('pt-BR')}
-													</td>
-													<td style={s.td}>{formatValor(l.valor)}</td>
-													<td style={s.td}>
-														<span style={s.badge(l.natureza_lancamento === 'Credito')}>
-															{l.natureza_lancamento}
-														</span>
-													</td>
-												</tr>
-											))}
-										</tbody>
-									</table>
-								</div>
+								<hr style={s.divider} />
+								<p style={s.sectionTitle}>Endereços</p>
+								{clifor.enderecos.map((e) => (
+									<div
+										key={e.id_endereco}
+										style={{
+											marginBottom: 12,
+											paddingBottom: 12,
+											borderBottom: '1px solid var(--border)'
+										}}
+									>
+										<div style={s.fieldRow}>
+											<span style={s.fieldLabel}>Logradouro</span>
+											<CampoRasurado
+												valor={`${e.logradouro}, ${e.numero}${e.complemento ? ` — ${e.complemento}` : ''}`}
+												label=""
+											/>
+										</div>
+										<div style={s.fieldRow}>
+											<span style={s.fieldLabel}>Bairro</span>
+											<CampoRasurado valor={e.bairro} label="" />
+										</div>
+										<div style={s.fieldRow}>
+											<span style={s.fieldLabel}>Cidade / UF</span>
+											<span style={s.fieldValue}>
+												{e.cidade} — {e.uf}
+											</span>
+										</div>
+										<div style={s.fieldRow}>
+											<span style={s.fieldLabel}>CEP</span>
+											<CampoRasurado valor={e.cep} label="" />
+										</div>
+										{e.enderecoprimario && <span style={s.badge(true)}>Principal</span>}
+									</div>
+								))}
+							</>
+						)}
+
+						{/* Contatos */}
+						{clifor.contatos?.length > 0 && (
+							<>
+								<hr style={s.divider} />
+								<p style={s.sectionTitle}>Contatos</p>
+								{clifor.contatos.map((c) => (
+									<div
+										key={c.id_contato}
+										style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}
+									>
+										<span style={s.fieldLabel}>{c.tipocontato}</span>
+										<CampoRasurado valor={c.info_do_contato} label="" />
+									</div>
+								))}
 							</>
 						)}
 					</>
-				)}
+				) : null}
 
 				<hr style={s.divider} />
-
-				{/* Trocar senha */}
-				{!trocandoSenha ? (
-					<button style={s.btnOutline} onClick={() => setTrocandoSenha(true)}>
-						Trocar Senha
+				<div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+					<button style={s.btnSecondary} onClick={onFechar}>
+						Fechar
 					</button>
-				) : (
-					<form onSubmit={handleTrocarSenha}>
-						<p style={{ fontWeight: 600, marginBottom: 10, color: 'var(--text)' }}>Trocar Senha</p>
-						<input
-							style={s.input}
-							type="password"
-							placeholder="Senha atual"
-							value={senhaAtual}
-							onChange={(e) => setSenhaAtual(e.target.value)}
-							required
-						/>
-						<input
-							style={s.input}
-							type="password"
-							placeholder="Nova senha"
-							value={senhaNova}
-							onChange={(e) => setSenhaNova(e.target.value)}
-							required
-						/>
-						<input
-							style={s.input}
-							type="password"
-							placeholder="Confirmar nova senha"
-							value={senhaConfirm}
-							onChange={(e) => setSenhaConfirm(e.target.value)}
-							required
-						/>
-						{erroSenha && (
-							<p style={{ color: '#dc2626', fontSize: 13, marginBottom: 8 }}>{erroSenha}</p>
-						)}
-						{sucessoSenha && (
-							<p style={{ color: '#16a34a', fontSize: 13, marginBottom: 8 }}>{sucessoSenha}</p>
-						)}
-						<div style={{ display: 'flex', gap: 8 }}>
-							<button type="submit" style={s.btnPrimary}>
-								Salvar
-							</button>
-							<button type="button" style={s.btnSecondary} onClick={() => setTrocandoSenha(false)}>
-								Cancelar
-							</button>
-						</div>
-					</form>
-				)}
+				</div>
 			</div>
 		</div>
 	);
 }
 
-export default PerfilPopup;
+export default PerfilCompletoPopup;

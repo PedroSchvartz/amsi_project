@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import ToastStack, { useToast } from '../components/ToastStack.jsx';
 import '../styles/listaLancamentos.css';
 import { getLancamentos, fecharLancamento, getClifors, getTiposConta } from '../services/api';
 import { getUserFromToken } from '../services/auth';
@@ -32,12 +33,10 @@ function ListaLancamentosPage() {
 	const [clifors, setClifors] = useState([]);
 	const [tiposConta, setTiposConta] = useState([]);
 	const [filtros, setFiltros] = useState(FILTROS_INICIAL);
-	const [erro, setErro] = useState('');
-	const [sucesso, setSucesso] = useState('');
+	const { toasts, mostrarToast, removerToast } = useToast();
 
 	const [modalFechar, setModalFechar] = useState(null); // id_lancamento
 	const [formFechar, setFormFechar] = useState(FECHAR_INICIAL);
-	const [erroModal, setErroModal] = useState('');
 
 	const usuario = getUserFromToken();
 
@@ -55,7 +54,6 @@ function ListaLancamentosPage() {
 	};
 
 	const buscar = async (f = filtros) => {
-		setErro('');
 		try {
 			const params = {};
 			if (f.id_clifor) params.id_clifor = parseInt(f.id_clifor);
@@ -73,7 +71,7 @@ function ListaLancamentosPage() {
 			const data = await getLancamentos(params);
 			setLancamentos(data);
 		} catch (err) {
-			setErro(err.message || 'Erro ao buscar lançamentos');
+			mostrarToast(err.message || 'Erro ao buscar lançamentos', 'erro');
 		}
 	};
 
@@ -94,7 +92,6 @@ function ListaLancamentosPage() {
 	const abrirModalFechar = (id) => {
 		setModalFechar(id);
 		setFormFechar({ ...FECHAR_INICIAL, id_usuario_fk_fechamento: usuario?.sub });
-		setErroModal('');
 	};
 
 	const handleFecharChange = (e) => {
@@ -104,7 +101,6 @@ function ListaLancamentosPage() {
 
 	const handleConfirmarFechar = async (e) => {
 		e.preventDefault();
-		setErroModal('');
 		try {
 			const payload = {
 				id_usuario_fk_fechamento: usuario?.sub,
@@ -116,11 +112,11 @@ function ListaLancamentosPage() {
 				estorno: formFechar.estorno
 			};
 			await fecharLancamento(modalFechar, payload);
-			setSucesso('Lançamento fechado com sucesso.');
+			mostrarToast('Lançamento fechado com sucesso.');
 			setModalFechar(null);
 			buscar();
 		} catch (err) {
-			setErroModal(err.message || 'Erro ao fechar lançamento');
+			mostrarToast(err.message || 'Erro ao fechar lançamento', 'erro');
 		}
 	};
 
@@ -301,9 +297,7 @@ function ListaLancamentosPage() {
 				</form>
 			</div>
 
-			{/* FEEDBACK */}
-			{erro && <p className="ll-erro">{erro}</p>}
-			{sucesso && <p className="ll-sucesso">{sucesso}</p>}
+			<ToastStack toasts={toasts} onRemover={removerToast} />
 
 			{/* TABELA */}
 			<div className="ll-card">
@@ -428,8 +422,6 @@ function ListaLancamentosPage() {
 								/>
 								<label htmlFor="estorno_fechar">Marcar como reembolso</label>
 							</div>
-
-							{erroModal && <p className="ll-erro">{erroModal}</p>}
 
 							<div className="ll-buttons">
 								<button

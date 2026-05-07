@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { createClifor, getUsers, getUser } from '../services/api';
+import ToastStack, { useToast } from './ToastStack.jsx';
 
 const FORM_INICIAL = {
 	tipo_clifor: '',
@@ -134,8 +135,7 @@ function ClientRegister() {
 	const [erro, setErro] = useState('');
 	const [sucesso, setSucesso] = useState('');
 	const [usuarioVinculado, setUsuarioVinculado] = useState(null);
-	const [toasts, setToasts] = useState([]);
-	const toastCounterRef = useRef(0);
+	const { toasts, mostrarToast, mostrarToasts, removerToast } = useToast();
 
 	useEffect(() => {
 		getUsers()
@@ -223,21 +223,6 @@ function ClientRegister() {
 		}
 	};
 
-	const dispararToasts = (erros) => {
-		const mensagens = Object.values(erros);
-		const novos = mensagens.map((msg, i) => ({
-			id: ++toastCounterRef.current,
-			mensagem: msg,
-			duracao: (5 + i) * 1000
-		}));
-		setToasts((prev) => [...prev, ...novos]);
-		novos.forEach((t) => {
-			setTimeout(() => {
-				setToasts((prev) => prev.filter((x) => x.id !== t.id));
-			}, t.duracao);
-		});
-	};
-
 	const validar = () => {
 		const e = {};
 		if (!form.tipo_clifor) e.tipo_clifor = 'Selecione o tipo de cliente/fornecedor.';
@@ -274,10 +259,7 @@ function ClientRegister() {
 		});
 
 		setErros(e);
-		if (Object.keys(e).length > 0) {
-			setToasts([]);
-			dispararToasts(e);
-		}
+		if (Object.keys(e).length > 0) mostrarToasts(Object.values(e));
 		return Object.keys(e).length === 0;
 	};
 
@@ -348,53 +330,7 @@ function ClientRegister() {
 
 	return (
 		<>
-			{/* TOAST STACK */}
-			<div
-				style={{
-					position: 'fixed',
-					top: 20,
-					right: 20,
-					display: 'flex',
-					flexDirection: 'column',
-					gap: 8,
-					zIndex: 99999,
-					maxWidth: 320
-				}}
-			>
-				{toasts.map((t) => (
-					<div
-						key={t.id}
-						style={{
-							background: '#dc2626',
-							color: '#fff',
-							padding: '10px 16px',
-							borderRadius: 8,
-							boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
-							fontSize: '0.85rem',
-							fontWeight: 500,
-							display: 'flex',
-							justifyContent: 'space-between',
-							alignItems: 'center',
-							gap: 12
-						}}
-					>
-						<span>{t.mensagem}</span>
-						<button
-							onClick={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))}
-							style={{
-								background: 'transparent',
-								border: 'none',
-								color: '#fff',
-								cursor: 'pointer',
-								fontSize: '1rem',
-								lineHeight: 1
-							}}
-						>
-							×
-						</button>
-					</div>
-				))}
-			</div>
+			<ToastStack toasts={toasts} onRemover={removerToast} />
 			<div
 				className="container-fluid py-4 px-3 px-md-4"
 				style={{ background: '#f8f9fa', minHeight: '100vh' }}

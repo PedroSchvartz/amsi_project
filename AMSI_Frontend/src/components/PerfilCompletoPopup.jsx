@@ -5,6 +5,8 @@ import {
 	associarCliforAoUsuario,
 	desvincularCliforDoUsuario
 } from '../services/api.js';
+import ModalConfirm from './ModalConfirm.jsx';
+import ToastStack, { useToast } from './ToastStack.jsx';
 
 const s = {
 	overlay: {
@@ -50,6 +52,7 @@ const s = {
 		borderRadius: 6
 	},
 	divider: { border: 'none', borderTop: '1px solid var(--border)', margin: '16px 0' },
+	label: { fontWeight: 600, color: 'var(--text)' },
 	muted: { fontSize: 13, color: 'var(--text-muted)' },
 	sectionTitle: { fontWeight: 600, fontSize: '0.85rem', color: 'var(--text)', marginBottom: 10 },
 	fieldRow: {
@@ -102,16 +105,6 @@ const s = {
 		cursor: 'pointer',
 		fontSize: '0.875rem'
 	},
-	btnDanger: {
-		padding: '8px 18px',
-		borderRadius: 8,
-		border: '1px solid #ef4444',
-		background: 'transparent',
-		color: '#ef4444',
-		fontWeight: 500,
-		cursor: 'pointer',
-		fontSize: '0.875rem'
-	},
 	sugestaoItem: {
 		padding: '8px 12px',
 		borderRadius: 8,
@@ -122,14 +115,6 @@ const s = {
 		fontSize: 13,
 		color: 'var(--text)',
 		transition: 'background 0.15s'
-	},
-	confirmBox: {
-		background: 'var(--bg)',
-		border: '1px solid var(--border)',
-		borderRadius: 10,
-		padding: '16px',
-		marginTop: 8,
-		marginBottom: 12
 	},
 	badge: (ok) => ({
 		display: 'inline-block',
@@ -161,20 +146,16 @@ function CampoRasurado({ valor, label }) {
 }
 
 function PerfilCompletoPopup({ usuario, onFechar }) {
+	const { toasts, mostrarToast, removerToast } = useToast();
 	const [clifor, setClifor] = useState(null);
 	const [carregando, setCarregando] = useState(true);
 	const [semClifor, setSemClifor] = useState(false);
 
+	// Associação
 	const [busca, setBusca] = useState('');
 	const [sugestoes, setSugestoes] = useState([]);
 	const [carregandoSugestao, setCarregandoSugestao] = useState(false);
-	const [erroAssoc, setErroAssoc] = useState('');
 	const [associando, setAssociando] = useState(false);
-	const [confirmandoAssoc, setConfirmandoAssoc] = useState(null);
-
-	const [confirmandoDesv, setConfirmandoDesv] = useState(false);
-	const [desvinculando, setDesvinculando] = useState(false);
-	const [erroDesv, setErroDesv] = useState('');
 
 	useEffect(() => {
 		carregarClifor();
@@ -213,42 +194,21 @@ function PerfilCompletoPopup({ usuario, onFechar }) {
 		carregarSugestoes(e.target.value);
 	};
 
-	const handleConfirmarAssociar = async () => {
-		if (!confirmandoAssoc) return;
+	const handleAssociar = async (id_clifor) => {
 		setAssociando(true);
-		setErroAssoc('');
 		try {
-			await associarCliforAoUsuario(usuario.id_usuario, confirmandoAssoc.id_clifor);
-			setConfirmandoAssoc(null);
+			await associarCliforAoUsuario(usuario.id_usuario, id_clifor);
 			await carregarClifor();
 		} catch (err) {
 			setErroAssoc(err.message || 'Erro ao associar');
-			setConfirmandoAssoc(null);
 		} finally {
 			setAssociando(false);
 		}
 	};
 
-	const handleConfirmarDesvincular = async () => {
-		setDesvinculando(true);
-		setErroDesv('');
-		try {
-			await desvincularCliforDoUsuario(usuario.id_usuario);
-			setConfirmandoDesv(false);
-			setClifor(null);
-			setSemClifor(true);
-			setBusca('');
-			carregarSugestoes('');
-		} catch (err) {
-			setErroDesv(err.message || 'Erro ao desvincular');
-			setConfirmandoDesv(false);
-		} finally {
-			setDesvinculando(false);
-		}
-	};
-
 	const formatData = (str) => {
 		if (!str) return '—';
+		// date string YYYY-MM-DD
 		if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
 			const [y, m, d] = str.split('-');
 			return `${d}/${m}/${y}`;
@@ -257,225 +217,183 @@ function PerfilCompletoPopup({ usuario, onFechar }) {
 	};
 
 	return (
-		<div style={s.overlay} onClick={onFechar}>
-			<div style={s.box} onClick={(e) => e.stopPropagation()}>
-				<div style={s.header}>
-					<h5 style={s.title}>Perfil Completo — {usuario.nome}</h5>
-					<button style={s.closeBtn} onClick={onFechar}>
-						✕
-					</button>
-				</div>
+		<>
+			<ToastStack toasts={toasts} onRemover={removerToast} />
+			<div style={s.overlay} onClick={onFechar}>
+				<div style={s.box} onClick={(e) => e.stopPropagation()}>
+					{/* Header */}
+					<div style={s.header}>
+						<h5 style={s.title}>Perfil Completo — {usuario.nome}</h5>
+						<button style={s.closeBtn} onClick={onFechar}>
+							✕
+						</button>
+					</div>
 
-				<div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 4 }}>
-					<div style={s.fieldRow}>
-						<span style={s.fieldLabel}>Email</span>
-						<span style={s.fieldValue}>{usuario.email}</span>
+					{/* Dados do usuário */}
+					<div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 4 }}>
+						<div style={s.fieldRow}>
+							<span style={s.fieldLabel}>Email</span>
+							<span style={s.fieldValue}>{usuario.email}</span>
+						</div>
+						<div style={s.fieldRow}>
+							<span style={s.fieldLabel}>Cargo</span>
+							<span style={s.fieldValue}>{usuario.cargo}</span>
+						</div>
+						<div style={s.fieldRow}>
+							<span style={s.fieldLabel}>Perfil</span>
+							<span style={s.fieldValue}>{usuario.perfil_de_acesso}</span>
+						</div>
+						<div style={s.fieldRow}>
+							<span style={s.fieldLabel}>Status</span>
+							<span style={s.badge(!usuario.bloqueado)}>
+								{usuario.bloqueado ? 'Bloqueado' : 'Ativo'}
+							</span>
+						</div>
 					</div>
-					<div style={s.fieldRow}>
-						<span style={s.fieldLabel}>Cargo</span>
-						<span style={s.fieldValue}>{usuario.cargo}</span>
-					</div>
-					<div style={s.fieldRow}>
-						<span style={s.fieldLabel}>Perfil</span>
-						<span style={s.fieldValue}>{usuario.perfil_de_acesso}</span>
-					</div>
-					<div style={s.fieldRow}>
-						<span style={s.fieldLabel}>Status</span>
-						<span style={s.badge(!usuario.bloqueado)}>
-							{usuario.bloqueado ? 'Bloqueado' : 'Ativo'}
-						</span>
-					</div>
-				</div>
 
-				<hr style={s.divider} />
+					<hr style={s.divider} />
 
-				{carregando ? (
-					<p style={{ ...s.muted, textAlign: 'center' }}>Carregando...</p>
-				) : semClifor ? (
-					<>
-						<p style={{ ...s.sectionTitle, color: 'var(--text-muted)' }}>
-							Nenhum Cliente/Fornecedor vinculado.
-						</p>
-						<p style={{ ...s.sectionTitle, marginBottom: 6 }}>Associar a um Cliente/Fornecedor?</p>
-						<input
-							style={s.input}
-							placeholder="Buscar por nome..."
-							value={busca}
-							onChange={handleBuscaChange}
-						/>
-						{carregandoSugestao ? (
-							<p style={s.muted}>Buscando...</p>
-						) : sugestoes.length === 0 ? (
-							<p style={s.muted}>Nenhum resultado.</p>
-						) : (
-							sugestoes.map((c) => (
-								<div
-									key={c.id_clifor}
-									style={s.sugestaoItem}
-									onClick={() => !associando && setConfirmandoAssoc(c)}
-								>
-									<strong>{c.nome}</strong>
-									<span style={{ ...s.muted, marginLeft: 8 }}>
-										{c.tipo_clifor === 'C'
+					{/* Clifor */}
+					{carregando ? (
+						<p style={{ ...s.muted, textAlign: 'center' }}>Carregando...</p>
+					) : semClifor ? (
+						<>
+							<p style={{ ...s.sectionTitle, color: 'var(--text-muted)' }}>
+								Nenhum Cliente/Fornecedor vinculado.
+							</p>
+							<p style={{ ...s.sectionTitle, marginBottom: 6 }}>
+								Associar a um Cliente/Fornecedor?
+							</p>
+							<input
+								style={s.input}
+								placeholder="Buscar por nome..."
+								value={busca}
+								onChange={handleBuscaChange}
+							/>
+							{carregandoSugestao ? (
+								<p style={s.muted}>Buscando...</p>
+							) : sugestoes.length === 0 ? (
+								<p style={s.muted}>Nenhum resultado.</p>
+							) : (
+								sugestoes.map((c) => (
+									<div
+										key={c.id_clifor}
+										style={s.sugestaoItem}
+										onClick={() => !associando && handleAssociar(c.id_clifor)}
+									>
+										<strong>{c.nome}</strong>
+										<span style={{ ...s.muted, marginLeft: 8 }}>
+											{c.tipo_clifor === 'C'
+												? 'Cliente'
+												: c.tipo_clifor === 'F'
+													? 'Fornecedor'
+													: 'Ambos'}
+										</span>
+									</div>
+								))
+							)}
+						</>
+					) : clifor ? (
+						<>
+							<p style={s.sectionTitle}>Cliente / Fornecedor Vinculado</p>
+							<div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 4 }}>
+								<div style={s.fieldRow}>
+									<span style={s.fieldLabel}>Nome</span>
+									<span style={s.fieldValue}>{clifor.nome}</span>
+								</div>
+								<div style={s.fieldRow}>
+									<span style={s.fieldLabel}>Tipo</span>
+									<span style={s.fieldValue}>
+										{clifor.tipo_clifor === 'C'
 											? 'Cliente'
-											: c.tipo_clifor === 'F'
+											: clifor.tipo_clifor === 'F'
 												? 'Fornecedor'
 												: 'Ambos'}
 									</span>
 								</div>
-							))
-						)}
-
-						{confirmandoAssoc && (
-							<div style={s.confirmBox}>
-								<p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--text)' }}>
-									Vincular <strong>{usuario.nome}</strong> a{' '}
-									<strong>{confirmandoAssoc.nome}</strong>?
-								</p>
-								<div style={{ display: 'flex', gap: 8 }}>
-									<button
-										style={s.btnPrimary}
-										onClick={handleConfirmarAssociar}
-										disabled={associando}
-									>
-										{associando ? 'Vinculando...' : 'Confirmar'}
-									</button>
-									<button style={s.btnSecondary} onClick={() => setConfirmandoAssoc(null)}>
-										Cancelar
-									</button>
+								<div style={s.fieldRow}>
+									<span style={s.fieldLabel}>Data de Nascimento</span>
+									<span style={s.fieldValue}>{formatData(clifor.datanascimento)}</span>
+								</div>
+								<CampoRasurado valor={clifor.cpf_cnpj} label="CPF / CNPJ" />
+								<CampoRasurado valor={clifor.rg_inscricaoestadual} label="RG / Insc. Estadual" />
+								<div style={s.fieldRow}>
+									<span style={s.fieldLabel}>Inadimplente</span>
+									<span style={s.badge(!clifor.inadimplente)}>
+										{clifor.inadimplente ? 'Sim' : 'Não'}
+									</span>
 								</div>
 							</div>
-						)}
 
-						{erroAssoc && (
-							<p style={{ color: '#dc2626', fontSize: 13, marginTop: 8 }}>{erroAssoc}</p>
-						)}
-					</>
-				) : clifor ? (
-					<>
-						<div
-							style={{
-								display: 'flex',
-								justifyContent: 'space-between',
-								alignItems: 'center',
-								marginBottom: 10
-							}}
-						>
-							<p style={{ ...s.sectionTitle, margin: 0 }}>Cliente / Fornecedor Vinculado</p>
-							<button style={s.btnDanger} onClick={() => setConfirmandoDesv(true)}>
-								Desvincular
-							</button>
-						</div>
-
-						{confirmandoDesv && (
-							<div style={s.confirmBox}>
-								<p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--text)' }}>
-									Desvincular <strong>{usuario.nome}</strong> de <strong>{clifor.nome}</strong>?
-								</p>
-								<div style={{ display: 'flex', gap: 8 }}>
-									<button
-										style={s.btnDanger}
-										onClick={handleConfirmarDesvincular}
-										disabled={desvinculando}
-									>
-										{desvinculando ? 'Desvinculando...' : 'Confirmar'}
-									</button>
-									<button style={s.btnSecondary} onClick={() => setConfirmandoDesv(false)}>
-										Cancelar
-									</button>
-								</div>
-								{erroDesv && (
-									<p style={{ color: '#dc2626', fontSize: 13, marginTop: 8 }}>{erroDesv}</p>
-								)}
-							</div>
-						)}
-
-						<div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 4 }}>
-							<div style={s.fieldRow}>
-								<span style={s.fieldLabel}>Nome</span>
-								<span style={s.fieldValue}>{clifor.nome}</span>
-							</div>
-							<div style={s.fieldRow}>
-								<span style={s.fieldLabel}>Tipo</span>
-								<span style={s.fieldValue}>
-									{clifor.tipo_clifor === 'C'
-										? 'Cliente'
-										: clifor.tipo_clifor === 'F'
-											? 'Fornecedor'
-											: 'Ambos'}
-								</span>
-							</div>
-							<div style={s.fieldRow}>
-								<span style={s.fieldLabel}>Data de Nascimento</span>
-								<span style={s.fieldValue}>{formatData(clifor.datanascimento)}</span>
-							</div>
-							<CampoRasurado valor={clifor.cpf_cnpj} label="CPF / CNPJ" />
-							<CampoRasurado valor={clifor.rg_inscricaoestadual} label="RG / Insc. Estadual" />
-							<div style={s.fieldRow}>
-								<span style={s.fieldLabel}>Inadimplente</span>
-								<span style={s.badge(!clifor.inadimplente)}>
-									{clifor.inadimplente ? 'Sim' : 'Não'}
-								</span>
-							</div>
-						</div>
-
-						{clifor.enderecos?.length > 0 && (
-							<>
-								<hr style={s.divider} />
-								<p style={s.sectionTitle}>Endereços</p>
-								{clifor.enderecos.map((e) => (
-									<div
-										key={e.id_endereco}
-										style={{
-											marginBottom: 12,
-											paddingBottom: 12,
-											borderBottom: '1px solid var(--border)'
-										}}
-									>
-										<CampoRasurado
-											valor={`${e.logradouro}, ${e.numero}${e.complemento ? ` — ${e.complemento}` : ''}`}
-											label="Logradouro"
-										/>
-										<CampoRasurado valor={e.bairro} label="Bairro" />
-										<div style={s.fieldRow}>
-											<span style={s.fieldLabel}>Cidade / UF</span>
-											<span style={s.fieldValue}>
-												{e.cidade} — {e.uf}
-											</span>
+							{/* Endereços */}
+							{clifor.enderecos?.length > 0 && (
+								<>
+									<hr style={s.divider} />
+									<p style={s.sectionTitle}>Endereços</p>
+									{clifor.enderecos.map((e) => (
+										<div
+											key={e.id_endereco}
+											style={{
+												marginBottom: 12,
+												paddingBottom: 12,
+												borderBottom: '1px solid var(--border)'
+											}}
+										>
+											<div style={s.fieldRow}>
+												<span style={s.fieldLabel}>Logradouro</span>
+												<CampoRasurado
+													valor={`${e.logradouro}, ${e.numero}${e.complemento ? ` — ${e.complemento}` : ''}`}
+													label=""
+												/>
+											</div>
+											<div style={s.fieldRow}>
+												<span style={s.fieldLabel}>Bairro</span>
+												<CampoRasurado valor={e.bairro} label="" />
+											</div>
+											<div style={s.fieldRow}>
+												<span style={s.fieldLabel}>Cidade / UF</span>
+												<span style={s.fieldValue}>
+													{e.cidade} — {e.uf}
+												</span>
+											</div>
+											<div style={s.fieldRow}>
+												<span style={s.fieldLabel}>CEP</span>
+												<CampoRasurado valor={e.cep} label="" />
+											</div>
+											{e.enderecoprimario && <span style={s.badge(true)}>Principal</span>}
 										</div>
-										<CampoRasurado valor={e.cep} label="CEP" />
-										{e.enderecoprimario && <span style={s.badge(true)}>Principal</span>}
-									</div>
-								))}
-							</>
-						)}
+									))}
+								</>
+							)}
 
-						{clifor.contatos?.length > 0 && (
-							<>
-								<hr style={s.divider} />
-								<p style={s.sectionTitle}>Contatos</p>
-								{clifor.contatos.map((c) => (
-									<div
-										key={c.id_contato}
-										style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}
-									>
-										<span style={s.fieldLabel}>{c.tipocontato}</span>
-										<CampoRasurado valor={c.info_do_contato} label="" />
-									</div>
-								))}
-							</>
-						)}
-					</>
-				) : null}
+							{/* Contatos */}
+							{clifor.contatos?.length > 0 && (
+								<>
+									<hr style={s.divider} />
+									<p style={s.sectionTitle}>Contatos</p>
+									{clifor.contatos.map((c) => (
+										<div
+											key={c.id_contato}
+											style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}
+										>
+											<span style={s.fieldLabel}>{c.tipocontato}</span>
+											<CampoRasurado valor={c.info_do_contato} label="" />
+										</div>
+									))}
+								</>
+							)}
+						</>
+					) : null}
 
-				<hr style={s.divider} />
-				<div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-					<button style={s.btnSecondary} onClick={onFechar}>
-						Fechar
-					</button>
+					<hr style={s.divider} />
+					<div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+						<button style={s.btnSecondary} onClick={onFechar}>
+							Fechar
+						</button>
+					</div>
 				</div>
 			</div>
-		</div>
+		</>
 	);
 }
 

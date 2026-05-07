@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import ToastStack, { useToast } from '../components/ToastStack.jsx';
 import { getLancamentos, getLancamentosResumo, getClifors, getTiposConta } from '../services/api';
 import {
 	BarChart,
@@ -31,7 +32,7 @@ function Dashboard() {
 	const [clifors, setClifors] = useState([]);
 	const [tiposConta, setTiposConta] = useState([]);
 	const [inadimplentes, setInadimplentes] = useState(0);
-	const [erro, setErro] = useState('');
+	const { toasts, mostrarToast, removerToast } = useToast();
 
 	useEffect(() => {
 		carregarAuxiliares();
@@ -52,7 +53,6 @@ function Dashboard() {
 	};
 
 	const buscar = async (f = filtros) => {
-		setErro('');
 		try {
 			const params = {};
 			if (f.natureza) params.natureza = f.natureza;
@@ -68,7 +68,7 @@ function Dashboard() {
 			setResumo(res);
 			setLancamentos(lancs);
 		} catch (err) {
-			setErro(err.message || 'Erro ao carregar dashboard');
+			mostrarToast(err.message || 'Erro ao carregar dashboard', 'erro');
 		}
 	};
 
@@ -250,7 +250,7 @@ function Dashboard() {
 				</div>
 			</div>
 
-			{erro && <div className="alert alert-danger">{erro}</div>}
+			<ToastStack toasts={toasts} onRemover={removerToast} />
 
 			{/* CARDS RESUMO */}
 			<div className="row g-3 mb-4">

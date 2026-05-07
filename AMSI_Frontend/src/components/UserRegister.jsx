@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import ToastStack, { useToast } from './ToastStack.jsx';
 import { Navigate } from 'react-router-dom';
 import '../styles/userregister.css';
 import { createUser } from '../services/api';
@@ -16,8 +17,7 @@ function UserRegister() {
 		perfil_de_acesso: ''
 	});
 
-	const [erro, setErro] = useState('');
-	const [sucesso, setSucesso] = useState('');
+	const { toasts, mostrarToast, removerToast } = useToast();
 
 	const handleChange = (e) => {
 		setForm({ ...form, [e.target.name]: e.target.value });
@@ -25,16 +25,12 @@ function UserRegister() {
 
 	const handleSubmit = async (e) => {
 		e.preventDefault();
-		setErro('');
-		setSucesso('');
-
 		try {
 			await createUser(form);
-			setSucesso('Usuário cadastrado com sucesso!');
+			mostrarToast('Usuário cadastrado com sucesso!');
 			setForm({ nome: '', email: '', cargo: '', perfil_de_acesso: '' });
 		} catch (err) {
-			console.log(err);
-			setErro(err.message || 'Erro ao cadastrar usuário');
+			mostrarToast(err.message || 'Erro ao cadastrar usuário', 'erro');
 		}
 	};
 
@@ -84,8 +80,7 @@ function UserRegister() {
 					</div>
 				</form>
 
-				{erro && <p className="erro">{erro}</p>}
-				{sucesso && <p className="sucesso">{sucesso}</p>}
+				<ToastStack toasts={toasts} onRemover={removerToast} />
 			</div>
 		</div>
 	);

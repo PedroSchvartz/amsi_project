@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import ToastStack, { useToast } from '../components/ToastStack.jsx';
 import { useNavigate } from 'react-router-dom';
 import '../styles/lancamento.css';
 import { createLancamento, getClifors, getTiposConta, createTipoConta } from '../services/api';
@@ -9,8 +10,7 @@ function LancamentoPage() {
 
 	const [clifors, setClifors] = useState([]);
 	const [tiposConta, setTiposConta] = useState([]);
-	const [erro, setErro] = useState('');
-	const [sucesso, setSucesso] = useState('');
+	const { toasts, mostrarToast, removerToast } = useToast();
 
 	const [form, setForm] = useState({
 		id_clifor_relacionado_fk: '',
@@ -27,7 +27,6 @@ function LancamentoPage() {
 		natureza_conta: '',
 		observacao: ''
 	});
-	const [erroPopup, setErroPopup] = useState('');
 
 	useEffect(() => {
 		carregarDados();
@@ -39,7 +38,7 @@ function LancamentoPage() {
 			setClifors(cs);
 			setTiposConta(ts);
 		} catch (err) {
-			setErro('Erro ao carregar dados: ' + err.message);
+			mostrarToast('Erro ao carregar dados: ' + err.message, 'erro');
 		}
 	};
 
@@ -50,12 +49,9 @@ function LancamentoPage() {
 
 	const handleSubmit = async (e) => {
 		e.preventDefault();
-		setErro('');
-		setSucesso('');
-
 		const usuario = getUserFromToken();
 		if (!usuario) {
-			setErro('Sessão expirada.');
+			mostrarToast('Sessão expirada.', 'erro');
 			return;
 		}
 
@@ -80,7 +76,7 @@ function LancamentoPage() {
 				estorno: form.estorno
 			});
 
-			setSucesso('Lançamento criado com sucesso!');
+			mostrarToast('Lançamento criado com sucesso!');
 			setForm({
 				id_clifor_relacionado_fk: '',
 				id_tipo_conta_fk: '',
@@ -90,7 +86,7 @@ function LancamentoPage() {
 				estorno: false
 			});
 		} catch (err) {
-			setErro(err.message || 'Erro ao criar lançamento');
+			mostrarToast(err.message || 'Erro ao criar lançamento', 'erro');
 		}
 	};
 
@@ -100,7 +96,6 @@ function LancamentoPage() {
 
 	const handleSalvarTipo = async (e) => {
 		e.preventDefault();
-		setErroPopup('');
 
 		try {
 			const criado = await createTipoConta(novoTipo);
@@ -110,7 +105,7 @@ function LancamentoPage() {
 			setPopup(false);
 			setNovoTipo({ descricao_conta: '', natureza_conta: '', observacao: '' });
 		} catch (err) {
-			setErroPopup(err.message || 'Erro ao criar tipo de conta');
+			mostrarToast(err.message || 'Erro ao criar tipo de conta', 'erro');
 		}
 	};
 
@@ -244,8 +239,7 @@ function LancamentoPage() {
 					</div>
 				</form>
 
-				{erro && <p style={{ color: 'red', marginTop: '10px' }}>{erro}</p>}
-				{sucesso && <p style={{ color: 'green', marginTop: '10px' }}>{sucesso}</p>}
+				<ToastStack toasts={toasts} onRemover={removerToast} />
 			</div>
 
 			{/* Popup novo tipo de conta */}
@@ -288,8 +282,6 @@ function LancamentoPage() {
 									rows="2"
 								/>
 							</div>
-
-							{erroPopup && <p style={{ color: 'red' }}>{erroPopup}</p>}
 
 							<div className="buttons">
 								<button type="button" className="cancel" onClick={() => setPopup(false)}>

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { getUsers, updateUser, resetarSenhaUsuario } from '../services/api.js';
 import PerfilCompletoPopup from './PerfilCompletoPopup.jsx';
+import ToastStack, { useToast } from './ToastStack.jsx';
+import ModalConfirm from './ModalConfirm.jsx';
 import '../styles/userList.css';
 
 function Toast({ mensagem, tipo, onClose }) {
@@ -257,20 +259,15 @@ function UserList() {
 
 			{/* MODAL CONFIRMAR RESET DE SENHA */}
 			{modalConfirmarReset && (
-				<div className="ul-overlay" onClick={() => setModalConfirmarReset(null)}>
-					<div className="ul-modal-confirm" onClick={(e) => e.stopPropagation()}>
-						<h5>Resetar senha</h5>
-						<p>O usuário será obrigado a criar uma nova senha no próximo login. Confirma?</p>
-						<div className="ul-confirm-buttons">
-							<button className="btn btn-secondary" onClick={() => setModalConfirmarReset(null)}>
-								Cancelar
-							</button>
-							<button className="btn btn-warning" onClick={handleConfirmarReset}>
-								Confirmar
-							</button>
-						</div>
-					</div>
-				</div>
+				<ModalConfirm
+					titulo="Resetar senha"
+					mensagem="O usuário será obrigado a criar uma nova senha no próximo login. Confirma?"
+					textoBotaoConfirmar="Confirmar"
+					textoBotaoCancelar="Cancelar"
+					onConfirmar={handleConfirmarReset}
+					onCancelar={() => setModalConfirmarReset(null)}
+					variante="perigo"
+				/>
 			)}
 		</div>
 	);
