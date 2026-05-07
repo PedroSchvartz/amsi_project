@@ -8,6 +8,7 @@ from models.login import Login
 from models.token_ativo import TokenAtivo
 from utils.auth_utils import verificar_senha, criar_token_acesso, hash_senha
 from utils.email_sender import enviar_email
+from utils.config import FRONTEND_URL
 from utils.config import JWT_EXPIRE_MINUTES
 from auth.dependencies import get_current_user, get_current_user_with_jti
 
@@ -133,14 +134,35 @@ def trocar_senha(
         enviar_email(
             current_user.email,
             "Senha alterada — AMSI Project",
-            f"""
-            <h2>Sua senha foi alterada</h2>
-            <p>Olá, <strong>{current_user.nome}</strong>!</p>
-            <p>Sua senha de acesso ao AMSI Project foi alterada com sucesso.</p>
-            <p>Sua nova senha é:</p>
-            <h3 style="background:#f4f4f4;padding:10px;letter-spacing:2px;">{dados.senha_nova}</h3>
-            <p><small>Se não foi você quem fez essa alteração, entre em contato com o administrador imediatamente.</small></p>
-            """
+f"""
+<!DOCTYPE html>
+<html lang="pt-BR">
+<body style="margin:0;padding:0;background:#EFE6DD;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px;">
+    <tr><td align="center">
+      <table width="600" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(27,67,50,0.10);">
+        <tr><td style="background:#1B4332;padding:32px 40px;text-align:center;">
+          <p style="margin:0;font-size:2rem;font-weight:700;color:#C9A84C;letter-spacing:0.1em;">AMSI</p>
+          <p style="margin:4px 0 0;font-size:0.72rem;color:rgba(255,255,255,0.6);letter-spacing:0.2em;text-transform:uppercase;">Associação de Moradores de Santa Isabel</p>
+        </td></tr>
+        <tr><td style="padding:36px 40px;">
+          <p style="font-size:1.3rem;font-weight:600;color:#1B4332;margin:0 0 8px;">Senha alterada com sucesso 🔒</p>
+          <p style="color:#6b7280;margin:0 0 20px;">Olá, <strong style="color:#2C2C2C;">{current_user.nome}</strong>! Sua senha foi alterada com sucesso.</p>
+          <div style="text-align:center;margin:0 0 20px;">
+            <a href="{FRONTEND_URL}" style="display:inline-block;background:#1B4332;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-weight:600;font-size:0.95rem;letter-spacing:0.03em;">Acessar o sistema →</a>
+          </div>
+          <p style="font-size:0.78rem;color:#6b7280;margin:0;">Ou acesse: <a href="{FRONTEND_URL}" style="color:#1B4332;">{FRONTEND_URL}</a></p>
+          <p style="font-size:0.78rem;color:#6b7280;margin:12px 0 0;">Se não foi você quem fez essa alteração, entre em contato com o administrador imediatamente.</p>
+        </td></tr>
+        <tr><td style="padding:16px 40px;text-align:center;border-top:1px solid #d1c9bf;">
+          <p style="margin:0;font-size:0.72rem;color:#a0a0a0;">© 2026 AMSI — Este é um email automático.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>
+"""
         )
     except Exception:
         pass

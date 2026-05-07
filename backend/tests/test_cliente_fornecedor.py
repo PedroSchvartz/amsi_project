@@ -479,3 +479,41 @@ def test_resumo_clifor_sem_lancamentos(client, headers_admin, clifor):
 def test_resumo_clifor_sem_token(client, clifor_base):
     r = client.get(f"/cliente_fornecedor/{clifor_base['id_clifor']}/resumo")
     assert r.status_code == 401
+
+
+# ─── Endpoint saldos e ordenação ──────────────────────────────────────────────
+
+def test_listar_clifors_ordenado_por_nome(client, headers_admin):
+    """Lista de clifors deve estar em ordem alfabética."""
+    r = client.get("/cliente_fornecedor/", headers=headers_admin)
+    assert r.status_code == 200
+    nomes = [c["nome"] for c in r.json()]
+    assert nomes == sorted(nomes, key=str.lower)
+
+
+def test_saldos_clifors_retorna_lista(client, headers_admin):
+    """Endpoint /saldos retorna lista com id_clifor e saldo_liquido."""
+    r = client.get("/cliente_fornecedor/saldos", headers=headers_admin)
+    assert r.status_code == 200
+    data = r.json()
+    assert isinstance(data, list)
+    if data:
+        assert "id_clifor" in data[0]
+        assert "saldo_liquido" in data[0]
+
+
+def test_saldos_clifors_sem_token(client):
+    """Endpoint /saldos requer autenticação."""
+    r = client.get("/cliente_fornecedor/saldos")
+    assert r.status_code == 401
+
+
+def test_saldos_clifor_calculo(client, headers_admin, clifor_base, usuario_base, tipo_lancamento_base):
+    """Saldo de clifor_base deve bater com total_a_receber - total_a_pagar do resumo."""
+    resumo = client.get(f"/cliente_fornecedor/{clifor_base['id_clifor']}/resumo", headers=headers_admin).json()
+    saldo_esperado = round(float(resumo["total_a_receber"]) - float(resumo["total_a_pagar"]), 2)
+
+    saldos = client.get("/cliente_fornecedor/saldos", headers=headers_admin).json()
+    saldo_encontrado = next((s for s in saldos if s["id_clifor"] == clifor_base["id_clifor"]), None)
+    assert saldo_encontrado is not None
+    assert round(float(saldo_encontrado["saldo_liquido"]), 2) == saldo_esperado

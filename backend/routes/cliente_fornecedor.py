@@ -11,7 +11,8 @@ from schemas.cliente_fornecedor import (
     ClienteFornecedorCreate,
     ClienteFornecedorUpdate,
     ClienteFornecedorResponse,
-    CliForResumo
+    CliForResumo,
+    CliForSaldoSimples
 )
 from auth.dependencies import get_current_user
 from typing import List, Optional
@@ -55,7 +56,31 @@ def listar_clifors(
             )
         )
 
-    return query.all()
+    return query.order_by(ClienteFornecedor.nome).all()
+
+
+@router.get("/saldos", response_model=List[CliForSaldoSimples])
+def saldos_clifors(db: Session = Depends(get_db), _=Depends(get_current_user)):
+    """Retorna saldo líquido (crédito - débito) de todos os clifors em uma única query."""
+    from sqlalchemy import case as sa_case
+    resultado = (
+        db.query(
+            ClienteFornecedor.id_clifor,
+            func.coalesce(
+                func.sum(
+                    sa_case(
+                        (Lancamento.natureza_lancamento == "Credito", Lancamento.valor),
+                        else_=-Lancamento.valor
+                    )
+                ),
+                0
+            ).label("saldo_liquido")
+        )
+        .outerjoin(Lancamento, (Lancamento.id_clifor_relacionado_fk == ClienteFornecedor.id_clifor) & (Lancamento.data_pagamento == None))
+        .group_by(ClienteFornecedor.id_clifor)
+        .all()
+    )
+    return [{"id_clifor": r.id_clifor, "saldo_liquido": r.saldo_liquido} for r in resultado]
 
 
 @router.get("/{id_clifor}/resumo", response_model=CliForResumo)

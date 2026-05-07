@@ -211,6 +211,14 @@ export const getClifor = async (id_clifor) => {
 	return handleResponse(response);
 };
 
+export const getSaldosClifors = async () => {
+	const response = await fetchComLoading(`${BASE_URL}/cliente_fornecedor/saldos`, {
+		method: 'GET',
+		headers: authHeaders()
+	});
+	return handleResponse(response);
+};
+
 export const getCliforResumo = async (id_clifor) => {
 	const response = await fetchComLoading(`${BASE_URL}/cliente_fornecedor/${id_clifor}/resumo`, {
 		method: 'GET',

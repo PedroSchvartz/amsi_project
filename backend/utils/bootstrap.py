@@ -11,6 +11,7 @@ from database import SessionLocal
 from models.usuario import Usuario, CargoEnum, AcessoEnum
 from utils.auth_utils import hash_senha
 from utils.email_sender import enviar_email
+from utils.config import FRONTEND_URL
 from utils.frequentes import configure_logging, colorir
 
 
@@ -69,11 +70,41 @@ def garantir_admins_iniciais():
                 db.flush()
 
                 corpo = f"""
-                <h2>Bem-vindo ao AMSI Project</h2>
-                <p>Sua conta de administrador foi criada. Use a senha abaixo para seu primeiro acesso:</p>
-                <h3 style="background:#f4f4f4;padding:10px;letter-spacing:2px;">{senha_provisoria}</h3>
-                <p>Você será solicitado a trocar a senha no primeiro login.</p>
-                """
+<!DOCTYPE html>
+<html lang="pt-BR">
+<body style="margin:0;padding:0;background:#EFE6DD;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px;">
+    <tr><td align="center">
+      <table width="600" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(27,67,50,0.10);">
+        <tr><td style="background:#1B4332;padding:32px 40px;text-align:center;">
+          <p style="margin:0;font-size:2rem;font-weight:700;color:#C9A84C;letter-spacing:0.1em;">AMSI</p>
+          <p style="margin:4px 0 0;font-size:0.72rem;color:rgba(255,255,255,0.6);letter-spacing:0.2em;text-transform:uppercase;">Associação de Moradores de Santa Isabel</p>
+        </td></tr>
+        <tr><td style="padding:36px 40px;">
+          <p style="font-size:1.3rem;font-weight:600;color:#1B4332;margin:0 0 8px;">Bem-vindo(a) ao AMSI! 👋</p>
+          <p style="color:#6b7280;margin:0 0 20px;">Sua conta de administrador foi criada com sucesso.</p>
+          <p style="color:#2C2C2C;margin:0 0 12px;">Sua senha provisória:</p>
+          <div style="background:#f4f1ec;border:1px solid #d1c9bf;border-radius:8px;padding:18px;text-align:center;margin:0 0 20px;">
+            <p style="margin:0 0 4px;font-size:0.7rem;color:#6b7280;letter-spacing:0.12em;text-transform:uppercase;">senha</p>
+            <p style="margin:0;font-size:1.5rem;font-weight:700;color:#1B4332;letter-spacing:0.2em;">{senha_provisoria}</p>
+          </div>
+          <div style="background:#fef9ec;border-left:4px solid #C9A84C;padding:12px 16px;border-radius:4px;margin:0 0 20px;">
+            <p style="margin:0;font-size:0.85rem;color:#92400e;">⚠️ Você será solicitado a trocar esta senha no primeiro login.</p>
+          </div>
+          <div style="text-align:center;margin:0 0 20px;">
+            <a href="{FRONTEND_URL}" style="display:inline-block;background:#1B4332;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-weight:600;font-size:0.95rem;letter-spacing:0.03em;">Acessar o sistema →</a>
+          </div>
+          <p style="font-size:0.78rem;color:#6b7280;margin:0;">Ou acesse: <a href="{FRONTEND_URL}" style="color:#1B4332;">{FRONTEND_URL}</a></p>
+        </td></tr>
+        <tr><td style="padding:16px 40px;text-align:center;border-top:1px solid #d1c9bf;">
+          <p style="margin:0;font-size:0.72rem;color:#a0a0a0;">© 2026 AMSI — Este é um email automático.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>
+"""
                 enviado = enviar_email(admin_data["email"], "Sua senha de acesso — AMSI Project", corpo)
                 if enviado:
                     print(colorir(cor="verde", texto=f"✔ Email enviado para {admin_data['email']}"))

@@ -1,0 +1,200 @@
+/* ── Container ── */
+.cl-container {
+	padding: 32px 24px;
+	max-width: 1100px;
+	margin: 0 auto;
+}
+
+.cl-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 24px;
+}
+
+.cl-title {
+	font-family: var(--font-display);
+	font-size: 1.4rem;
+	font-weight: 700;
+	color: var(--primary);
+	margin: 0;
+}
+
+.cl-btn-novo {
+	padding: 8px 20px;
+	border-radius: 8px;
+	border: none;
+	background: var(--primary);
+	color: #fff;
+	font-weight: 600;
+	font-size: 0.875rem;
+	cursor: pointer;
+	transition: opacity 0.15s;
+}
+
+.cl-btn-novo:hover {
+	opacity: 0.88;
+}
+
+/* ── Filtros ── */
+.cl-filtros {
+	display: flex;
+	gap: 12px;
+	flex-wrap: wrap;
+	margin-bottom: 20px;
+}
+
+.cl-busca {
+	flex: 1;
+	min-width: 200px;
+	padding: 8px 12px;
+	border-radius: 8px;
+	border: 1px solid var(--border);
+	background: var(--input-bg);
+	color: var(--text);
+	font-size: 0.875rem;
+	outline: none;
+}
+
+.cl-select {
+	padding: 8px 12px;
+	border-radius: 8px;
+	border: 1px solid var(--border);
+	background: var(--input-bg);
+	color: var(--text);
+	font-size: 0.875rem;
+	outline: none;
+	min-width: 140px;
+}
+
+/* ── Tabela ── */
+.cl-table-wrapper {
+	overflow-x: auto;
+	border-radius: 10px;
+	border: 1px solid var(--border);
+}
+
+.cl-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 0.875rem;
+}
+
+.cl-table thead th {
+	background: var(--bg-card);
+	color: var(--text-muted);
+	font-weight: 600;
+	font-size: 0.78rem;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	padding: 12px 16px;
+	text-align: left;
+	border-bottom: 1px solid var(--border);
+}
+
+.cl-table tbody tr {
+	border-bottom: 1px solid var(--border);
+	transition: background 0.12s;
+}
+
+.cl-table tbody tr:last-child {
+	border-bottom: none;
+}
+
+.cl-table tbody tr:hover {
+	background: var(--bg);
+}
+
+.cl-table td {
+	padding: 12px 16px;
+	color: var(--text);
+	vertical-align: middle;
+}
+
+.cl-doc {
+	font-family: monospace;
+	font-size: 0.82rem;
+	color: var(--text-muted);
+}
+
+/* ── Badges ── */
+.cl-badge {
+	display: inline-block;
+	padding: 2px 10px;
+	border-radius: 50px;
+	font-size: 11px;
+	font-weight: 600;
+}
+
+.cl-badge--ativo {
+	background: rgba(74, 222, 128, 0.15);
+	color: #16a34a;
+}
+.cl-badge--inativo {
+	background: rgba(248, 113, 113, 0.15);
+	color: #dc2626;
+}
+.cl-badge--ok {
+	background: rgba(74, 222, 128, 0.15);
+	color: #16a34a;
+}
+.cl-badge--inadimplente {
+	background: rgba(248, 113, 113, 0.15);
+	color: #dc2626;
+}
+
+/* ── Botão editar ── */
+.cl-btn-editar {
+	padding: 5px 14px;
+	border-radius: 6px;
+	border: 1px solid var(--border);
+	background: transparent;
+	color: var(--text);
+	font-size: 0.8rem;
+	cursor: pointer;
+	transition: all 0.15s;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.cl-btn-editar:hover {
+	background: var(--primary);
+	color: #fff;
+	border-color: var(--primary);
+}
+
+/* ── Estados ── */
+.cl-loading,
+.cl-vazio {
+	text-align: center;
+	color: var(--text-muted);
+	padding: 40px 0;
+	font-size: 0.9rem;
+}
+
+/* ── CPF rasurado ── */
+.cl-rasurado {
+	cursor: pointer;
+	user-select: none;
+	letter-spacing: 0.1em;
+	padding: 2px 6px;
+	border-radius: 4px;
+	background: var(--border);
+	transition: background 0.15s;
+}
+.cl-rasurado:hover {
+	background: var(--input-bg);
+}
+
+/* ── Saldo ── */
+.cl-saldo {
+	font-weight: 600;
+	font-size: 0.82rem;
+}
+.cl-saldo--positivo {
+	color: #16a34a;
+}
+.cl-saldo--negativo {
+	color: #dc2626;
+}

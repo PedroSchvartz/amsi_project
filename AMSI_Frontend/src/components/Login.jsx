@@ -9,7 +9,7 @@ function Login() {
 	const [email, setEmail] = useState('');
 	const [senha, setSenha] = useState('');
 	const [erro, setErro] = useState('');
-	const [tema, setTema] = useState(() => localStorage.getItem('amsi_tema') || 'verde');
+	const [tema, setTema] = useState('verde');
 
 	useEffect(() => {
 		if (tema === 'corporativo') {

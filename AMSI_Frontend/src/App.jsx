@@ -5,6 +5,8 @@ import HomePage from './components/Home';
 import UserRegisterPage from './pages/UserRegisterPage';
 import UserListPage from './pages/UserListPage';
 import ClientRegisterPage from './pages/ClientRegisterPage';
+import ClientListPage from './pages/ClientListPage';
+import ClientEditPage from './pages/ClientEditPage';
 import LancamentoPage from './pages/LancamentoPage';
 import ListaLancamentosPage from './pages/ListaLancamentosPage';
 import TrocarSenhaPage from './pages/TrocarSenhaPage';
@@ -15,7 +17,7 @@ import AdminRoute from './components/AdminRoute';
 import Layout from './components/Layout';
 import { LoadingProvider, useLoading } from './services/loadingContext';
 import { logout } from './services/auth';
-import Dashboard from './pages/Dashboard';
+import Dashboard from './pages/dashboard';
 
 function Spinner() {
 	const { carregando } = useLoading();
@@ -48,13 +50,14 @@ function Spinner() {
 }
 
 function MonitorSessao() {
-	const location = useLocation();
 	const [expirado, setExpirado] = useState(false);
 	const navigate = useNavigate();
+	const location = useLocation();
 	const intervalRef = useRef(null);
 
 	useEffect(() => {
 		const handleExpirado = () => {
+			if (location.pathname === '/') return;
 			setExpirado(true);
 			clearInterval(intervalRef.current);
 		};
@@ -65,6 +68,7 @@ function MonitorSessao() {
 			const token = localStorage.getItem('token');
 			const expiresAt = localStorage.getItem('expiresAt');
 			if (!token || !expiresAt) return;
+			if (location.pathname === '/') return;
 			if (Date.now() > parseInt(expiresAt)) {
 				logout();
 				setExpirado(true);
@@ -83,7 +87,6 @@ function MonitorSessao() {
 		navigate('/');
 	};
 
-	if (location.pathname === '/') return null;
 	if (!expirado) return null;
 
 	return (
@@ -102,7 +105,7 @@ function MonitorSessao() {
 			<div
 				onClick={(e) => e.stopPropagation()}
 				style={{
-					background: '#fff',
+					background: 'var(--bg-card)',
 					borderRadius: 12,
 					padding: '40px 50px',
 					textAlign: 'center',
@@ -110,14 +113,14 @@ function MonitorSessao() {
 					maxWidth: 360
 				}}
 			>
-				<h3 style={{ marginBottom: 10 }}>Sessão expirada</h3>
-				<p style={{ color: '#666', marginBottom: 24 }}>
+				<h3 style={{ marginBottom: 10, color: 'var(--text)' }}>Sessão expirada</h3>
+				<p style={{ color: 'var(--text-muted)', marginBottom: 24 }}>
 					Sua sessão foi encerrada por inatividade. Faça login novamente para continuar.
 				</p>
 				<button
 					onClick={handleFechar}
 					style={{
-						background: '#8da87c',
+						background: 'var(--primary)',
 						color: '#fff',
 						border: 'none',
 						borderRadius: 6,
@@ -182,7 +185,23 @@ function App() {
 							path="/cliente_fornecedor"
 							element={
 								<PrivateRoute adminOnly>
+									<ClientListPage />
+								</PrivateRoute>
+							}
+						/>
+						<Route
+							path="/cliente_fornecedor/novo"
+							element={
+								<PrivateRoute adminOnly>
 									<ClientRegisterPage />
+								</PrivateRoute>
+							}
+						/>
+						<Route
+							path="/cliente_fornecedor/:id/editar"
+							element={
+								<PrivateRoute adminOnly>
+									<ClientEditPage />
 								</PrivateRoute>
 							}
 						/>

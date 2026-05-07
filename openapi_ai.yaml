@@ -294,6 +294,176 @@
   respostas:
   - '200'
   - '422'
+- endpoint: GET /usuarios/{id_usuario}/clifor
+  descricao: Buscar Clifor Do Usuario
+  parametros:
+  - nome: id_usuario
+    local: path
+    obrigatorio: true
+    tipo: integer
+  request_body: null
+  response_200:
+    id_clifor:
+      tipo: integer
+      obrigatorio: true
+    id_usuario_fk:
+      tipo: desconhecido
+      obrigatorio: false
+    pessoafisica_juridica:
+      tipo: boolean
+      obrigatorio: true
+    cpf_cnpj:
+      tipo: string
+      obrigatorio: true
+    rg_inscricaoestadual:
+      tipo: string
+      obrigatorio: true
+    nome:
+      tipo: string
+      obrigatorio: true
+    datanascimento:
+      tipo: string
+      obrigatorio: true
+    tipo_clifor:
+      tipo: TipoCliForEnum
+      obrigatorio: true
+    ativo:
+      tipo: boolean
+      obrigatorio: true
+    inadimplente:
+      tipo: boolean
+      obrigatorio: true
+    enderecos:
+      tipo: array
+      obrigatorio: false
+      default: &id001 []
+    contatos:
+      tipo: array
+      obrigatorio: false
+      default: &id002 []
+  respostas:
+  - '200'
+  - '422'
+- endpoint: GET /usuarios/{id_usuario}/clifor/sugestao
+  descricao: Sugerir Clifor Para Usuario
+  parametros:
+  - nome: id_usuario
+    local: path
+    obrigatorio: true
+    tipo: integer
+  - nome: nome
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  request_body: null
+  response_200:
+    id_clifor:
+      tipo: integer
+      obrigatorio: true
+    id_usuario_fk:
+      tipo: desconhecido
+      obrigatorio: false
+    pessoafisica_juridica:
+      tipo: boolean
+      obrigatorio: true
+    cpf_cnpj:
+      tipo: string
+      obrigatorio: true
+    rg_inscricaoestadual:
+      tipo: string
+      obrigatorio: true
+    nome:
+      tipo: string
+      obrigatorio: true
+    datanascimento:
+      tipo: string
+      obrigatorio: true
+    tipo_clifor:
+      tipo: TipoCliForEnum
+      obrigatorio: true
+    ativo:
+      tipo: boolean
+      obrigatorio: true
+    inadimplente:
+      tipo: boolean
+      obrigatorio: true
+    enderecos:
+      tipo: array
+      obrigatorio: false
+      default: *id001
+    contatos:
+      tipo: array
+      obrigatorio: false
+      default: *id002
+  respostas:
+  - '200'
+  - '422'
+- endpoint: POST /usuarios/{id_usuario}/clifor/{id_clifor}/associar
+  descricao: Associar Clifor Ao Usuario
+  parametros:
+  - nome: id_usuario
+    local: path
+    obrigatorio: true
+    tipo: integer
+  - nome: id_clifor
+    local: path
+    obrigatorio: true
+    tipo: integer
+  request_body: null
+  response_200:
+    id_clifor:
+      tipo: integer
+      obrigatorio: true
+    id_usuario_fk:
+      tipo: desconhecido
+      obrigatorio: false
+    pessoafisica_juridica:
+      tipo: boolean
+      obrigatorio: true
+    cpf_cnpj:
+      tipo: string
+      obrigatorio: true
+    rg_inscricaoestadual:
+      tipo: string
+      obrigatorio: true
+    nome:
+      tipo: string
+      obrigatorio: true
+    datanascimento:
+      tipo: string
+      obrigatorio: true
+    tipo_clifor:
+      tipo: TipoCliForEnum
+      obrigatorio: true
+    ativo:
+      tipo: boolean
+      obrigatorio: true
+    inadimplente:
+      tipo: boolean
+      obrigatorio: true
+    enderecos:
+      tipo: array
+      obrigatorio: false
+      default: *id001
+    contatos:
+      tipo: array
+      obrigatorio: false
+      default: *id002
+  respostas:
+  - '200'
+  - '422'
+- endpoint: DELETE /usuarios/{id_usuario}/clifor/desvincular
+  descricao: Desvincular Clifor Do Usuario
+  parametros:
+  - nome: id_usuario
+    local: path
+    obrigatorio: true
+    tipo: integer
+  request_body: null
+  response_200: null
+  respostas:
+  - '200'
+  - '422'
 - endpoint: GET /login/
   descricao: Listar Logins
   parametros: []
@@ -656,11 +826,11 @@
     enderecos:
       tipo: array
       obrigatorio: false
-      default: &id001 []
+      default: *id001
     contatos:
       tipo: array
       obrigatorio: false
-      default: &id002 []
+      default: *id002
   respostas:
   - '200'
   - '422'

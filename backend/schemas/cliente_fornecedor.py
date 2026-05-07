@@ -105,3 +105,9 @@ class CliForResumo(BaseModel):
     total_vencido_a_pagar: Decimal
     quantidade_abertos: int
     quantidade_vencidos: int
+
+class CliForSaldoSimples(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id_clifor: int
+    saldo_liquido: Decimal

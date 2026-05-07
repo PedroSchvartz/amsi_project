@@ -2,101 +2,104 @@ import '../styles/home.css';
 import { Link } from 'react-router-dom';
 import { isAdmin } from '../services/auth';
 
+const cards = [
+	{
+		titulo: 'Dashboard',
+		descricao: 'Visualize dados e métricas do sistema.',
+		link: '/dashboard',
+		label: 'Ver Dashboard'
+	},
+	{
+		titulo: 'Lista de Lançamentos',
+		descricao: 'Pesquise e gerencie os lançamentos financeiros.',
+		link: '/tipo_lancamento',
+		label: 'Ver Lançamentos'
+	},
+	{
+		titulo: 'Novo Lançamento',
+		descricao: 'Cadastre um novo lançamento financeiro.',
+		link: '/lancamento',
+		label: 'Cadastrar Lançamento'
+	},
+	{
+		titulo: 'Clientes / Fornecedores',
+		descricao: 'Gerencie os clientes e fornecedores cadastrados.',
+		link: '/cliente_fornecedor',
+		label: 'Ver lista'
+	},
+	{
+		titulo: 'Usuários',
+		descricao: 'Gerencie os usuários do sistema.',
+		link: '/usuarios',
+		label: 'Ver lista'
+	},
+	{
+		titulo: 'Cadastrar Usuário',
+		descricao: 'Adicione novos usuários ao sistema.',
+		link: '/cadastro',
+		label: 'Cadastrar Usuário'
+	}
+];
+
 function Home() {
 	const admin = isAdmin();
 	const user = JSON.parse(localStorage.getItem('user') || '{}');
 	const nome = user?.nome || 'Usuário';
 
 	if (!admin) {
-		return <div className="bg-light min-vh-100" />;
+		return <div style={{ minHeight: '100vh', background: 'var(--bg)' }} />;
 	}
 
 	return (
-		<div className="bg-light min-vh-100">
-			<div className="container py-5">
-				<div className="home-welcome">
+		<div style={{ background: 'var(--bg)', minHeight: '100vh', padding: '48px 24px' }}>
+			<div style={{ maxWidth: 960, margin: '0 auto' }}>
+				<div className="home-welcome" style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
 					<h1>Olá, {nome} 👋</h1>
 					<p>Bem-vindo ao sistema de gestão financeira da AMSI.</p>
 				</div>
 
-				<div className="row g-4">
-					{/* DASHBOARD */}
-					<div className="col-md-4">
-						<div className="card shadow-sm border-0 rounded-4 h-100">
-							<div className="card-body">
-								<h5 className="card-title">Dashboard</h5>
-								<p className="card-text">Visualize dados e métricas do sistema.</p>
-								<Link to="/dashboard" className="btn btn-dark w-100">
-									Ver Dashboard
-								</Link>
-							</div>
+				<div
+					style={{
+						display: 'grid',
+						gridTemplateColumns: 'repeat(3, 1fr)',
+						gap: '1.5rem'
+					}}
+				>
+					{cards.map((card) => (
+						<div
+							key={card.link}
+							style={{
+								background: 'var(--bg-card)',
+								borderRadius: 12,
+								padding: '24px',
+								boxShadow: '0 2px 12px var(--shadow)',
+								display: 'flex',
+								flexDirection: 'column',
+								gap: '12px'
+							}}
+						>
+							<h5 style={{ margin: 0, fontWeight: 600, color: 'var(--text)' }}>{card.titulo}</h5>
+							<p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-muted)', flex: 1 }}>
+								{card.descricao}
+							</p>
+							<Link
+								to={card.link}
+								style={{
+									display: 'block',
+									textAlign: 'center',
+									padding: '9px 0',
+									borderRadius: 8,
+									background: 'var(--primary)',
+									color: '#fff',
+									fontWeight: 600,
+									fontSize: '0.875rem',
+									textDecoration: 'none'
+								}}
+							>
+								{card.label}
+							</Link>
 						</div>
-					</div>
-
-					{/* LISTA LANÇAMENTOS */}
-					<div className="col-md-4">
-						<div className="card shadow-sm border-0 rounded-4 h-100">
-							<div className="card-body">
-								<h5 className="card-title">Lista de Lançamentos</h5>
-								<p className="card-text">Pesquise e gerencie os lançamentos financeiros.</p>
-								<Link to="/tipo_lancamento" className="btn btn-dark w-100">
-									Ver Lançamentos
-								</Link>
-							</div>
-						</div>
-					</div>
-
-					{/* NOVO LANÇAMENTO */}
-					<div className="col-md-4">
-						<div className="card shadow-sm border-0 rounded-4 h-100">
-							<div className="card-body">
-								<h5 className="card-title">Novo Lançamento</h5>
-								<p className="card-text">Cadastre um novo lançamento financeiro.</p>
-								<Link to="/lancamento" className="btn btn-dark w-100">
-									Cadastrar Lançamento
-								</Link>
-							</div>
-						</div>
-					</div>
-
-					{/* CLIENTES */}
-					<div className="col-md-4">
-						<div className="card shadow-sm border-0 rounded-4 h-100">
-							<div className="card-body">
-								<h5 className="card-title">Clientes / Fornecedores</h5>
-								<p className="card-text">Gerencie os clientes e fornecedores cadastrados.</p>
-								<Link to="/cliente_fornecedor" className="btn btn-dark w-100">
-									Ver lista
-								</Link>
-							</div>
-						</div>
-					</div>
-
-					{/* USUÁRIOS */}
-					<div className="col-md-4">
-						<div className="card shadow-sm border-0 rounded-4 h-100">
-							<div className="card-body">
-								<h5 className="card-title">Usuários</h5>
-								<p className="card-text">Gerencie os usuários do sistema.</p>
-								<Link to="/usuarios" className="btn btn-dark w-100">
-									Ver lista
-								</Link>
-							</div>
-						</div>
-					</div>
-
-					{/* CADASTRAR USUÁRIO */}
-					<div className="col-md-4">
-						<div className="card shadow-sm border-0 rounded-4 h-100">
-							<div className="card-body">
-								<h5 className="card-title">Cadastrar Usuário</h5>
-								<p className="card-text">Adicione novos usuários ao sistema.</p>
-								<Link to="/cadastro" className="btn btn-dark w-100">
-									Cadastrar Usuário
-								</Link>
-							</div>
-						</div>
-					</div>
+					))}
 				</div>
 			</div>
 		</div>

@@ -452,6 +452,18 @@
   respostas:
   - '200'
   - '422'
+- endpoint: DELETE /usuarios/{id_usuario}/clifor/desvincular
+  descricao: Desvincular Clifor Do Usuario
+  parametros:
+  - nome: id_usuario
+    local: path
+    obrigatorio: true
+    tipo: integer
+  request_body: null
+  response_200: null
+  respostas:
+  - '200'
+  - '422'
 - endpoint: GET /login/
   descricao: Listar Logins
   parametros: []

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { createClifor, getUsers, getUser } from '../services/api';
 import ToastStack, { useToast } from './ToastStack.jsx';
+import ModalConfirm from './ModalConfirm.jsx';
 
 const FORM_INICIAL = {
 	tipo_clifor: '',
@@ -135,6 +136,7 @@ function ClientRegister() {
 	const [erro, setErro] = useState('');
 	const [sucesso, setSucesso] = useState('');
 	const [usuarioVinculado, setUsuarioVinculado] = useState(null);
+	const [confirmarDeletar, setConfirmarDeletar] = useState(null);
 	const { toasts, mostrarToast, mostrarToasts, removerToast } = useToast();
 
 	useEffect(() => {
@@ -167,23 +169,16 @@ function ClientRegister() {
 	};
 
 	const togglePrincipal = (list, setList, index) => {
-		const jaE = list[index].contato_principal;
-		setList(
-			list.map((item, i) => ({
-				...item,
-				contato_principal: jaE ? false : i === index
-			}))
-		);
+		// Se é o único item ou já é principal e único → não desmarca
+		if (list[index].contato_principal && list.length === 1) return;
+		// Desmarca todos e marca só o clicado
+		setList(list.map((item, i) => ({ ...item, contato_principal: i === index })));
 	};
 
 	const toggleEnderecoPrimario = (index) => {
-		const jaE = enderecos[index].endereco_primario;
-		setEnderecos(
-			enderecos.map((end, i) => ({
-				...end,
-				endereco_primario: jaE ? false : i === index
-			}))
-		);
+		// Se é o único endereço → não desmarca
+		if (enderecos[index].endereco_primario && enderecos.length === 1) return;
+		setEnderecos(enderecos.map((end, i) => ({ ...end, endereco_primario: i === index })));
 	};
 
 	const atualizarEndereco = (index, field, value) => {
@@ -220,6 +215,36 @@ function ClientRegister() {
 					})
 					.catch(() => {});
 			}
+		}
+	};
+
+	const handleDeletar = (tipo, index) => {
+		const lista = tipo === 'tel' ? telefones : tipo === 'email' ? emails : enderecos;
+		const valor = tipo === 'end' ? lista[index].logradouro : lista[index].info_do_contato;
+		if (valor && valor.trim()) {
+			setConfirmarDeletar({ tipo, index });
+		} else {
+			executarDeletar(tipo, index);
+		}
+	};
+
+	const executarDeletar = (tipo, index) => {
+		setConfirmarDeletar(null);
+		if (tipo === 'tel') {
+			const novos = telefones.filter((_, j) => j !== index);
+			if (novos.length > 0 && !novos.some((t) => t.contato_principal))
+				novos[0] = { ...novos[0], contato_principal: true };
+			setTelefones(novos);
+		} else if (tipo === 'email') {
+			const novos = emails.filter((_, j) => j !== index);
+			if (novos.length > 0 && !novos.some((e) => e.contato_principal))
+				novos[0] = { ...novos[0], contato_principal: true };
+			setEmails(novos);
+		} else {
+			const novos = enderecos.filter((_, j) => j !== index);
+			if (novos.length > 0 && !novos.some((e) => e.endereco_primario))
+				novos[0] = { ...novos[0], endereco_primario: true };
+			setEnderecos(novos);
 		}
 	};
 
@@ -331,6 +356,17 @@ function ClientRegister() {
 	return (
 		<>
 			<ToastStack toasts={toasts} onRemover={removerToast} />
+			{confirmarDeletar && (
+				<ModalConfirm
+					titulo="Remover item"
+					mensagem="Este campo tem conteúdo preenchido. Confirma a remoção?"
+					textoBotaoConfirmar="Remover"
+					textoBotaoCancelar="Cancelar"
+					onConfirmar={() => executarDeletar(confirmarDeletar.tipo, confirmarDeletar.index)}
+					onCancelar={() => setConfirmarDeletar(null)}
+					variante="perigo"
+				/>
+			)}
 			<div
 				className="container-fluid py-4 px-3 px-md-4"
 				style={{ background: '#f8f9fa', minHeight: '100vh' }}
@@ -552,7 +588,13 @@ function ClientRegister() {
 												<button
 													type="button"
 													className="btn btn-sm btn-outline-danger"
-													onClick={() => setEnderecos(enderecos.filter((_, j) => j !== i))}
+													onClick={() => {
+														const novos = enderecos.filter((_, j) => j !== i);
+														if (novos.length > 0 && !novos.some((e) => e.endereco_primario)) {
+															novos[0] = { ...novos[0], endereco_primario: true };
+														}
+														setEnderecos(novos);
+													}}
 												>
 													<i className="bi bi-trash"></i>
 												</button>
@@ -696,7 +738,7 @@ function ClientRegister() {
 											<div className="invalid-feedback d-block">{erros[`tel_${i}`]}</div>
 										)}
 									</div>
-									<div className="col-auto">
+									<div className="col-auto d-flex gap-1">
 										<button
 											type="button"
 											className={`btn btn-sm ${tel.contato_principal ? 'btn-warning' : 'btn-outline-secondary'}`}
@@ -706,18 +748,17 @@ function ClientRegister() {
 										>
 											<i className="bi bi-star-fill"></i>
 										</button>
-									</div>
-									{telefones.length > 1 && (
-										<div className="col-auto">
+										{telefones.length > 1 && (
 											<button
 												type="button"
 												className="btn btn-sm btn-outline-danger"
-												onClick={() => setTelefones(telefones.filter((_, j) => j !== i))}
+												style={{ width: 38 }}
+												onClick={() => handleDeletar('tel', i)}
 											>
 												<i className="bi bi-trash"></i>
 											</button>
-										</div>
-									)}
+										)}
+									</div>
 								</div>
 							))}
 							<button
@@ -755,7 +796,7 @@ function ClientRegister() {
 											<div className="invalid-feedback d-block">{erros[`email_${i}`]}</div>
 										)}
 									</div>
-									<div className="col-auto">
+									<div className="col-auto d-flex gap-1">
 										<button
 											type="button"
 											className={`btn btn-sm ${em.contato_principal ? 'btn-warning' : 'btn-outline-secondary'}`}
@@ -765,18 +806,17 @@ function ClientRegister() {
 										>
 											<i className="bi bi-star-fill"></i>
 										</button>
-									</div>
-									{emails.length > 1 && (
-										<div className="col-auto">
+										{emails.length > 1 && (
 											<button
 												type="button"
 												className="btn btn-sm btn-outline-danger"
-												onClick={() => setEmails(emails.filter((_, j) => j !== i))}
+												style={{ width: 38 }}
+												onClick={() => handleDeletar('email', i)}
 											>
 												<i className="bi bi-trash"></i>
 											</button>
-										</div>
-									)}
+										)}
+									</div>
 								</div>
 							))}
 							<button
