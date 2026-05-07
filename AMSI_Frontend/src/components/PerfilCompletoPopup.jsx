@@ -52,7 +52,6 @@ const s = {
 		borderRadius: 6
 	},
 	divider: { border: 'none', borderTop: '1px solid var(--border)', margin: '16px 0' },
-	label: { fontWeight: 600, color: 'var(--text)' },
 	muted: { fontSize: 13, color: 'var(--text-muted)' },
 	sectionTitle: { fontWeight: 600, fontSize: '0.85rem', color: 'var(--text)', marginBottom: 10 },
 	fieldRow: {
@@ -85,22 +84,22 @@ const s = {
 		outline: 'none',
 		boxSizing: 'border-box'
 	},
-	btnPrimary: {
-		padding: '8px 18px',
-		borderRadius: 8,
-		border: 'none',
-		background: 'var(--primary)',
-		color: '#fff',
-		fontWeight: 600,
-		cursor: 'pointer',
-		fontSize: '0.875rem'
-	},
 	btnSecondary: {
 		padding: '8px 18px',
 		borderRadius: 8,
 		border: '1px solid var(--border)',
 		background: 'transparent',
 		color: 'var(--text)',
+		fontWeight: 500,
+		cursor: 'pointer',
+		fontSize: '0.875rem'
+	},
+	btnDanger: {
+		padding: '8px 18px',
+		borderRadius: 8,
+		border: '1px solid #ef4444',
+		background: 'transparent',
+		color: '#ef4444',
 		fontWeight: 500,
 		cursor: 'pointer',
 		fontSize: '0.875rem'
@@ -151,11 +150,14 @@ function PerfilCompletoPopup({ usuario, onFechar }) {
 	const [carregando, setCarregando] = useState(true);
 	const [semClifor, setSemClifor] = useState(false);
 
-	// Associação
 	const [busca, setBusca] = useState('');
 	const [sugestoes, setSugestoes] = useState([]);
 	const [carregandoSugestao, setCarregandoSugestao] = useState(false);
 	const [associando, setAssociando] = useState(false);
+	const [confirmandoAssoc, setConfirmandoAssoc] = useState(null);
+
+	const [confirmandoDesv, setConfirmandoDesv] = useState(false);
+	const [desvinculando, setDesvinculando] = useState(false);
 
 	useEffect(() => {
 		carregarClifor();
@@ -194,21 +196,40 @@ function PerfilCompletoPopup({ usuario, onFechar }) {
 		carregarSugestoes(e.target.value);
 	};
 
-	const handleAssociar = async (id_clifor) => {
+	const handleConfirmarAssociar = async () => {
+		if (!confirmandoAssoc) return;
 		setAssociando(true);
 		try {
-			await associarCliforAoUsuario(usuario.id_usuario, id_clifor);
+			await associarCliforAoUsuario(usuario.id_usuario, confirmandoAssoc.id_clifor);
+			setConfirmandoAssoc(null);
 			await carregarClifor();
 		} catch (err) {
-			setErroAssoc(err.message || 'Erro ao associar');
+			mostrarToast(err.message || 'Erro ao associar', 'erro');
+			setConfirmandoAssoc(null);
 		} finally {
 			setAssociando(false);
 		}
 	};
 
+	const handleConfirmarDesvincular = async () => {
+		setDesvinculando(true);
+		try {
+			await desvincularCliforDoUsuario(usuario.id_usuario);
+			setConfirmandoDesv(false);
+			setClifor(null);
+			setSemClifor(true);
+			setBusca('');
+			carregarSugestoes('');
+		} catch (err) {
+			mostrarToast(err.message || 'Erro ao desvincular', 'erro');
+			setConfirmandoDesv(false);
+		} finally {
+			setDesvinculando(false);
+		}
+	};
+
 	const formatData = (str) => {
 		if (!str) return '—';
-		// date string YYYY-MM-DD
 		if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
 			const [y, m, d] = str.split('-');
 			return `${d}/${m}/${y}`;
@@ -219,9 +240,35 @@ function PerfilCompletoPopup({ usuario, onFechar }) {
 	return (
 		<>
 			<ToastStack toasts={toasts} onRemover={removerToast} />
+
+			{confirmandoAssoc && (
+				<ModalConfirm
+					titulo="Confirmar associação"
+					mensagem={`Vincular ${usuario.nome} a ${confirmandoAssoc.nome}?`}
+					textoBotaoConfirmar={associando ? 'Vinculando...' : 'Confirmar'}
+					textoBotaoCancelar="Cancelar"
+					onConfirmar={handleConfirmarAssociar}
+					onCancelar={() => setConfirmandoAssoc(null)}
+					variante="primario"
+					desabilitado={associando}
+				/>
+			)}
+
+			{confirmandoDesv && (
+				<ModalConfirm
+					titulo="Desvincular Cliente/Fornecedor"
+					mensagem={`Desvincular o usuário "${usuario.nome}" do Cliente/Fornecedor "${clifor?.nome}"?`}
+					textoBotaoConfirmar={desvinculando ? 'Desvinculando...' : 'Desvincular'}
+					textoBotaoCancelar="Cancelar"
+					onConfirmar={handleConfirmarDesvincular}
+					onCancelar={() => setConfirmandoDesv(false)}
+					variante="perigo"
+					desabilitado={desvinculando}
+				/>
+			)}
+
 			<div style={s.overlay} onClick={onFechar}>
 				<div style={s.box} onClick={(e) => e.stopPropagation()}>
-					{/* Header */}
 					<div style={s.header}>
 						<h5 style={s.title}>Perfil Completo — {usuario.nome}</h5>
 						<button style={s.closeBtn} onClick={onFechar}>
@@ -229,7 +276,6 @@ function PerfilCompletoPopup({ usuario, onFechar }) {
 						</button>
 					</div>
 
-					{/* Dados do usuário */}
 					<div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 4 }}>
 						<div style={s.fieldRow}>
 							<span style={s.fieldLabel}>Email</span>
@@ -253,7 +299,6 @@ function PerfilCompletoPopup({ usuario, onFechar }) {
 
 					<hr style={s.divider} />
 
-					{/* Clifor */}
 					{carregando ? (
 						<p style={{ ...s.muted, textAlign: 'center' }}>Carregando...</p>
 					) : semClifor ? (
@@ -279,7 +324,7 @@ function PerfilCompletoPopup({ usuario, onFechar }) {
 									<div
 										key={c.id_clifor}
 										style={s.sugestaoItem}
-										onClick={() => !associando && handleAssociar(c.id_clifor)}
+										onClick={() => !associando && setConfirmandoAssoc(c)}
 									>
 										<strong>{c.nome}</strong>
 										<span style={{ ...s.muted, marginLeft: 8 }}>
@@ -295,7 +340,20 @@ function PerfilCompletoPopup({ usuario, onFechar }) {
 						</>
 					) : clifor ? (
 						<>
-							<p style={s.sectionTitle}>Cliente / Fornecedor Vinculado</p>
+							<div
+								style={{
+									display: 'flex',
+									justifyContent: 'space-between',
+									alignItems: 'center',
+									marginBottom: 10
+								}}
+							>
+								<p style={{ ...s.sectionTitle, margin: 0 }}>Cliente / Fornecedor Vinculado</p>
+								<button style={s.btnDanger} onClick={() => setConfirmandoDesv(true)}>
+									Desvincular
+								</button>
+							</div>
+
 							<div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 4 }}>
 								<div style={s.fieldRow}>
 									<span style={s.fieldLabel}>Nome</span>
@@ -325,7 +383,6 @@ function PerfilCompletoPopup({ usuario, onFechar }) {
 								</div>
 							</div>
 
-							{/* Endereços */}
 							{clifor.enderecos?.length > 0 && (
 								<>
 									<hr style={s.divider} />
@@ -339,34 +396,24 @@ function PerfilCompletoPopup({ usuario, onFechar }) {
 												borderBottom: '1px solid var(--border)'
 											}}
 										>
-											<div style={s.fieldRow}>
-												<span style={s.fieldLabel}>Logradouro</span>
-												<CampoRasurado
-													valor={`${e.logradouro}, ${e.numero}${e.complemento ? ` — ${e.complemento}` : ''}`}
-													label=""
-												/>
-											</div>
-											<div style={s.fieldRow}>
-												<span style={s.fieldLabel}>Bairro</span>
-												<CampoRasurado valor={e.bairro} label="" />
-											</div>
+											<CampoRasurado
+												valor={`${e.logradouro}, ${e.numero}${e.complemento ? ` — ${e.complemento}` : ''}`}
+												label="Logradouro"
+											/>
+											<CampoRasurado valor={e.bairro} label="Bairro" />
 											<div style={s.fieldRow}>
 												<span style={s.fieldLabel}>Cidade / UF</span>
 												<span style={s.fieldValue}>
 													{e.cidade} — {e.uf}
 												</span>
 											</div>
-											<div style={s.fieldRow}>
-												<span style={s.fieldLabel}>CEP</span>
-												<CampoRasurado valor={e.cep} label="" />
-											</div>
+											<CampoRasurado valor={e.cep} label="CEP" />
 											{e.enderecoprimario && <span style={s.badge(true)}>Principal</span>}
 										</div>
 									))}
 								</>
 							)}
 
-							{/* Contatos */}
 							{clifor.contatos?.length > 0 && (
 								<>
 									<hr style={s.divider} />

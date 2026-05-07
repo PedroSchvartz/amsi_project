@@ -15,7 +15,7 @@ import AdminRoute from './components/AdminRoute';
 import Layout from './components/Layout';
 import { LoadingProvider, useLoading } from './services/loadingContext';
 import { logout } from './services/auth';
-import Dashboard from './pages/dashboard';
+import Dashboard from './pages/Dashboard';
 
 function Spinner() {
 	const { carregando } = useLoading();

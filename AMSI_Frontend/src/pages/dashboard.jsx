@@ -1,6 +1,11 @@
 import { useState, useEffect } from 'react';
 import ToastStack, { useToast } from '../components/ToastStack.jsx';
-import { getLancamentos, getLancamentosResumo, getClifors, getTiposConta } from '../services/api';
+import {
+	getLancamentos,
+	getLancamentosResumo,
+	getClifors,
+	getTiposConta
+} from '../services/api.js';
 import {
 	BarChart,
 	Bar,
