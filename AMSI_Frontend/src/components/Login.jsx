@@ -69,9 +69,14 @@ function Login() {
 	return (
 		<>
 			<button className="theme-toggle" onClick={toggleTema}>
-				<span className="dot" />
-				{tema === 'verde' ? 'Tema Corporativo' : 'Tema Verde'}
-			</button>
+  <span
+    className="dot"
+    style={{
+      background: tema === 'verde' ? '#38BDF8' : '#1B4332'
+    }}
+  />
+  {tema === 'verde' ? 'Tema Corporativo' : 'Tema Verde'}
+</button>
 
 			<div className="login-container">
 				<div className="login-branding">

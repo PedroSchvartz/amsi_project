@@ -1,4 +1,8 @@
-/* AMSI — Lista de Usuários */
+/* ============================================================
+   AMSI — Lista de Usuários
+   Temas: Verde Associação | Corporativo
+   ============================================================ */
+
 @import './theme.css';
 
 .user-list-container {
@@ -6,6 +10,7 @@
   margin: 0 auto;
 }
 
+/* ── Cabeçalho da seção ── */
 .user-list-container h2 {
   font-family: var(--font-display);
   font-size: 1.6rem;
@@ -16,7 +21,9 @@
   border-bottom: 1px solid var(--border);
 }
 
-/* ── Tabela ── */
+/* ════════════════════════════════════════
+   TABELA
+   ════════════════════════════════════════ */
 .user-list-container .table {
   width: 100%;
   border-collapse: collapse;
@@ -29,8 +36,10 @@
   border: 1px solid var(--border);
 }
 
+/* Cabeçalho da tabela */
 .user-list-container .table thead tr {
-  background: var(--accent) !important;
+  /* Removido !important — especificidade resolvida pelo escopo da classe pai */
+  background: var(--accent);
   border-bottom: 2px solid var(--border);
 }
 
@@ -52,10 +61,11 @@
   color: var(--text-muted);
 }
 
+/* Linhas do corpo */
 .user-list-container .table tbody tr {
   border-bottom: 1px solid var(--border);
-  transition: background 0.15s ease;
   background: var(--bg-card);
+  transition: background 0.15s ease;
 }
 
 .user-list-container .table tbody tr:hover {
@@ -72,8 +82,15 @@
   white-space: nowrap;
 }
 
-/* ── Botões de ação ── */
-.user-list-container .btn-outline-primary {
+/* ════════════════════════════════════════
+   BOTÕES DE AÇÃO
+   Nota: usamos classes próprias com prefixo
+   para não conflitar com Bootstrap nativo.
+   ════════════════════════════════════════ */
+.user-list-container .btn-acao-editar {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   border: 1px solid var(--primary);
   color: var(--primary);
   background: transparent;
@@ -81,15 +98,18 @@
   padding: 4px 10px;
   font-size: 0.8rem;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
-.user-list-container .btn-outline-primary:hover {
+.user-list-container .btn-acao-editar:hover {
   background: var(--primary);
   color: #ffffff;
 }
 
-.user-list-container .btn-outline-danger {
+.user-list-container .btn-acao-deletar {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   border: 1px solid #ef4444;
   color: #ef4444;
   background: transparent;
@@ -97,29 +117,24 @@
   padding: 4px 10px;
   font-size: 0.8rem;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
-.user-list-container .btn-outline-danger:hover {
+.user-list-container .btn-acao-deletar:hover {
   background: #ef4444;
   color: #ffffff;
 }
 
-.user-list-container .d-flex {
-  display: flex !important;
-}
-
-.user-list-container .gap-2 {
-  gap: 8px !important;
-}
-
-/* ── Responsivo ── */
+/* ════════════════════════════════════════
+   RESPONSIVIDADE
+   ════════════════════════════════════════ */
 @media (max-width: 768px) {
+  /* Scroll horizontal na tabela */
   .user-list-container {
     overflow-x: auto;
   }
 
   .user-list-container .table {
-    min-width: 700px;
+    min-width: 650px;
   }
 }

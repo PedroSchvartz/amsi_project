@@ -1,0 +1,285 @@
+/* ============================================================
+   AMSI — Formulários de Cliente/Fornecedor
+   Usado por: ClientRegister.jsx e ClientEdit.jsx
+   Temas: Verde Associação | Corporativo
+   ============================================================ */
+
+@import './theme.css';
+
+/* ════════════════════════════════════════
+   CONTAINER DO FORMULÁRIO
+   ════════════════════════════════════════ */
+.client-form-container {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+/* ── Cabeçalho da página ── */
+.client-form-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 28px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.client-form-header__back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.2s ease, color 0.2s ease;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.client-form-header__back:hover {
+  background: var(--input-bg);
+  color: var(--text);
+}
+
+.client-form-header__title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+
+/* ════════════════════════════════════════
+   CARD DE SEÇÃO (substitui .card.bg-white)
+   ════════════════════════════════════════ */
+.client-form-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 4px var(--shadow);
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+/* Cabeçalho da seção (ex: "Dados Pessoais", "Endereços") */
+.client-form-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--accent);
+  border-radius: 12px 12px 0 0;
+}
+
+[data-theme="corporativo"] .client-form-card__header {
+  background: var(--bg-card);
+}
+
+.client-form-card__header-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+
+/* Corpo da seção */
+.client-form-card__body {
+  padding: 24px;
+}
+
+/* ════════════════════════════════════════
+   LABELS E INPUTS PADRONIZADOS
+   Sobrepõe o Bootstrap quando necessário
+   ════════════════════════════════════════ */
+.client-form-container .form-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: 6px;
+}
+
+.client-form-container .form-control,
+.client-form-container .form-select {
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  font-size: 0.875rem;
+  padding: 9px 12px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.client-form-container .form-control:focus,
+.client-form-container .form-select:focus {
+  background: var(--bg-card);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(163, 177, 138, 0.15);
+  color: var(--text);
+}
+
+[data-theme="corporativo"] .client-form-container .form-control:focus,
+[data-theme="corporativo"] .client-form-container .form-select:focus {
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.12);
+}
+
+.client-form-container .form-control::placeholder {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+/* Checkbox ─ accent color do tema */
+.client-form-container .form-check-input:checked {
+  background-color: var(--primary);
+  border-color: var(--primary);
+}
+
+.client-form-container .form-check-label {
+  font-size: 0.875rem;
+  color: var(--text);
+}
+
+/* ── Texto de erro inline ── */
+.client-form-container .invalid-feedback {
+  font-size: 0.78rem;
+}
+
+/* ════════════════════════════════════════
+   SUBSEÇÃO DE ENDEREÇO / CONTATO
+   Caixas internas dentro do card
+   ════════════════════════════════════════ */
+.client-form-subsection {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin-bottom: 14px;
+  transition: background 0.3s ease;
+}
+
+.client-form-subsection--destaque {
+  /* Endereço/contato marcado como principal */
+  border-color: var(--primary);
+  background: var(--accent);
+}
+
+[data-theme="corporativo"] .client-form-subsection--destaque {
+  background: rgba(56, 189, 248, 0.06);
+  border-color: rgba(56, 189, 248, 0.4);
+}
+
+/* ── Badge "Principal" dentro das subseções ── */
+.client-form-badge-principal {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 50px;
+  background: var(--primary);
+  color: #ffffff;
+}
+
+/* ════════════════════════════════════════
+   BOTÕES DE ADICIONAR SEÇÃO
+   ════════════════════════════════════════ */
+.client-form-btn-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+  width: 100%;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+.client-form-btn-add:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--accent);
+}
+
+/* ════════════════════════════════════════
+   RODAPÉ DE AÇÕES (Cancelar / Salvar)
+   ════════════════════════════════════════ */
+.client-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 8px;
+  flex-wrap: wrap;
+}
+
+.client-form-btn-cancelar {
+  padding: 10px 24px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.client-form-btn-cancelar:hover {
+  background: var(--input-bg);
+  color: var(--text);
+}
+
+.client-form-btn-salvar {
+  padding: 10px 28px;
+  border-radius: 8px;
+  border: none;
+  background: var(--primary);
+  color: #ffffff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.client-form-btn-salvar:hover {
+  background: var(--btn-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px var(--shadow);
+}
+
+.client-form-btn-salvar:active {
+  transform: translateY(0);
+}
+
+/* ════════════════════════════════════════
+   RESPONSIVIDADE
+   ════════════════════════════════════════ */
+@media (max-width: 768px) {
+  .client-form-card__body {
+    padding: 16px;
+  }
+
+  .client-form-actions {
+    flex-direction: column-reverse; /* Salvar fica em cima no mobile */
+  }
+
+  .client-form-btn-cancelar,
+  .client-form-btn-salvar {
+    width: 100%;
+    text-align: center;
+    justify-content: center;
+  }
+}

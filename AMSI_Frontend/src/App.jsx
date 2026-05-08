@@ -17,9 +17,14 @@ import { LoadingProvider, useLoading } from './services/loadingContext';
 import { logout } from './services/auth';
 import Dashboard from './pages/dashboard';
 
+/* ════════════════════════════════════════
+   SPINNER GLOBAL DE CARREGAMENTO
+   Corrigido: cor hardcoded #8da87c → var(--primary)
+   ════════════════════════════════════════ */
 function Spinner() {
 	const { carregando } = useLoading();
 	if (!carregando) return null;
+
 	return (
 		<div
 			style={{
@@ -36,8 +41,9 @@ function Spinner() {
 				style={{
 					width: 48,
 					height: 48,
-					border: '5px solid #fff',
-					borderTop: '5px solid #8da87c',
+					border: '5px solid rgba(255,255,255,0.3)',
+					/* Usa variável CSS do tema em vez de cor hardcoded */
+					borderTop: '5px solid var(--primary)',
 					borderRadius: '50%',
 					animation: 'spin 0.7s linear infinite'
 				}}
@@ -47,6 +53,9 @@ function Spinner() {
 	);
 }
 
+/* ════════════════════════════════════════
+   MONITOR DE SESSÃO EXPIRADA
+   ════════════════════════════════════════ */
 function MonitorSessao() {
 	const [expirado, setExpirado] = useState(false);
 	const navigate = useNavigate();
@@ -67,21 +76,20 @@ function MonitorSessao() {
 			const expiresAt = localStorage.getItem('expiresAt');
 			if (!token || !expiresAt) return;
 			if (location.pathname === '/') return;
-			if (Date.now() > parseInt(expiresAt)) {
-				logout();
-				setExpirado(true);
-				clearInterval(intervalRef.current);
+			if (Date.now() > Number(expiresAt)) {
+				window.dispatchEvent(new Event('sessao-expirada'));
 			}
-		}, 10000);
+		}, 30000);
 
 		return () => {
-			clearInterval(intervalRef.current);
 			window.removeEventListener('sessao-expirada', handleExpirado);
+			clearInterval(intervalRef.current);
 		};
-	}, []);
+	}, [location.pathname]);
 
 	const handleFechar = () => {
 		setExpirado(false);
+		logout();
 		navigate('/');
 	};
 
@@ -89,7 +97,6 @@ function MonitorSessao() {
 
 	return (
 		<div
-			onClick={handleFechar}
 			style={{
 				position: 'fixed',
 				inset: 0,
@@ -101,19 +108,39 @@ function MonitorSessao() {
 			}}
 		>
 			<div
-				onClick={(e) => e.stopPropagation()}
 				style={{
 					background: 'var(--bg-card)',
-					borderRadius: 12,
-					padding: '40px 50px',
+					padding: '32px',
+					borderRadius: '12px',
+					maxWidth: '360px',
+					width: '90%',
 					textAlign: 'center',
-					boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
-					maxWidth: 360
+					border: '1px solid var(--border)',
+					boxShadow: '0 16px 40px rgba(0,0,0,0.2)'
 				}}
 			>
-				<h3 style={{ marginBottom: 10, color: 'var(--text)' }}>Sessão expirada</h3>
-				<p style={{ color: 'var(--text-muted)', marginBottom: 24 }}>
-					Sua sessão foi encerrada por inatividade. Faça login novamente para continuar.
+				<i
+					className="bi bi-shield-lock"
+					style={{ fontSize: '2rem', color: 'var(--primary)', marginBottom: '12px', display: 'block' }}
+				/>
+				<h3
+					style={{
+						fontFamily: 'var(--font-display)',
+						fontSize: '1.2rem',
+						color: 'var(--text)',
+						marginBottom: '8px'
+					}}
+				>
+					Sessão expirada
+				</h3>
+				<p
+					style={{
+						fontSize: '0.875rem',
+						color: 'var(--text-muted)',
+						marginBottom: '24px'
+					}}
+				>
+					Faça login novamente para continuar.
 				</p>
 				<button
 					onClick={handleFechar}
@@ -121,10 +148,12 @@ function MonitorSessao() {
 						background: 'var(--primary)',
 						color: '#fff',
 						border: 'none',
-						borderRadius: 6,
+						borderRadius: '6px',
 						padding: '10px 24px',
 						cursor: 'pointer',
-						fontWeight: 600
+						fontWeight: 600,
+						fontSize: '0.875rem',
+						transition: 'background 0.2s ease'
 					}}
 				>
 					Ir para o Login
@@ -134,6 +163,9 @@ function MonitorSessao() {
 	);
 }
 
+/* ════════════════════════════════════════
+   APP — Roteamento principal
+   ════════════════════════════════════════ */
 function App() {
 	return (
 		<LoadingProvider>
@@ -141,9 +173,10 @@ function App() {
 			<BrowserRouter>
 				<MonitorSessao />
 				<Routes>
+					{/* Página pública */}
 					<Route path="/" element={<LoginPage />} />
 
-					{/* primeiro acesso — sem navbar */}
+					{/* Primeiro acesso — sem navbar */}
 					<Route
 						path="/trocar-senha"
 						element={
@@ -153,7 +186,7 @@ function App() {
 						}
 					/>
 
-					{/* protegidas — com navbar via Layout */}
+					{/* Rotas protegidas — com Layout (topbar + menu + footer) */}
 					<Route
 						element={
 							<PrivateRoute>
@@ -162,6 +195,7 @@ function App() {
 						}
 					>
 						<Route path="/home" element={<HomePage />} />
+
 						<Route
 							path="/dashboard"
 							element={
@@ -179,6 +213,7 @@ function App() {
 								</PrivateRoute>
 							}
 						/>
+
 						<Route
 							path="/cliente_fornecedor"
 							element={
@@ -187,6 +222,7 @@ function App() {
 								</PrivateRoute>
 							}
 						/>
+
 						<Route
 							path="/cliente_fornecedor/novo"
 							element={
@@ -195,6 +231,7 @@ function App() {
 								</PrivateRoute>
 							}
 						/>
+
 						<Route
 							path="/cliente_fornecedor/:id/editar"
 							element={
@@ -203,6 +240,7 @@ function App() {
 								</PrivateRoute>
 							}
 						/>
+
 						<Route
 							path="/tipo_lancamento"
 							element={

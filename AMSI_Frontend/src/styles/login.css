@@ -1,12 +1,11 @@
 /* ============================================================
    AMSI — Login Page
-   Temas: Verde Associação | Profissional Corporativa
+   Temas: Verde Associação | Corporativo
    ============================================================ */
 
 @import './theme.css';
 
-
-/* ── Container principal ── */
+/* ── Container principal: grid 2 colunas ── */
 .login-container {
   min-height: 100vh;
   display: grid;
@@ -14,7 +13,9 @@
   transition: background 0.4s ease;
 }
 
-/* ── Lado esquerdo — visual/branding ── */
+/* ════════════════════════════════════════
+   LADO ESQUERDO — Branding visual
+   ════════════════════════════════════════ */
 .login-branding {
   background: var(--primary);
   display: flex;
@@ -27,6 +28,7 @@
   transition: background 0.4s ease;
 }
 
+/* Efeito radial decorativo */
 .login-branding::before {
   content: '';
   position: absolute;
@@ -35,6 +37,7 @@
   pointer-events: none;
 }
 
+/* Círculo decorativo no canto */
 .login-branding::after {
   content: '';
   position: absolute;
@@ -43,7 +46,7 @@
   width: 300px;
   height: 300px;
   border-radius: 50%;
-  border: 1px solid rgba(255,255,255,0.06);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .branding-logo {
@@ -54,16 +57,6 @@
   border-radius: 12px;
   padding: 12px;
   background: white;
-}
-
-[data-theme="corporativo"] .branding-title,
-[data-theme="corporativo"] .branding-subtitle,
-[data-theme="corporativo"] .branding-tagline {
-  color: #0c4a6e;
-}
-
-[data-theme="corporativo"] .branding-divider {
-  background: #0c4a6e;
 }
 
 .branding-title {
@@ -80,7 +73,7 @@
 .branding-subtitle {
   font-size: 0.8rem;
   font-weight: 300;
-  color: rgba(255,255,255,0.55);
+  color: rgba(255, 255, 255, 0.55);
   text-align: center;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -91,7 +84,7 @@
 .branding-divider {
   width: 40px;
   height: 1px;
-  background: var(--gold);
+  background: var(--gold, #c9a84c);
   margin: 28px auto;
   opacity: 0.6;
   animation: fadeInDown 0.8s 0.3s ease both;
@@ -99,14 +92,29 @@
 
 .branding-tagline {
   font-size: 0.85rem;
-  color: rgba(255,255,255,0.45);
+  color: rgba(255, 255, 255, 0.45);
   text-align: center;
   max-width: 260px;
   line-height: 1.6;
   animation: fadeInDown 0.8s 0.4s ease both;
 }
 
-/* ── Lado direito — formulário ── */
+/* ── Tema corporativo: branding tem fundo claro (#38BDF8)
+      então os textos precisam ser escuros ── */
+[data-theme="corporativo"] .branding-title,
+[data-theme="corporativo"] .branding-subtitle,
+[data-theme="corporativo"] .branding-tagline {
+  /* Usa variável ao invés de cor hardcoded */
+  color: var(--branding-text-corporativo, #0c4a6e);
+}
+
+[data-theme="corporativo"] .branding-divider {
+  background: var(--branding-text-corporativo, #0c4a6e);
+}
+
+/* ════════════════════════════════════════
+   LADO DIREITO — Formulário
+   ════════════════════════════════════════ */
 .login-form-side {
   display: flex;
   flex-direction: column;
@@ -139,7 +147,7 @@
   font-weight: 300;
 }
 
-/* ── Campos ── */
+/* ── Campos de input ── */
 .input-group {
   margin-bottom: 20px;
 }
@@ -182,7 +190,7 @@
   box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
 }
 
-/* ── Botão entrar ── */
+/* ── Botão de login ── */
 .login-box button[type="submit"] {
   width: 100%;
   padding: 14px;
@@ -197,8 +205,6 @@
   cursor: pointer;
   margin-top: 8px;
   transition: background 0.25s ease, transform 0.15s ease, box-shadow 0.25s ease;
-  position: relative;
-  overflow: hidden;
 }
 
 .login-box button[type="submit"]:hover {
@@ -224,10 +230,31 @@
   animation: shake 0.4s ease;
 }
 
-/* ── Responsivo ── */
+/* ════════════════════════════════════════
+   ANIMAÇÕES
+   ════════════════════════════════════════ */
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-6px); }
+  60%      { transform: translateX(6px); }
+}
+
+/* ════════════════════════════════════════
+   RESPONSIVIDADE — MOBILE
+   ════════════════════════════════════════ */
 @media (max-width: 768px) {
   .login-container {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr; /* empilha vertical no mobile */
   }
 
   .login-branding {
@@ -247,4 +274,39 @@
   .login-form-side {
     padding: 48px 32px;
   }
+}
+
+/* ── Botão de troca de tema (canto superior) ── */
+.theme-toggle {
+  position: fixed;
+  top: 14px;
+  right: 18px;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 50px;
+  padding: 6px 14px 6px 8px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  box-shadow: 0 2px 8px var(--shadow);
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.theme-toggle:hover {
+  background: var(--input-bg);
+  border-color: var(--primary);
+}
+
+.theme-toggle .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--primary);
+  flex-shrink: 0;
+  transition: background 0.3s ease;
 }

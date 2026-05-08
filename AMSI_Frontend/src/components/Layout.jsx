@@ -9,18 +9,14 @@ import PerfilPopup from './PerfilCompletoPopup.jsx';
 function Layout() {
 	const navigate = useNavigate();
 	const location = useLocation();
+
+	// Tema lido do localStorage; padrão verde
 	const [tema, setTema] = useState(() => localStorage.getItem('amsi_tema') || 'verde');
 	const [menuAberto, setMenuAberto] = useState(false);
-	const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 	const [perfilAberto, setPerfilAberto] = useState(false);
 	const admin = isAdmin();
 
-	useEffect(() => {
-		const handleResize = () => setIsMobile(window.innerWidth <= 768);
-		window.addEventListener('resize', handleResize);
-		return () => window.removeEventListener('resize', handleResize);
-	}, []);
-
+	// ── Aplica data-theme no <html> e persiste no localStorage ──
 	useEffect(() => {
 		if (tema === 'corporativo') {
 			document.documentElement.setAttribute('data-theme', 'corporativo');
@@ -30,10 +26,24 @@ function Layout() {
 		localStorage.setItem('amsi_tema', tema);
 	}, [tema]);
 
+	// Fecha o menu mobile ao redimensionar para desktop via CSS breakpoint
+	// (não precisamos mais de isMobile via JS para controle visual — usamos CSS)
+	useEffect(() => {
+		const handleResize = () => {
+			if (window.innerWidth > 768) {
+				setMenuAberto(false);
+			}
+		};
+		window.addEventListener('resize', handleResize);
+		return () => window.removeEventListener('resize', handleResize);
+	}, []);
+
 	const toggleTema = () => setTema((t) => (t === 'verde' ? 'corporativo' : 'verde'));
+
 	const toggleMenu = () => {
 		setMenuAberto((v) => !v);
-		window.scrollTo({ top: 0, behavior: 'smooth' });
+		// Scroll to top apenas quando abrir o menu
+		if (!menuAberto) window.scrollTo({ top: 0, behavior: 'smooth' });
 	};
 
 	const handleSair = async () => {
@@ -49,213 +59,149 @@ function Layout() {
 	const nomeUsuario = usuarioLocal?.nome || payload?.sub || 'Usuário';
 	const isActive = (path) => location.pathname === path;
 
+	// Somente admins visualizam o menu completo
 	const menuLinks = [
-		{ to: '/dashboard', label: 'Dashboard' },
-		{ to: '/usuarios', label: 'Usuários' },
-		{ to: '/tipo_lancamento', label: 'Lista de Lançamentos' },
-		{ to: '/cliente_fornecedor', label: 'Clientes / Fornecedores' }
+		{ to: '/dashboard', label: 'Dashboard', icon: 'bi-speedometer2' },
+		{ to: '/usuarios', label: 'Usuários', icon: 'bi-people' },
+		{ to: '/tipo_lancamento', label: 'Lançamentos', icon: 'bi-journal-text' },
+		{ to: '/cliente_fornecedor', label: 'Clientes / Fornecedores', icon: 'bi-person-lines-fill' }
 	].filter(() => admin);
-
-	const corPrimaria = 'var(--primary)';
 
 	return (
 		<div className="layout-wrapper">
+
+			{/* ── Popup de perfil ── */}
 			{perfilAberto && usuarioLocal && (
 				<PerfilPopup usuario={usuarioLocal} onFechar={() => setPerfilAberto(false)} />
 			)}
 
-			{/* ── Topbar ── */}
-			<header
-				style={{
-					background: corPrimaria,
-					padding: '10px 24px',
-					display: 'flex',
-					alignItems: 'center',
-					justifyContent: 'space-between',
-					boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
-					position: 'sticky',
-					top: 0,
-					zIndex: 100,
-					width: '100%',
-					boxSizing: 'border-box'
-				}}
-			>
-				<Link
-					to="/home"
-					style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none' }}
-				>
-					<img
-						src={logo}
-						alt="AMSI Logo"
-						style={{
-							width: '44px',
-							height: '44px',
-							objectFit: 'contain',
-							borderRadius: '8px',
-							background: 'white',
-							padding: '4px',
-							flexShrink: 0
-						}}
-					/>
-					<span
-						style={{
-							fontFamily: "'Cormorant Garamond', serif",
-							fontSize: isMobile ? '0.95rem' : '1.15rem',
-							fontWeight: 600,
-							color: '#ffffff',
-							letterSpacing: '0.02em'
-						}}
-					>
+			{/* ════════════════════════════════════════
+			    TOPBAR
+			    ════════════════════════════════════════ */}
+			<header className="layout-topbar">
+
+				{/* Logo + nome do sistema */}
+				<Link to="/home" className="layout-topbar__brand">
+					<img src={logo} alt="AMSI Logo" className="layout-topbar__logo" />
+					<span className="layout-topbar__title">
 						Associação de Moradores de Santa Isabel
 					</span>
 				</Link>
 
-				<div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-					{!isMobile && (
-						<>
-							<span
-								style={{
-									fontSize: '0.82rem',
-									color: 'rgba(255,255,255,0.85)',
-									whiteSpace: 'nowrap',
-									cursor: 'pointer',
-									textDecoration: 'underline dotted'
-								}}
-								onClick={() => setPerfilAberto(true)}
-								title="Ver perfil"
-							>
-								{nomeUsuario}
-							</span>
-							<span style={{ color: 'rgba(255,255,255,0.4)' }}>/</span>
-							<button
-								onClick={toggleTema}
-								style={{
-									background: 'transparent',
-									border: '1px solid rgba(255,255,255,0.35)',
-									borderRadius: '50px',
-									padding: '5px 14px',
-									cursor: 'pointer',
-									fontSize: '0.75rem',
-									fontWeight: 500,
-									color: 'rgba(255,255,255,0.85)',
-									whiteSpace: 'nowrap'
-								}}
-							>
-								{tema === 'verde' ? 'Corporativo' : 'Verde'}
-							</button>
-						</>
-					)}
-					{isMobile && (
-						<button
-							onClick={toggleMenu}
-							style={{
-								background: 'transparent',
-								border: 'none',
-								cursor: 'pointer',
-								display: 'flex',
-								flexDirection: 'column',
-								gap: '5px',
-								padding: '4px'
-							}}
-						>
-							<span
-								style={{
-									display: 'block',
-									width: '22px',
-									height: '2px',
-									background: '#fff',
-									borderRadius: '2px'
-								}}
-							/>
-							<span
-								style={{
-									display: 'block',
-									width: '22px',
-									height: '2px',
-									background: '#fff',
-									borderRadius: '2px'
-								}}
-							/>
-							<span
-								style={{
-									display: 'block',
-									width: '22px',
-									height: '2px',
-									background: '#fff',
-									borderRadius: '2px'
-								}}
-							/>
-						</button>
-					)}
+				{/* Ações do lado direito — apenas desktop */}
+				<div className="layout-topbar__actions layout-topbar__actions--desktop">
+					<button
+						className="layout-topbar__user-btn"
+						onClick={() => setPerfilAberto(true)}
+						title="Ver perfil"
+					>
+						<i className="bi bi-person-circle" />
+						<span>{nomeUsuario}</span>
+					</button>
+
+					<span className="layout-topbar__divider" aria-hidden="true" />
+
+					{/* Botão de troca de tema com ícone */}
+					<button className="layout-topbar__theme-btn" onClick={toggleTema} title="Alternar tema">
+						<i className={tema === 'verde' ? 'bi bi-moon-stars' : 'bi bi-sun'} />
+						<span>{tema === 'verde' ? 'Corporativo' : 'Verde'}</span>
+					</button>
 				</div>
+
+				{/* Botão hamburger — apenas mobile (Bootstrap Icons) */}
+				<button
+					className="layout-topbar__hamburger"
+					onClick={toggleMenu}
+					aria-label={menuAberto ? 'Fechar menu' : 'Abrir menu'}
+					aria-expanded={menuAberto}
+				>
+					{/* Alterna entre ícone de menu e X */}
+					<i className={menuAberto ? 'bi bi-x-lg' : 'bi bi-list'} />
+				</button>
 			</header>
 
-			{/* ── Menu mobile dropdown ── */}
-			{isMobile && (
-				<div className={`menu-mobile ${menuAberto ? 'aberto' : ''}`}>
+			{/* ════════════════════════════════════════
+			    MENU MOBILE (dropdown)
+			    ════════════════════════════════════════ */}
+			<div className={`layout-menu-mobile ${menuAberto ? 'layout-menu-mobile--aberto' : ''}`}>
+
+				{/* Links de navegação */}
+				{menuLinks.map((link) => (
+					<Link
+						key={link.to}
+						to={link.to}
+						className={`layout-menu-mobile__item ${isActive(link.to) ? 'layout-menu-mobile__item--active' : ''}`}
+						onClick={() => setMenuAberto(false)}
+					>
+						<i className={`bi ${link.icon}`} />
+						{link.label}
+					</Link>
+				))}
+
+				{/* Separador */}
+				<div className="layout-menu-mobile__separator" />
+
+				{/* Perfil do usuário */}
+				<button
+					className="layout-menu-mobile__item"
+					onClick={() => { setMenuAberto(false); setPerfilAberto(true); }}
+				>
+					<i className="bi bi-person-circle" />
+					{nomeUsuario}
+				</button>
+
+				{/* Troca de tema — disponível também no mobile */}
+				<button className="layout-menu-mobile__item" onClick={toggleTema}>
+					<i className={tema === 'verde' ? 'bi bi-moon-stars' : 'bi bi-sun'} />
+					Tema: {tema === 'verde' ? 'Corporativo' : 'Verde'}
+				</button>
+
+				{/* Sair */}
+				<button className="layout-menu-mobile__item layout-menu-mobile__item--sair" onClick={handleSair}>
+					<i className="bi bi-box-arrow-right" />
+					Sair
+				</button>
+			</div>
+
+			{/* ════════════════════════════════════════
+			    MENU HORIZONTAL — DESKTOP
+			    ════════════════════════════════════════ */}
+			<nav className="layout-menu-desktop">
+				<div className="layout-menu-desktop__links">
 					{menuLinks.map((link) => (
 						<Link
 							key={link.to}
 							to={link.to}
-							className={`menu-mobile-item ${isActive(link.to) ? 'active' : ''}`}
-							onClick={() => setMenuAberto(false)}
+							className={`layout-menu-desktop__item ${isActive(link.to) ? 'layout-menu-desktop__item--active' : ''}`}
 						>
+							<i className={`bi ${link.icon}`} />
 							{link.label}
 						</Link>
 					))}
-					<button
-						className="menu-mobile-item"
-						onClick={() => {
-							setMenuAberto(false);
-							setPerfilAberto(true);
-						}}
-					>
-						👤 {nomeUsuario}
-					</button>
-					<button className="menu-mobile-item menu-mobile-sair" onClick={handleSair}>
-						🚪 Sair
-					</button>
 				</div>
-			)}
 
-			{/* ── Menu horizontal desktop ── */}
-			{!isMobile && (
-				<nav className="menu-horizontal">
-					<div className="menu-links">
-						{menuLinks.map((link) => (
-							<Link
-								key={link.to}
-								to={link.to}
-								className={`menu-item ${isActive(link.to) ? 'active' : ''}`}
-							>
-								{link.label}
-							</Link>
-						))}
-					</div>
-					<button className="menu-sair" onClick={handleSair}>
-						Sair
-					</button>
-				</nav>
-			)}
+				<button className="layout-menu-desktop__sair" onClick={handleSair}>
+					<i className="bi bi-box-arrow-right" />
+					Sair
+				</button>
+			</nav>
 
-			{/* ── Conteúdo ── */}
+			{/* ════════════════════════════════════════
+			    CONTEÚDO PRINCIPAL
+			    ════════════════════════════════════════ */}
 			<main className="layout-content">
 				<Outlet />
 			</main>
 
-			{/* ── Rodapé ── */}
-			<footer
-				style={{
-					background: corPrimaria,
-					color: 'rgba(255,255,255,0.55)',
-					padding: '14px 24px',
-					display: 'flex',
-					justifyContent: 'space-between',
-					alignItems: 'center',
-					fontSize: isMobile ? '0.65rem' : '0.75rem'
-				}}
-			>
-				<span>{isMobile ? 'AMSI' : 'AMSI — Associação de Moradores de Santa Isabel'}</span>
+			{/* ════════════════════════════════════════
+			    RODAPÉ
+			    ════════════════════════════════════════ */}
+			<footer className="layout-footer">
+				<span className="layout-footer__nome">
+					{/* Texto abreviado no mobile via CSS */}
+					<span className="d-none d-sm-inline">AMSI — Associação de Moradores de Santa Isabel</span>
+					<span className="d-inline d-sm-none">AMSI</span>
+				</span>
 				<span>© {new Date().getFullYear()}</span>
 			</footer>
 		</div>
