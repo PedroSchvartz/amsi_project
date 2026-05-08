@@ -1708,6 +1708,13 @@
     estorno:
       tipo: boolean
       obrigatorio: true
+    tem_comprovante:
+      tipo: boolean
+      obrigatorio: false
+      default: false
+    comprovante_nome:
+      tipo: desconhecido
+      obrigatorio: false
   respostas:
   - '200'
   - '422'
@@ -1782,6 +1789,13 @@
     estorno:
       tipo: boolean
       obrigatorio: true
+    tem_comprovante:
+      tipo: boolean
+      obrigatorio: false
+      default: false
+    comprovante_nome:
+      tipo: desconhecido
+      obrigatorio: false
   respostas:
   - '200'
   - '422'
@@ -1839,6 +1853,13 @@
     estorno:
       tipo: boolean
       obrigatorio: true
+    tem_comprovante:
+      tipo: boolean
+      obrigatorio: false
+      default: false
+    comprovante_nome:
+      tipo: desconhecido
+      obrigatorio: false
   respostas:
   - '200'
   - '422'
@@ -1917,6 +1938,13 @@
     estorno:
       tipo: boolean
       obrigatorio: true
+    tem_comprovante:
+      tipo: boolean
+      obrigatorio: false
+      default: false
+    comprovante_nome:
+      tipo: desconhecido
+      obrigatorio: false
   respostas:
   - '200'
   - '422'
@@ -1986,6 +2014,13 @@
     estorno:
       tipo: boolean
       obrigatorio: true
+    tem_comprovante:
+      tipo: boolean
+      obrigatorio: false
+      default: false
+    comprovante_nome:
+      tipo: desconhecido
+      obrigatorio: false
   respostas:
   - '200'
   - '422'
@@ -2043,6 +2078,49 @@
     estorno:
       tipo: boolean
       obrigatorio: true
+    tem_comprovante:
+      tipo: boolean
+      obrigatorio: false
+      default: false
+    comprovante_nome:
+      tipo: desconhecido
+      obrigatorio: false
+  respostas:
+  - '200'
+  - '422'
+- endpoint: POST /lancamento/{id_lancamento}/comprovante
+  descricao: Anexar Comprovante
+  parametros:
+  - nome: id_lancamento
+    local: path
+    obrigatorio: true
+    tipo: integer
+  request_body: null
+  response_200: null
+  respostas:
+  - '200'
+  - '422'
+- endpoint: GET /lancamento/{id_lancamento}/comprovante
+  descricao: Baixar Comprovante
+  parametros:
+  - nome: id_lancamento
+    local: path
+    obrigatorio: true
+    tipo: integer
+  request_body: null
+  response_200: null
+  respostas:
+  - '200'
+  - '422'
+- endpoint: DELETE /lancamento/{id_lancamento}/comprovante
+  descricao: Remover Comprovante
+  parametros:
+  - nome: id_lancamento
+    local: path
+    obrigatorio: true
+    tipo: integer
+  request_body: null
+  response_200: null
   respostas:
   - '200'
   - '422'

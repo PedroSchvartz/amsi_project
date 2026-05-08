@@ -127,6 +127,7 @@ def listar_lancamentos(
     natureza: Optional[str] = None,
     apenas_abertos: Optional[bool] = None,
     apenas_vencidos: Optional[bool] = None,
+    apenas_quitados: Optional[bool] = None,
     data_vencimento_de: Optional[date] = None,
     data_vencimento_ate: Optional[date] = None,
     data_lancamento_de: Optional[date] = None,
@@ -155,6 +156,8 @@ def listar_lancamentos(
             Lancamento.data_pagamento == None,
             Lancamento.data_vencimento < date.today()
         )
+    if apenas_quitados:
+        query = query.filter(Lancamento.data_pagamento != None)
     if data_vencimento_de is not None:
         query = query.filter(Lancamento.data_vencimento >= data_vencimento_de)
     if data_vencimento_ate is not None:

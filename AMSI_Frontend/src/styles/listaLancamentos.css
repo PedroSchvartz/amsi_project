@@ -7,226 +7,234 @@
 
 /* ── Container principal ── */
 .ll-container {
-  padding: 0; /* padding controlado pelo layout-content no Layout.jsx */
-  max-width: 1200px;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
+	padding: 0; /* padding controlado pelo layout-content no Layout.jsx */
+	max-width: 1200px;
+	margin: 0 auto;
+	display: flex;
+	flex-direction: column;
+	gap: 24px;
 }
 
 /* ════════════════════════════════════════
    CARD GENÉRICO
    ════════════════════════════════════════ */
 .ll-card {
-  background: var(--bg-card);
-  border-radius: 12px;
-  padding: 24px;
-  border: 1px solid var(--border);
-  /* Sombra adaptada ao tema */
-  box-shadow: 0 2px 12px var(--shadow);
-  transition: background 0.3s ease, border-color 0.3s ease;
+	background: var(--bg-card);
+	border-radius: 12px;
+	padding: 24px;
+	border: 1px solid var(--border);
+	/* Sombra adaptada ao tema */
+	box-shadow: 0 2px 12px var(--shadow);
+	transition:
+		background 0.3s ease,
+		border-color 0.3s ease;
 }
 
 .ll-card h2 {
-  font-family: var(--font-display);
-  font-size: 1.4rem;
-  font-weight: 600;
-  color: var(--text);
-  margin: 0;
+	font-family: var(--font-display);
+	font-size: 1.4rem;
+	font-weight: 600;
+	color: var(--text);
+	margin: 0;
 }
 
 .ll-card h4 {
-  font-size: 0.7rem;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-bottom: 16px;
-  font-weight: 600;
+	font-size: 0.7rem;
+	color: var(--text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	margin-bottom: 16px;
+	font-weight: 600;
 }
 
 /* ════════════════════════════════════════
    FILTROS
    ════════════════════════════════════════ */
 .ll-row {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 12px;
-  flex-wrap: wrap;
+	display: flex;
+	gap: 12px;
+	margin-bottom: 12px;
+	flex-wrap: wrap;
 }
 
 .ll-field {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-width: 140px;
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-width: 140px;
 }
 
 .ll-field label {
-  font-size: 0.72rem;
-  font-weight: 500;
-  color: var(--text-muted);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  margin-bottom: 6px;
+	font-size: 0.72rem;
+	font-weight: 500;
+	color: var(--text-muted);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	margin-bottom: 6px;
 }
 
 .ll-field input,
 .ll-field select,
 .ll-field textarea {
-  padding: 8px 10px;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  background: var(--input-bg);
-  color: var(--text);
-  font-size: 0.87rem;
-  font-family: var(--font-body);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+	padding: 8px 10px;
+	border-radius: 6px;
+	border: 1px solid var(--border);
+	background: var(--input-bg);
+	color: var(--text);
+	font-size: 0.87rem;
+	font-family: var(--font-body);
+	transition:
+		border-color 0.2s ease,
+		box-shadow 0.2s ease;
 }
 
 .ll-field input:focus,
 .ll-field select:focus,
 .ll-field textarea:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(163, 177, 138, 0.15);
+	outline: none;
+	border-color: var(--primary);
+	box-shadow: 0 0 0 3px rgba(163, 177, 138, 0.15);
 }
 
-[data-theme="corporativo"] .ll-field input:focus,
-[data-theme="corporativo"] .ll-field select:focus,
-[data-theme="corporativo"] .ll-field textarea:focus {
-  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.12);
+[data-theme='corporativo'] .ll-field input:focus,
+[data-theme='corporativo'] .ll-field select:focus,
+[data-theme='corporativo'] .ll-field textarea:focus {
+	box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.12);
 }
 
 /* Checkbox inline */
 .ll-checkbox {
-  flex-direction: row;
-  align-items: center;
-  gap: 8px;
+	flex-direction: row;
+	align-items: center;
+	gap: 8px;
 }
 
 .ll-checkbox input {
-  width: auto;
-  accent-color: var(--primary);
+	width: auto;
+	accent-color: var(--primary);
 }
 
 .ll-checkbox label {
-  margin-bottom: 0;
-  text-transform: none;
-  letter-spacing: 0;
-  font-size: 0.87rem;
-  color: var(--text);
+	margin-bottom: 0;
+	text-transform: none;
+	letter-spacing: 0;
+	font-size: 0.87rem;
+	color: var(--text);
 }
 
 /* ── Botões de filtro ── */
 .ll-buttons {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 16px;
-  flex-wrap: wrap;
+	display: flex;
+	justify-content: flex-end;
+	gap: 10px;
+	margin-top: 16px;
+	flex-wrap: wrap;
 }
 
 .ll-btn-filtrar {
-  background: var(--primary);
-  color: #ffffff;
-  border: none;
-  padding: 9px 20px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 0.85rem;
-  transition: background 0.2s ease, transform 0.15s ease;
+	background: var(--primary);
+	color: #ffffff;
+	border: none;
+	padding: 9px 20px;
+	border-radius: 6px;
+	cursor: pointer;
+	font-weight: 600;
+	font-size: 0.85rem;
+	transition:
+		background 0.2s ease,
+		transform 0.15s ease;
 }
 
 .ll-btn-filtrar:hover {
-  background: var(--btn-hover);
-  transform: translateY(-1px);
+	background: var(--btn-hover);
+	transform: translateY(-1px);
 }
 
 .ll-btn-limpar {
-  background: transparent;
-  color: var(--text-muted);
-  border: 1px solid var(--border);
-  padding: 9px 20px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.85rem;
-  transition: background 0.2s ease, color 0.2s ease;
+	background: transparent;
+	color: var(--text-muted);
+	border: 1px solid var(--border);
+	padding: 9px 20px;
+	border-radius: 6px;
+	cursor: pointer;
+	font-size: 0.85rem;
+	transition:
+		background 0.2s ease,
+		color 0.2s ease;
 }
 
 .ll-btn-limpar:hover {
-  background: var(--input-bg);
-  color: var(--text);
+	background: var(--input-bg);
+	color: var(--text);
 }
 
 /* ── Feedback de erro/sucesso ── */
 .ll-erro {
-  color: #dc2626;
-  font-size: 0.82rem;
-  margin: 0;
+	color: #dc2626;
+	font-size: 0.82rem;
+	margin: 0;
 }
 
 .ll-sucesso {
-  color: #16a34a;
-  font-size: 0.82rem;
-  margin: 0;
+	color: #16a34a;
+	font-size: 0.82rem;
+	margin: 0;
 }
 
 /* ════════════════════════════════════════
    TABELA DE LANÇAMENTOS
    ════════════════════════════════════════ */
 .ll-table-wrapper {
-  overflow-x: auto;
+	overflow-x: auto;
 }
 
 .ll-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.87rem;
-  color: var(--text);
-  font-family: var(--font-body);
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 0.87rem;
+	color: var(--text);
+	font-family: var(--font-body);
 }
 
 .ll-table thead {
-  background: var(--primary);
-  color: #ffffff;
+	background: var(--primary);
+	color: #ffffff;
 }
 
 .ll-table th {
-  padding: 11px 12px;
-  text-align: left;
-  font-weight: 600;
-  font-size: 0.72rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  white-space: nowrap;
+	padding: 11px 12px;
+	text-align: left;
+	font-weight: 600;
+	font-size: 0.72rem;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	white-space: nowrap;
 }
 
 .ll-table td {
-  padding: 11px 12px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: middle;
+	padding: 11px 12px;
+	border-bottom: 1px solid var(--border);
+	vertical-align: middle;
 }
 
 .ll-table tbody tr {
-  background: var(--bg-card);
-  transition: background 0.15s ease;
+	background: var(--bg-card);
+	transition: background 0.15s ease;
 }
 
 .ll-table tbody tr:hover {
-  background: var(--input-bg);
+	background: var(--input-bg);
 }
 
 .ll-table tbody tr:last-child td {
-  border-bottom: none;
+	border-bottom: none;
 }
 
 .ll-empty {
-  text-align: center;
-  color: var(--text-muted);
-  padding: 32px !important;
-  font-size: 0.9rem;
+	text-align: center;
+	color: var(--text-muted);
+	padding: 32px !important;
+	font-size: 0.9rem;
 }
 
 /* ════════════════════════════════════════
@@ -234,149 +242,178 @@
    Cores semânticas que funcionam em ambos os temas
    ════════════════════════════════════════ */
 .badge {
-  display: inline-block;
-  padding: 3px 10px;
-  border-radius: 12px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  white-space: nowrap;
+	display: inline-block;
+	padding: 3px 10px;
+	border-radius: 12px;
+	font-size: 0.72rem;
+	font-weight: 600;
+	white-space: nowrap;
 }
 
 .badge-aberto {
-  background: rgba(34, 197, 94, 0.12);
-  color: #15803d;
-  border: 1px solid rgba(34, 197, 94, 0.25);
+	background: rgba(34, 197, 94, 0.12);
+	color: #15803d;
+	border: 1px solid rgba(34, 197, 94, 0.25);
 }
 
 .badge-pago {
-  background: rgba(59, 130, 246, 0.12);
-  color: #1d4ed8;
-  border: 1px solid rgba(59, 130, 246, 0.2);
+	background: rgba(59, 130, 246, 0.12);
+	color: #1d4ed8;
+	border: 1px solid rgba(59, 130, 246, 0.2);
 }
 
 .badge-vencido {
-  background: rgba(239, 68, 68, 0.1);
-  color: #b91c1c;
-  border: 1px solid rgba(239, 68, 68, 0.2);
+	background: rgba(239, 68, 68, 0.1);
+	color: #b91c1c;
+	border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
 .badge-estorno {
-  background: rgba(234, 179, 8, 0.1);
-  color: #92400e;
-  border: 1px solid rgba(234, 179, 8, 0.2);
+	background: rgba(234, 179, 8, 0.1);
+	color: #92400e;
+	border: 1px solid rgba(234, 179, 8, 0.2);
 }
 
 /* Adaptação dos badges no tema corporativo (fundo escuro) */
-[data-theme="corporativo"] .badge-aberto {
-  background: rgba(34, 197, 94, 0.18);
-  color: #4ade80;
-  border-color: rgba(34, 197, 94, 0.3);
+[data-theme='corporativo'] .badge-aberto {
+	background: rgba(34, 197, 94, 0.18);
+	color: #4ade80;
+	border-color: rgba(34, 197, 94, 0.3);
 }
 
-[data-theme="corporativo"] .badge-pago {
-  background: rgba(56, 189, 248, 0.15);
-  color: #38bdf8;
-  border-color: rgba(56, 189, 248, 0.25);
+[data-theme='corporativo'] .badge-pago {
+	background: rgba(56, 189, 248, 0.15);
+	color: #38bdf8;
+	border-color: rgba(56, 189, 248, 0.25);
 }
 
-[data-theme="corporativo"] .badge-vencido {
-  background: rgba(239, 68, 68, 0.15);
-  color: #f87171;
-  border-color: rgba(239, 68, 68, 0.25);
+[data-theme='corporativo'] .badge-vencido {
+	background: rgba(239, 68, 68, 0.15);
+	color: #f87171;
+	border-color: rgba(239, 68, 68, 0.25);
 }
 
-[data-theme="corporativo"] .badge-estorno {
-  background: rgba(250, 204, 21, 0.12);
-  color: #fbbf24;
-  border-color: rgba(250, 204, 21, 0.22);
+[data-theme='corporativo'] .badge-estorno {
+	background: rgba(250, 204, 21, 0.12);
+	color: #fbbf24;
+	border-color: rgba(250, 204, 21, 0.22);
 }
 
 /* ════════════════════════════════════════
    BOTÕES DE AÇÃO NA TABELA
    ════════════════════════════════════════ */
 .ll-acoes {
-  display: flex;
-  gap: 6px;
-  align-items: center;
+	display: flex;
+	gap: 6px;
+	align-items: center;
 }
 
 .ll-btn-acao {
-  width: 30px;
-  height: 30px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.2s ease, transform 0.15s ease;
+	width: 30px;
+	height: 30px;
+	border: none;
+	border-radius: 6px;
+	cursor: pointer;
+	font-size: 0.9rem;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition:
+		background 0.2s ease,
+		transform 0.15s ease;
 }
 
 .ll-btn-acao:hover {
-  transform: scale(1.1);
+	transform: scale(1.1);
 }
 
 .ll-btn-acao.fechar {
-  background: rgba(34, 197, 94, 0.12);
-  color: #15803d;
-  border: 1px solid rgba(34, 197, 94, 0.2);
+	background: rgba(34, 197, 94, 0.12);
+	color: #15803d;
+	border: 1px solid rgba(34, 197, 94, 0.2);
 }
 
 .ll-btn-acao.fechar:hover {
-  background: rgba(34, 197, 94, 0.22);
+	background: rgba(34, 197, 94, 0.22);
 }
 
 .ll-btn-acao.deletar {
-  background: rgba(239, 68, 68, 0.1);
-  color: #b91c1c;
-  border: 1px solid rgba(239, 68, 68, 0.18);
+	background: rgba(239, 68, 68, 0.1);
+	color: #b91c1c;
+	border: 1px solid rgba(239, 68, 68, 0.18);
 }
 
 .ll-btn-acao.deletar:hover {
-  background: rgba(239, 68, 68, 0.2);
+	background: rgba(239, 68, 68, 0.2);
 }
 
-[data-theme="corporativo"] .ll-btn-acao.fechar {
-  background: rgba(34, 197, 94, 0.15);
-  color: #4ade80;
+[data-theme='corporativo'] .ll-btn-acao.fechar {
+	background: rgba(34, 197, 94, 0.15);
+	color: #4ade80;
 }
 
-[data-theme="corporativo"] .ll-btn-acao.deletar {
-  background: rgba(239, 68, 68, 0.15);
-  color: #f87171;
+[data-theme='corporativo'] .ll-btn-acao.deletar {
+	background: rgba(239, 68, 68, 0.15);
+	color: #f87171;
 }
 
 /* ════════════════════════════════════════
    MODAL
    ════════════════════════════════════════ */
 .ll-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.45);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-  /* Previne scroll do fundo quando modal aberto */
-  overflow: hidden;
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.45);
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	z-index: 1000;
+	/* Previne scroll do fundo quando modal aberto */
+	overflow: hidden;
 }
 
 .ll-modal {
-  background: var(--bg-card);
-  padding: 30px;
-  border-radius: 12px;
-  width: 440px;
-  max-width: calc(100vw - 32px); /* nunca transborda em mobile */
-  border: 1px solid var(--border);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22);
+	background: var(--bg-card);
+	padding: 30px;
+	border-radius: 12px;
+	width: 440px;
+	max-width: calc(100vw - 32px); /* nunca transborda em mobile */
+	border: 1px solid var(--border);
+	box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22);
 }
 
 .ll-modal h3 {
-  font-family: var(--font-display);
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: var(--text);
-  text-align: center;
-  margin-bottom: 20px;
+	font-family: var(--font-display);
+	font-size: 1.2rem;
+	font-weight: 600;
+	color: var(--text);
+	text-align: center;
+	margin-bottom: 20px;
+}
+
+/* ── Checkboxes de status ── */
+.ll-status-checks {
+	display: flex;
+	gap: 20px;
+	flex-wrap: wrap;
+	margin-top: 4px;
+}
+
+.ll-status-checks label {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 0.82rem;
+	font-weight: 500;
+	color: var(--text);
+	cursor: pointer;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+.ll-status-checks input[type='checkbox'] {
+	width: 15px;
+	height: 15px;
+	accent-color: var(--primary);
+	cursor: pointer;
 }
