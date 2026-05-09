@@ -66,6 +66,11 @@ def usuario_base(client, headers_admin):
         assert r.status_code == 200
         data = r.json()
     yield data
+    # Deletar lançamentos vinculados ao usuário antes de deletar o usuário
+    lancamentos = client.get(f"/lancamento/por-usuario/{data['id_usuario']}", headers=headers_admin)
+    if lancamentos.is_success:
+        for l in lancamentos.json():
+            client.delete(f"/lancamento/{l['id_lancamento']}", headers=headers_admin)
     # Deletar logins de sessão antes de deletar o usuário
     logins = client.get(f"/login/por-usuario/{data['id_usuario']}", headers=headers_admin)
     if logins.is_success:

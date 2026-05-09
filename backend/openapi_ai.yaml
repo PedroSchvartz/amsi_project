@@ -1633,6 +1633,10 @@
     local: query
     obrigatorio: false
     tipo: desconhecido
+  - nome: apenas_quitados
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
   - nome: data_vencimento_de
     local: query
     obrigatorio: false

@@ -2,7 +2,7 @@
   AMSI PROJECT — FASE ATUAL BACKEND
 ================================================================================
 
-DATA: 2026-05-03
+DATA: 2026-05-09
 REFERÊNCIAS: comentarios/projeto_auth.txt, comentarios/projeto_notificador.txt,
              comentarios/projeto_bateria_pytest.txt, comentarios/projeto_sessao_token.txt,
              comentarios/projeto_pesquisas.txt
@@ -33,20 +33,42 @@ REFERÊNCIAS: comentarios/projeto_auth.txt, comentarios/projeto_notificador.txt,
 - config.env com todas as configurações sensíveis
 - CORS, ngrok, logs/ui funcionando
 - Swagger com HTTPBearer
-- Pesquisas e filtros:
-  - GET /lancamento/ — filtros completos
-  - GET /lancamento/resumo — retorna LancamentoResumo agregado
-  - GET /lancamento/por-usuario/{id} — lançamentos por usuário
-  - GET /lancamento/por-clifor/{id} — lançamentos por clifor
-  - GET /cliente_fornecedor/ — filtros: nome, tipo_clifor, ativo, inadimplente
-  - GET /cliente_fornecedor/{id}/resumo — CliForResumo consolidado
-  - GET /login/por-usuario/{id} — logins por usuário
+- Filtros de lançamento (GET /lancamento/):
+  - id_clifor, id_tipo_conta, natureza
+  - apenas_abertos, apenas_vencidos, apenas_quitados
+  - apenas_com_comprovante, apenas_sem_comprovante (exclusivos entre si)
+  - data_vencimento_de/ate, data_lancamento_de/ate
+  - estorno, valor_minimo, valor_maximo
+- GET /lancamento/resumo — dashboard financeiro com filtro de período:
+  - total_recebido, total_pago, total_reembolsado (período filtrado)
+  - saldo_total (acompanha período)
+  - total_a_receber, total_a_pagar
+  - total_a_receber_excluindo_inadimplentes
+  - total_vencido_a_receber, total_vencido_a_pagar
+  - quantidade_abertos, quantidade_vencidos, quantidade_inadimplentes
+  - Filtros: data_pagamento_de, data_pagamento_ate, id_clifor, id_tipo_conta, natureza
+- GET /lancamento/resumo-por-tipo — ranking por tipo de conta (quitados, excl. estornos):
+  - Filtros: data_pagamento_de, data_pagamento_ate, natureza
+  - Ordenado por total decrescente
+  - Usa coalesce(valor_pago, valor) — funciona mesmo sem valor_pago preenchido
+- GET /lancamento/por-usuario/{id} — lançamentos por usuário
+- GET /lancamento/por-clifor/{id} — lançamentos por clifor
+- GET /cliente_fornecedor/ — filtros: nome, tipo_clifor, ativo, inadimplente
+- GET /cliente_fornecedor/{id}/resumo — CliForResumo consolidado
+- GET /cliente_fornecedor/saldos — saldo líquido de todos os clifors
+- GET /login/por-usuario/{id} — logins por usuário
 - cliente_fornecedor: endereços e contatos inline no POST/PUT
   - PUT só adiciona, nunca remove endereços/contatos
   - cascade="all, delete-orphan" nos relacionamentos
-- Pytest: 102/102 passando
+- Comprovante de pagamento (BYTEA no banco):
+  - POST /lancamento/{id}/comprovante — anexar/substituir PDF (máx 5MB)
+  - GET  /lancamento/{id}/comprovante — baixar PDF
+  - DELETE /lancamento/{id}/comprovante — remover
+- Cargo Desenvolvedor no CargoEnum
+- Pytest: 150/150 passando
   - Rodar de dentro de backend/: cd backend && pytest
   - pytest.ini em backend/ com testpaths = tests e pythonpath = .
+  - conftest.py limpa lançamentos vinculados antes de deletar usuario_base
 
 --------------------------------------------------------------------------------
   ADMIN PERMANENTE
@@ -82,6 +104,8 @@ REFERÊNCIAS: comentarios/projeto_auth.txt, comentarios/projeto_notificador.txt,
 - JWT_EXPIRE_MINUTES no config.env controla o timeout de inatividade
 - dnspython e python-dotenv são dependências obrigatórias
 - UsuarioCreate não tem campo senha — gerada automaticamente pelo sistema
+- UsuarioCreate NÃO tem campo estorno — usar PUT após criação para setar estorno=True
 - Troca de senha: POST /auth/trocar-senha (usuário) ou /usuarios/{id}/resetar-senha (admin)
+- LancamentoCreate não aceita estorno — setar via PUT após criar o lançamento
 
 ================================================================================

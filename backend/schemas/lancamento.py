@@ -66,10 +66,27 @@ class LancamentoResponse(BaseModel):
 
 # Totais agregados
 class LancamentoResumo(BaseModel):
+    # Realizados (quitados) — respeita filtro de período
+    total_recebido: Decimal
+    total_pago: Decimal
+    total_reembolsado: Decimal
+    # Saldo total desde o primeiro lançamento
+    saldo_total: Decimal
+    # Pendentes
     total_a_receber: Decimal
     total_a_pagar: Decimal
-    saldo_liquido: Decimal
+    total_a_receber_excluindo_inadimplentes: Decimal
+    # Vencidos
     total_vencido_a_receber: Decimal
     total_vencido_a_pagar: Decimal
     quantidade_abertos: int
     quantidade_vencidos: int
+    quantidade_inadimplentes: int
+
+
+class ResumoPorTipo(BaseModel):
+    id_tipo_conta: int
+    descricao_conta: str
+    natureza_conta: str
+    total: Decimal
+    quantidade: int
