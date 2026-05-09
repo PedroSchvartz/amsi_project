@@ -77,6 +77,7 @@ function ListaLancamentosPage() {
 			if (f.natureza) params.natureza = f.natureza;
 			if (f.apenas_abertos !== '') params.apenas_abertos = f.apenas_abertos === 'true';
 			if (f.apenas_vencidos !== '') params.apenas_vencidos = f.apenas_vencidos === 'true';
+			if (f.apenas_quitados !== '') params.apenas_quitados = f.apenas_quitados === 'true';
 			if (f.data_vencimento_de) params.data_vencimento_de = f.data_vencimento_de;
 			if (f.data_vencimento_ate) params.data_vencimento_ate = f.data_vencimento_ate;
 			if (f.data_lancamento_de) params.data_lancamento_de = f.data_lancamento_de;
@@ -304,33 +305,48 @@ function ListaLancamentosPage() {
 						<div className="ll-row">
 							<div className="ll-field">
 								<label>Status</label>
-								<select
-									name="apenas_abertos"
-									value={filtros.apenas_abertos}
-									onChange={handleFiltroChange}
-								>
-									<option value="">Todos</option>
-									<option value="true">Apenas abertos</option>
-								</select>
-							</div>
-							<div className="ll-field">
-								<label>Vencimento</label>
-								<select
-									name="apenas_vencidos"
-									value={filtros.apenas_vencidos}
-									onChange={handleFiltroChange}
-								>
-									<option value="">Todos</option>
-									<option value="true">Apenas vencidos</option>
-								</select>
-							</div>
-							<div className="ll-field">
-								<label>Reembolso</label>
-								<select name="estorno" value={filtros.estorno} onChange={handleFiltroChange}>
-									<option value="">Todos</option>
-									<option value="true">Sim</option>
-									<option value="false">Não</option>
-								</select>
+								<div className="ll-status-checks">
+									<label>
+										<input
+											type="checkbox"
+											checked={filtros.apenas_abertos === 'true'}
+											onChange={(e) =>
+												setFiltros({ ...filtros, apenas_abertos: e.target.checked ? 'true' : '' })
+											}
+										/>
+										Abertos
+									</label>
+									<label>
+										<input
+											type="checkbox"
+											checked={filtros.apenas_vencidos === 'true'}
+											onChange={(e) =>
+												setFiltros({ ...filtros, apenas_vencidos: e.target.checked ? 'true' : '' })
+											}
+										/>
+										Vencidos
+									</label>
+									<label>
+										<input
+											type="checkbox"
+											checked={filtros.apenas_quitados === 'true'}
+											onChange={(e) =>
+												setFiltros({ ...filtros, apenas_quitados: e.target.checked ? 'true' : '' })
+											}
+										/>
+										Quitados
+									</label>
+									<label>
+										<input
+											type="checkbox"
+											checked={filtros.estorno === 'true'}
+											onChange={(e) =>
+												setFiltros({ ...filtros, estorno: e.target.checked ? 'true' : '' })
+											}
+										/>
+										Reembolso
+									</label>
+								</div>
 							</div>
 						</div>
 

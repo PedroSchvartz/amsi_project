@@ -1,0 +1,61 @@
+================================================================================
+  RESUMO DA SESSÃO — 08/05/2026
+================================================================================
+
+--------------------------------------------------------------------------------
+  O QUE FOI FEITO
+--------------------------------------------------------------------------------
+
+BACKEND:
+  - Cargo "Desenvolvedor" adicionado ao CargoEnum (schema, model, migration)
+    ALTER TYPE cargo_enum ADD VALUE 'Desenvolvedor'
+  - Bootstrap atualizado: admins criados com CargoEnum.Desenvolvedor
+  - Cadastro de usuário bloqueado se envio de email falhar
+    (db.delete se enviar_email retornar False)
+  - Comprovante de pagamento em lançamentos:
+    · Colunas: comprovante BYTEA, comprovante_nome VARCHAR(255)
+    · POST   /lancamento/{id}/comprovante — anexar PDF (máx 5MB)
+    · GET    /lancamento/{id}/comprovante — baixar PDF
+    · DELETE /lancamento/{id}/comprovante — remover
+  - Filtro apenas_quitados adicionado ao route de lançamentos
+  - python-multipart instalado e no requirements.txt
+  - 124 testes passando
+
+FRONTEND:
+  - Perfilpopup.jsx deletado (conflito de nomes no Windows)
+    Layout.jsx corrigido para importar PerfilCompletoPopup com usuarioLocal
+  - Scroll para topo ao abrir menu mobile no Layout
+  - LancamentoModal.jsx — novo lançamento como popup na lista de lançamentos
+  - UserRegisterModal.jsx — cadastro de usuário como popup na lista de usuários
+  - Botões "+ Novo Lançamento" e "+ Cadastrar Usuário" nas telas de leitura
+  - Rotas /lancamento e /cadastro removidas do App.jsx
+  - Links "Novo Lançamento" e "Cadastrar Usuário" removidos da navbar
+  - Home reorganizada: 4 cards em grid 2x2, textos centralizados
+    Cards: Dashboard, Lista de Lançamentos, Clientes/Fornecedores, Usuários
+  - Popup de fechamento de lançamento:
+    · Pré-preenche observacao e valor_pago com valores existentes
+    · valor_pago readOnly se já preenchido
+    · Upload de comprovante PDF opcional (máx 5MB, validado no front e back)
+    · Exibe comprovante atual com nome do arquivo + botão Remover (ModalConfirm)
+    · Campo de upload oculto quando já há comprovante
+    · Checkbox de estorno removido do popup de fechamento
+  - Ícone bi-journal-check para fechar lançamento
+  - Ícone bi-file-earmark-pdf para visualizar comprovante
+  - Filtros Abertos/Vencidos/Quitados como checkboxes não exclusivos
+
+--------------------------------------------------------------------------------
+  COMEÇAMOS E NÃO TERMINAMOS
+--------------------------------------------------------------------------------
+
+  1. Filtro apenas_quitados
+     - Backend: implementado em routes/lancamento.py
+     - Frontend: checkbox na ListaLancamentosPage
+     - FALTA: rodar pytest para validar o filtro no backend
+
+  2. Limpeza de arquivos órfãos (baixa prioridade)
+     - LancamentoPage.jsx  — rota removida, arquivo ainda no disco
+     - UserRegisterPage.jsx — rota removida, arquivo ainda no disco
+     - NavBar.jsx — sem uso aparente
+     - News.jsx  — sem uso aparente
+
+================================================================================

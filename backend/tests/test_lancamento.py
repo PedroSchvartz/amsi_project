@@ -417,3 +417,50 @@ def test_tem_comprovante_false_apos_remocao(client, headers_admin, lancamento):
 
     r = client.get(f"/lancamento/{lancamento['id_lancamento']}", headers=headers_admin)
     assert r.json()["tem_comprovante"] is False
+
+def test_filtro_apenas_quitados(client, headers_admin, lancamento, usuario_base):
+    """Filtro apenas_quitados retorna só lançamentos com data_pagamento."""
+    from datetime import datetime
+    # Fechar o lancamento para ter um quitado
+    client.put(f"/lancamento/{lancamento['id_lancamento']}/fechar", json={
+        "id_usuario_fk_fechamento": usuario_base["id_usuario"],
+        "data_pagamento": datetime.now().isoformat(),
+        "valor_pago": "50.00"
+    }, headers=headers_admin)
+
+    r = client.get("/lancamento/", params={"apenas_quitados": True}, headers=headers_admin)
+    assert r.status_code == 200
+    data = r.json()
+    assert all(l["data_pagamento"] is not None for l in data)
+
+
+def test_filtro_apenas_vencidos(client, headers_admin, lancamento_vencido):
+    """Filtro apenas_vencidos retorna só lançamentos vencidos e não pagos."""
+    r = client.get("/lancamento/", params={"apenas_vencidos": True}, headers=headers_admin)
+    assert r.status_code == 200
+    data = r.json()
+    from datetime import date
+    hoje = date.today().isoformat()
+    assert all(
+        l["data_pagamento"] is None and l["data_vencimento"] < hoje
+        for l in data
+    )
+
+
+def test_filtro_quitados_e_vencidos_independentes(client, headers_admin, lancamento, lancamento_vencido, usuario_base):
+    """Os filtros quitados e vencidos são independentes — não se excluem."""
+    from datetime import datetime
+    # Fechar lancamento para ter um quitado
+    client.put(f"/lancamento/{lancamento['id_lancamento']}/fechar", json={
+        "id_usuario_fk_fechamento": usuario_base["id_usuario"],
+        "data_pagamento": datetime.now().isoformat(),
+        "valor_pago": "50.00"
+    }, headers=headers_admin)
+
+    r1 = client.get("/lancamento/", params={"apenas_quitados": True}, headers=headers_admin)
+    r2 = client.get("/lancamento/", params={"apenas_vencidos": True}, headers=headers_admin)
+    assert r1.status_code == 200
+    assert r2.status_code == 200
+    ids_quitados = {l["id_lancamento"] for l in r1.json()}
+    ids_vencidos = {l["id_lancamento"] for l in r2.json()}
+    assert ids_quitados.isdisjoint(ids_vencidos)
