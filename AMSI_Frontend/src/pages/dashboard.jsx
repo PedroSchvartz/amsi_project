@@ -1,16 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { getLancamentos, getSaldosClifors, getClifors } from '../services/api';
+import {
+	getLancamentosResumo,
+	getResumoPorTipo,
+	getClifors,
+	getSaldosClifors
+} from '../services/api';
 import '../styles/dashboard.css';
 
-/*
-  Dashboard.jsx — Painel administrativo financeiro
-  Exibe KPIs de receita, despesa, saldo e inadimplência.
-  Toda a lógica de dados foi preservada — apenas o JSX foi
-  refatorado para usar as classes do dashboard.css.
-*/
-
-// Formata valor monetário: R$ 1.234,56
 function formatarValor(v) {
 	if (v == null || isNaN(v)) return 'R$ 0,00';
 	return `R$ ${parseFloat(v)
@@ -19,75 +16,132 @@ function formatarValor(v) {
 		.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`;
 }
 
-// Formata data ISO para DD/MM/AAAA
 function formatarData(iso) {
 	if (!iso) return '—';
 	return iso.split('T')[0].split('-').reverse().join('/');
 }
 
+const hoje = new Date();
+const PERIODOS = [
+	{
+		label: 'Último mês',
+		de: () => {
+			const d = new Date(hoje);
+			d.setMonth(d.getMonth() - 1);
+			return d.toISOString().split('T')[0];
+		},
+		ate: () => hoje.toISOString().split('T')[0]
+	},
+	{
+		label: 'Últimos 6 meses',
+		de: () => {
+			const d = new Date(hoje);
+			d.setMonth(d.getMonth() - 6);
+			return d.toISOString().split('T')[0];
+		},
+		ate: () => hoje.toISOString().split('T')[0]
+	},
+	{
+		label: 'Ano atual',
+		de: () => `${hoje.getFullYear()}-01-01`,
+		ate: () => hoje.toISOString().split('T')[0]
+	},
+	{ label: 'Desde sempre', de: () => null, ate: () => null }
+];
+
+function mesParaDia(mesAno, fim = false) {
+	if (!mesAno) return undefined;
+	const [ano, mes] = mesAno.split('-').map(Number);
+	if (fim) {
+		const ultimo = new Date(ano, mes, 0).getDate();
+		return `${ano}-${String(mes).padStart(2, '0')}-${ultimo}`;
+	}
+	return `${ano}-${String(mes).padStart(2, '0')}-01`;
+}
+
 function Dashboard() {
-	const [lancamentos, setLancamentos] = useState([]);
-	const [saldos, setSaldos] = useState([]);
-	const [clifors, setClifors] = useState([]);
+	const [resumo, setResumo] = useState(null);
+	const [porTipoDespesa, setPorTipoDespesa] = useState([]);
+	const [porTipoReceita, setPorTipoReceita] = useState([]);
+	const [inadimplentes, setInadimplentes] = useState([]);
+	const [lancamentosVencidos, setLancamentosVencidos] = useState([]);
 	const [carregando, setCarregando] = useState(true);
 	const [erro, setErro] = useState('');
 
-	useEffect(() => {
-		carregarDados();
-	}, []);
+	const [periodoAtivo, setPeriodoAtivo] = useState(1); // Últimos 6 meses por padrão
+	const [datasDe, setDatasDe] = useState('');
+	const [datasAte, setDatasAte] = useState('');
 
-	const carregarDados = async () => {
+	const periodoParams = useCallback(() => {
+		if (datasDe || datasAte)
+			return {
+				data_pagamento_de: mesParaDia(datasDe, false),
+				data_pagamento_ate: mesParaDia(datasAte, true)
+			};
+		if (periodoAtivo !== null) {
+			const p = PERIODOS[periodoAtivo];
+			const de = p.de();
+			const ate = p.ate();
+			const params = {};
+			if (de) params.data_pagamento_de = de;
+			if (ate) params.data_pagamento_ate = ate;
+			return params;
+		}
+		return {};
+	}, [periodoAtivo, datasDe, datasAte]);
+
+	const carregarDados = useCallback(async () => {
 		setCarregando(true);
 		setErro('');
 		try {
-			const [ls, ss, cs] = await Promise.all([
-				getLancamentos({}),
-				getSaldosClifors(),
-				getClifors(),
+			const params = periodoParams();
+			const [res, despesas, receitas, clifors, saldos] = await Promise.all([
+				getLancamentosResumo(params),
+				getResumoPorTipo({ ...params, natureza: 'Debito' }),
+				getResumoPorTipo({ ...params, natureza: 'Credito' }),
+				getClifors({ inadimplente: true }),
+				getSaldosClifors()
 			]);
-			setLancamentos(ls);
-			setSaldos(Array.isArray(ss) ? ss : []);
-			setClifors(Array.isArray(cs) ? cs : []);
+			setResumo(res);
+			setPorTipoDespesa(despesas.slice(0, 5));
+			setPorTipoReceita(receitas.slice(0, 5));
+			setInadimplentes(clifors);
+
+			// Lançamentos vencidos calculados a partir dos saldos não — precisamos de getLancamentos
+			// Usamos o resumo para o count, lista vem de clifors inadimplentes
 		} catch (err) {
 			setErro(err.message || 'Erro ao carregar dados do dashboard.');
 		} finally {
 			setCarregando(false);
 		}
+	}, [periodoParams]);
+
+	useEffect(() => {
+		carregarDados();
+	}, [carregarDados]);
+
+	const handlePeriodoRapido = (idx) => {
+		setPeriodoAtivo(idx);
+		setDatasDe('');
+		setDatasAte('');
 	};
 
-	// ── Cálculos dos KPIs ──
-	const hoje = new Date().toISOString().split('T')[0];
+	const handleDataChange = (campo, valor) => {
+		setPeriodoAtivo(null);
+		if (campo === 'de') setDatasDe(valor);
+		else setDatasAte(valor);
+	};
 
-	const totalReceita = lancamentos
-		.filter((l) => l.natureza_lancamento === 'Credito' && l.data_pagamento)
-		.reduce((acc, l) => acc + parseFloat(l.valor_pago ?? l.valor ?? 0), 0);
-
-	const totalDespesa = lancamentos
-		.filter((l) => l.natureza_lancamento === 'Debito' && l.data_pagamento)
-		.reduce((acc, l) => acc + parseFloat(l.valor_pago ?? l.valor ?? 0), 0);
-
-	const saldoLiquido = totalReceita - totalDespesa;
-
-	const inadimplentes = clifors.filter((c) => c.inadimplente);
-
-	const lancamentosVencidos = lancamentos.filter(
-		(l) => !l.data_pagamento && !l.estorno && l.data_vencimento < hoje
-	);
-
-	// ── Estado de carregamento ──
-	if (carregando) {
+	if (carregando)
 		return (
 			<div className="dash-container">
 				<div className="dash-loading">
-					<i className="bi bi-arrow-repeat" />
-					Carregando dados...
+					<i className="bi bi-arrow-repeat" /> Carregando dados...
 				</div>
 			</div>
 		);
-	}
 
-	// ── Estado de erro ──
-	if (erro) {
+	if (erro)
 		return (
 			<div className="dash-container">
 				<div className="dash-erro">
@@ -96,272 +150,277 @@ function Dashboard() {
 				</div>
 			</div>
 		);
-	}
 
 	return (
 		<div className="dash-container">
-
-			{/* ════════════════════════
-			    CABEÇALHO
-			    ════════════════════════ */}
+			{/* ── Cabeçalho ── */}
 			<div className="dash-header">
 				<div>
 					<h1 className="dash-header__title">Dashboard</h1>
-					<p className="dash-header__subtitle">
-						Visão geral financeira da associação
-					</p>
+					<p className="dash-header__subtitle">Visão geral financeira da associação</p>
 				</div>
-				<button
-					onClick={carregarDados}
-					style={{
-						background: 'transparent',
-						border: '1px solid var(--border)',
-						borderRadius: 8,
-						padding: '7px 14px',
-						color: 'var(--text-muted)',
-						cursor: 'pointer',
-						display: 'flex',
-						alignItems: 'center',
-						gap: 6,
-						fontSize: '0.82rem',
-						transition: 'background 0.2s ease, color 0.2s ease',
-					}}
-					onMouseEnter={(e) => {
-						e.currentTarget.style.background = 'var(--input-bg)';
-						e.currentTarget.style.color = 'var(--text)';
-					}}
-					onMouseLeave={(e) => {
-						e.currentTarget.style.background = 'transparent';
-						e.currentTarget.style.color = 'var(--text-muted)';
-					}}
-				>
-					<i className="bi bi-arrow-clockwise" />
-					Atualizar
+				<button className="dash-btn-atualizar" onClick={carregarDados}>
+					<i className="bi bi-arrow-clockwise" /> Atualizar
 				</button>
 			</div>
 
-			{/* ════════════════════════
-			    KPIs
-			    ════════════════════════ */}
-			<div className="dash-kpi-grid">
+			{/* ── Seletor de período ── */}
+			<div className="dash-periodo">
+				<div className="dash-periodo__rapido">
+					{PERIODOS.map((p, i) => (
+						<button
+							key={i}
+							className={`dash-periodo__btn${periodoAtivo === i ? ' dash-periodo__btn--ativo' : ''}`}
+							onClick={() => handlePeriodoRapido(i)}
+						>
+							{p.label}
+						</button>
+					))}
+				</div>
+				<div className="dash-periodo__livre">
+					<input
+						type="month"
+						value={datasDe}
+						onChange={(e) => handleDataChange('de', e.target.value)}
+						className="dash-periodo__input"
+					/>
+					<span className="dash-periodo__sep">até</span>
+					<input
+						type="month"
+						value={datasAte}
+						onChange={(e) => handleDataChange('ate', e.target.value)}
+						className="dash-periodo__input"
+					/>
+				</div>
+			</div>
 
-				{/* Receita */}
+			{/* ── KPIs ── */}
+			<div className="dash-kpi-grid">
 				<div className="dash-kpi-card">
 					<div className="dash-kpi-card__icon dash-kpi-card__icon--receita">
 						<i className="bi bi-arrow-down-circle" />
 					</div>
 					<span className="dash-kpi-card__label">Receita Recebida</span>
-					<span className={`dash-kpi-card__value dash-kpi-card__value--positivo`}>
-						{formatarValor(totalReceita)}
+					<span className="dash-kpi-card__value dash-kpi-card__value--positivo">
+						{formatarValor(resumo?.total_recebido)}
 					</span>
 				</div>
 
-				{/* Despesa */}
 				<div className="dash-kpi-card">
 					<div className="dash-kpi-card__icon dash-kpi-card__icon--despesa">
 						<i className="bi bi-arrow-up-circle" />
 					</div>
 					<span className="dash-kpi-card__label">Despesa Paga</span>
 					<span className="dash-kpi-card__value dash-kpi-card__value--negativo">
-						{formatarValor(totalDespesa)}
+						{formatarValor(resumo?.total_pago)}
 					</span>
 				</div>
 
-				{/* Saldo líquido */}
 				<div className="dash-kpi-card">
 					<div className="dash-kpi-card__icon dash-kpi-card__icon--saldo">
 						<i className="bi bi-wallet2" />
 					</div>
-					<span className="dash-kpi-card__label">Saldo Líquido</span>
-					<span className={`dash-kpi-card__value ${saldoLiquido >= 0 ? 'dash-kpi-card__value--positivo' : 'dash-kpi-card__value--negativo'}`}>
-						{formatarValor(saldoLiquido)}
+					<span className="dash-kpi-card__label">Saldo do Período</span>
+					<span
+						className={`dash-kpi-card__value ${parseFloat(resumo?.saldo_total ?? 0) >= 0 ? 'dash-kpi-card__value--positivo' : 'dash-kpi-card__value--negativo'}`}
+					>
+						{formatarValor(resumo?.saldo_total)}
 					</span>
 				</div>
 
-				{/* Inadimplentes */}
+				<div className="dash-kpi-card">
+					<div className="dash-kpi-card__icon dash-kpi-card__icon--reembolso">
+						<i className="bi bi-arrow-left-right" />
+					</div>
+					<span className="dash-kpi-card__label">Reembolsos</span>
+					<span className="dash-kpi-card__value">{formatarValor(resumo?.total_reembolsado)}</span>
+				</div>
+			</div>
+
+			{/* ── Pendências ── */}
+			<div className="dash-kpi-grid">
+				<div className="dash-kpi-card">
+					<div className="dash-kpi-card__icon dash-kpi-card__icon--receita">
+						<i className="bi bi-hourglass-split" />
+					</div>
+					<span className="dash-kpi-card__label">A Receber</span>
+					<span className="dash-kpi-card__value dash-kpi-card__value--positivo">
+						{formatarValor(resumo?.total_a_receber)}
+					</span>
+				</div>
+
+				<div className="dash-kpi-card">
+					<div className="dash-kpi-card__icon dash-kpi-card__icon--despesa">
+						<i className="bi bi-hourglass-split" />
+					</div>
+					<span className="dash-kpi-card__label">A Pagar</span>
+					<span className="dash-kpi-card__value dash-kpi-card__value--negativo">
+						{formatarValor(resumo?.total_a_pagar)}
+					</span>
+				</div>
+
+				<div className="dash-kpi-card">
+					<div className="dash-kpi-card__icon dash-kpi-card__icon--inadimplente">
+						<i className="bi bi-person-x" />
+					</div>
+					<span className="dash-kpi-card__label">A Receber (excl. inadimplentes)</span>
+					<span className="dash-kpi-card__value dash-kpi-card__value--positivo">
+						{formatarValor(resumo?.total_a_receber_excluindo_inadimplentes)}
+					</span>
+				</div>
+
 				<div className="dash-kpi-card">
 					<div className="dash-kpi-card__icon dash-kpi-card__icon--inadimplente">
 						<i className="bi bi-exclamation-circle" />
 					</div>
 					<span className="dash-kpi-card__label">Inadimplentes</span>
-					<span className="dash-kpi-card__value">
-						{inadimplentes.length}
-					</span>
+					<span className="dash-kpi-card__value">{resumo?.quantidade_inadimplentes ?? 0}</span>
 				</div>
 			</div>
 
-			{/* ════════════════════════
-			    GRID DE SEÇÕES
-			    ════════════════════════ */}
+			{/* ── Rankings ── */}
 			<div className="dash-cols">
-
-				{/* ── Lançamentos vencidos ── */}
 				<div className="dash-section">
 					<div className="dash-section__header">
 						<h2 className="dash-section__title">
-							<i className="bi bi-calendar-x me-2" style={{ color: 'var(--primary)' }} />
-							Lançamentos Vencidos
+							<i className="bi bi-arrow-up-circle me-2" style={{ color: '#b91c1c' }} />
+							Top Despesas
 						</h2>
-						{lancamentosVencidos.length > 0 && (
-							<span className="dash-section__badge">{lancamentosVencidos.length}</span>
+						{porTipoDespesa.length > 0 && (
+							<span className="dash-section__badge">{porTipoDespesa.length}</span>
 						)}
 					</div>
-
-					{lancamentosVencidos.length === 0 ? (
+					{porTipoDespesa.length === 0 ? (
 						<p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', margin: 0 }}>
 							<i className="bi bi-check-circle me-2" style={{ color: '#16a34a' }} />
-							Nenhum lançamento vencido.
+							Nenhuma despesa no período.
 						</p>
 					) : (
 						<table className="dash-table">
 							<thead>
 								<tr>
-									<th>Vencimento</th>
-									<th>Valor</th>
-									<th>Natureza</th>
+									<th>Tipo</th>
+									<th>Total</th>
+									<th>Qtd</th>
 								</tr>
 							</thead>
 							<tbody>
-								{lancamentosVencidos.slice(0, 8).map((l) => (
-									<tr key={l.id_lancamento}>
-										<td>{formatarData(l.data_vencimento)}</td>
-										<td className={l.natureza_lancamento === 'Credito' ? 'dash-valor--positivo' : 'dash-valor--negativo'}>
-											{formatarValor(l.valor)}
+								{porTipoDespesa.map((t) => (
+									<tr key={t.id_tipo_conta}>
+										<td style={{ fontWeight: 500 }}>{t.descricao_conta}</td>
+										<td className="dash-valor--negativo">{formatarValor(t.total)}</td>
+										<td style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+											{t.quantidade}
 										</td>
-										<td>{l.natureza_lancamento}</td>
 									</tr>
 								))}
 							</tbody>
 						</table>
-					)}
-
-					{lancamentosVencidos.length > 8 && (
-						<div style={{ marginTop: 12, textAlign: 'right' }}>
-							<Link
-								to="/tipo_lancamento"
-								style={{ fontSize: '0.8rem', color: 'var(--primary)', textDecoration: 'none', fontWeight: 600 }}
-							>
-								Ver todos ({lancamentosVencidos.length}) →
-							</Link>
-						</div>
 					)}
 				</div>
 
-				{/* ── Clientes inadimplentes ── */}
 				<div className="dash-section">
 					<div className="dash-section__header">
 						<h2 className="dash-section__title">
-							<i className="bi bi-person-x me-2" style={{ color: 'var(--primary)' }} />
-							Inadimplentes
+							<i className="bi bi-arrow-down-circle me-2" style={{ color: '#16a34a' }} />
+							Top Receitas
 						</h2>
-						{inadimplentes.length > 0 && (
-							<span className="dash-section__badge">{inadimplentes.length}</span>
+						{porTipoReceita.length > 0 && (
+							<span className="dash-section__badge">{porTipoReceita.length}</span>
 						)}
 					</div>
-
-					{inadimplentes.length === 0 ? (
+					{porTipoReceita.length === 0 ? (
 						<p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', margin: 0 }}>
 							<i className="bi bi-check-circle me-2" style={{ color: '#16a34a' }} />
-							Nenhum cliente inadimplente.
+							Nenhuma receita no período.
 						</p>
 					) : (
 						<table className="dash-table">
 							<thead>
 								<tr>
-									<th>Nome</th>
 									<th>Tipo</th>
-									<th>Status</th>
+									<th>Total</th>
+									<th>Qtd</th>
 								</tr>
 							</thead>
 							<tbody>
-								{inadimplentes.slice(0, 8).map((c) => (
-									<tr key={c.id_clifor}>
-										<td style={{ fontWeight: 500 }}>{c.nome}</td>
+								{porTipoReceita.map((t) => (
+									<tr key={t.id_tipo_conta}>
+										<td style={{ fontWeight: 500 }}>{t.descricao_conta}</td>
+										<td className="dash-valor--positivo">{formatarValor(t.total)}</td>
 										<td style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-											{c.tipo_clifor === 'C' ? 'Cliente'
-												: c.tipo_clifor === 'F' ? 'Fornecedor'
-												: 'Associado'}
-										</td>
-										<td>
-											<span className="dash-badge-inadimplente">
-												<i className="bi bi-exclamation-circle" />
-												Inadimplente
-											</span>
+											{t.quantidade}
 										</td>
 									</tr>
 								))}
 							</tbody>
 						</table>
-					)}
-
-					{inadimplentes.length > 8 && (
-						<div style={{ marginTop: 12, textAlign: 'right' }}>
-							<Link
-								to="/cliente_fornecedor"
-								style={{ fontSize: '0.8rem', color: 'var(--primary)', textDecoration: 'none', fontWeight: 600 }}
-							>
-								Ver todos ({inadimplentes.length}) →
-							</Link>
-						</div>
 					)}
 				</div>
 			</div>
 
-			{/* ════════════════════════
-			    SALDOS POR CLIFOR
-			    ════════════════════════ */}
-			{saldos.length > 0 && (
-				<div className="dash-section">
-					<div className="dash-section__header">
-						<h2 className="dash-section__title">
-							<i className="bi bi-people me-2" style={{ color: 'var(--primary)' }} />
-							Saldo por Cliente / Fornecedor
-						</h2>
-						<span className="dash-section__badge">{saldos.length}</span>
-					</div>
-
+			{/* ── Inadimplentes ── */}
+			<div className="dash-section">
+				<div className="dash-section__header">
+					<h2 className="dash-section__title">
+						<i className="bi bi-person-x me-2" style={{ color: 'var(--primary)' }} />
+						Inadimplentes
+					</h2>
+					{inadimplentes.length > 0 && (
+						<span className="dash-section__badge">{inadimplentes.length}</span>
+					)}
+				</div>
+				{inadimplentes.length === 0 ? (
+					<p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', margin: 0 }}>
+						<i className="bi bi-check-circle me-2" style={{ color: '#16a34a' }} />
+						Nenhum cliente inadimplente.
+					</p>
+				) : (
 					<table className="dash-table">
 						<thead>
 							<tr>
 								<th>Nome</th>
-								<th>Saldo Líquido</th>
+								<th>Tipo</th>
 								<th>Status</th>
 							</tr>
 						</thead>
 						<tbody>
-							{saldos.map((s) => (
-								<tr key={s.id_clifor}>
-									<td style={{ fontWeight: 500 }}>{s.nome}</td>
-									<td className={parseFloat(s.saldo_liquido) >= 0 ? 'dash-valor--positivo' : 'dash-valor--negativo'}>
-										{formatarValor(s.saldo_liquido)}
+							{inadimplentes.slice(0, 8).map((c) => (
+								<tr key={c.id_clifor}>
+									<td style={{ fontWeight: 500 }}>{c.nome}</td>
+									<td style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+										{c.tipo_clifor === 'C'
+											? 'Cliente'
+											: c.tipo_clifor === 'F'
+												? 'Fornecedor'
+												: 'Associado'}
 									</td>
 									<td>
-										{s.inadimplente ? (
-											<span className="dash-badge-inadimplente">
-												<i className="bi bi-exclamation-circle" />
-												Inadimplente
-											</span>
-										) : (
-											<span style={{
-												fontSize: '0.72rem',
-												fontWeight: 600,
-												padding: '2px 8px',
-												borderRadius: '50px',
-												background: 'rgba(34,197,94,0.1)',
-												color: '#16a34a',
-												border: '1px solid rgba(34,197,94,0.2)',
-											}}>
-												Regular
-											</span>
-										)}
+										<span className="dash-badge-inadimplente">
+											<i className="bi bi-exclamation-circle" /> Inadimplente
+										</span>
 									</td>
 								</tr>
 							))}
 						</tbody>
 					</table>
-				</div>
-			)}
-
+				)}
+				{inadimplentes.length > 8 && (
+					<div style={{ marginTop: 12, textAlign: 'right' }}>
+						<Link
+							to="/cliente_fornecedor"
+							style={{
+								fontSize: '0.8rem',
+								color: 'var(--primary)',
+								textDecoration: 'none',
+								fontWeight: 600
+							}}
+						>
+							Ver todos ({inadimplentes.length}) →
+						</Link>
+					</div>
+				)}
+			</div>
 		</div>
 	);
 }

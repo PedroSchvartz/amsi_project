@@ -46,22 +46,47 @@ AMSI_Frontend/src/
     Login.jsx                      — sempre inicia no tema verde
     Home.jsx                       — 4 cards CSS Grid 2x2
     LancamentoModal.jsx            — novo lançamento como popup
-    ClientList.jsx                 — listagem clifors
-    ClientRegister.jsx             — cadastro clifor
+    ClientList.jsx
+      Lista clifors com getSaldosClifors, CPF rasurado (clique para revelar),
+      filtros Tipo/Status, ordenação alfabética, navegação para edição
+    ClientRegister.jsx
+      Cadastro clifor completo. Ao selecionar "Vincular a Usuário" sobrescreve
+      nome e email do formulário com os dados do usuário selecionado
     ClientEdit.jsx                 — edição clifor
-    UserList.jsx                   — lista usuários + modal cadastro
+    UserList.jsx
+      Lista + edição inline + perfil completo (PerfilCompletoPopup) +
+      reset de senha + remover usuário. Cargo Desenvolvedor incluído.
     UserRegisterModal.jsx          — cadastro usuário como popup
-    PerfilCompletoPopup.jsx        — perfil + clifor vinculado
+    PerfilCompletoPopup.jsx        — perfil + clifor vinculado + associar/desvincular
   pages/
-    ListaLancamentosPage.jsx       — lista + fechar + comprovante
-    Dashboard.jsx
-    (wrappers de rota)
+    ListaLancamentosPage.jsx
+      Filtros: clifor, tipo de conta, natureza, datas, valores
+      Status (Abertos/Vencidos/Quitados/Reembolso) — combinável
+      Comprovante (Com/Sem) — exclusivos entre si, mesma linha do status
+      Botão "Aplicar Filtros" destaca com borda dourada + "⚠" quando
+        filtros pendentes diferem dos aplicados (ambos os temas)
+      Fechar lançamento com upload de comprovante PDF (máx 5MB)
+    dashboard.jsx
+      Seletor de período: Último mês / Últimos 6 meses / Ano atual / Desde sempre
+      + seletor livre de mês/ano (type="month") — exclusivos com botões rápidos
+      KPIs realizados: Receita Recebida, Despesa Paga, Saldo do Período, Reembolsos
+      KPIs pendentes: A Receber, A Pagar, A Receber (excl. inadimplentes), Inadimplentes
+      Rankings lado a lado: Top Despesas / Top Receitas (top 5 por tipo de conta)
+      Lista inadimplentes (máx 8, link "Ver todos")
+    (wrappers de rota para ClientList, ClientRegister, ClientEdit, UserList)
   services/
     api.js                         — todas as chamadas HTTP
+      getLancamentosResumo — filtros: data_pagamento_de/ate, id_clifor, etc.
+      getResumoPorTipo     — /lancamento/resumo-por-tipo
+      getSaldosClifors, anexarComprovante, baixarComprovante, removerComprovante
+      getSugestaoClifor, associarCliforAoUsuario, desvincularCliforDoUsuario
     auth.js                        — JWT, isAdmin, logout
     loadingContext.jsx
   styles/
-    theme.css                      — variáveis dos dois temas
+    theme.css              — variáveis dos dois temas (verde + corporativo)
+    clientList.css         — thead com var(--primary), tbody com var(--bg-card)
+    dashboard.css          — inclui classes do seletor de período
+    listaLancamentos.css   — inclui ll-btn-filtrar--pendente (ambos os temas)
     (outros CSS por componente)
 
 --------------------------------------------------------------------------------
@@ -115,6 +140,8 @@ Endpoints relevantes:
   GET    /usuarios/{id}/clifor            — clifor vinculado
   POST   /usuarios/{id}/clifor/{id}/associar
   DELETE /usuarios/{id}/clifor/desvincular
+  GET    /lancamento/resumo               — dashboard financeiro (filtro por data_pagamento_de/ate)
+  GET    /lancamento/resumo-por-tipo      — ranking por tipo de conta
 
 ENUMs:
   natureza_lancamento: "Debito" / "Credito"
@@ -122,8 +149,9 @@ ENUMs:
   cargo: Diretor / Tesoureiro / Secretário / Conselheiro / Associado / Desenvolvedor
 
 Banco:
-  - Trigger trigger_inadimplente atualiza clifor automaticamente
+  - Inadimplência gerenciada pelo backend (utils/inadimplencia.py) — sem trigger
   - lancamento.comprovante BYTEA + lancamento.comprovante_nome VARCHAR(255)
+  - LancamentoCreate NÃO aceita estorno — setar via PUT após criar
 
 --------------------------------------------------------------------------------
   CONVENÇÕES
