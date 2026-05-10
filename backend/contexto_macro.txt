@@ -1,18 +1,18 @@
 ================================================================================
-  ANSI PROJECT — APRESENTAÇÃO E CONTEXTO
+  AMSI PROJECT — APRESENTAÇÃO E CONTEXTO
 ================================================================================
 
-NOME DO PROJETO: ANSI Project
+NOME DO PROJETO: AMSI Project
 DESCRIÇÃO: Sistema de gestão financeira para associação de moradores.
            TCC do Pedro com aplicação real — não é exercício acadêmico.
-PRAZO: 30/04/2026 para finalizar programação do MVP.
+PRAZO: MVP finalizado.
 
 --------------------------------------------------------------------------------
   STACK
 --------------------------------------------------------------------------------
 
 Backend  : FastAPI (Python) + PostgreSQL 17.4
-Frontend : React.js (em andamento — colega responsável)
+Frontend : React.js + Vite (JSX) — Vercel
 Auth     : JWT próprio com bcrypt (implementado — ver fase_atual.txt)
 Ngrok    : domínio fixo bienvenu-meningitic-alejandra.ngrok-free.dev
            token: 3ApIjjSxFJ4NceaIBdInO3CLpyY_4YafBnmdNCTdXRZ9esHdQ
@@ -21,42 +21,48 @@ Ngrok    : domínio fixo bienvenu-meningitic-alejandra.ngrok-free.dev
   BANCO DE DADOS
 --------------------------------------------------------------------------------
 
-Banco    : ANSI_Project
+Banco    : AMSI_Project
 Usuário  : postgres
 Senha    : 99181
 Porta    : 5432
 OBS      : usa BIGINT GENERATED ALWAYS AS IDENTITY e ENUMs nativos do PostgreSQL
+           Trigger trigger_inadimplente foi REMOVIDO do banco — lógica migrada
+           para utils/inadimplencia.py no backend
 
 --------------------------------------------------------------------------------
   ESTRUTURA DO PROJETO
 --------------------------------------------------------------------------------
 
-Caminho  : C:\Codigos\ANSI_Project_Desenvolvimento
+Caminho  : C:\Codigos\AMSI_Project_Desenvolvimento
 
-C:\Codigos\ANSI_Project_Desenvolvimento
-├── auth
-│   ├── __init__.py
+backend/
+├── auth/
 │   ├── dependencies.py      — get_current_user, exige_admin
-│   └── router.py            — POST /auth/token
-├── bateria_testes.py        — 35/35 passando, limpa o banco após rodar
-├── comentarios
-│   ├── projeto_auth.txt     — plano detalhado de implementação da auth
-│   ├── projeto_bateria_pytest  — plano de atualização da Bateria testes
-│   ├── projeto_notificador.txt — plano de email e telegram
+│   └── router.py            — POST /auth/token, /auth/logout, /auth/trocar-senha
+├── comentarios/
 │   ├── fase_atual.txt       — estado atual, o que falta, regras de negócio
-│   └── tabelas_do_banco.txt — SQL de criação do banco (fonte da verdade)
+│   ├── tabelas_do_banco.txt — SQL de criação do banco (fonte da verdade)
+│   ├── projeto_auth.txt
+│   ├── projeto_notificador.txt
+│   ├── projeto_bateria_pytest.txt
+│   └── projeto_sessao_token.txt
+├── models/                  — SQLAlchemy: Lancamento, ClienteFornecedor, etc.
+├── routes/                  — FastAPI endpoints
+├── schemas/                 — Pydantic: Create, Update, Response
+├── tests/
+│   ├── conftest.py          — fixtures session-scoped; limpa lançamentos antes de deletar usuario_base
+│   └── test_*.py            — 154 testes passando
+├── utils/
+│   ├── auth_utils.py        — hash_senha, verificar_senha, criar_token_acesso
+│   ├── bootstrap.py         — seed de admin
+│   ├── config.py            — carrega config.env
+│   ├── email_sender.py
+│   ├── frequentes.py        — biblioteca pessoal: boolput, configure_logging, etc.
+│   ├── inadimplencia.py     — atualizar_inadimplente(id_clifor, db) — chamado em POST/PUT/DELETE /lancamento/
+│   ├── request_logger.py    — middleware + /logs/ui
+│   └── telegram_sender.py
 ├── database.py
-├── main.py
-├── models/
-├── routes/
-├── schemas/
-├── telegram_bot/
-└── utils/
-    ├── auth_utils.py        — hash_senha, verificar_senha, criar_token_acesso
-    ├── email_sender.py
-    ├── frequentes.py        — biblioteca pessoal: boolput, configure_logging, etc.
-    ├── request_logger.py    — middleware + /logs/ui
-    └── telegram_sender.py
+└── main.py
 
 --------------------------------------------------------------------------------
   CONVENÇÕES E ARMADILHAS CONHECIDAS
@@ -64,11 +70,13 @@ C:\Codigos\ANSI_Project_Desenvolvimento
 
 - SEMPRE verificar nomes de colunas contra comentarios/tabelas_do_banco.txt
   antes de escrever qualquer model ou query
-- id_tipo_lancamento_fk (não id_tipo_conta_fk) — já corrigido, não regredir
 - ENUMs do banco SEM acento: Debito/Credito — natureza_enum
   O banco usa C, F, A para tipo_clifor_enum
 - Models usam values_callable para ENUMs (já aplicado em todos)
 - Campo `login` foi REMOVIDO da tabela usuario — identificador é o EMAIL
+- LancamentoCreate NÃO tem campo estorno — setar via PUT após criar
+- Inadimplência é gerenciada pelo backend (utils/inadimplencia.py), não por trigger
+  Trigger trigger_inadimplente e function atualizar_inadimplente foram removidos do banco
 - utils/frequentes.py: boolput, configure_logging, intput, floatput,
   obriput, colorir, get_timestamp, mapeia_diretorio — usar sempre que possível
 
@@ -77,29 +85,13 @@ C:\Codigos\ANSI_Project_Desenvolvimento
 --------------------------------------------------------------------------------
 
 Enviar na ordem:
-  1. observacao.txt      (este arquivo)
-  2. fase_atual.txt      (estado e direções)
-  3. tabelas_do_banco.txt
-  4. main.py
-  5. database.py
-  6. Todos os models
-  7. Schema/route específico do que for trabalhar
-
---------------------------------------------------------------------------------
-  PERFIL DE TRABALHO — PEDRO
---------------------------------------------------------------------------------
-
-- Modo produção: respostas curtas, diretas, sem explicar o óbvio
-- Testa tudo antes de aceitar. Nunca implementar sem esperar resultado do terminal
-- Corrige sem drama — "está errado" e segue
-- Não antecipe demais — resolva o problema atual, não os três seguintes
-- Propostas são bem-vindas desde que não interrompam o fluxo
-- Não assuma de mais, perguntas inteligêntes evitam o desperdicio de tokens e de tempo.
-- Não existem perguntas burras, apenas redundantes, O Pedro está disposto a criar .TXTs para evitar isso.
-- Modo estudo (quando indicado): mais explicação, mais contexto — adaptar conforme
-- Usa a árvore de diretórios (mapeia_diretorio) para orientar o que ler/criar
-- Estamos construindo um MVP
-================================================================================
+  1. meu_perfil_de_trabalho_verde.txt
+  2. contexto_macro.txt     (este arquivo)
+  3. fase_atual.txt
+  4. tabelas_do_banco.txt
+  5. main.py e database.py
+  6. Models, schemas, routes específicos do que for trabalhar
+  + Árvore do projeto (mapeia_diretorio)
 
 --------------------------------------------------------------------------------
   PADRÕES DE DESENVOLVIMENTO
@@ -148,40 +140,11 @@ Nomenclatura:
 
 ## PADRÃO DE FILTROS EM LISTAGEM
 
-Quando o frontend pedir filtro em uma listagem existente, o padrão é:
-query parameters opcionais na rota GET.
-
-Exemplo — filtro em /lancamento/:
-
-  @router.get("/", response_model=List[LancamentoResponse])
-  def listar_lancamentos(
-      natureza: Optional[str] = None,
-      id_clifor: Optional[int] = None,
-      data_inicio: Optional[date] = None,
-      data_fim: Optional[date] = None,
-      db: Session = Depends(get_db),
-      current_user = Depends(get_current_user)
-  ):
-      query = db.query(Lancamento)
-      if natureza:
-          query = query.filter(Lancamento.natureza_lancamento == natureza)
-      if id_clifor:
-          query = query.filter(Lancamento.id_clifor_relacionado_fk == id_clifor)
-      if data_inicio:
-          query = query.filter(Lancamento.data_vencimento >= data_inicio)
-      if data_fim:
-          query = query.filter(Lancamento.data_vencimento <= data_fim)
-      return query.all()
-
-Regras:
-  - Todos os filtros são opcionais (Optional + default None)
-  - Sem filtro = retorna tudo (comportamento atual preservado)
-  - Filtros se acumulam (AND implícito)
-  - Nunca criar rota separada só para filtrar — sempre parâmetros na rota existente
+Query parameters opcionais na rota GET. Todos opcionais, sem filtro = retorna tudo.
+Filtros se acumulam (AND implícito). Nunca criar rota separada só para filtrar.
 
 ## PADRÃO DE RESPOSTA DE ERRO
 
-Usar sempre HTTPException com status codes semânticos:
   404 — recurso não encontrado
   400 — dado inválido enviado pelo cliente
   401 — não autenticado
@@ -214,5 +177,12 @@ Checklist:
   4. Atualizar schemas/ (Create, Update e Response conforme necessário)
   5. Testar com a bateria ou manualmente no Swagger
   6. Atualizar fase_atual.txt se for pendência resolvida
+
+## LÓGICA DE NEGÓCIO — INADIMPLÊNCIA
+
+  - Clifor é inadimplente se tiver lançamento de Crédito: vencido + não pago + não estornado
+  - Gerenciado por utils/inadimplencia.py → atualizar_inadimplente(id_clifor, db)
+  - Chamado em: POST /lancamento/, PUT /lancamento/{id}, DELETE /lancamento/{id}
+  - NÃO há trigger no banco — toda a lógica está no backend
 
 ================================================================================

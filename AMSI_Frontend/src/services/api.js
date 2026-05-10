@@ -415,6 +415,11 @@ export const getLancamentos = async (filtros = {}) => {
 	if (filtros.natureza) params.append('natureza', filtros.natureza);
 	if (filtros.apenas_abertos != null) params.append('apenas_abertos', filtros.apenas_abertos);
 	if (filtros.apenas_vencidos != null) params.append('apenas_vencidos', filtros.apenas_vencidos);
+	if (filtros.apenas_quitados != null) params.append('apenas_quitados', filtros.apenas_quitados);
+	if (filtros.apenas_com_comprovante != null)
+		params.append('apenas_com_comprovante', filtros.apenas_com_comprovante);
+	if (filtros.apenas_sem_comprovante != null)
+		params.append('apenas_sem_comprovante', filtros.apenas_sem_comprovante);
 	if (filtros.data_vencimento_de) params.append('data_vencimento_de', filtros.data_vencimento_de);
 	if (filtros.data_vencimento_ate)
 		params.append('data_vencimento_ate', filtros.data_vencimento_ate);
@@ -432,26 +437,28 @@ export const getLancamentos = async (filtros = {}) => {
 	return handleResponse(response);
 };
 
-// response: { total_a_receber, total_a_pagar, saldo_liquido,
-//             total_vencido_a_receber, total_vencido_a_pagar,
-//             quantidade_abertos, quantidade_vencidos }
 export const getLancamentosResumo = async (filtros = {}) => {
 	const params = new URLSearchParams();
+	if (filtros.data_pagamento_de) params.append('data_pagamento_de', filtros.data_pagamento_de);
+	if (filtros.data_pagamento_ate) params.append('data_pagamento_ate', filtros.data_pagamento_ate);
 	if (filtros.id_clifor != null) params.append('id_clifor', filtros.id_clifor);
 	if (filtros.id_tipo_conta != null) params.append('id_tipo_conta', filtros.id_tipo_conta);
 	if (filtros.natureza) params.append('natureza', filtros.natureza);
-	if (filtros.apenas_abertos != null) params.append('apenas_abertos', filtros.apenas_abertos);
-	if (filtros.data_vencimento_de) params.append('data_vencimento_de', filtros.data_vencimento_de);
-	if (filtros.data_vencimento_ate)
-		params.append('data_vencimento_ate', filtros.data_vencimento_ate);
-	if (filtros.data_lancamento_de) params.append('data_lancamento_de', filtros.data_lancamento_de);
-	if (filtros.data_lancamento_ate)
-		params.append('data_lancamento_ate', filtros.data_lancamento_ate);
-	if (filtros.estorno != null) params.append('estorno', filtros.estorno);
-	if (filtros.valor_minimo != null) params.append('valor_minimo', filtros.valor_minimo);
-	if (filtros.valor_maximo != null) params.append('valor_maximo', filtros.valor_maximo);
 	const query = params.toString() ? `?${params.toString()}` : '';
 	const response = await fetchComLoading(`${BASE_URL}/lancamento/resumo${query}`, {
+		method: 'GET',
+		headers: authHeaders()
+	});
+	return handleResponse(response);
+};
+
+export const getResumoPorTipo = async (filtros = {}) => {
+	const params = new URLSearchParams();
+	if (filtros.data_pagamento_de) params.append('data_pagamento_de', filtros.data_pagamento_de);
+	if (filtros.data_pagamento_ate) params.append('data_pagamento_ate', filtros.data_pagamento_ate);
+	if (filtros.natureza) params.append('natureza', filtros.natureza);
+	const query = params.toString() ? `?${params.toString()}` : '';
+	const response = await fetchComLoading(`${BASE_URL}/lancamento/resumo-por-tipo${query}`, {
 		method: 'GET',
 		headers: authHeaders()
 	});

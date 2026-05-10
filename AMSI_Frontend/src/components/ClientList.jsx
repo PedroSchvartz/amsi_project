@@ -1,311 +1,182 @@
-import { useEffect, useState } from 'react';
-import { getUsers, updateUser, resetarSenhaUsuario } from '../services/api.js';
-import PerfilCompletoPopup from './PerfilCompletoPopup.jsx';
-import UserRegisterModal from './UserRegisterModal.jsx';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { getClifors, getSaldosClifors } from '../services/api.js';
 import ToastStack, { useToast } from './ToastStack.jsx';
-import ModalConfirm from './ModalConfirm.jsx';
-import '../styles/userList.css';
+import '../styles/clientList.css';
 
-function Toast({ mensagem, tipo, onClose }) {
-	useEffect(() => {
-		const t = setTimeout(onClose, 4000);
-		return () => clearTimeout(t);
-	}, [mensagem]);
+const TIPO_LABEL = { C: 'Cliente', F: 'Fornecedor', A: 'Ambos' };
 
-	if (!mensagem) return null;
-
-	return (
-		<div className={`ul-toast ul-toast--${tipo}`}>
-			<span>{mensagem}</span>
-			<button className="ul-toast-close" onClick={onClose}>
-				×
-			</button>
-		</div>
-	);
+function rassurarCpfCnpj(doc) {
+	if (!doc) return '—';
+	const d = doc.replace(/\D/g, '');
+	if (d.length === 11) return `***.***.${d.slice(6, 9)}-**`;
+	if (d.length === 14) return `**.${d.slice(2, 5)}.${d.slice(5, 8)}/****.${d.slice(12)}`;
+	return doc;
 }
 
-function UserList() {
-	const [usuarios, setUsuarios] = useState([]);
+function ClientList() {
+	const navigate = useNavigate();
+	const { toasts, mostrarToast, removerToast } = useToast();
+
+	const [clifors, setClifors] = useState([]);
+	const [saldos, setSaldos] = useState({});
 	const [loading, setLoading] = useState(true);
-	const [toast, setToast] = useState({ mensagem: '', tipo: 'sucesso' });
+	const [cpfVisivel, setCpfVisivel] = useState({});
 
-	const [modalAberto, setModalAberto] = useState(false);
-	const [usuarioSelecionado, setUsuarioSelecionado] = useState(null);
-	const [formModal, setFormModal] = useState({
-		nome: '',
-		email: '',
-		cargo: '',
-		perfil_de_acesso: ''
-	});
-	const [erroModal, setErroModal] = useState('');
-	const [sucessoModal, setSucessoModal] = useState('');
-
-	const [modalConfirmarReset, setModalConfirmarReset] = useState(null);
-	const [perfilCompletoUsuario, setPerfilCompletoUsuario] = useState(null);
-	const [modalCadastro, setModalCadastro] = useState(false);
-
-	const mostrarToast = (mensagem, tipo = 'sucesso') => setToast({ mensagem, tipo });
-	const fecharToast = () => setToast({ mensagem: '', tipo: 'sucesso' });
+	const [busca, setBusca] = useState('');
+	const [filtroTipo, setFiltroTipo] = useState('');
+	const [filtroStatus, setFiltroStatus] = useState('');
 
 	useEffect(() => {
-		fetchUsers();
+		carregar();
 	}, []);
 
-	async function fetchUsers() {
+	const carregar = async () => {
 		try {
 			setLoading(true);
-			const data = await getUsers();
-			setUsuarios(data.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')));
+			const [lista, saldosData] = await Promise.all([getClifors(), getSaldosClifors()]);
+			setClifors(lista);
+			const mapa = {};
+			for (const s of saldosData) mapa[s.id_clifor] = s.saldo_liquido;
+			setSaldos(mapa);
 		} catch (err) {
-			mostrarToast('Erro ao carregar usuários', 'erro');
+			mostrarToast(err.message || 'Erro ao carregar clientes/fornecedores', 'erro');
 		} finally {
 			setLoading(false);
 		}
-	}
-
-	const handleEdit = (user) => {
-		setUsuarioSelecionado(user);
-		setFormModal({
-			nome: user.nome,
-			email: user.email,
-			cargo: user.cargo,
-			perfil_de_acesso: user.perfil_de_acesso
-		});
-		setErroModal('');
-		setSucessoModal('');
-		setModalAberto(true);
 	};
 
-	const handleFecharModal = () => {
-		setModalAberto(false);
-		setUsuarioSelecionado(null);
-	};
+	const toggleCpf = (id) => setCpfVisivel((prev) => ({ ...prev, [id]: !prev[id] }));
 
-	const handleChangeModal = (e) => {
-		setFormModal({ ...formModal, [e.target.name]: e.target.value });
-	};
-
-	const handleSalvar = async () => {
-		setErroModal('');
-		setSucessoModal('');
-		try {
-			await updateUser(usuarioSelecionado.id_usuario, {
-				nome: formModal.nome,
-				email: formModal.email,
-				cargo: formModal.cargo,
-				perfil_de_acesso: formModal.perfil_de_acesso,
-				notificacao: usuarioSelecionado.notificacao ?? false
-			});
-			setSucessoModal('Usuário atualizado com sucesso!');
-			setUsuarios((prev) =>
-				prev
-					.map((u) => (u.id_usuario === usuarioSelecionado.id_usuario ? { ...u, ...formModal } : u))
-					.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
-			);
-			setTimeout(() => {
-				handleFecharModal();
-				mostrarToast('Usuário atualizado com sucesso!');
-			}, 1200);
-		} catch (err) {
-			setErroModal(err.message || 'Erro ao atualizar usuário');
-		}
-	};
-
-	const handleConfirmarReset = async () => {
-		try {
-			await resetarSenhaUsuario(modalConfirmarReset);
-			setModalConfirmarReset(null);
-			mostrarToast('Senha resetada. O usuário deverá criar uma nova senha no próximo login.');
-		} catch (err) {
-			setModalConfirmarReset(null);
-			mostrarToast(err.message || 'Erro ao resetar senha', 'erro');
-		}
-	};
-
-	if (loading) return <p>Carregando...</p>;
+	const cliforsFiltrados = clifors.filter((c) => {
+		if (busca && !c.nome.toLowerCase().includes(busca.toLowerCase())) return false;
+		if (filtroTipo && c.tipo_clifor !== filtroTipo) return false;
+		if (filtroStatus === 'ativo' && !c.ativo) return false;
+		if (filtroStatus === 'inativo' && c.ativo) return false;
+		if (filtroStatus === 'inadimplente' && !c.inadimplente) return false;
+		return true;
+	});
 
 	return (
-		<div className="user-list-container">
-			<Toast mensagem={toast.mensagem} tipo={toast.tipo} onClose={fecharToast} />
+		<div className="cl-container">
+			<ToastStack toasts={toasts} onRemover={removerToast} />
 
-			{modalCadastro && (
-				<UserRegisterModal
-					onFechar={() => {
-						setModalCadastro(false);
-						fetchUsers();
-					}}
-				/>
-			)}
-
-			{perfilCompletoUsuario && (
-				<PerfilCompletoPopup
-					usuario={perfilCompletoUsuario}
-					onFechar={() => setPerfilCompletoUsuario(null)}
-				/>
-			)}
-
-			<div
-				style={{
-					display: 'flex',
-					justifyContent: 'space-between',
-					alignItems: 'center',
-					marginBottom: 16
-				}}
-			>
-				<h2 style={{ margin: 0 }}>Lista de Usuários</h2>
-				<button
-					onClick={() => setModalCadastro(true)}
-					style={{
-						padding: '8px 18px',
-						borderRadius: 8,
-						border: 'none',
-						background: 'var(--primary)',
-						color: '#fff',
-						fontWeight: 600,
-						fontSize: '0.875rem',
-						cursor: 'pointer'
-					}}
-				>
-					+ Cadastrar Usuário
+			<div className="cl-header">
+				<h2 className="cl-title">Clientes / Fornecedores</h2>
+				<button className="cl-btn-novo" onClick={() => navigate('/cliente_fornecedor/novo')}>
+					+ Novo
 				</button>
 			</div>
 
-			<table className="table table-striped">
-				<thead>
-					<tr>
-						<th>Nome</th>
-						<th>Email</th>
-						<th>Cargo</th>
-						<th>Perfil</th>
-						<th>Ações</th>
-					</tr>
-				</thead>
-				<tbody>
-					{usuarios.map((user) => (
-						<tr key={user.id_usuario}>
-							<td>{user.nome}</td>
-							<td>{user.email}</td>
-							<td>{user.cargo}</td>
-							<td>{user.perfil_de_acesso}</td>
-							<td className="d-flex gap-2">
-								<button
-									className="btn btn-sm btn-outline-secondary"
-									onClick={() => setPerfilCompletoUsuario(user)}
-									title="Ver perfil completo"
-								>
-									<i className="bi bi-person-lines-fill"></i>
-								</button>
-								<button
-									className="btn btn-sm btn-outline-primary"
-									onClick={() => handleEdit(user)}
-									title="Editar"
-								>
-									<i className="bi bi-pencil"></i>
-								</button>
-								<button
-									className="btn btn-sm btn-outline-warning"
-									onClick={() => setModalConfirmarReset(user.id_usuario)}
-									title="Resetar senha"
-								>
-									<i className="bi bi-key"></i>
-								</button>
-							</td>
-						</tr>
-					))}
-				</tbody>
-			</table>
-
-			{/* MODAL EDIÇÃO */}
-			{modalAberto && (
-				<>
-					<div className="modal-backdrop fade show" onClick={handleFecharModal} />
-					<div className="modal fade show d-block" tabIndex="-1" role="dialog">
-						<div className="modal-dialog modal-dialog-centered" role="document">
-							<div className="modal-content">
-								<div className="modal-header">
-									<h5 className="modal-title">Editar Usuário</h5>
-									<button type="button" className="btn-close" onClick={handleFecharModal} />
-								</div>
-								<div className="modal-body">
-									<div className="mb-3">
-										<label className="form-label">Nome Completo</label>
-										<input
-											className="form-control"
-											name="nome"
-											value={formModal.nome}
-											onChange={handleChangeModal}
-										/>
-									</div>
-									<div className="mb-3">
-										<label className="form-label">Email</label>
-										<input
-											type="email"
-											className="form-control"
-											name="email"
-											value={formModal.email}
-											onChange={handleChangeModal}
-										/>
-									</div>
-									<div className="mb-3">
-										<label className="form-label">Cargo</label>
-										<select
-											className="form-select"
-											name="cargo"
-											value={formModal.cargo}
-											onChange={handleChangeModal}
-										>
-											<option value="">Selecione</option>
-											<option value="Diretor">Diretor</option>
-											<option value="Tesoureiro">Tesoureiro</option>
-											<option value="Secretário">Secretário</option>
-											<option value="Conselheiro">Conselheiro</option>
-											<option value="Associado">Associado</option>
-										</select>
-									</div>
-									<div className="mb-3">
-										<label className="form-label">Perfil de Acesso</label>
-										<select
-											className="form-select"
-											name="perfil_de_acesso"
-											value={formModal.perfil_de_acesso}
-											onChange={handleChangeModal}
-										>
-											<option value="">Selecione</option>
-											<option value="Administrador">Administrador</option>
-											<option value="Consulta">Consulta</option>
-										</select>
-									</div>
-									{erroModal && <p className="ul-erro-modal">{erroModal}</p>}
-									{sucessoModal && <p className="ul-sucesso-modal">{sucessoModal}</p>}
-								</div>
-								<div className="modal-footer">
-									<button className="btn btn-secondary" onClick={handleFecharModal}>
-										Cancelar
-									</button>
-									<button className="btn btn-primary" onClick={handleSalvar}>
-										Salvar
-									</button>
-								</div>
-							</div>
-						</div>
-					</div>
-				</>
-			)}
-
-			{/* MODAL CONFIRMAR RESET DE SENHA */}
-			{modalConfirmarReset && (
-				<ModalConfirm
-					titulo="Resetar senha"
-					mensagem="O usuário será obrigado a criar uma nova senha no próximo login. Confirma?"
-					textoBotaoConfirmar="Confirmar"
-					textoBotaoCancelar="Cancelar"
-					onConfirmar={handleConfirmarReset}
-					onCancelar={() => setModalConfirmarReset(null)}
-					variante="perigo"
+			<div className="cl-filtros">
+				<input
+					className="cl-busca"
+					type="text"
+					placeholder="Buscar por nome..."
+					value={busca}
+					onChange={(e) => setBusca(e.target.value)}
 				/>
+				<select
+					className="cl-select"
+					value={filtroTipo}
+					onChange={(e) => setFiltroTipo(e.target.value)}
+				>
+					<option value="">Todos os tipos</option>
+					<option value="C">Cliente</option>
+					<option value="F">Fornecedor</option>
+					<option value="A">Ambos</option>
+				</select>
+				<select
+					className="cl-select"
+					value={filtroStatus}
+					onChange={(e) => setFiltroStatus(e.target.value)}
+				>
+					<option value="">Todos os status</option>
+					<option value="ativo">Ativo</option>
+					<option value="inativo">Inativo</option>
+					<option value="inadimplente">Inadimplente</option>
+				</select>
+			</div>
+
+			{loading ? (
+				<p className="cl-loading">Carregando...</p>
+			) : cliforsFiltrados.length === 0 ? (
+				<p className="cl-vazio">Nenhum cliente/fornecedor encontrado.</p>
+			) : (
+				<div className="cl-table-wrapper">
+					<table className="cl-table">
+						<thead>
+							<tr>
+								<th>Nome</th>
+								<th>Tipo</th>
+								<th>Documento</th>
+								<th>Status</th>
+								<th>Inadimplente</th>
+								<th>Saldo</th>
+								<th>Ações</th>
+							</tr>
+						</thead>
+						<tbody>
+							{cliforsFiltrados.map((c) => {
+								const saldo = saldos[c.id_clifor];
+								const saldoNum = saldo != null ? parseFloat(saldo) : null;
+								return (
+									<tr key={c.id_clifor}>
+										<td>{c.nome}</td>
+										<td>{TIPO_LABEL[c.tipo_clifor] ?? c.tipo_clifor}</td>
+										<td>
+											<span
+												className="cl-doc cl-rasurado"
+												title="Clique para revelar"
+												onClick={() => toggleCpf(c.id_clifor)}
+											>
+												{cpfVisivel[c.id_clifor] ? c.cpf_cnpj || '—' : rassurarCpfCnpj(c.cpf_cnpj)}
+											</span>
+										</td>
+										<td>
+											<span
+												className={`cl-badge ${c.ativo ? 'cl-badge--ativo' : 'cl-badge--inativo'}`}
+											>
+												{c.ativo ? 'Ativo' : 'Inativo'}
+											</span>
+										</td>
+										<td>
+											<span
+												className={`cl-badge ${c.inadimplente ? 'cl-badge--inadimplente' : 'cl-badge--ok'}`}
+											>
+												{c.inadimplente ? 'Sim' : 'Não'}
+											</span>
+										</td>
+										<td>
+											{saldoNum != null ? (
+												<span
+													className={`cl-saldo ${saldoNum >= 0 ? 'cl-saldo--positivo' : 'cl-saldo--negativo'}`}
+												>
+													R$ {saldoNum.toFixed(2).replace('.', ',')}
+												</span>
+											) : (
+												<span className="cl-saldo" style={{ color: 'var(--text-muted)' }}>
+													—
+												</span>
+											)}
+										</td>
+										<td>
+											<button
+												className="cl-btn-editar"
+												onClick={() => navigate(`/cliente_fornecedor/${c.id_clifor}/editar`)}
+											>
+												<i className="bi bi-pencil"></i> Editar
+											</button>
+										</td>
+									</tr>
+								);
+							})}
+						</tbody>
+					</table>
+				</div>
 			)}
 		</div>
 	);
 }
 
-export default UserList;
+export default ClientList;

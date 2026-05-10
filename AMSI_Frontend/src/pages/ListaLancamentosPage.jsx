@@ -21,6 +21,9 @@ const FILTROS_INICIAL = {
 	natureza: '',
 	apenas_abertos: '',
 	apenas_vencidos: '',
+	apenas_quitados: '',
+	apenas_com_comprovante: '',
+	apenas_sem_comprovante: '',
 	data_vencimento_de: '',
 	data_vencimento_ate: '',
 	data_lancamento_de: '',
@@ -46,6 +49,7 @@ function ListaLancamentosPage() {
 	const [clifors, setClifors] = useState([]);
 	const [tiposConta, setTiposConta] = useState([]);
 	const [filtros, setFiltros] = useState(FILTROS_INICIAL);
+	const [filtrosAplicados, setFiltrosAplicados] = useState(FILTROS_INICIAL);
 	const { toasts, mostrarToast, removerToast } = useToast();
 
 	const [modalFechar, setModalFechar] = useState(null); // id_lancamento
@@ -78,6 +82,10 @@ function ListaLancamentosPage() {
 			if (f.apenas_abertos !== '') params.apenas_abertos = f.apenas_abertos === 'true';
 			if (f.apenas_vencidos !== '') params.apenas_vencidos = f.apenas_vencidos === 'true';
 			if (f.apenas_quitados !== '') params.apenas_quitados = f.apenas_quitados === 'true';
+			if (f.apenas_com_comprovante !== '')
+				params.apenas_com_comprovante = f.apenas_com_comprovante === 'true';
+			if (f.apenas_sem_comprovante !== '')
+				params.apenas_sem_comprovante = f.apenas_sem_comprovante === 'true';
 			if (f.data_vencimento_de) params.data_vencimento_de = f.data_vencimento_de;
 			if (f.data_vencimento_ate) params.data_vencimento_ate = f.data_vencimento_ate;
 			if (f.data_lancamento_de) params.data_lancamento_de = f.data_lancamento_de;
@@ -87,6 +95,7 @@ function ListaLancamentosPage() {
 			if (f.valor_maximo) params.valor_maximo = parseFloat(f.valor_maximo);
 			const data = await getLancamentos(params);
 			setLancamentos(data);
+			setFiltrosAplicados(f);
 		} catch (err) {
 			mostrarToast(err.message || 'Erro ao buscar lançamentos', 'erro');
 		}
@@ -105,6 +114,8 @@ function ListaLancamentosPage() {
 		setFiltros(FILTROS_INICIAL);
 		buscar(FILTROS_INICIAL);
 	};
+
+	const filtrosPendentes = JSON.stringify(filtros) !== JSON.stringify(filtrosAplicados);
 
 	const abrirModalFechar = (l) => {
 		setModalFechar(l.id_lancamento);
@@ -346,6 +357,41 @@ function ListaLancamentosPage() {
 										/>
 										Reembolso
 									</label>
+									<span
+										style={{
+											borderLeft: '1px solid var(--border)',
+											margin: '0 4px',
+											alignSelf: 'stretch'
+										}}
+									/>
+									<label>
+										<input
+											type="checkbox"
+											checked={filtros.apenas_com_comprovante === 'true'}
+											onChange={(e) =>
+												setFiltros({
+													...filtros,
+													apenas_com_comprovante: e.target.checked ? 'true' : '',
+													apenas_sem_comprovante: ''
+												})
+											}
+										/>
+										Com comprovante
+									</label>
+									<label>
+										<input
+											type="checkbox"
+											checked={filtros.apenas_sem_comprovante === 'true'}
+											onChange={(e) =>
+												setFiltros({
+													...filtros,
+													apenas_sem_comprovante: e.target.checked ? 'true' : '',
+													apenas_com_comprovante: ''
+												})
+											}
+										/>
+										Sem comprovante
+									</label>
 								</div>
 							</div>
 						</div>
@@ -379,8 +425,11 @@ function ListaLancamentosPage() {
 							<button type="button" className="ll-btn-limpar" onClick={handleLimpar}>
 								Limpar
 							</button>
-							<button type="submit" className="ll-btn-filtrar">
-								Aplicar Filtros
+							<button
+								type="submit"
+								className={`ll-btn-filtrar${filtrosPendentes ? ' ll-btn-filtrar--pendente' : ''}`}
+							>
+								{filtrosPendentes ? '⚠ Aplicar Filtros ⚠' : 'Aplicar Filtros'}
 							</button>
 						</div>
 					</form>
