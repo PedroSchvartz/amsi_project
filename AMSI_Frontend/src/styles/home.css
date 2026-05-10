@@ -1,29 +1,149 @@
-/* AMSI — Home */
+/* ============================================================
+   AMSI — Home (atualizado para Home.jsx v2)
+   ============================================================ */
+
 @import './theme.css';
 
-.home-content {
-  max-width: 800px;
+.home-bv-container {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto auto;
+  gap: 0 48px;
+  max-width: 860px;
   margin: 0 auto;
-  padding: 40px 0;
+  padding: 48px 0;
+  align-items: start;
 }
 
-.home-welcome h1 {
+/* Logo — ocupa as 3 linhas à esquerda */
+.home-bv-logo-wrap {
+  grid-column: 1;
+  grid-row: 1 / 4;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.home-bv-logo {
+  width: 320px;
+  max-width: 100%;
+  object-fit: contain;
+  border-radius: 12px;
+}
+
+/* Saudação */
+.home-bv-saudacao {
+  grid-column: 2;
+  grid-row: 1;
+  padding-top: 12px;
+}
+
+.home-bv-titulo {
   font-family: var(--font-display);
   font-size: 2.2rem;
   font-weight: 700;
   color: var(--text);
+  margin-bottom: 8px;
+  line-height: 1.2;
+}
+
+.home-bv-cargo {
+  display: inline-block;
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--primary);
+  background: rgba(27, 67, 50, 0.08);
+  border: 1px solid rgba(27, 67, 50, 0.15);
+  border-radius: 50px;
+  padding: 3px 12px;
+  margin-bottom: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+[data-theme="corporativo"] .home-bv-cargo {
+  color: var(--primary);
+  background: rgba(56, 189, 248, 0.08);
+  border-color: rgba(56, 189, 248, 0.2);
+}
+
+.home-bv-data {
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
+/* Divisor */
+.home-bv-divider {
+  grid-column: 2;
+  grid-row: 2;
+  height: 1px;
+  background: var(--border);
+  margin: 20px 0;
+}
+
+/* Institucional */
+.home-bv-institucional {
+  grid-column: 2;
+  grid-row: 3;
+}
+
+.home-bv-frase {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-style: italic;
+  color: var(--text-muted);
+  line-height: 1.65;
   margin-bottom: 10px;
 }
 
-.home-welcome p {
-  font-size: 0.95rem;
-  color: var(--text-muted);
-  line-height: 1.6;
+.home-bv-nome-assoc {
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--accent);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
-.home-hint {
-  margin-top: 8px;
-  font-size: 0.85rem !important;
-  color: var(--accent) !important;
-  font-style: italic;
+/* ── Responsivo ── */
+@media (max-width: 768px) {
+  .home-bv-container {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+    gap: 24px;
+    padding: 24px 0;
+  }
+
+  .home-bv-logo-wrap {
+    grid-column: 1;
+    grid-row: 1;
+    justify-content: center;
+  }
+
+  .home-bv-logo {
+    width: 200px;
+  }
+
+  .home-bv-saudacao {
+    grid-column: 1;
+    grid-row: 2;
+    padding-top: 0;
+  }
+
+  .home-bv-divider {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  .home-bv-institucional {
+    grid-column: 1;
+    grid-row: 4;
+  }
+
+  .home-bv-titulo {
+    font-size: 1.6rem;
+  }
 }
