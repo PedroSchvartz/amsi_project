@@ -36,3 +36,6 @@ TELEGRAM_GROUP_ID = os.getenv("TELEGRAM_GROUP_ID", "")
 APP_ENV = os.getenv("APP_ENV", "development")
 APP_HOST = os.getenv("APP_HOST", "localhost")
 APP_PORT = int(os.getenv("APP_PORT", 8000))
+
+# Frontend
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://amsi-project.vercel.app")
