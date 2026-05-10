@@ -1,9 +1,10 @@
 /* ============================================================
-   AMSI — Layout Padrão
+   AMSI — Layout Padrão (atualizado para Layout.jsx v2)
    ============================================================ */
 
 @import './theme.css';
 
+/* ── Wrapper geral ── */
 .layout-wrapper {
   min-height: 100vh;
   display: flex;
@@ -12,8 +13,10 @@
   transition: background 0.4s ease;
 }
 
-/* ── Topbar ── */
-.topbar {
+/* ============================================================
+   TOPBAR
+   ============================================================ */
+.layout-topbar {
   background: var(--primary);
   color: #ffffff;
   padding: 10px 24px;
@@ -28,13 +31,17 @@
   z-index: 100;
 }
 
-.topbar-left {
+/* Brand (logo + nome) */
+.layout-topbar__brand {
   display: flex;
   align-items: center;
   gap: 12px;
+  text-decoration: none;
+  flex: 1;
+  min-width: 0;
 }
 
-.topbar-logo {
+.layout-topbar__logo {
   width: 44px;
   height: 44px;
   object-fit: contain;
@@ -44,43 +51,60 @@
   flex-shrink: 0;
 }
 
-.topbar-nome {
+.layout-topbar__title {
   font-family: var(--font-display);
   font-size: 1rem;
   font-weight: 600;
   color: #ffffff;
   letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.topbar-nome-short { display: none; }
-.topbar-nome-full  { display: inline; }
-
-.topbar-right {
+/* Ações lado direito — desktop */
+.layout-topbar__actions {
   display: flex;
   align-items: center;
   gap: 12px;
   flex-shrink: 0;
-  min-width: fit-content;
 }
 
-.topbar-left {
-  flex: 1;
-  min-width: 0;
+.layout-topbar__actions--desktop {
+  display: flex;
 }
 
-.topbar-usuario {
+.layout-topbar__user-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.35);
+  border-radius: 50px;
+  padding: 5px 14px;
+  cursor: pointer;
+  font-family: var(--font-body);
   font-size: 0.82rem;
   color: rgba(255,255,255,0.85);
-  font-family: var(--font-body);
+  transition: all 0.3s ease;
   white-space: nowrap;
 }
 
-.topbar-sep {
-  color: rgba(255,255,255,0.4);
-  font-size: 0.9rem;
+.layout-topbar__user-btn:hover {
+  background: rgba(255,255,255,0.15);
+  color: #ffffff;
 }
 
-.theme-toggle {
+.layout-topbar__divider {
+  width: 1px;
+  height: 20px;
+  background: rgba(255,255,255,0.3);
+}
+
+.layout-topbar__theme-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   background: transparent;
   border: 1px solid rgba(255,255,255,0.35);
   border-radius: 50px;
@@ -92,38 +116,37 @@
   color: rgba(255,255,255,0.85);
   transition: all 0.3s ease;
   white-space: nowrap;
-  flex-shrink: 0;
 }
 
-.theme-toggle:hover {
+.layout-topbar__theme-btn:hover {
   background: rgba(255,255,255,0.15);
   color: #ffffff;
 }
 
-/* ── Hamburguer ── */
-.btn-hamburger {
-  display: none !important;
-  flex-direction: column;
+/* Hamburguer — mobile */
+.layout-topbar__hamburger {
+  display: none;
+  align-items: center;
   justify-content: center;
-  gap: 5px;
   background: transparent;
-  border: none;
+  border: 1px solid rgba(255,255,255,0.35);
+  border-radius: 8px;
+  padding: 6px 10px;
   cursor: pointer;
-  padding: 4px;
-  margin-left: 8px;
-}
-
-.btn-hamburger span {
-  display: block;
-  width: 22px;
-  height: 2px;
-  background: #ffffff;
-  border-radius: 2px;
+  color: #ffffff;
+  font-size: 1.2rem;
   transition: all 0.3s ease;
+  flex-shrink: 0;
 }
 
-/* ── Menu mobile ── */
-.menu-mobile {
+.layout-topbar__hamburger:hover {
+  background: rgba(255,255,255,0.15);
+}
+
+/* ============================================================
+   MENU MOBILE (dropdown)
+   ============================================================ */
+.layout-menu-mobile {
   display: none;
   flex-direction: column;
   background: var(--primary);
@@ -133,11 +156,11 @@
   transition: max-height 0.3s ease;
 }
 
-.menu-mobile.aberto {
+.layout-menu-mobile--aberto {
   max-height: 500px;
 }
 
-.menu-mobile-item {
+.layout-menu-mobile__item {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -157,23 +180,31 @@
   width: 100%;
 }
 
-.menu-mobile-item:hover,
-.menu-mobile-item.active {
+.layout-menu-mobile__item:hover,
+.layout-menu-mobile__item--active {
   background: rgba(255,255,255,0.1);
   color: #ffffff;
 }
 
-.menu-mobile-sair {
+.layout-menu-mobile__item--sair {
   color: rgba(255,100,100,0.85);
 }
 
-.menu-mobile-sair:hover {
+.layout-menu-mobile__item--sair:hover {
   background: rgba(255,100,100,0.1);
   color: #ff6464;
 }
 
-/* ── Menu horizontal desktop ── */
-.menu-horizontal {
+.layout-menu-mobile__separator {
+  height: 1px;
+  background: rgba(255,255,255,0.15);
+  margin: 4px 0;
+}
+
+/* ============================================================
+   MENU HORIZONTAL — DESKTOP
+   ============================================================ */
+.layout-menu-desktop {
   background: var(--accent);
   display: flex;
   align-items: center;
@@ -184,18 +215,18 @@
   overflow-x: auto;
 }
 
-[data-theme="corporativo"] .menu-horizontal {
+[data-theme="corporativo"] .layout-menu-desktop {
   background: var(--bg-card);
   border-bottom: 1px solid var(--border);
 }
 
-.menu-links {
+.layout-menu-desktop__links {
   display: flex;
   align-items: center;
   gap: 4px;
 }
 
-.menu-item {
+.layout-menu-desktop__item {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -210,39 +241,34 @@
   white-space: nowrap;
 }
 
-[data-theme="corporativo"] .menu-item {
+[data-theme="corporativo"] .layout-menu-desktop__item {
   color: var(--text-muted);
 }
 
-.menu-item:hover {
+.layout-menu-desktop__item:hover {
   color: var(--primary);
   background: rgba(255,255,255,0.3);
 }
 
-[data-theme="corporativo"] .menu-item:hover {
+[data-theme="corporativo"] .layout-menu-desktop__item:hover {
   color: var(--primary);
   background: rgba(56,189,248,0.08);
 }
 
-.menu-item.active {
+.layout-menu-desktop__item--active {
   color: var(--primary);
   border-bottom: 3px solid var(--primary);
   background: rgba(255,255,255,0.4);
   font-weight: 600;
 }
 
-[data-theme="corporativo"] .menu-item.active {
+[data-theme="corporativo"] .layout-menu-desktop__item--active {
   color: var(--primary);
   border-bottom: 3px solid var(--primary);
   background: rgba(56,189,248,0.08);
 }
 
-.menu-icon {
-  font-size: 1rem;
-}
-
-/* ── Botão Sair no menu ── */
-.menu-sair {
+.layout-menu-desktop__sair {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -260,17 +286,19 @@
   margin-left: 8px;
 }
 
-.menu-sair:hover {
+.layout-menu-desktop__sair:hover {
   background: rgba(239,68,68,0.08);
   border-color: #dc2626;
 }
 
-[data-theme="corporativo"] .menu-sair {
+[data-theme="corporativo"] .layout-menu-desktop__sair {
   color: #f87171;
   border-color: rgba(248,113,113,0.3);
 }
 
-/* ── Conteúdo ── */
+/* ============================================================
+   CONTEÚDO PRINCIPAL
+   ============================================================ */
 .layout-content {
   flex: 1;
   padding: 28px 24px;
@@ -278,7 +306,9 @@
   transition: background 0.4s ease;
 }
 
-/* ── Rodapé ── */
+/* ============================================================
+   RODAPÉ
+   ============================================================ */
 .layout-footer {
   background: var(--primary);
   color: rgba(255,255,255,0.55);
@@ -291,28 +321,24 @@
   transition: background 0.4s ease;
 }
 
-.footer-nome-short { display: none; }
-.footer-nome-full  { display: inline; }
+.layout-footer__nome {
+  display: flex;
+  align-items: center;
+}
 
-/* ── Responsivo ── */
+/* ============================================================
+   RESPONSIVO
+   ============================================================ */
 @media (max-width: 900px) {
-  .menu-item span:last-child { display: none; }
-  .menu-item { padding: 12px 10px; }
+  .layout-menu-desktop__item span:last-child { display: none; }
+  .layout-menu-desktop__item { padding: 12px 10px; }
 }
 
 @media (max-width: 768px) {
-  
-  .topbar-nome-full        { display: none; }
-  .topbar-nome-short       { display: inline; }
-  .btn-hamburger           { display: flex; }
-  .menu-mobile             { display: flex; }
-  .menu-horizontal         { display: none; }
-  .footer-nome-full        { display: none; }
-  .footer-nome-short       { display: inline; }
-  .layout-content          { padding: 16px; }
-  .btn-hamburger {
-    display: flex !important;
-  }
+  .layout-topbar__title            { display: none; }
+  .layout-topbar__actions--desktop { display: none; }
+  .layout-topbar__hamburger        { display: flex; }
+  .layout-menu-mobile              { display: flex; }
+  .layout-menu-desktop             { display: none; }
+  .layout-content                  { padding: 16px; }
 }
-
-
