@@ -1,126 +1,29 @@
-/* ============================================================
-   AMSI — Home Page — Tela de Boas-Vindas
-   Temas: Verde Associação | Corporativo
-   ============================================================ */
-
+/* AMSI — Home */
 @import './theme.css';
 
-.home-bv-container {
-  max-width: 600px;
-  margin: 60px auto 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 28px;
-  text-align: center;
-  padding: 0 16px;
+.home-content {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 40px 0;
 }
 
-/* Logo */
-.home-bv-logo-wrap {
-  width: 100px;
-  height: 100px;
-  border-radius: 20px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 12px;
-  box-shadow: 0 4px 20px var(--shadow);
-}
-
-.home-bv-logo {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-/* Saudação */
-.home-bv-saudacao {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-
-.home-bv-titulo {
+.home-welcome h1 {
   font-family: var(--font-display);
   font-size: 2.2rem;
   font-weight: 700;
   color: var(--text);
-  margin: 0;
-  line-height: 1.15;
+  margin-bottom: 10px;
 }
 
-.home-bv-cargo {
-  display: inline-block;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--primary);
-  background: var(--accent);
-  padding: 4px 14px;
-  border-radius: 50px;
-  border: 1px solid var(--border);
-}
-
-.home-bv-data {
-  font-size: 0.88rem;
-  color: var(--text-muted);
-  margin: 0;
-  text-transform: capitalize;
-}
-
-/* Divisor */
-.home-bv-divider {
-  width: 48px;
-  height: 2px;
-  background: var(--primary);
-  border-radius: 2px;
-  opacity: 0.5;
-}
-
-/* Frase institucional */
-.home-bv-institucional {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-}
-
-.home-bv-frase {
-  font-family: var(--font-display);
-  font-size: 1.15rem;
-  font-style: italic;
+.home-welcome p {
+  font-size: 0.95rem;
   color: var(--text-muted);
   line-height: 1.6;
-  margin: 0;
-  max-width: 480px;
 }
 
-.home-bv-nome-assoc {
-  font-size: 0.78rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--text-muted);
-  opacity: 0.7;
-}
-
-/* Responsivo */
-@media (max-width: 640px) {
-  .home-bv-container {
-    margin-top: 32px;
-    gap: 20px;
-  }
-
-  .home-bv-titulo {
-    font-size: 1.7rem;
-  }
-
-  .home-bv-frase {
-    font-size: 1rem;
-  }
+.home-hint {
+  margin-top: 8px;
+  font-size: 0.85rem !important;
+  color: var(--accent) !important;
+  font-style: italic;
 }

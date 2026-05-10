@@ -1,95 +1,115 @@
 /* ============================================================
-   AMSI — Sistema de Temas
-   Tema padrão: Verde Associação
-   Tema alternativo: Corporativo (data-theme="corporativo")
-
-   REGRA FUNDAMENTAL:
-   Nunca use cores hardcoded nos componentes.
-   Sempre use var(--nome-da-variavel).
+   AMSI — Temas Globais
+   Importar este arquivo em TODOS os CSS das páginas
    ============================================================ */
 
-/* ════════════════════════════════════════
-   TEMA VERDE (padrão — sem data-theme)
-   ════════════════════════════════════════ */
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=DM+Sans:wght@300;400;500&display=swap');
+
+/* ── Tema Verde Associação (padrão) ── */
 :root {
-  /* Cores principais */
-  --primary:       #1B4332;   /* verde escuro AMSI */
-  --btn-hover:     #14532d;   /* hover do botão primário */
-  --accent:        #e8f0e4;   /* fundo suave de destaque */
+  --bg:           #EFE6DD;
+  --bg-card:      #ffffff;
+  --primary:      #1B4332;
+  --secondary:    #6F4E37;
+  --accent:       #A3B18A;
+  --text:         #2C2C2C;
+  --text-muted:   #6b7280;
+  --border:       #d1c9bf;
+  --input-bg:     #f9f5f1;
+  --btn-hover:    #14532d;
+  --shadow:       rgba(27, 67, 50, 0.15);
+  --gold:         #C9A84C;
 
-  /* Fundos */
-  --bg:            #EFE6DD;   /* fundo geral da página */
-  --bg-card:       #ffffff;   /* fundo dos cards e painéis */
-  --input-bg:      #f4efe9;   /* fundo dos inputs */
-
-  /* Texto */
-  --text:          #1a1a1a;
-  --text-muted:    #6b7280;
-
-  /* Bordas e sombras */
-  --border:        #d9d0c7;
-  --shadow:        rgba(0, 0, 0, 0.08);
-
-  /* Tipografia */
-  --font-display:  'Cormorant Garamond', serif;
-  --font-body:     'DM Sans', sans-serif;
-
-  /* Decorativos */
-  --gold:          #c9a84c;
-
-  /* Login branding — textos sobre fundo --primary (verde escuro = fundo escuro) */
-  --branding-text-corporativo: #0c4a6e; /* usado apenas no tema corporativo */
+  --font-display: 'Cormorant Garamond', serif;
+  --font-body:    'DM Sans', sans-serif;
 }
 
-/* ════════════════════════════════════════
-   TEMA CORPORATIVO (data-theme="corporativo")
-   ════════════════════════════════════════ */
+/* ── Tema Profissional Corporativa ── */
 [data-theme="corporativo"] {
-  /* Cores principais */
-  --primary:       #38BDF8;   /* azul céu */
-  --btn-hover:     #0ea5e9;   /* hover do botão primário */
-  --accent:        #1e293b;   /* fundo suave de destaque (escuro) */
-
-  /* Fundos */
-  --bg:            #0F172A;   /* fundo geral da página (dark) */
-  --bg-card:       #1e293b;   /* fundo dos cards */
-  --input-bg:      #0f172a;   /* fundo dos inputs */
-
-  /* Texto */
-  --text:          #f1f5f9;
-  --text-muted:    #94a3b8;
-
-  /* Bordas e sombras */
-  --border:        #334155;
-  --shadow:        rgba(0, 0, 0, 0.35);
-
-  /* Tipografia — mesma do tema verde */
-  --font-display:  'Cormorant Garamond', serif;
-  --font-body:     'DM Sans', sans-serif;
-
-  /* Decorativos */
-  --gold:          #c9a84c;
-
-  /* Login branding — textos sobre fundo --primary (#38BDF8 = fundo claro) */
-  /* O fundo claro exige texto escuro para contraste */
-  --branding-text-corporativo: #0c4a6e;
+  --bg:           #0F172A;
+  --bg-card:      #1e293b;
+  --primary:      #38BDF8;
+  --secondary:    #CBD5F5;
+  --accent:       #94A3B8;
+  --text:         #E2E8F0;
+  --text-muted:   #94A3B8;
+  --border:       #334155;
+  --input-bg:     #0f172a;
+  --btn-hover:    #0284c7;
+  --shadow:       rgba(56, 189, 248, 0.15);
+  --gold:         #38BDF8;
 }
 
-/* ════════════════════════════════════════
-   RESET BÁSICO DE CONSISTÊNCIA
-   Garante que inputs e selects herdem
-   as cores do tema corretamente
-   ════════════════════════════════════════ */
-*,
-*::before,
-*::after {
+/* ── Reset global ── */
+*, *::before, *::after {
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 body {
+  font-family: var(--font-body);
+  font-weight: 400;
   background: var(--bg);
   color: var(--text);
+  transition: background 0.4s ease, color 0.4s ease;
+}
+
+/* ── Botão de Tema (fixo no canto — presente em todas as páginas) ── */
+.theme-toggle {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 50px;
+  padding: 8px 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-family: var(--font-body);
-  transition: background 0.3s ease, color 0.3s ease;
-  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  box-shadow: 0 2px 12px var(--shadow);
+  transition: all 0.3s ease;
+}
+
+.theme-toggle:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px var(--shadow);
+}
+
+.theme-toggle .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--primary);
+  transition: background 0.3s ease;
+}
+
+/* ── Animações globais ── */
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25%       { transform: translateX(-6px); }
+  75%       { transform: translateX(6px); }
 }

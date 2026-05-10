@@ -1,375 +1,318 @@
 /* ============================================================
-   AMSI — Layout Principal
-   Temas: Verde Associação | Corporativo
-   Responsividade: Mobile-first
+   AMSI — Layout Padrão
    ============================================================ */
 
 @import './theme.css';
 
-/* ── Wrapper geral da página ── */
 .layout-wrapper {
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
   background: var(--bg);
-  transition: background 0.3s ease;
+  transition: background 0.4s ease;
 }
 
-/* ════════════════════════════════════════
-   TOPBAR
-   ════════════════════════════════════════ */
-.layout-topbar {
+/* ── Topbar ── */
+.topbar {
   background: var(--primary);
+  color: #ffffff;
   padding: 10px 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
+  gap: 20px;
+  box-shadow: 0 2px 12px var(--shadow);
+  transition: background 0.4s ease;
   position: sticky;
   top: 0;
   z-index: 100;
-  width: 100%;
-  box-sizing: border-box;
-  transition: background 0.3s ease;
 }
 
-/* ── Brand: logo + nome ── */
-.layout-topbar__brand {
+.topbar-left {
   display: flex;
   align-items: center;
   gap: 12px;
-  text-decoration: none;
-  flex-shrink: 0;
-  min-width: 0; /* permite truncar o texto em telas pequenas */
 }
 
-.layout-topbar__logo {
-  width: 40px;
-  height: 40px;
+.topbar-logo {
+  width: 44px;
+  height: 44px;
   object-fit: contain;
   border-radius: 8px;
-  background: #ffffff;
+  background: white;
   padding: 4px;
   flex-shrink: 0;
 }
 
-.layout-topbar__title {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 1.1rem;
+.topbar-nome {
+  font-family: var(--font-display);
+  font-size: 1rem;
   font-weight: 600;
   color: #ffffff;
   letter-spacing: 0.02em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-/* ── Ações do lado direito ── */
-.layout-topbar__actions {
+.topbar-nome-short { display: none; }
+.topbar-nome-full  { display: inline; }
+
+.topbar-right {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   flex-shrink: 0;
+  min-width: fit-content;
 }
 
-/* Botão de usuário (nome + ícone) */
-.layout-topbar__user-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: transparent;
-  border: none;
-  color: rgba(255, 255, 255, 0.85);
+.topbar-left {
+  flex: 1;
+  min-width: 0;
+}
+
+.topbar-usuario {
   font-size: 0.82rem;
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 6px;
-  transition: color 0.2s ease, background 0.2s ease;
+  color: rgba(255,255,255,0.85);
+  font-family: var(--font-body);
   white-space: nowrap;
 }
 
-.layout-topbar__user-btn:hover {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.1);
+.topbar-sep {
+  color: rgba(255,255,255,0.4);
+  font-size: 0.9rem;
 }
 
-.layout-topbar__user-btn i {
-  font-size: 1rem;
-}
-
-/* Divisor vertical entre user e tema */
-.layout-topbar__divider {
-  width: 1px;
-  height: 18px;
-  background: rgba(255, 255, 255, 0.25);
-}
-
-/* Botão de troca de tema */
-.layout-topbar__theme-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.theme-toggle {
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(255,255,255,0.35);
   border-radius: 50px;
   padding: 5px 14px;
   cursor: pointer;
+  font-family: var(--font-body);
   font-size: 0.75rem;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(255,255,255,0.85);
+  transition: all 0.3s ease;
   white-space: nowrap;
-  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+  flex-shrink: 0;
 }
 
-.layout-topbar__theme-btn:hover {
-  border-color: rgba(255, 255, 255, 0.6);
-  background: rgba(255, 255, 255, 0.1);
+.theme-toggle:hover {
+  background: rgba(255,255,255,0.15);
   color: #ffffff;
 }
 
-.layout-topbar__theme-btn i {
-  font-size: 0.85rem;
-}
-
-/* Botão hamburger — oculto no desktop */
-.layout-topbar__hamburger {
-  display: none; /* visível apenas no mobile via media query abaixo */
+/* ── Hamburguer ── */
+.btn-hamburger {
+  display: none !important;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
   background: transparent;
   border: none;
-  color: #ffffff;
-  font-size: 1.5rem;
   cursor: pointer;
-  padding: 4px 6px;
-  border-radius: 6px;
-  line-height: 1;
-  transition: background 0.2s ease;
+  padding: 4px;
+  margin-left: 8px;
 }
 
-.layout-topbar__hamburger:hover {
-  background: rgba(255, 255, 255, 0.1);
+.btn-hamburger span {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: #ffffff;
+  border-radius: 2px;
+  transition: all 0.3s ease;
 }
 
-/* ════════════════════════════════════════
-   MENU MOBILE (dropdown)
-   ════════════════════════════════════════ */
-.layout-menu-mobile {
-  display: none; /* oculto no desktop */
+/* ── Menu mobile ── */
+.menu-mobile {
+  display: none;
   flex-direction: column;
-  background: var(--bg-card);
-  border-bottom: 1px solid var(--border);
-  /* Animação de abertura suave */
+  background: var(--primary);
+  border-top: 1px solid rgba(255,255,255,0.1);
   max-height: 0;
   overflow: hidden;
   transition: max-height 0.3s ease;
 }
 
-.layout-menu-mobile--aberto {
-  max-height: 500px; /* altura suficiente para todos os itens */
+.menu-mobile.aberto {
+  max-height: 500px;
 }
 
-.layout-menu-mobile__item {
+.menu-mobile-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 14px 20px;
-  font-size: 0.9rem;
-  color: var(--text);
+  padding: 13px 24px;
+  color: rgba(255,255,255,0.85);
   text-decoration: none;
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  transition: background 0.2s ease;
   background: transparent;
-  border: none;
+  border-left: none;
+  border-right: none;
+  border-top: none;
   cursor: pointer;
-  width: 100%;
   text-align: left;
-  border-bottom: 1px solid var(--border);
-  transition: background 0.15s ease, color 0.15s ease;
-  font-family: var(--font-body, 'DM Sans', sans-serif);
+  width: 100%;
 }
 
-.layout-menu-mobile__item:last-child {
-  border-bottom: none;
+.menu-mobile-item:hover,
+.menu-mobile-item.active {
+  background: rgba(255,255,255,0.1);
+  color: #ffffff;
 }
 
-.layout-menu-mobile__item:hover {
-  background: var(--input-bg);
+.menu-mobile-sair {
+  color: rgba(255,100,100,0.85);
 }
 
-.layout-menu-mobile__item--active {
-  color: var(--primary);
-  font-weight: 600;
+.menu-mobile-sair:hover {
+  background: rgba(255,100,100,0.1);
+  color: #ff6464;
+}
+
+/* ── Menu horizontal desktop ── */
+.menu-horizontal {
   background: var(--accent);
-}
-
-.layout-menu-mobile__item--sair {
-  color: #ef4444;
-}
-
-.layout-menu-mobile__item--sair:hover {
-  background: rgba(239, 68, 68, 0.06);
-}
-
-.layout-menu-mobile__item i {
-  font-size: 1rem;
-  opacity: 0.75;
-  flex-shrink: 0;
-}
-
-.layout-menu-mobile__separator {
-  height: 1px;
-  background: var(--border);
-  margin: 4px 0;
-}
-
-/* ════════════════════════════════════════
-   MENU HORIZONTAL — DESKTOP
-   ════════════════════════════════════════ */
-.layout-menu-desktop {
-  background: var(--bg-card);
-  border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 24px;
-  transition: background 0.3s ease;
+  box-shadow: 0 1px 4px var(--shadow);
+  transition: background 0.4s ease;
+  overflow-x: auto;
 }
 
-.layout-menu-desktop__links {
+[data-theme="corporativo"] .menu-horizontal {
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+}
+
+.menu-links {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
 }
 
-.layout-menu-desktop__item {
+.menu-item {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 12px 16px;
+  font-family: var(--font-body);
   font-size: 0.83rem;
   font-weight: 500;
-  color: var(--text-muted);
+  color: var(--primary);
   text-decoration: none;
-  border-bottom: 2px solid transparent;
-  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+  padding: 12px 16px;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s ease;
   white-space: nowrap;
 }
 
-.layout-menu-desktop__item i {
-  font-size: 0.9rem;
+[data-theme="corporativo"] .menu-item {
+  color: var(--text-muted);
 }
 
-.layout-menu-desktop__item:hover {
-  color: var(--text);
-  background: var(--input-bg);
-}
-
-.layout-menu-desktop__item--active {
+.menu-item:hover {
   color: var(--primary);
-  border-bottom-color: var(--primary);
+  background: rgba(255,255,255,0.3);
+}
+
+[data-theme="corporativo"] .menu-item:hover {
+  color: var(--primary);
+  background: rgba(56,189,248,0.08);
+}
+
+.menu-item.active {
+  color: var(--primary);
+  border-bottom: 3px solid var(--primary);
+  background: rgba(255,255,255,0.4);
   font-weight: 600;
 }
 
-/* Botão Sair no menu desktop */
-.layout-menu-desktop__sair {
+[data-theme="corporativo"] .menu-item.active {
+  color: var(--primary);
+  border-bottom: 3px solid var(--primary);
+  background: rgba(56,189,248,0.08);
+}
+
+.menu-icon {
+  font-size: 1rem;
+}
+
+/* ── Botão Sair no menu ── */
+.menu-sair {
   display: flex;
   align-items: center;
   gap: 6px;
   background: transparent;
-  border: none;
-  color: var(--text-muted);
-  font-size: 0.83rem;
+  border: 1px solid rgba(239,68,68,0.3);
+  border-radius: 6px;
+  padding: 7px 14px;
+  color: #dc2626;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
   font-weight: 500;
   cursor: pointer;
-  padding: 8px 12px;
-  border-radius: 6px;
-  transition: color 0.2s ease, background 0.2s ease;
+  transition: all 0.2s ease;
   white-space: nowrap;
+  margin-left: 8px;
 }
 
-.layout-menu-desktop__sair:hover {
-  color: #ef4444;
-  background: rgba(239, 68, 68, 0.06);
+.menu-sair:hover {
+  background: rgba(239,68,68,0.08);
+  border-color: #dc2626;
 }
 
-.layout-menu-desktop__sair i {
-  font-size: 0.9rem;
+[data-theme="corporativo"] .menu-sair {
+  color: #f87171;
+  border-color: rgba(248,113,113,0.3);
 }
 
-/* ════════════════════════════════════════
-   CONTEÚDO PRINCIPAL
-   ════════════════════════════════════════ */
+/* ── Conteúdo ── */
 .layout-content {
-  flex: 1; /* ocupa o espaço restante entre navbar e footer */
-  padding: 32px 24px;
-  max-width: 1280px;
-  width: 100%;
-  margin: 0 auto;
-  box-sizing: border-box;
+  flex: 1;
+  padding: 28px 24px;
+  background: var(--bg);
+  transition: background 0.4s ease;
 }
 
-/* ════════════════════════════════════════
-   RODAPÉ
-   ════════════════════════════════════════ */
+/* ── Rodapé ── */
 .layout-footer {
   background: var(--primary);
-  color: rgba(255, 255, 255, 0.55);
+  color: rgba(255,255,255,0.55);
   padding: 14px 24px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  font-family: var(--font-body);
   font-size: 0.75rem;
-  transition: background 0.3s ease;
+  transition: background 0.4s ease;
 }
 
-/* ════════════════════════════════════════
-   RESPONSIVIDADE — MOBILE
-   ════════════════════════════════════════ */
+.footer-nome-short { display: none; }
+.footer-nome-full  { display: inline; }
+
+/* ── Responsivo ── */
+@media (max-width: 900px) {
+  .menu-item span:last-child { display: none; }
+  .menu-item { padding: 12px 10px; }
+}
+
 @media (max-width: 768px) {
-  /* Topbar: reduz padding e tamanho do título */
-  .layout-topbar {
-    padding: 10px 16px;
-  }
-
-  .layout-topbar__title {
-    font-size: 0.9rem;
-    /* Oculta o nome completo em telas muito pequenas */
-  }
-
-  /* Esconde ações desktop, mostra hamburger */
-  .layout-topbar__actions--desktop {
-    display: none;
-  }
-
-  .layout-topbar__hamburger {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  /* Menu mobile visível */
-  .layout-menu-mobile {
-    display: flex;
-  }
-
-  /* Menu desktop oculto */
-  .layout-menu-desktop {
-    display: none;
-  }
-
-  /* Conteúdo com menos padding no mobile */
-  .layout-content {
-    padding: 20px 16px;
-  }
-
-  /* Rodapé menor */
-  .layout-footer {
-    font-size: 0.65rem;
-    padding: 12px 16px;
+  
+  .topbar-nome-full        { display: none; }
+  .topbar-nome-short       { display: inline; }
+  .btn-hamburger           { display: flex; }
+  .menu-mobile             { display: flex; }
+  .menu-horizontal         { display: none; }
+  .footer-nome-full        { display: none; }
+  .footer-nome-short       { display: inline; }
+  .layout-content          { padding: 16px; }
+  .btn-hamburger {
+    display: flex !important;
   }
 }
 
-/* Telas muito pequenas: oculta o título na topbar para não sobrepor */
-@media (max-width: 400px) {
-  .layout-topbar__title {
-    display: none;
-  }
-}
+
