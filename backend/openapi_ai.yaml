@@ -1540,6 +1540,14 @@
 - endpoint: GET /lancamento/resumo
   descricao: Resumo Lancamentos
   parametros:
+  - nome: data_pagamento_de
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: data_pagamento_ate
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
   - nome: id_clifor
     local: query
     obrigatorio: false
@@ -1552,47 +1560,27 @@
     local: query
     obrigatorio: false
     tipo: desconhecido
-  - nome: apenas_abertos
-    local: query
-    obrigatorio: false
-    tipo: desconhecido
-  - nome: data_vencimento_de
-    local: query
-    obrigatorio: false
-    tipo: desconhecido
-  - nome: data_vencimento_ate
-    local: query
-    obrigatorio: false
-    tipo: desconhecido
-  - nome: data_lancamento_de
-    local: query
-    obrigatorio: false
-    tipo: desconhecido
-  - nome: data_lancamento_ate
-    local: query
-    obrigatorio: false
-    tipo: desconhecido
-  - nome: estorno
-    local: query
-    obrigatorio: false
-    tipo: desconhecido
-  - nome: valor_minimo
-    local: query
-    obrigatorio: false
-    tipo: desconhecido
-  - nome: valor_maximo
-    local: query
-    obrigatorio: false
-    tipo: desconhecido
   request_body: null
   response_200:
+    total_recebido:
+      tipo: string
+      obrigatorio: true
+    total_pago:
+      tipo: string
+      obrigatorio: true
+    total_reembolsado:
+      tipo: string
+      obrigatorio: true
+    saldo_total:
+      tipo: string
+      obrigatorio: true
     total_a_receber:
       tipo: string
       obrigatorio: true
     total_a_pagar:
       tipo: string
       obrigatorio: true
-    saldo_liquido:
+    total_a_receber_excluindo_inadimplentes:
       tipo: string
       obrigatorio: true
     total_vencido_a_receber:
@@ -1605,6 +1593,44 @@
       tipo: integer
       obrigatorio: true
     quantidade_vencidos:
+      tipo: integer
+      obrigatorio: true
+    quantidade_inadimplentes:
+      tipo: integer
+      obrigatorio: true
+  respostas:
+  - '200'
+  - '422'
+- endpoint: GET /lancamento/resumo-por-tipo
+  descricao: Resumo Por Tipo
+  parametros:
+  - nome: data_pagamento_de
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: data_pagamento_ate
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: natureza
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  request_body: null
+  response_200:
+    id_tipo_conta:
+      tipo: integer
+      obrigatorio: true
+    descricao_conta:
+      tipo: string
+      obrigatorio: true
+    natureza_conta:
+      tipo: string
+      obrigatorio: true
+    total:
+      tipo: string
+      obrigatorio: true
+    quantidade:
       tipo: integer
       obrigatorio: true
   respostas:
@@ -1634,6 +1660,14 @@
     obrigatorio: false
     tipo: desconhecido
   - nome: apenas_quitados
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: apenas_com_comprovante
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: apenas_sem_comprovante
     local: query
     obrigatorio: false
     tipo: desconhecido
@@ -1747,6 +1781,134 @@
     observacao:
       tipo: desconhecido
       obrigatorio: false
+  response_200:
+    id_lancamento:
+      tipo: integer
+      obrigatorio: true
+    id_usuario_fk_lancamento:
+      tipo: integer
+      obrigatorio: true
+    id_clifor_relacionado_fk:
+      tipo: integer
+      obrigatorio: true
+    id_tipo_conta_fk:
+      tipo: integer
+      obrigatorio: true
+    data_lancamento:
+      tipo: string
+      obrigatorio: true
+    valor:
+      tipo: string
+      obrigatorio: true
+    data_vencimento:
+      tipo: string
+      obrigatorio: true
+    multa:
+      tipo: desconhecido
+      obrigatorio: false
+    juros:
+      tipo: desconhecido
+      obrigatorio: false
+    id_usuario_fk_fechamento:
+      tipo: desconhecido
+      obrigatorio: false
+    data_pagamento:
+      tipo: desconhecido
+      obrigatorio: false
+    valor_pago:
+      tipo: desconhecido
+      obrigatorio: false
+    observacao:
+      tipo: desconhecido
+      obrigatorio: false
+    natureza_lancamento:
+      tipo: NaturezaEnum
+      obrigatorio: true
+    estorno:
+      tipo: boolean
+      obrigatorio: true
+    tem_comprovante:
+      tipo: boolean
+      obrigatorio: false
+      default: false
+    comprovante_nome:
+      tipo: desconhecido
+      obrigatorio: false
+  respostas:
+  - '200'
+  - '422'
+- endpoint: GET /lancamento/por-clifor/{id_clifor}
+  descricao: Listar Lancamentos Por Clifor
+  parametros:
+  - nome: id_clifor
+    local: path
+    obrigatorio: true
+    tipo: integer
+  request_body: null
+  response_200:
+    id_lancamento:
+      tipo: integer
+      obrigatorio: true
+    id_usuario_fk_lancamento:
+      tipo: integer
+      obrigatorio: true
+    id_clifor_relacionado_fk:
+      tipo: integer
+      obrigatorio: true
+    id_tipo_conta_fk:
+      tipo: integer
+      obrigatorio: true
+    data_lancamento:
+      tipo: string
+      obrigatorio: true
+    valor:
+      tipo: string
+      obrigatorio: true
+    data_vencimento:
+      tipo: string
+      obrigatorio: true
+    multa:
+      tipo: desconhecido
+      obrigatorio: false
+    juros:
+      tipo: desconhecido
+      obrigatorio: false
+    id_usuario_fk_fechamento:
+      tipo: desconhecido
+      obrigatorio: false
+    data_pagamento:
+      tipo: desconhecido
+      obrigatorio: false
+    valor_pago:
+      tipo: desconhecido
+      obrigatorio: false
+    observacao:
+      tipo: desconhecido
+      obrigatorio: false
+    natureza_lancamento:
+      tipo: NaturezaEnum
+      obrigatorio: true
+    estorno:
+      tipo: boolean
+      obrigatorio: true
+    tem_comprovante:
+      tipo: boolean
+      obrigatorio: false
+      default: false
+    comprovante_nome:
+      tipo: desconhecido
+      obrigatorio: false
+  respostas:
+  - '200'
+  - '422'
+- endpoint: GET /lancamento/por-usuario/{id_usuario}
+  descricao: Listar Lancamentos Por Usuario
+  parametros:
+  - nome: id_usuario
+    local: path
+    obrigatorio: true
+    tipo: integer
+  request_body: null
   response_200:
     id_lancamento:
       tipo: integer
@@ -1961,134 +2123,6 @@
     tipo: integer
   request_body: null
   response_200: null
-  respostas:
-  - '200'
-  - '422'
-- endpoint: GET /lancamento/por-clifor/{id_clifor}
-  descricao: Listar Lancamentos Por Clifor
-  parametros:
-  - nome: id_clifor
-    local: path
-    obrigatorio: true
-    tipo: integer
-  request_body: null
-  response_200:
-    id_lancamento:
-      tipo: integer
-      obrigatorio: true
-    id_usuario_fk_lancamento:
-      tipo: integer
-      obrigatorio: true
-    id_clifor_relacionado_fk:
-      tipo: integer
-      obrigatorio: true
-    id_tipo_conta_fk:
-      tipo: integer
-      obrigatorio: true
-    data_lancamento:
-      tipo: string
-      obrigatorio: true
-    valor:
-      tipo: string
-      obrigatorio: true
-    data_vencimento:
-      tipo: string
-      obrigatorio: true
-    multa:
-      tipo: desconhecido
-      obrigatorio: false
-    juros:
-      tipo: desconhecido
-      obrigatorio: false
-    id_usuario_fk_fechamento:
-      tipo: desconhecido
-      obrigatorio: false
-    data_pagamento:
-      tipo: desconhecido
-      obrigatorio: false
-    valor_pago:
-      tipo: desconhecido
-      obrigatorio: false
-    observacao:
-      tipo: desconhecido
-      obrigatorio: false
-    natureza_lancamento:
-      tipo: NaturezaEnum
-      obrigatorio: true
-    estorno:
-      tipo: boolean
-      obrigatorio: true
-    tem_comprovante:
-      tipo: boolean
-      obrigatorio: false
-      default: false
-    comprovante_nome:
-      tipo: desconhecido
-      obrigatorio: false
-  respostas:
-  - '200'
-  - '422'
-- endpoint: GET /lancamento/por-usuario/{id_usuario}
-  descricao: Listar Lancamentos Por Usuario
-  parametros:
-  - nome: id_usuario
-    local: path
-    obrigatorio: true
-    tipo: integer
-  request_body: null
-  response_200:
-    id_lancamento:
-      tipo: integer
-      obrigatorio: true
-    id_usuario_fk_lancamento:
-      tipo: integer
-      obrigatorio: true
-    id_clifor_relacionado_fk:
-      tipo: integer
-      obrigatorio: true
-    id_tipo_conta_fk:
-      tipo: integer
-      obrigatorio: true
-    data_lancamento:
-      tipo: string
-      obrigatorio: true
-    valor:
-      tipo: string
-      obrigatorio: true
-    data_vencimento:
-      tipo: string
-      obrigatorio: true
-    multa:
-      tipo: desconhecido
-      obrigatorio: false
-    juros:
-      tipo: desconhecido
-      obrigatorio: false
-    id_usuario_fk_fechamento:
-      tipo: desconhecido
-      obrigatorio: false
-    data_pagamento:
-      tipo: desconhecido
-      obrigatorio: false
-    valor_pago:
-      tipo: desconhecido
-      obrigatorio: false
-    observacao:
-      tipo: desconhecido
-      obrigatorio: false
-    natureza_lancamento:
-      tipo: NaturezaEnum
-      obrigatorio: true
-    estorno:
-      tipo: boolean
-      obrigatorio: true
-    tem_comprovante:
-      tipo: boolean
-      obrigatorio: false
-      default: false
-    comprovante_nome:
-      tipo: desconhecido
-      obrigatorio: false
   respostas:
   - '200'
   - '422'
