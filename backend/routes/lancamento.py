@@ -11,12 +11,28 @@ from auth.dependencies import get_current_user
 from utils.inadimplencia import atualizar_inadimplente
 from typing import List, Optional
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/lancamento",
     tags=["Lançamento"]
 )
+
+
+def _para_decimal(valor) -> Decimal:
+    """
+    Converte qualquer retorno de .scalar() para Decimal de forma segura.
+    Protege contra None, float, int e string — sem deixar TypeError vazar.
+    """
+    if valor is None:
+        return Decimal("0")
+    try:
+        return Decimal(str(valor))
+    except (InvalidOperation, TypeError, ValueError):
+        return Decimal("0")
 
 
 @router.get("/resumo", response_model=LancamentoResumo)
@@ -29,95 +45,208 @@ def resumo_lancamentos(
     db: Session = Depends(get_db),
     _=Depends(get_current_user)
 ):
-    hoje = date.today()
+    try:
+        hoje = date.today()
 
-    # ── Base de todos os lançamentos (sem filtro de período) ──
-    def q_base():
-        q = db.query(Lancamento)
+        # ── Base de todos os lançamentos (sem filtro de período) ──────────────
+        def q_base():
+            q = db.query(Lancamento)
+            if id_clifor is not None:
+                q = q.filter(Lancamento.id_clifor_relacionado_fk == id_clifor)
+            if id_tipo_conta is not None:
+                q = q.filter(Lancamento.id_tipo_conta_fk == id_tipo_conta)
+            if natureza is not None:
+                q = q.filter(Lancamento.natureza_lancamento == natureza)
+            return q
+
+        # ── Base filtrada por período de pagamento (realizados) ───────────────
+        def q_periodo():
+            q = q_base().filter(Lancamento.data_pagamento != None)
+            if data_pagamento_de is not None:
+                q = q.filter(func.date(Lancamento.data_pagamento) >= data_pagamento_de)
+            if data_pagamento_ate is not None:
+                q = q.filter(func.date(Lancamento.data_pagamento) <= data_pagamento_ate)
+            return q
+
+        # ── Helper de soma seguro ─────────────────────────────────────────────
+        def soma_query(subquery_ids, campo=None) -> Decimal:
+            """
+            Recebe uma subquery de IDs e retorna a soma como Decimal.
+            Nunca lança exceção — retorna Decimal("0") em qualquer caso de falha.
+            """
+            col = campo if campo is not None else func.coalesce(Lancamento.valor_pago, Lancamento.valor)
+            resultado = db.query(
+                func.coalesce(func.sum(col), 0)
+            ).filter(
+                Lancamento.id_lancamento.in_(subquery_ids)
+            ).scalar()
+            return _para_decimal(resultado)
+
+        # ── Realizados no período ─────────────────────────────────────────────
+        # CORREÇÃO: cada query de natureza é construída independentemente a partir
+        # de q_periodo(), sem reutilizar o mesmo objeto para evitar acúmulo de filtros.
+
+        total_recebido = soma_query(
+            q_periodo()
+            .filter(Lancamento.natureza_lancamento == "Credito", Lancamento.estorno == False)
+            .with_entities(Lancamento.id_lancamento)
+        )
+
+        total_pago = soma_query(
+            q_periodo()
+            .filter(Lancamento.natureza_lancamento == "Debito", Lancamento.estorno == False)
+            .with_entities(Lancamento.id_lancamento)
+        )
+
+        total_reembolsado = soma_query(
+            q_periodo()
+            .filter(Lancamento.estorno == True)
+            .with_entities(Lancamento.id_lancamento)
+        )
+
+        # ── Saldo total (ignora filtro de período) ────────────────────────────
+        saldo_credito = _para_decimal(
+            db.query(func.coalesce(func.sum(func.coalesce(Lancamento.valor_pago, Lancamento.valor)), 0))
+            .filter(
+                Lancamento.data_pagamento != None,
+                Lancamento.natureza_lancamento == "Credito",
+                Lancamento.estorno == False
+            )
+            .scalar()
+        )
+        saldo_debito = _para_decimal(
+            db.query(func.coalesce(func.sum(func.coalesce(Lancamento.valor_pago, Lancamento.valor)), 0))
+            .filter(
+                Lancamento.data_pagamento != None,
+                Lancamento.natureza_lancamento == "Debito",
+                Lancamento.estorno == False
+            )
+            .scalar()
+        )
+        saldo_total = saldo_credito - saldo_debito
+
+        # ── Pendentes (abertos) ───────────────────────────────────────────────
+        # CORREÇÃO: q_a_receber e q_a_pagar construídos a partir de q_base()
+        # com todos os filtros explícitos, sem reutilizar objeto mutado.
+
+        total_a_receber = _para_decimal(
+            db.query(func.coalesce(func.sum(Lancamento.valor), 0))
+            .filter(
+                Lancamento.data_pagamento == None,
+                Lancamento.estorno == False,
+                Lancamento.natureza_lancamento == "Credito",
+                *([Lancamento.id_clifor_relacionado_fk == id_clifor] if id_clifor is not None else []),
+                *([Lancamento.id_tipo_conta_fk == id_tipo_conta] if id_tipo_conta is not None else []),
+                *([Lancamento.natureza_lancamento == natureza] if natureza is not None else []),
+            )
+            .scalar()
+        )
+
+        total_a_pagar = _para_decimal(
+            db.query(func.coalesce(func.sum(Lancamento.valor), 0))
+            .filter(
+                Lancamento.data_pagamento == None,
+                Lancamento.estorno == False,
+                Lancamento.natureza_lancamento == "Debito",
+                *([Lancamento.id_clifor_relacionado_fk == id_clifor] if id_clifor is not None else []),
+                *([Lancamento.id_tipo_conta_fk == id_tipo_conta] if id_tipo_conta is not None else []),
+            )
+            .scalar()
+        )
+
+        # ── A receber excluindo inadimplentes ─────────────────────────────────
+        ids_adimplentes = db.query(ClienteFornecedor.id_clifor).filter(
+            ClienteFornecedor.inadimplente == False
+        )
+
+        filtros_a_receber_excl = [
+            Lancamento.data_pagamento == None,
+            Lancamento.estorno == False,
+            Lancamento.natureza_lancamento == "Credito",
+            Lancamento.id_clifor_relacionado_fk.in_(ids_adimplentes),
+        ]
         if id_clifor is not None:
-            q = q.filter(Lancamento.id_clifor_relacionado_fk == id_clifor)
+            filtros_a_receber_excl.append(Lancamento.id_clifor_relacionado_fk == id_clifor)
         if id_tipo_conta is not None:
-            q = q.filter(Lancamento.id_tipo_conta_fk == id_tipo_conta)
+            filtros_a_receber_excl.append(Lancamento.id_tipo_conta_fk == id_tipo_conta)
+
+        total_a_receber_excl = _para_decimal(
+            db.query(func.coalesce(func.sum(Lancamento.valor), 0))
+            .filter(*filtros_a_receber_excl)
+            .scalar()
+        )
+
+        # ── Vencidos ──────────────────────────────────────────────────────────
+        # CORREÇÃO PRINCIPAL: cada query de vencido é construída do zero,
+        # sem encadear .filter() sobre o mesmo objeto (bug de mutação).
+
+        filtros_vencido_base = [
+            Lancamento.data_pagamento == None,
+            Lancamento.estorno == False,
+            Lancamento.data_vencimento < hoje,
+        ]
+        if id_clifor is not None:
+            filtros_vencido_base.append(Lancamento.id_clifor_relacionado_fk == id_clifor)
+        if id_tipo_conta is not None:
+            filtros_vencido_base.append(Lancamento.id_tipo_conta_fk == id_tipo_conta)
+
+        total_vencido_a_receber = _para_decimal(
+            db.query(func.coalesce(func.sum(Lancamento.valor), 0))
+            .filter(*filtros_vencido_base, Lancamento.natureza_lancamento == "Credito")
+            .scalar()
+        )
+
+        total_vencido_a_pagar = _para_decimal(
+            db.query(func.coalesce(func.sum(Lancamento.valor), 0))
+            .filter(*filtros_vencido_base, Lancamento.natureza_lancamento == "Debito")
+            .scalar()
+        )
+
+        # ── Contagens ─────────────────────────────────────────────────────────
+        filtros_abertos_base = [
+            Lancamento.data_pagamento == None,
+            Lancamento.estorno == False,
+        ]
+        if id_clifor is not None:
+            filtros_abertos_base.append(Lancamento.id_clifor_relacionado_fk == id_clifor)
+        if id_tipo_conta is not None:
+            filtros_abertos_base.append(Lancamento.id_tipo_conta_fk == id_tipo_conta)
         if natureza is not None:
-            q = q.filter(Lancamento.natureza_lancamento == natureza)
-        return q
+            filtros_abertos_base.append(Lancamento.natureza_lancamento == natureza)
 
-    # ── Base filtrada por período de pagamento (realizados) ──
-    def q_periodo():
-        q = q_base().filter(Lancamento.data_pagamento != None)
-        if data_pagamento_de is not None:
-            q = q.filter(func.date(Lancamento.data_pagamento) >= data_pagamento_de)
-        if data_pagamento_ate is not None:
-            q = q.filter(func.date(Lancamento.data_pagamento) <= data_pagamento_ate)
-        return q
+        quantidade_abertos = db.query(func.count(Lancamento.id_lancamento)).filter(
+            *filtros_abertos_base
+        ).scalar() or 0
 
-    def soma(query, campo=None):
-        col = campo if campo is not None else func.coalesce(Lancamento.valor_pago, Lancamento.valor)
-        return db.query(func.coalesce(func.sum(col), 0)).filter(
-            Lancamento.id_lancamento.in_(query.with_entities(Lancamento.id_lancamento))
-        ).scalar()
+        quantidade_vencidos = db.query(func.count(Lancamento.id_lancamento)).filter(
+            *filtros_abertos_base,
+            Lancamento.data_vencimento < hoje
+        ).scalar() or 0
 
-    # Realizados no período
-    q_recebido = q_periodo().filter(Lancamento.natureza_lancamento == "Credito", Lancamento.estorno == False)
-    q_pago     = q_periodo().filter(Lancamento.natureza_lancamento == "Debito",  Lancamento.estorno == False)
-    q_reemb    = q_periodo().filter(Lancamento.estorno == True)
+        quantidade_inadimplentes = db.query(func.count(ClienteFornecedor.id_clifor)).filter(
+            ClienteFornecedor.inadimplente == True
+        ).scalar() or 0
 
-    total_recebido   = Decimal(soma(q_recebido))
-    total_pago       = Decimal(soma(q_pago))
-    total_reembolsado = Decimal(soma(q_reemb))
+        return LancamentoResumo(
+            total_recebido=total_recebido,
+            total_pago=total_pago,
+            total_reembolsado=total_reembolsado,
+            saldo_total=saldo_total,
+            total_a_receber=total_a_receber,
+            total_a_pagar=total_a_pagar,
+            total_a_receber_excluindo_inadimplentes=total_a_receber_excl,
+            total_vencido_a_receber=total_vencido_a_receber,
+            total_vencido_a_pagar=total_vencido_a_pagar,
+            quantidade_abertos=quantidade_abertos,
+            quantidade_vencidos=quantidade_vencidos,
+            quantidade_inadimplentes=quantidade_inadimplentes,
+        )
 
-    # Saldo total desde o primeiro lançamento (ignora filtro de período)
-    q_all_credito = q_base().filter(Lancamento.data_pagamento != None, Lancamento.natureza_lancamento == "Credito", Lancamento.estorno == False)
-    q_all_debito  = q_base().filter(Lancamento.data_pagamento != None, Lancamento.natureza_lancamento == "Debito",  Lancamento.estorno == False)
-    saldo_total = Decimal(soma(q_all_credito)) - Decimal(soma(q_all_debito))
-
-    # Pendentes (abertos)
-    q_abertos = q_base().filter(Lancamento.data_pagamento == None, Lancamento.estorno == False)
-    q_a_receber = q_abertos.filter(Lancamento.natureza_lancamento == "Credito")
-    q_a_pagar   = q_abertos.filter(Lancamento.natureza_lancamento == "Debito")
-
-    total_a_receber = Decimal(db.query(func.coalesce(func.sum(Lancamento.valor), 0)).filter(
-        Lancamento.id_lancamento.in_(q_a_receber.with_entities(Lancamento.id_lancamento))
-    ).scalar())
-
-    total_a_pagar = Decimal(db.query(func.coalesce(func.sum(Lancamento.valor), 0)).filter(
-        Lancamento.id_lancamento.in_(q_a_pagar.with_entities(Lancamento.id_lancamento))
-    ).scalar())
-
-    # A receber excluindo inadimplentes
-    ids_adimplentes = db.query(ClienteFornecedor.id_clifor).filter(ClienteFornecedor.inadimplente == False)
-    total_a_receber_excl = Decimal(db.query(func.coalesce(func.sum(Lancamento.valor), 0)).filter(
-        Lancamento.id_lancamento.in_(q_a_receber.with_entities(Lancamento.id_lancamento)),
-        Lancamento.id_clifor_relacionado_fk.in_(ids_adimplentes)
-    ).scalar())
-
-    # Vencidos
-    q_vencidos = q_abertos.filter(Lancamento.data_vencimento < hoje)
-    total_vencido_a_receber = Decimal(db.query(func.coalesce(func.sum(Lancamento.valor), 0)).filter(
-        Lancamento.id_lancamento.in_(q_vencidos.filter(Lancamento.natureza_lancamento == "Credito").with_entities(Lancamento.id_lancamento))
-    ).scalar())
-    total_vencido_a_pagar = Decimal(db.query(func.coalesce(func.sum(Lancamento.valor), 0)).filter(
-        Lancamento.id_lancamento.in_(q_vencidos.filter(Lancamento.natureza_lancamento == "Debito").with_entities(Lancamento.id_lancamento))
-    ).scalar())
-
-    quantidade_abertos  = q_abertos.count()
-    quantidade_vencidos = q_vencidos.count()
-    quantidade_inadimplentes = db.query(func.count(ClienteFornecedor.id_clifor)).filter(ClienteFornecedor.inadimplente == True).scalar()
-
-    return LancamentoResumo(
-        total_recebido=total_recebido,
-        total_pago=total_pago,
-        total_reembolsado=total_reembolsado,
-        saldo_total=saldo_total,
-        total_a_receber=total_a_receber,
-        total_a_pagar=total_a_pagar,
-        total_a_receber_excluindo_inadimplentes=total_a_receber_excl,
-        total_vencido_a_receber=total_vencido_a_receber,
-        total_vencido_a_pagar=total_vencido_a_pagar,
-        quantidade_abertos=quantidade_abertos,
-        quantidade_vencidos=quantidade_vencidos,
-        quantidade_inadimplentes=quantidade_inadimplentes,
-    )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Erro em GET /lancamento/resumo: {e}")
+        raise HTTPException(status_code=500, detail=f"Erro interno ao calcular resumo: {str(e)}")
 
 
 @router.get("/resumo-por-tipo", response_model=List[ResumoPorTipo])
@@ -154,7 +283,7 @@ def resumo_por_tipo(
             id_tipo_conta=r.id_tipo_conta,
             descricao_conta=r.descricao_conta,
             natureza_conta=r.natureza_conta,
-            total=Decimal(r.total),
+            total=_para_decimal(r.total),
             quantidade=r.quantidade
         )
         for r in q.all()
@@ -225,14 +354,6 @@ def listar_lancamentos(
     return query.all()
 
 
-@router.get("/{id_lancamento}", response_model=LancamentoResponse)
-def buscar_lancamento(id_lancamento: int, db: Session = Depends(get_db), _=Depends(get_current_user)):
-    lancamento = db.query(Lancamento).filter(Lancamento.id_lancamento == id_lancamento).first()
-    if not lancamento:
-        raise HTTPException(status_code=404, detail="Lançamento não encontrado")
-    return lancamento
-
-
 @router.get("/por-clifor/{id_clifor}", response_model=List[LancamentoResponse])
 def listar_lancamentos_por_clifor(id_clifor: int, db: Session = Depends(get_db), _=Depends(get_current_user)):
     return db.query(Lancamento).filter(
@@ -248,6 +369,14 @@ def listar_lancamentos_por_usuario(id_usuario: int, db: Session = Depends(get_db
         ClienteFornecedor,
         Lancamento.id_clifor_relacionado_fk == ClienteFornecedor.id_clifor
     ).order_by(Lancamento.data_vencimento, ClienteFornecedor.nome).all()
+
+
+@router.get("/{id_lancamento}", response_model=LancamentoResponse)
+def buscar_lancamento(id_lancamento: int, db: Session = Depends(get_db), _=Depends(get_current_user)):
+    lancamento = db.query(Lancamento).filter(Lancamento.id_lancamento == id_lancamento).first()
+    if not lancamento:
+        raise HTTPException(status_code=404, detail="Lançamento não encontrado")
+    return lancamento
 
 
 @router.post("/", response_model=LancamentoResponse)

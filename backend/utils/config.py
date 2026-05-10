@@ -38,4 +38,4 @@ APP_HOST = os.getenv("APP_HOST", "localhost")
 APP_PORT = int(os.getenv("APP_PORT", 8000))
 
 # Frontend
-FRONTEND_URL = os.getenv("FRONTEND_URL", "https://amsi-project-chzs.vercel.app")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://amsi-project.vercel.app")

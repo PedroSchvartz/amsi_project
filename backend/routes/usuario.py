@@ -5,7 +5,6 @@ from models.usuario import Usuario
 from schemas.usuario import UsuarioCreate, UsuarioUpdate, UsuarioResponse
 from utils.auth_utils import hash_senha
 from utils.email_sender import enviar_email
-from utils.config import FRONTEND_URL
 from auth.dependencies import get_current_user, exige_admin
 from typing import List
 import secrets
@@ -87,10 +86,6 @@ def criar_usuario(dados: UsuarioCreate, db: Session = Depends(get_db), _=Depends
           <div style="background:#fef9ec;border-left:4px solid #C9A84C;padding:12px 16px;border-radius:4px;margin:0 0 20px;">
             <p style="margin:0;font-size:0.85rem;color:#92400e;">⚠️ Você será solicitado a trocar esta senha no primeiro login.</p>
           </div>
-          <div style="text-align:center;margin:0 0 20px;">
-            <a href="{FRONTEND_URL}" style="display:inline-block;background:#1B4332;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-weight:600;font-size:0.95rem;letter-spacing:0.03em;">Acessar o sistema →</a>
-          </div>
-          <p style="font-size:0.78rem;color:#6b7280;margin:0 0 12px;">Ou acesse: <a href="{FRONTEND_URL}" style="color:#1B4332;">{FRONTEND_URL}</a></p>
           <p style="font-size:0.78rem;color:#6b7280;margin:0;">Se não reconhece este cadastro, ignore este email.</p>
         </td></tr>
         <tr><td style="padding:16px 40px;text-align:center;border-top:1px solid #d1c9bf;">
@@ -102,14 +97,10 @@ def criar_usuario(dados: UsuarioCreate, db: Session = Depends(get_db), _=Depends
 </body>
 </html>
 """
-    enviado = enviar_email(usuario.email, "Sua senha de acesso — AMSI Project", corpo)
-    if not enviado:
-        db.delete(usuario)
-        db.commit()
-        raise HTTPException(
-            status_code=400,
-            detail="Não foi possível enviar o email para este endereço. Verifique se o email é válido."
-        )
+    try:
+        enviar_email(usuario.email, "Sua senha de acesso — AMSI Project", corpo)
+    except Exception:
+        pass  # não bloqueia o cadastro se o email falhar
 
     return usuario
 
@@ -174,10 +165,6 @@ def resetar_senha(id_usuario: int, db: Session = Depends(get_db), _=Depends(exig
           <div style="background:#fef9ec;border-left:4px solid #C9A84C;padding:12px 16px;border-radius:4px;margin:0 0 20px;">
             <p style="margin:0;font-size:0.85rem;color:#92400e;">⚠️ Você será solicitado a trocar esta senha no próximo login.</p>
           </div>
-          <div style="text-align:center;margin:0 0 20px;">
-            <a href="{FRONTEND_URL}" style="display:inline-block;background:#1B4332;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-weight:600;font-size:0.95rem;letter-spacing:0.03em;">Acessar o sistema →</a>
-          </div>
-          <p style="font-size:0.78rem;color:#6b7280;margin:0 0 12px;">Ou acesse: <a href="{FRONTEND_URL}" style="color:#1B4332;">{FRONTEND_URL}</a></p>
           <p style="font-size:0.78rem;color:#6b7280;margin:0;">Se não solicitou este reset, entre em contato com o administrador imediatamente.</p>
         </td></tr>
         <tr><td style="padding:16px 40px;text-align:center;border-top:1px solid #d1c9bf;">
@@ -195,111 +182,3 @@ def resetar_senha(id_usuario: int, db: Session = Depends(get_db), _=Depends(exig
         pass
 
     return {"detail": "Senha redefinida e enviada por email"}
-
-# ─── Clifor vinculado ao usuário ──────────────────────────────────────────────
-
-from models.cliente_fornecedor import ClienteFornecedor
-from schemas.cliente_fornecedor import ClienteFornecedorResponse
-from sqlalchemy import func
-from typing import Optional as Opt
-
-
-@router.get("/{id_usuario}/clifor", response_model=ClienteFornecedorResponse)
-def buscar_clifor_do_usuario(
-    id_usuario: int,
-    db: Session = Depends(get_db),
-    _=Depends(exige_admin)
-):
-    usuario = db.query(Usuario).filter(Usuario.id_usuario == id_usuario).first()
-    if not usuario:
-        raise HTTPException(status_code=404, detail="Usuário não encontrado")
-
-    clifor = db.query(ClienteFornecedor).filter(
-        ClienteFornecedor.id_usuario_fk == id_usuario
-    ).first()
-
-    if not clifor:
-        raise HTTPException(status_code=404, detail="Nenhum cliente/fornecedor vinculado a este usuário")
-
-    return clifor
-
-
-@router.get("/{id_usuario}/clifor/sugestao", response_model=List[ClienteFornecedorResponse])
-def sugerir_clifor_para_usuario(
-    id_usuario: int,
-    nome: Opt[str] = None,
-    db: Session = Depends(get_db),
-    _=Depends(exige_admin)
-):
-    usuario = db.query(Usuario).filter(Usuario.id_usuario == id_usuario).first()
-    if not usuario:
-        raise HTTPException(status_code=404, detail="Usuário não encontrado")
-
-    termo = nome if nome else usuario.nome
-
-    try:
-        resultados = (
-            db.query(ClienteFornecedor)
-            .filter(ClienteFornecedor.id_usuario_fk == None)
-            .filter(ClienteFornecedor.ativo == True)
-            .order_by(func.similarity(ClienteFornecedor.nome, termo).desc())
-            .limit(5)
-            .all()
-        )
-    except Exception:
-        resultados = (
-            db.query(ClienteFornecedor)
-            .filter(ClienteFornecedor.id_usuario_fk == None)
-            .filter(ClienteFornecedor.ativo == True)
-            .filter(ClienteFornecedor.nome.ilike(f"%{termo}%"))
-            .limit(5)
-            .all()
-        )
-
-    return resultados
-
-
-@router.post("/{id_usuario}/clifor/{id_clifor}/associar", response_model=ClienteFornecedorResponse)
-def associar_clifor_ao_usuario(
-    id_usuario: int,
-    id_clifor: int,
-    db: Session = Depends(get_db),
-    _=Depends(exige_admin)
-):
-    usuario = db.query(Usuario).filter(Usuario.id_usuario == id_usuario).first()
-    if not usuario:
-        raise HTTPException(status_code=404, detail="Usuário não encontrado")
-
-    clifor = db.query(ClienteFornecedor).filter(ClienteFornecedor.id_clifor == id_clifor).first()
-    if not clifor:
-        raise HTTPException(status_code=404, detail="Cliente/Fornecedor não encontrado")
-
-    if clifor.id_usuario_fk and clifor.id_usuario_fk != id_usuario:
-        raise HTTPException(status_code=409, detail="Este cliente/fornecedor já está vinculado a outro usuário")
-
-    clifor.id_usuario_fk = id_usuario
-    db.commit()
-    db.refresh(clifor)
-    return clifor
-
-
-@router.delete("/{id_usuario}/clifor/desvincular")
-def desvincular_clifor_do_usuario(
-    id_usuario: int,
-    db: Session = Depends(get_db),
-    _=Depends(exige_admin)
-):
-    usuario = db.query(Usuario).filter(Usuario.id_usuario == id_usuario).first()
-    if not usuario:
-        raise HTTPException(status_code=404, detail="Usuário não encontrado")
-
-    clifor = db.query(ClienteFornecedor).filter(
-        ClienteFornecedor.id_usuario_fk == id_usuario
-    ).first()
-
-    if not clifor:
-        raise HTTPException(status_code=404, detail="Nenhum cliente/fornecedor vinculado a este usuário")
-
-    clifor.id_usuario_fk = None
-    db.commit()
-    return {"detail": "Cliente/Fornecedor desvinculado com sucesso"}

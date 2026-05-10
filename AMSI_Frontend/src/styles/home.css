@@ -1,47 +1,41 @@
 /* ============================================================
-   AMSI — Home Page — Tela de Boas-Vindas
-   Temas: Verde Associação | Corporativo
+   AMSI — Home (atualizado para Home.jsx v2)
    ============================================================ */
 
 @import './theme.css';
 
 .home-bv-container {
-  max-width: 600px;
-  margin: 60px auto 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 28px;
-  text-align: center;
-  padding: 0 16px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto auto;
+  gap: 0 48px;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 48px 0;
+  align-items: start;
 }
 
-/* Logo */
+/* Logo — ocupa as 3 linhas à esquerda */
 .home-bv-logo-wrap {
-  width: 100px;
-  height: 100px;
-  border-radius: 20px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+  grid-column: 1;
+  grid-row: 1 / 4;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  padding: 12px;
-  box-shadow: 0 4px 20px var(--shadow);
 }
 
 .home-bv-logo {
-  width: 100%;
-  height: 100%;
+  width: 320px;
+  max-width: 100%;
   object-fit: contain;
+  border-radius: 12px;
 }
 
 /* Saudação */
 .home-bv-saudacao {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
+  grid-column: 2;
+  grid-row: 1;
+  padding-top: 12px;
 }
 
 .home-bv-titulo {
@@ -49,78 +43,107 @@
   font-size: 2.2rem;
   font-weight: 700;
   color: var(--text);
-  margin: 0;
-  line-height: 1.15;
+  margin-bottom: 8px;
+  line-height: 1.2;
 }
 
 .home-bv-cargo {
   display: inline-block;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 500;
   color: var(--primary);
-  background: var(--accent);
-  padding: 4px 14px;
+  background: rgba(27, 67, 50, 0.08);
+  border: 1px solid rgba(27, 67, 50, 0.15);
   border-radius: 50px;
-  border: 1px solid var(--border);
+  padding: 3px 12px;
+  margin-bottom: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+[data-theme="corporativo"] .home-bv-cargo {
+  color: var(--primary);
+  background: rgba(56, 189, 248, 0.08);
+  border-color: rgba(56, 189, 248, 0.2);
 }
 
 .home-bv-data {
+  font-family: var(--font-body);
   font-size: 0.88rem;
   color: var(--text-muted);
-  margin: 0;
-  text-transform: capitalize;
+  margin-top: 6px;
 }
 
 /* Divisor */
 .home-bv-divider {
-  width: 48px;
-  height: 2px;
-  background: var(--primary);
-  border-radius: 2px;
-  opacity: 0.5;
+  grid-column: 2;
+  grid-row: 2;
+  height: 1px;
+  background: var(--border);
+  margin: 20px 0;
 }
 
-/* Frase institucional */
+/* Institucional */
 .home-bv-institucional {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
+  grid-column: 2;
+  grid-row: 3;
 }
 
 .home-bv-frase {
   font-family: var(--font-display);
-  font-size: 1.15rem;
+  font-size: 1.05rem;
   font-style: italic;
   color: var(--text-muted);
-  line-height: 1.6;
-  margin: 0;
-  max-width: 480px;
+  line-height: 1.65;
+  margin-bottom: 10px;
 }
 
 .home-bv-nome-assoc {
-  font-size: 0.78rem;
-  font-weight: 600;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--accent);
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--text-muted);
-  opacity: 0.7;
 }
 
-/* Responsivo */
-@media (max-width: 640px) {
+/* ── Responsivo ── */
+@media (max-width: 768px) {
   .home-bv-container {
-    margin-top: 32px;
-    gap: 20px;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+    gap: 24px;
+    padding: 24px 0;
+  }
+
+  .home-bv-logo-wrap {
+    grid-column: 1;
+    grid-row: 1;
+    justify-content: center;
+  }
+
+  .home-bv-logo {
+    width: 200px;
+  }
+
+  .home-bv-saudacao {
+    grid-column: 1;
+    grid-row: 2;
+    padding-top: 0;
+  }
+
+  .home-bv-divider {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  .home-bv-institucional {
+    grid-column: 1;
+    grid-row: 4;
   }
 
   .home-bv-titulo {
-    font-size: 1.7rem;
-  }
-
-  .home-bv-frase {
-    font-size: 1rem;
+    font-size: 1.6rem;
   }
 }
