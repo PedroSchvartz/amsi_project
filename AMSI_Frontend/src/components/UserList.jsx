@@ -1,22 +1,19 @@
 import { useState, useEffect } from 'react';
-import { getUsers, updateUser, deleteUser, resetarSenhaUsuario } from '../services/api';
+import { getUsers, deleteUser, resetarSenhaUsuario } from '../services/api';
 import UserRegisterModal from './UserRegisterModal.jsx';
+import UserEditModal from './UserEditModal.jsx';
 import PerfilCompletoPopup from './PerfilCompletoPopup.jsx';
 import ModalConfirm from './ModalConfirm.jsx';
 import ToastStack, { useToast } from './ToastStack.jsx';
 import '../styles/userList.css';
 
-const CARGOS = ['Diretor', 'Tesoureiro', 'Secretário', 'Conselheiro', 'Associado', 'Desenvolvedor'];
-const PERFIS = ['Administrador', 'Consulta'];
-
 function UserList() {
 	const [usuarios, setUsuarios] = useState([]);
 	const [modalCadastro, setModalCadastro] = useState(false);
+	const [usuarioEditando, setUsuarioEditando] = useState(null);
 	const [confirmarDelete, setConfirmarDelete] = useState(null);
 	const [confirmarReset, setConfirmarReset] = useState(null);
 	const [perfilCompleto, setPerfilCompleto] = useState(null);
-	const [usuarioEditando, setUsuarioEditando] = useState(null);
-	const [formEdit, setFormEdit] = useState({});
 	const { toasts, mostrarToast, removerToast } = useToast();
 
 	useEffect(() => {
@@ -29,28 +26,6 @@ function UserList() {
 			setUsuarios(data.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')));
 		} catch (err) {
 			mostrarToast(err.message || 'Erro ao carregar usuários', 'erro');
-		}
-	};
-
-	const abrirEdicao = (u) => {
-		setUsuarioEditando(u.id_usuario);
-		setFormEdit({
-			nome: u.nome,
-			email: u.email,
-			cargo: u.cargo,
-			perfil_de_acesso: u.perfil_de_acesso,
-			notificacao: u.notificacao ?? false
-		});
-	};
-
-	const handleSalvar = async (id) => {
-		try {
-			await updateUser(id, formEdit);
-			mostrarToast('Usuário atualizado com sucesso.');
-			setUsuarioEditando(null);
-			carregarUsuarios();
-		} catch (err) {
-			mostrarToast(err.message || 'Erro ao atualizar usuário', 'erro');
 		}
 	};
 
@@ -111,107 +86,46 @@ function UserList() {
 							</td>
 						</tr>
 					) : (
-						usuarios.map((u) =>
-							usuarioEditando === u.id_usuario ? (
-								<tr key={u.id_usuario}>
-									<td>
-										<input
-											className="form-control"
-											value={formEdit.nome}
-											onChange={(e) => setFormEdit({ ...formEdit, nome: e.target.value })}
-										/>
-									</td>
-									<td>
-										<input
-											type="email"
-											className="form-control"
-											value={formEdit.email}
-											onChange={(e) => setFormEdit({ ...formEdit, email: e.target.value })}
-										/>
-									</td>
-									<td>
-										<select
-											className="form-select"
-											value={formEdit.cargo}
-											onChange={(e) => setFormEdit({ ...formEdit, cargo: e.target.value })}
+						usuarios.map((u) => (
+							<tr key={u.id_usuario}>
+								<td>{u.nome}</td>
+								<td>{u.email}</td>
+								<td>{u.cargo || '—'}</td>
+								<td>{u.perfil_de_acesso}</td>
+								<td>
+									<div className="d-flex gap-2">
+										<button
+											className="btn-acao-editar"
+											onClick={() => setPerfilCompleto(u)}
+											title="Ver perfil completo"
 										>
-											{CARGOS.map((c) => (
-												<option key={c} value={c}>
-													{c}
-												</option>
-											))}
-										</select>
-									</td>
-									<td>
-										<select
-											className="form-select"
-											value={formEdit.perfil_de_acesso}
-											onChange={(e) =>
-												setFormEdit({ ...formEdit, perfil_de_acesso: e.target.value })
-											}
+											<i className="bi bi-person-lines-fill" />
+										</button>
+										<button
+											className="btn-acao-editar"
+											onClick={() => setUsuarioEditando(u)}
+											title="Editar"
 										>
-											{PERFIS.map((p) => (
-												<option key={p} value={p}>
-													{p}
-												</option>
-											))}
-										</select>
-									</td>
-									<td>
-										<div className="d-flex gap-2">
-											<button
-												className="btn-acao-editar"
-												onClick={() => handleSalvar(u.id_usuario)}
-											>
-												<i className="bi bi-check-lg" /> Salvar
-											</button>
-											<button className="btn-acao-deletar" onClick={() => setUsuarioEditando(null)}>
-												<i className="bi bi-x-lg" /> Cancelar
-											</button>
-										</div>
-									</td>
-								</tr>
-							) : (
-								<tr key={u.id_usuario}>
-									<td>{u.nome}</td>
-									<td>{u.email}</td>
-									<td>{u.cargo || '—'}</td>
-									<td>{u.perfil_de_acesso}</td>
-									<td>
-										<div className="d-flex gap-2">
-											<button
-												className="btn-acao-editar"
-												onClick={() => setPerfilCompleto(u)}
-												title="Ver perfil completo"
-											>
-												<i className="bi bi-person-lines-fill" />
-											</button>
-											<button
-												className="btn-acao-editar"
-												onClick={() => abrirEdicao(u)}
-												title="Editar"
-											>
-												<i className="bi bi-pencil" />
-											</button>
-											<button
-												className="btn-acao-editar"
-												onClick={() => setConfirmarReset(u.id_usuario)}
-												title="Resetar senha"
-											>
-												<i className="bi bi-key" />
-											</button>
-											<button
-												className="btn-acao-deletar"
-												onClick={() => setConfirmarDelete(u.id_usuario)}
-												title="Remover usuário"
-											>
-												<i className="bi bi-trash" />
-											</button>
-										</div>
-									</td>
-								</tr>
-							)
-						)
+											<i className="bi bi-pencil" />
+										</button>
+										<button
+											className="btn-acao-editar"
+											onClick={() => setConfirmarReset(u.id_usuario)}
+											title="Resetar senha"
+										>
+											<i className="bi bi-key" />
+										</button>
+										<button
+											className="btn-acao-deletar"
+											onClick={() => setConfirmarDelete(u.id_usuario)}
+											title="Remover usuário"
+										>
+											<i className="bi bi-trash" />
+										</button>
+									</div>
+								</td>
+							</tr>
+						))
 					)}
 				</tbody>
 			</table>
@@ -220,6 +134,17 @@ function UserList() {
 				<UserRegisterModal
 					onFechar={() => {
 						setModalCadastro(false);
+						carregarUsuarios();
+					}}
+				/>
+			)}
+
+			{usuarioEditando && (
+				<UserEditModal
+					usuario={usuarioEditando}
+					onFechar={() => setUsuarioEditando(null)}
+					onSalvo={() => {
+						mostrarToast('Usuário atualizado com sucesso.');
 						carregarUsuarios();
 					}}
 				/>

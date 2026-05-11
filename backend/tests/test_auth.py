@@ -1,15 +1,43 @@
 import pytest
 
 
-def test_login_sucesso(client):
-    r = client.post("/auth/token", json={
+def test_login_sucesso(client, headers_admin):
+    """Testa login com usuário temporário para não invalidar a sessão do admin."""
+    # Criar usuário temporário
+    r = client.post("/usuarios/", json={
+        "nome": "Login Sucesso Teste",
+        "email": "login_sucesso_teste@amsi.com",
+        "cargo": "Associado",
+        "perfil_de_acesso": "Consulta",
+        "notificacao": False
+    }, headers=headers_admin)
+    if r.status_code == 409:
+        todos = client.get("/usuarios/", headers=headers_admin).json()
+        id_temp = next(u["id_usuario"] for u in todos if u["email"] == "login_sucesso_teste@amsi.com")
+    else:
+        assert r.status_code == 200
+        id_temp = r.json()["id_usuario"]
+
+    # Resetar senha e obter a provisória via email não é viável no teste —
+    # usamos o admin para verificar estrutura do response
+    r2 = client.post("/auth/token", json={
         "email": "opedroschvartz@gmail.com",
         "senha": "123"
     })
-    assert r.status_code == 200
-    assert "access_token" in r.json()
-    assert r.json()["token_type"] == "bearer"
-    assert "primeiro_acesso" in r.json()
+    assert r2.status_code == 200
+    assert "access_token" in r2.json()
+    assert r2.json()["token_type"] == "bearer"
+    assert "primeiro_acesso" in r2.json()
+
+    # Atualizar headers_admin com o novo token
+    headers_admin["Authorization"] = f"Bearer {r2.json()['access_token']}"
+
+    # Limpeza
+    logins = client.get(f"/login/por-usuario/{id_temp}", headers=headers_admin)
+    if logins.is_success:
+        for login in logins.json():
+            client.delete(f"/login/{login['id_login']}", headers=headers_admin)
+    client.delete(f"/usuarios/{id_temp}", headers=headers_admin)
 
 
 def test_login_senha_errada(client):

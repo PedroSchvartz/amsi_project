@@ -26,8 +26,7 @@ Usuário  : postgres
 Senha    : 99181
 Porta    : 5432
 OBS      : usa BIGINT GENERATED ALWAYS AS IDENTITY e ENUMs nativos do PostgreSQL
-           Trigger trigger_inadimplente foi REMOVIDO do banco — lógica migrada
-           para utils/inadimplencia.py no backend
+           Trigger trigger_inadimplente existe no banco E no backend (redundância intencional)
 
 --------------------------------------------------------------------------------
   ESTRUTURA DO PROJETO
@@ -181,8 +180,9 @@ Checklist:
 ## LÓGICA DE NEGÓCIO — INADIMPLÊNCIA
 
   - Clifor é inadimplente se tiver lançamento de Crédito: vencido + não pago + não estornado
-  - Gerenciado por utils/inadimplencia.py → atualizar_inadimplente(id_clifor, db)
-  - Chamado em: POST /lancamento/, PUT /lancamento/{id}, DELETE /lancamento/{id}
-  - NÃO há trigger no banco — toda a lógica está no backend
+  - Gerenciado em dois lugares (redundância intencional para maior confiabilidade):
+    1. Trigger trigger_inadimplente no banco (dispara em INSERT/UPDATE/DELETE em lancamento)
+    2. utils/inadimplencia.py → atualizar_inadimplente(id_clifor, db) no backend
+       Chamado em: POST /lancamento/, PUT /lancamento/{id}, DELETE /lancamento/{id}
 
 ================================================================================

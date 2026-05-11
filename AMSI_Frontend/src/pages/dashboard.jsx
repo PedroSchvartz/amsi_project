@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
 	getLancamentosResumo,
@@ -14,11 +14,6 @@ function formatarValor(v) {
 		.toFixed(2)
 		.replace('.', ',')
 		.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`;
-}
-
-function formatarData(iso) {
-	if (!iso) return '—';
-	return iso.split('T')[0].split('-').reverse().join('/');
 }
 
 const hoje = new Date();
@@ -59,16 +54,161 @@ function mesParaDia(mesAno, fim = false) {
 	return `${ano}-${String(mes).padStart(2, '0')}-01`;
 }
 
+// ── Definições de cada KPI ──────────────────────────────────────────────────
+const KPI_INFO = {
+	receita_recebida: {
+		tooltip: 'Total de créditos efetivamente recebidos no período.',
+		titulo: 'Receita Recebida',
+		descricao:
+			'Soma de todos os lançamentos de natureza Crédito que foram quitados (com data de pagamento registrada) dentro do período selecionado. Inclui mensalidades, taxas e outras entradas confirmadas. Reembolsos são contabilizados separadamente e não entram neste valor.'
+	},
+	despesa_paga: {
+		tooltip: 'Total de débitos efetivamente pagos no período.',
+		titulo: 'Despesa Paga',
+		descricao:
+			'Soma de todos os lançamentos de natureza Débito que foram quitados (com data de pagamento registrada) dentro do período selecionado. Inclui contas de água, luz, manutenção e outros custos confirmados. Reembolsos não entram neste valor.'
+	},
+	saldo_periodo: {
+		tooltip: 'Receita recebida menos despesa paga no período.',
+		titulo: 'Saldo do Período',
+		descricao:
+			'Resultado líquido do período: Receita Recebida menos Despesa Paga. Um valor positivo indica superávit — a associação recebeu mais do que gastou. Um valor negativo indica déficit. Este saldo considera apenas lançamentos quitados e ignora reembolsos e lançamentos em aberto.'
+	},
+	reembolsos: {
+		tooltip: 'Total devolvido a clientes ou fornecedores no período.',
+		titulo: 'Reembolsos',
+		descricao:
+			'Soma de todos os lançamentos marcados como estorno que foram quitados no período. Um reembolso representa a devolução de um valor pago anteriormente — por exemplo, uma cobrança indevida que foi corrigida. Estes valores são contabilizados separadamente para não distorcer as métricas de receita e despesa.'
+	},
+	a_receber: {
+		tooltip: 'Total de créditos em aberto, ainda não recebidos.',
+		titulo: 'A Receber',
+		descricao:
+			'Soma de todos os lançamentos de natureza Crédito que ainda não foram pagos (sem data de pagamento) e não são estornos. Representa o valor que a associação tem a receber de clientes e associados, independentemente do período selecionado. Inclui tanto lançamentos dentro do prazo quanto vencidos.'
+	},
+	a_pagar: {
+		tooltip: 'Total de débitos em aberto, ainda não pagos.',
+		titulo: 'A Pagar',
+		descricao:
+			'Soma de todos os lançamentos de natureza Débito que ainda não foram pagos (sem data de pagamento) e não são estornos. Representa compromissos financeiros pendentes da associação com fornecedores e prestadores. Inclui tanto lançamentos dentro do prazo quanto vencidos.'
+	},
+	a_receber_excl: {
+		tooltip: 'A receber considerando apenas clientes adimplentes.',
+		titulo: 'A Receber (excl. inadimplentes)',
+		descricao:
+			'Soma de lançamentos de Crédito em aberto, excluindo aqueles vinculados a clientes ou associados marcados como inadimplentes. Este valor representa uma estimativa mais realista do que a associação tem chance concreta de receber, desconsiderando devedores com histórico de atraso.'
+	},
+	inadimplentes: {
+		tooltip: 'Número de clientes com cobranças vencidas e não pagas.',
+		titulo: 'Inadimplentes',
+		descricao:
+			'Quantidade de clientes/fornecedores marcados como inadimplentes no sistema. Um clifor é considerado inadimplente quando possui pelo menos um lançamento de Crédito vencido, não pago e não estornado. Esta marcação é atualizada automaticamente pelo sistema a cada criação, edição ou exclusão de lançamento.'
+	}
+};
+
+// ── Componente KpiCard com tooltip e popup ──────────────────────────────────
+function KpiCard({ infoKey, icon, iconClass, label, value, valueClass, children }) {
+	const [hover, setHover] = useState(false);
+	const [popup, setPopup] = useState(false);
+	const cardRef = useRef(null);
+	const info = KPI_INFO[infoKey];
+
+	return (
+		<>
+			<div
+				ref={cardRef}
+				className="dash-kpi-card dash-kpi-card--interativo"
+				onMouseEnter={() => setHover(true)}
+				onMouseLeave={() => setHover(false)}
+				onClick={() => setPopup(true)}
+				style={{ cursor: 'pointer', position: 'relative' }}
+			>
+				<div className={`dash-kpi-card__icon ${iconClass}`}>
+					<i className={`bi ${icon}`} />
+				</div>
+				<span className="dash-kpi-card__label">{label}</span>
+				<span className={`dash-kpi-card__value${valueClass ? ` ${valueClass}` : ''}`}>{value}</span>
+				{children}
+
+				{hover && <div className="dash-kpi-tooltip">{info.tooltip}</div>}
+			</div>
+
+			{popup && (
+				<div
+					style={{
+						position: 'fixed',
+						inset: 0,
+						background: 'rgba(0,0,0,0.5)',
+						display: 'flex',
+						alignItems: 'center',
+						justifyContent: 'center',
+						zIndex: 9990,
+						padding: 20
+					}}
+					onClick={() => setPopup(false)}
+				>
+					<div
+						style={{
+							background: 'var(--bg-card)',
+							borderRadius: 14,
+							maxWidth: 480,
+							width: '100%',
+							padding: '32px 36px',
+							boxShadow: '0 16px 48px var(--shadow)'
+						}}
+						onClick={(e) => e.stopPropagation()}
+					>
+						<div
+							style={{
+								display: 'flex',
+								justifyContent: 'space-between',
+								alignItems: 'center',
+								marginBottom: 16
+							}}
+						>
+							<h4
+								style={{
+									margin: 0,
+									fontFamily: 'var(--font-display)',
+									color: 'var(--primary)',
+									fontWeight: 700
+								}}
+							>
+								{info.titulo}
+							</h4>
+							<button
+								onClick={() => setPopup(false)}
+								style={{
+									background: 'transparent',
+									border: 'none',
+									cursor: 'pointer',
+									fontSize: '1.2rem',
+									color: 'var(--text-muted)'
+								}}
+							>
+								✕
+							</button>
+						</div>
+						<p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text)', lineHeight: 1.7 }}>
+							{info.descricao}
+						</p>
+					</div>
+				</div>
+			)}
+		</>
+	);
+}
+
+// ── Dashboard ───────────────────────────────────────────────────────────────
 function Dashboard() {
 	const [resumo, setResumo] = useState(null);
 	const [porTipoDespesa, setPorTipoDespesa] = useState([]);
 	const [porTipoReceita, setPorTipoReceita] = useState([]);
 	const [inadimplentes, setInadimplentes] = useState([]);
-	const [lancamentosVencidos, setLancamentosVencidos] = useState([]);
 	const [carregando, setCarregando] = useState(true);
 	const [erro, setErro] = useState('');
 
-	const [periodoAtivo, setPeriodoAtivo] = useState(1); // Últimos 6 meses por padrão
+	const [periodoAtivo, setPeriodoAtivo] = useState(1);
 	const [datasDe, setDatasDe] = useState('');
 	const [datasAte, setDatasAte] = useState('');
 
@@ -95,20 +235,16 @@ function Dashboard() {
 		setErro('');
 		try {
 			const params = periodoParams();
-			const [res, despesas, receitas, clifors, saldos] = await Promise.all([
+			const [res, despesas, receitas, clifors] = await Promise.all([
 				getLancamentosResumo(params),
 				getResumoPorTipo({ ...params, natureza: 'Debito' }),
 				getResumoPorTipo({ ...params, natureza: 'Credito' }),
-				getClifors({ inadimplente: true }),
-				getSaldosClifors()
+				getClifors({ inadimplente: true })
 			]);
 			setResumo(res);
 			setPorTipoDespesa(despesas.slice(0, 5));
 			setPorTipoReceita(receitas.slice(0, 5));
 			setInadimplentes(clifors);
-
-			// Lançamentos vencidos calculados a partir dos saldos não — precisamos de getLancamentos
-			// Usamos o resumo para o count, lista vem de clifors inadimplentes
 		} catch (err) {
 			setErro(err.message || 'Erro ao carregar dados do dashboard.');
 		} finally {
@@ -125,7 +261,6 @@ function Dashboard() {
 		setDatasDe('');
 		setDatasAte('');
 	};
-
 	const handleDataChange = (campo, valor) => {
 		setPeriodoAtivo(null);
 		if (campo === 'de') setDatasDe(valor);
@@ -140,7 +275,6 @@ function Dashboard() {
 				</div>
 			</div>
 		);
-
 	if (erro)
 		return (
 			<div className="dash-container">
@@ -153,7 +287,6 @@ function Dashboard() {
 
 	return (
 		<div className="dash-container">
-			{/* ── Cabeçalho ── */}
 			<div className="dash-header">
 				<div>
 					<h1 className="dash-header__title">Dashboard</h1>
@@ -164,7 +297,6 @@ function Dashboard() {
 				</button>
 			</div>
 
-			{/* ── Seletor de período ── */}
 			<div className="dash-periodo">
 				<div className="dash-periodo__rapido">
 					{PERIODOS.map((p, i) => (
@@ -194,88 +326,78 @@ function Dashboard() {
 				</div>
 			</div>
 
-			{/* ── KPIs ── */}
+			{/* ── KPIs realizados ── */}
 			<div className="dash-kpi-grid">
-				<div className="dash-kpi-card">
-					<div className="dash-kpi-card__icon dash-kpi-card__icon--receita">
-						<i className="bi bi-arrow-down-circle" />
-					</div>
-					<span className="dash-kpi-card__label">Receita Recebida</span>
-					<span className="dash-kpi-card__value dash-kpi-card__value--positivo">
-						{formatarValor(resumo?.total_recebido)}
-					</span>
-				</div>
-
-				<div className="dash-kpi-card">
-					<div className="dash-kpi-card__icon dash-kpi-card__icon--despesa">
-						<i className="bi bi-arrow-up-circle" />
-					</div>
-					<span className="dash-kpi-card__label">Despesa Paga</span>
-					<span className="dash-kpi-card__value dash-kpi-card__value--negativo">
-						{formatarValor(resumo?.total_pago)}
-					</span>
-				</div>
-
-				<div className="dash-kpi-card">
-					<div className="dash-kpi-card__icon dash-kpi-card__icon--saldo">
-						<i className="bi bi-wallet2" />
-					</div>
-					<span className="dash-kpi-card__label">Saldo do Período</span>
-					<span
-						className={`dash-kpi-card__value ${parseFloat(resumo?.saldo_total ?? 0) >= 0 ? 'dash-kpi-card__value--positivo' : 'dash-kpi-card__value--negativo'}`}
-					>
-						{formatarValor(resumo?.saldo_total)}
-					</span>
-				</div>
-
-				<div className="dash-kpi-card">
-					<div className="dash-kpi-card__icon dash-kpi-card__icon--reembolso">
-						<i className="bi bi-arrow-left-right" />
-					</div>
-					<span className="dash-kpi-card__label">Reembolsos</span>
-					<span className="dash-kpi-card__value">{formatarValor(resumo?.total_reembolsado)}</span>
-				</div>
+				<KpiCard
+					infoKey="receita_recebida"
+					icon="bi-arrow-down-circle"
+					iconClass="dash-kpi-card__icon--receita"
+					label="Receita Recebida"
+					value={formatarValor(resumo?.total_recebido)}
+					valueClass="dash-kpi-card__value--positivo"
+				/>
+				<KpiCard
+					infoKey="despesa_paga"
+					icon="bi-arrow-up-circle"
+					iconClass="dash-kpi-card__icon--despesa"
+					label="Despesa Paga"
+					value={formatarValor(resumo?.total_pago)}
+					valueClass="dash-kpi-card__value--negativo"
+				/>
+				<KpiCard
+					infoKey="saldo_periodo"
+					icon="bi-wallet2"
+					iconClass="dash-kpi-card__icon--saldo"
+					label="Saldo do Período"
+					value={formatarValor(resumo?.saldo_total)}
+					valueClass={
+						parseFloat(resumo?.saldo_total ?? 0) >= 0
+							? 'dash-kpi-card__value--positivo'
+							: 'dash-kpi-card__value--negativo'
+					}
+				/>
+				<KpiCard
+					infoKey="reembolsos"
+					icon="bi-arrow-left-right"
+					iconClass="dash-kpi-card__icon--reembolso"
+					label="Reembolsos"
+					value={formatarValor(resumo?.total_reembolsado)}
+				/>
 			</div>
 
-			{/* ── Pendências ── */}
+			{/* ── KPIs pendentes ── */}
 			<div className="dash-kpi-grid">
-				<div className="dash-kpi-card">
-					<div className="dash-kpi-card__icon dash-kpi-card__icon--receita">
-						<i className="bi bi-hourglass-split" />
-					</div>
-					<span className="dash-kpi-card__label">A Receber</span>
-					<span className="dash-kpi-card__value dash-kpi-card__value--positivo">
-						{formatarValor(resumo?.total_a_receber)}
-					</span>
-				</div>
-
-				<div className="dash-kpi-card">
-					<div className="dash-kpi-card__icon dash-kpi-card__icon--despesa">
-						<i className="bi bi-hourglass-split" />
-					</div>
-					<span className="dash-kpi-card__label">A Pagar</span>
-					<span className="dash-kpi-card__value dash-kpi-card__value--negativo">
-						{formatarValor(resumo?.total_a_pagar)}
-					</span>
-				</div>
-
-				<div className="dash-kpi-card">
-					<div className="dash-kpi-card__icon dash-kpi-card__icon--inadimplente">
-						<i className="bi bi-person-x" />
-					</div>
-					<span className="dash-kpi-card__label">A Receber (excl. inadimplentes)</span>
-					<span className="dash-kpi-card__value dash-kpi-card__value--positivo">
-						{formatarValor(resumo?.total_a_receber_excluindo_inadimplentes)}
-					</span>
-				</div>
-
-				<div className="dash-kpi-card">
-					<div className="dash-kpi-card__icon dash-kpi-card__icon--inadimplente">
-						<i className="bi bi-exclamation-circle" />
-					</div>
-					<span className="dash-kpi-card__label">Inadimplentes</span>
-					<span className="dash-kpi-card__value">{resumo?.quantidade_inadimplentes ?? 0}</span>
-				</div>
+				<KpiCard
+					infoKey="a_receber"
+					icon="bi-hourglass-split"
+					iconClass="dash-kpi-card__icon--receita"
+					label="A Receber"
+					value={formatarValor(resumo?.total_a_receber)}
+					valueClass="dash-kpi-card__value--positivo"
+				/>
+				<KpiCard
+					infoKey="a_pagar"
+					icon="bi-hourglass-split"
+					iconClass="dash-kpi-card__icon--despesa"
+					label="A Pagar"
+					value={formatarValor(resumo?.total_a_pagar)}
+					valueClass="dash-kpi-card__value--negativo"
+				/>
+				<KpiCard
+					infoKey="a_receber_excl"
+					icon="bi-person-x"
+					iconClass="dash-kpi-card__icon--inadimplente"
+					label="A Receber (excl. inadimplentes)"
+					value={formatarValor(resumo?.total_a_receber_excluindo_inadimplentes)}
+					valueClass="dash-kpi-card__value--positivo"
+				/>
+				<KpiCard
+					infoKey="inadimplentes"
+					icon="bi-exclamation-circle"
+					iconClass="dash-kpi-card__icon--inadimplente"
+					label="Inadimplentes"
+					value={resumo?.quantidade_inadimplentes ?? 0}
+				/>
 			</div>
 
 			{/* ── Rankings ── */}

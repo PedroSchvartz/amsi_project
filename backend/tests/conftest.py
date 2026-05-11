@@ -1,6 +1,25 @@
 import pytest
 from fastapi.testclient import TestClient
 from main import app
+from database import SessionLocal
+
+
+TABELAS_MONITORADAS = [
+    "usuario",
+    "clientefornecedor",
+    "lancamento",
+    "endereco",
+    "contato",
+    "tipo_conta",
+    "login",
+]
+
+
+def contar_tabelas(db):
+    return {
+        tabela: db.execute(__import__("sqlalchemy").text(f"SELECT COUNT(*) FROM {tabela}")).scalar()
+        for tabela in TABELAS_MONITORADAS
+    }
 
 
 # ================================================
@@ -11,6 +30,56 @@ from main import app
 def client():
     with TestClient(app) as c:
         yield c
+
+
+# ================================================
+# SNAPSHOT DO BANCO
+# ================================================
+
+@pytest.fixture(scope="session", autouse=True)
+def db_snapshot(client, headers_admin):
+    db = SessionLocal()
+    snapshot_antes = contar_tabelas(db)
+    db.close()
+
+    # Registrar IDs de logins existentes antes dos testes
+    ADMIN_EMAIL = "opedroschvartz@gmail.com"
+    r_admin = client.get("/usuarios/", headers=headers_admin)
+    admin = next((u for u in r_admin.json() if u["email"] == ADMIN_EMAIL), None)
+    ids_logins_antes = set()
+    if admin:
+        r_logins = client.get(f"/login/por-usuario/{admin['id_usuario']}", headers=headers_admin)
+        if r_logins.is_success:
+            ids_logins_antes = {l["id_login"] for l in r_logins.json()}
+
+    yield
+
+    # Deletar logins do admin criados durante os testes
+    if admin:
+        r_logins = client.get(f"/login/por-usuario/{admin['id_usuario']}", headers=headers_admin)
+        if r_logins.is_success:
+            for login in r_logins.json():
+                if login["id_login"] not in ids_logins_antes:
+                    client.delete(f"/login/{login['id_login']}", headers=headers_admin)
+
+    db = SessionLocal()
+    snapshot_depois = contar_tabelas(db)
+    db.close()
+
+    divergencias = {
+        tabela: (snapshot_antes[tabela], snapshot_depois[tabela])
+        for tabela in TABELAS_MONITORADAS
+        if snapshot_antes[tabela] != snapshot_depois[tabela]
+    }
+
+    if divergencias:
+        linhas = "\n".join(
+            f"  {tabela}: antes={antes}, depois={depois} (diff={depois - antes:+d})"
+            for tabela, (antes, depois) in divergencias.items()
+        )
+        raise AssertionError(
+            f"O banco ficou sujo após os testes. Tabelas com contagem diferente:\n{linhas}"
+        )
 
 
 # ================================================

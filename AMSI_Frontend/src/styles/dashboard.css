@@ -386,7 +386,44 @@
 	color: #a78bfa;
 }
 
-/* ── Botão atualizar ── */
+/* ── KPI card interativo ── */
+.dash-kpi-card--interativo:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 4px 16px var(--shadow);
+	transition:
+		transform 0.15s ease,
+		box-shadow 0.15s ease;
+}
+
+.dash-kpi-tooltip {
+	position: absolute;
+	bottom: calc(100% + 10px);
+	left: 50%;
+	transform: translateX(-50%);
+	background: var(--text);
+	color: var(--bg-card);
+	font-size: 0.75rem;
+	line-height: 1.5;
+	padding: 8px 12px;
+	border-radius: 8px;
+	white-space: normal;
+	width: 220px;
+	text-align: center;
+	pointer-events: none;
+	z-index: 100;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.dash-kpi-tooltip::after {
+	content: '';
+	position: absolute;
+	top: 100%;
+	left: 50%;
+	transform: translateX(-50%);
+	border: 6px solid transparent;
+	border-top-color: var(--text);
+}
+
 .dash-btn-atualizar {
 	background: transparent;
 	border: 1px solid var(--border);
