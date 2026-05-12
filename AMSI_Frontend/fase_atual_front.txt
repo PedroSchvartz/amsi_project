@@ -2,7 +2,7 @@
   AMSI PROJECT — FASE ATUAL FRONTEND
 ================================================================================
 
-DATA: 2026-05-08
+DATA: 2026-05-11
 STACK: React + Vite (JSX) — hospedado na Vercel
 REPOSITÓRIO: https://github.com/PedroSchvartz/amsi_project
 BASE_URL da API: configurada via AMSI_Frontend/.env → VITE_API_URL
@@ -12,70 +12,65 @@ BASE_URL da API: configurada via AMSI_Frontend/.env → VITE_API_URL
 --------------------------------------------------------------------------------
 
   src/
-  ├── App.jsx (5.3KB)
+  ├── App.jsx
   │     Roteamento + LoadingProvider + Spinner global + MonitorSessao
-  │     Rotas /lancamento e /cadastro REMOVIDAS — funcionalidades via modal
   ├── components/
-  │   ├── AdminRoute.jsx (220B)
-  │   ├── PrivateRoute.jsx (345B)
-  │   ├── Layout.jsx (7.0KB)
-  │   │     Importa PerfilCompletoPopup (não Perfilpopup — arquivo deletado)
-  │   │     Scroll para topo ao abrir menu mobile
+  │   ├── AdminRoute.jsx
+  │   ├── PrivateRoute.jsx
+  │   ├── Layout.jsx
   │   │     Navbar: Dashboard, Usuários, Lista de Lançamentos, Clientes/Fornecedores
-  │   ├── ModalConfirm.jsx (2.1KB)   — popup confirmação reutilizável
-  │   ├── ToastStack.jsx (2.5KB)     — notificações flutuantes + hook useToast
-  │   ├── PerfilCompletoPopup.jsx (12.6KB)
-  │   │     Perfil completo + clifor vinculado (rasurado) + associar/desvincular
-  │   ├── Login.jsx (3.6KB)          — sempre inicia no tema verde
-  │   ├── Home.jsx (2.6KB)
-  │   │     4 cards CSS Grid 2x2 centralizados
-  │   │     Cards: Dashboard, Lista de Lançamentos, Clientes/Fornecedores, Usuários
-  │   ├── LancamentoModal.jsx (13.8KB)
-  │   │     Formulário de novo lançamento como popup (CSS inline)
-  │   │     Aberto pelo botão "+ Novo Lançamento" na ListaLancamentosPage
-  │   ├── ClientList.jsx (9.0KB)
-  │   │     CPF rasurado, saldo líquido, filtros Tipo/Status, ordenação alfabética
-  │   ├── ClientRegister.jsx (29.1KB) — cadastro clifor completo
-  │   ├── ClientEdit.jsx (27.3KB)    — edição clifor
-  │   ├── UserList.jsx (9.3KB)
-  │   │     Lista + botão "+ Cadastrar Usuário" → UserRegisterModal
-  │   │     Cargo Desenvolvedor no select de edição
-  │   ├── UserRegisterModal.jsx (5.0KB)
-  │   │     Cadastro usuário como popup, inclui cargo Desenvolvedor
-  │   └── UserRegister.jsx (2.5KB)   — componente legado, sem rota ativa
+  │   ├── ModalConfirm.jsx          — popup confirmação reutilizável
+  │   ├── ToastStack.jsx            — notificações flutuantes + hook useToast
+  │   ├── PerfilCompletoPopup.jsx   — perfil + clifor vinculado + associar/desvincular
+  │   ├── Login.jsx                 — sempre inicia no tema verde
+  │   ├── Home.jsx                  — 4 cards CSS Grid 2x2
+  │   ├── LancamentoModal.jsx       — novo lançamento como popup
+  │   ├── ClientList.jsx
+  │   │     CPF rasurado (clique para revelar), saldo líquido, filtros Tipo/Status
+  │   ├── ClientRegister.jsx
+  │   │     Campo "Ativo" REMOVIDO (pós MVP)
+  │   │     Ao selecionar "Vincular a Usuário" sobrescreve nome e email
+  │   ├── ClientEdit.jsx
+  │   │     Campo "Ativo" REMOVIDO (pós MVP)
+  │   ├── UserList.jsx
+  │   │     Lista + edição via UserEditModal + perfil completo + reset + remover
+  │   ├── UserEditModal.jsx         — NOVO — popup de edição de usuário
+  │   │     Campos: nome, cargo, perfil_de_acesso, bloqueado
+  │   │     Email não editável
+  │   │     Notificação: só aparece botão "Remover notificações" se ativo, com ModalConfirm
+  │   ├── UserRegisterModal.jsx     — cadastro usuário como popup
+  │   └── UserRegister.jsx          — legado, sem rota ativa
   ├── pages/
-  │   ├── ListaLancamentosPage.jsx (17.9KB)
-  │   │     Botão "+ Novo Lançamento" → LancamentoModal
-  │   │     Popup fechar lançamento:
-  │   │       - Pré-preenche observacao e valor_pago com valores existentes
-  │   │       - valor_pago readOnly se já preenchido
-  │   │       - Upload PDF comprovante opcional (máx 5MB, somente PDF)
-  │   │       - Exibe comprovante atual com nome + botão Remover (ModalConfirm)
-  │   │       - Campo upload oculto quando já há comprovante
-  │   │     Ícone bi-journal-check para fechar lançamento
-  │   │     Ícone bi-file-earmark-pdf para ver comprovante
-  │   │     Filtros Abertos/Vencidos/Quitados como checkboxes (não exclusivos)
-  │   │     [PENDENTE] filtro apenas_quitados — backend ok, falta testar
-  │   ├── Dashboard.jsx (10.9KB)
-  │   ├── ClientListPage / ClientRegisterPage / ClientEditPage — wrappers
-  │   ├── LancamentoPage.jsx (8.0KB) — arquivo existe mas rota removida
-  │   ├── UserRegisterPage.jsx       — arquivo existe mas rota removida
-  │   └── (outros wrappers)
+  │   ├── ListaLancamentosPage.jsx
+  │   │     Filtros status: Abertos/Vencidos/Quitados/Reembolso (combinável)
+  │   │     Filtros comprovante: Com/Sem (exclusivos, mesma linha do status)
+  │   │     Botão "⚠ Aplicar Filtros" destaca quando filtros pendentes
+  │   ├── dashboard.jsx
+  │   │     Seletor de período: Último mês / Últimos 6 meses / Ano atual / Desde sempre
+  │   │     + seletor livre mês/ano (type="month")
+  │   │     KPIs com tooltip no hover (próximo ao card) e popup no clique
+  │   │     Rankings: Top Despesas / Top Receitas (lado a lado)
+  │   │     Lista inadimplentes
+  │   ├── TrocarSenhaPage.jsx
+  │   │     Lê ?senha= da URL e preenche campo "Senha atual" automaticamente
+  │   └── (wrappers de rota)
   ├── services/
-  │   ├── api.js (19.7KB)
-  │   │     getSaldosClifors, anexarComprovante, baixarComprovante,
-  │   │     removerComprovante, getSugestaoClifor, associarCliforAoUsuario,
-  │   │     desvincularCliforDoUsuario
-  │   ├── auth.js (1.3KB)
+  │   ├── api.js — getLancamentosResumo, getResumoPorTipo, getSaldosClifors, etc.
+  │   ├── auth.js
   │   └── loadingContext.jsx
-  └── styles/ — theme.css, clientList.css, forms.css, layout.css, etc.
+  └── styles/
+      ├── theme.css       — variáveis dos dois temas (verde + corporativo)
+      ├── dashboard.css   — inclui seletor de período e tooltip dos KPIs
+      ├── clientList.css
+      ├── listaLancamentos.css — ll-btn-filtrar--pendente
+      └── (outros CSS por componente)
 
 --------------------------------------------------------------------------------
   ROTAS (App.jsx)
 --------------------------------------------------------------------------------
 
   /                              → LoginPage             (pública)
-  /trocar-senha                  → TrocarSenhaPage       (privada)
+  /trocar-senha                  → TrocarSenhaPage       (privada, aceita ?senha=)
   /home                          → HomePage              (admin)
   /dashboard                     → Dashboard             (admin)
   /tipo_lancamento               → ListaLancamentosPage  (admin)
@@ -89,33 +84,26 @@ BASE_URL da API: configurada via AMSI_Frontend/.env → VITE_API_URL
   BACKEND — ESTADO ATUAL
 --------------------------------------------------------------------------------
 
-  124 testes passando, sem warnings
-  python-multipart instalado e no requirements.txt
+  162 testes passando
+  Banco recriado em 11/05 — admin ID=1
 
-  Comprovante de pagamento (BYTEA no banco):
-    POST   /lancamento/{id}/comprovante   — anexar PDF (máx 5MB)
-    GET    /lancamento/{id}/comprovante   — baixar PDF
-    DELETE /lancamento/{id}/comprovante   — remover
-
-  Cargo Desenvolvedor:
-    CargoEnum atualizado (schemas + models)
-    Migration: ALTER TYPE cargo_enum ADD VALUE 'Desenvolvedor'
-    Bootstrap: admins com CargoEnum.Desenvolvedor
-
-  Validação email no cadastro:
-    Lookup MX (bloqueia domínios inválidos)
-    Cadastro revertido (db.delete) se envio falhar
-
-  Filtros de lançamento:
-    apenas_abertos, apenas_vencidos, apenas_quitados (novo)
-    [PENDENTE] apenas_quitados adicionado ao route, não testado ainda
+  Endpoints relevantes para o frontend:
+    GET    /lancamento/resumo               — dashboard (filtro data_pagamento_de/ate)
+    GET    /lancamento/resumo-por-tipo      — rankings
+    POST   /lancamento/{id}/comprovante     — anexar PDF
+    GET    /lancamento/{id}/comprovante     — baixar PDF
+    DELETE /lancamento/{id}/comprovante     — remover
+    GET    /cliente_fornecedor/saldos
+    GET    /usuarios/{id}/clifor
+    POST   /usuarios/{id}/clifor/{id}/associar
+    DELETE /usuarios/{id}/clifor/desvincular
 
 --------------------------------------------------------------------------------
   PENDÊNCIAS
 --------------------------------------------------------------------------------
 
-  [PENDENTE] pytest com apenas_quitados — rodar antes do próximo push
-  [PENDENTE] Push final desta sessão
+  [PENDENTE] Push da sessão de hoje
+  [PENDENTE] Aplicar CSS do Thierry (branch css-novo) componente por componente
   [PENDENTE] Limpar arquivos órfãos: LancamentoPage.jsx, UserRegisterPage.jsx,
              NavBar.jsx, News.jsx
 

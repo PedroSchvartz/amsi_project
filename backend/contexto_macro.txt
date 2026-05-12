@@ -27,6 +27,7 @@ Senha    : 99181
 Porta    : 5432
 OBS      : usa BIGINT GENERATED ALWAYS AS IDENTITY e ENUMs nativos do PostgreSQL
            Trigger trigger_inadimplente existe no banco E no backend (redundância intencional)
+           Banco recriado em 11/05/2026 — admin ID=1
 
 --------------------------------------------------------------------------------
   ESTRUTURA DO PROJETO
@@ -49,15 +50,15 @@ backend/
 ├── routes/                  — FastAPI endpoints
 ├── schemas/                 — Pydantic: Create, Update, Response
 ├── tests/
-│   ├── conftest.py          — fixtures session-scoped; limpa lançamentos antes de deletar usuario_base
-│   └── test_*.py            — 154 testes passando
+│   ├── conftest.py          — snapshot banco antes/depois; limpa lançamentos antes de deletar usuario_base
+│   └── test_*.py            — 162 testes passando
 ├── utils/
 │   ├── auth_utils.py        — hash_senha, verificar_senha, criar_token_acesso
 │   ├── bootstrap.py         — seed de admin
-│   ├── config.py            — carrega config.env
+│   ├── config.py            — carrega config.env (inclui FRONTEND_URL)
 │   ├── email_sender.py
 │   ├── frequentes.py        — biblioteca pessoal: boolput, configure_logging, etc.
-│   ├── inadimplencia.py     — atualizar_inadimplente(id_clifor, db) — chamado em POST/PUT/DELETE /lancamento/
+│   ├── inadimplencia.py     — atualizar_inadimplente(id_clifor, db)
 │   ├── request_logger.py    — middleware + /logs/ui
 │   └── telegram_sender.py
 ├── database.py
@@ -74,10 +75,10 @@ backend/
 - Models usam values_callable para ENUMs (já aplicado em todos)
 - Campo `login` foi REMOVIDO da tabela usuario — identificador é o EMAIL
 - LancamentoCreate NÃO tem campo estorno — setar via PUT após criar
-- Inadimplência é gerenciada pelo backend (utils/inadimplencia.py), não por trigger
-  Trigger trigger_inadimplente e function atualizar_inadimplente foram removidos do banco
+- Inadimplência: trigger no banco + utils/inadimplencia.py (redundância intencional)
 - utils/frequentes.py: boolput, configure_logging, intput, floatput,
   obriput, colorir, get_timestamp, mapeia_diretorio — usar sempre que possível
+- FRONTEND_URL no config.env — usado nos emails de senha provisória
 
 --------------------------------------------------------------------------------
   COMO ENVIAR CONTEXTO PARA NOVO CHAT
@@ -180,9 +181,9 @@ Checklist:
 ## LÓGICA DE NEGÓCIO — INADIMPLÊNCIA
 
   - Clifor é inadimplente se tiver lançamento de Crédito: vencido + não pago + não estornado
-  - Gerenciado em dois lugares (redundância intencional para maior confiabilidade):
-    1. Trigger trigger_inadimplente no banco (dispara em INSERT/UPDATE/DELETE em lancamento)
-    2. utils/inadimplencia.py → atualizar_inadimplente(id_clifor, db) no backend
+  - Gerenciado em dois lugares (redundância intencional):
+    1. Trigger trigger_inadimplente no banco (INSERT/UPDATE/DELETE em lancamento)
+    2. utils/inadimplencia.py → atualizar_inadimplente(id_clifor, db)
        Chamado em: POST /lancamento/, PUT /lancamento/{id}, DELETE /lancamento/{id}
 
 ================================================================================

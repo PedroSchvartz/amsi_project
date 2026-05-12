@@ -453,21 +453,6 @@ function ClientRegister() {
 									))}
 								</select>
 							</div>
-							<div className="col-12 col-md-4 d-flex align-items-end gap-4 pb-1">
-								<div className="form-check">
-									<input
-										type="checkbox"
-										className="form-check-input"
-										id="ativo"
-										name="ativo"
-										checked={form.ativo}
-										onChange={handleChange}
-									/>
-									<label className="form-check-label" htmlFor="ativo">
-										Ativo
-									</label>
-								</div>
-							</div>
 						</div>
 					</div>
 				</div>

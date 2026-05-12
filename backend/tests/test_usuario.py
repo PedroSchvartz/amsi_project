@@ -336,3 +336,64 @@ def test_criar_usuario_cargo_invalido(client, headers_admin):
         "notificacao": False
     }, headers=headers_admin)
     assert r.status_code == 422
+
+def test_criar_usuario_primeiro_acesso_true(client, headers_admin):
+    """Usuário criado deve sempre ter primeiro_acesso=True."""
+    r = client.post("/usuarios/", json={
+        "nome": "Primeiro Acesso Pytest",
+        "email": "pytest_primeiro_acesso@amsi.com",
+        "cargo": "Associado",
+        "perfil_de_acesso": "Consulta",
+        "notificacao": False
+    }, headers=headers_admin)
+    assert r.status_code == 200
+    u = r.json()
+    assert u["primeiro_acesso"] is True
+
+    logins = client.get(f"/login/por-usuario/{u['id_usuario']}", headers=headers_admin)
+    if logins.is_success:
+        for login in logins.json():
+            client.delete(f"/login/{login['id_login']}", headers=headers_admin)
+    client.delete(f"/usuarios/{u['id_usuario']}", headers=headers_admin)
+
+
+def test_resetar_senha_seta_primeiro_acesso_true(client, headers_admin, usuario_base):
+    """Após resetar senha, primeiro_acesso do usuário deve ser True."""
+    # Primeiro, simular que o usuário já fez o primeiro acesso
+    client.put(f"/usuarios/{usuario_base['id_usuario']}", json={
+        "primeiro_acesso": False
+    }, headers=headers_admin)
+
+    # Resetar senha
+    r = client.post(f"/usuarios/{usuario_base['id_usuario']}/resetar-senha", headers=headers_admin)
+    assert r.status_code == 200
+
+    # Verificar que primeiro_acesso voltou para True
+    r_usuario = client.get(f"/usuarios/{usuario_base['id_usuario']}", headers=headers_admin)
+    assert r_usuario.status_code == 200
+    assert r_usuario.json()["primeiro_acesso"] is True
+
+
+def test_atualizar_campos_permitidos(client, headers_admin, usuario_base):
+    """nome, cargo, perfil_de_acesso, bloqueado e notificacao devem ser atualizáveis."""
+    r = client.put(f"/usuarios/{usuario_base['id_usuario']}", json={
+        "nome": "Nome Atualizado Pytest",
+        "cargo": "Diretor",
+        "perfil_de_acesso": "Administrador",
+        "bloqueado": True,
+        "notificacao": False
+    }, headers=headers_admin)
+    assert r.status_code == 200
+    u = r.json()
+    assert u["nome"] == "Nome Atualizado Pytest"
+    assert u["cargo"] == "Diretor"
+    assert u["perfil_de_acesso"] == "Administrador"
+    assert u["bloqueado"] is True
+
+    # Reverter
+    client.put(f"/usuarios/{usuario_base['id_usuario']}", json={
+        "nome": usuario_base["nome"],
+        "cargo": usuario_base["cargo"],
+        "perfil_de_acesso": usuario_base["perfil_de_acesso"],
+        "bloqueado": False
+    }, headers=headers_admin)

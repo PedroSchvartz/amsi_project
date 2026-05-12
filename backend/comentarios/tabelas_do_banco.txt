@@ -15,6 +15,11 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 -- ================================================
 
 
+-- ================================================
+-- ORDEM DE CRIAÇÃO: Usuario > tipo_conta > ClienteFornecedor > Endereco > Contato > Login > Lancamento
+-- ================================================
+
+
 CREATE TABLE Usuario (
     id_usuario BIGINT GENERATED ALWAYS AS IDENTITY,
     Senha VARCHAR(255) NOT NULL,
@@ -24,13 +29,13 @@ CREATE TABLE Usuario (
     Cargo cargo_enum NOT NULL,
     Perfil_de_Acesso acesso_enum NOT NULL,
     Notificacao BOOLEAN NOT NULL DEFAULT FALSE,
-    Suspenso TIMESTAMP DEFAULT NULL,    
+    Suspenso TIMESTAMP DEFAULT NULL,
     Qtd_suspensao INT DEFAULT 0,
     Bloqueado BOOLEAN NOT NULL DEFAULT FALSE,
     Exclusao TIMESTAMP DEFAULT NULL,
     telegram_id VARCHAR(255) DEFAULT NULL,
     primeiro_acesso BOOLEAN NOT NULL DEFAULT TRUE,
-    PRIMARY KEY (id_usuario)   
+    PRIMARY KEY (id_usuario)
 );
 
 -- Usuario
@@ -107,9 +112,11 @@ CREATE TABLE Login (
     PRIMARY KEY (id_Login),
     FOREIGN KEY (id_usuario_FK) REFERENCES Usuario(id_usuario)
 );
+
 -- Login
 CREATE INDEX idx_id_Login ON Login(Data_Login);
 CREATE INDEX idx_id_usuario_FK ON Login(id_usuario_FK);
+
 
 CREATE TABLE Lancamento (
     id_lancamento BIGINT GENERATED ALWAYS AS IDENTITY,
@@ -127,16 +134,14 @@ CREATE TABLE Lancamento (
     Observacao TEXT,
     Natureza_Lancamento natureza_enum NOT NULL,
     Estorno BOOLEAN NOT NULL DEFAULT FALSE,
-    Comprovante BYTEA DEFAULT NULL;
-    Comprovante_nome VARCHAR(255) DEFAULT NULL;
+    Comprovante BYTEA DEFAULT NULL,
+    Comprovante_nome VARCHAR(255) DEFAULT NULL,
     PRIMARY KEY (id_lancamento),
     FOREIGN KEY (id_Usuario_FK_Lancamento) REFERENCES Usuario(id_usuario),
     FOREIGN KEY (id_CliFor_Relacionado_FK) REFERENCES ClienteFornecedor(id_CliFor),
     FOREIGN KEY (id_tipo_conta_FK) REFERENCES tipo_conta(id_tipo_conta),
     FOREIGN KEY (id_Usuario_FK_Fechamento) REFERENCES Usuario(id_usuario)
-    
 );
-
 
 -- Lancamento
 CREATE INDEX idx_lancamento_data_vencimento ON Lancamento(Data_vencimento);
@@ -146,6 +151,7 @@ CREATE INDEX idx_lancamento_clifor ON Lancamento(id_CliFor_Relacionado_FK);
 CREATE INDEX idx_lancamento_data_pagamento ON Lancamento(data_pagamento);
 CREATE INDEX idx_lancamento_natureza ON Lancamento(Natureza_Lancamento);
 CREATE INDEX idx_lancamento_tipo_conta ON Lancamento(id_tipo_conta_fk);
+
 
 -- Registro de Tokens idx_token_ativo_usuario
 -- Para exigir o token no login e dificultar o acesso por histórico.
@@ -160,6 +166,7 @@ CREATE TABLE token_ativo (
 CREATE INDEX idx_token_ativo_jti ON token_ativo(jti);
 CREATE INDEX idx_token_ativo_usuario ON token_ativo(id_usuario_fk);
 
+
 -- ============================================================
 -- TRIGGER: atualiza inadimplente em ClienteFornecedor
 -- Dispara após INSERT, UPDATE ou DELETE em Lancamento
@@ -170,14 +177,12 @@ RETURNS TRIGGER AS $$
 DECLARE
     v_id_clifor BIGINT;
 BEGIN
-    -- Determina qual clifor foi afetado
     IF TG_OP = 'DELETE' THEN
         v_id_clifor := OLD.id_CliFor_Relacionado_FK;
     ELSE
         v_id_clifor := NEW.id_CliFor_Relacionado_FK;
     END IF;
 
-    -- Atualiza inadimplente com base nos lançamentos vencidos e não pagos
     UPDATE clientefornecedor
     SET inadimplente = EXISTS (
         SELECT 1
@@ -193,7 +198,6 @@ BEGIN
     RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
-
 
 CREATE OR REPLACE TRIGGER trigger_inadimplente
 AFTER INSERT OR UPDATE OR DELETE ON lancamento

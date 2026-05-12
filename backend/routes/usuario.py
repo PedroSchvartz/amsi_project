@@ -88,10 +88,9 @@ def criar_usuario(dados: UsuarioCreate, db: Session = Depends(get_db), _=Depends
             <p style="margin:0;font-size:0.85rem;color:#92400e;">⚠️ Você será solicitado a trocar esta senha no primeiro login.</p>
           </div>
           <div style="text-align:center;margin:0 0 20px;">
-            <a href="{FRONTEND_URL}" style="display:inline-block;background:#1B4332;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-weight:600;font-size:0.95rem;letter-spacing:0.03em;">Acessar o sistema →</a>
+            <a href="{FRONTEND_URL}trocar-senha?senha={senha_provisoria}" style="display:inline-block;background:#1B4332;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-weight:600;font-size:0.95rem;letter-spacing:0.03em;">Acessar o sistema →</a>
           </div>
-          <p style="font-size:0.78rem;color:#6b7280;margin:0 0 12px;">Ou acesse: <a href="{FRONTEND_URL}" style="color:#1B4332;">{FRONTEND_URL}</a></p>
-          <p style="font-size:0.78rem;color:#6b7280;margin:0;">Se não reconhece este cadastro, ignore este email.</p>
+          <p style="font-size:0.78rem;color:#6b7280;margin:0 0 12px;">Ou acesse: <a href="{FRONTEND_URL}trocar-senha?senha={senha_provisoria}" style="color:#1B4332;">{FRONTEND_URL}</a></p>
         </td></tr>
         <tr><td style="padding:16px 40px;text-align:center;border-top:1px solid #d1c9bf;">
           <p style="margin:0;font-size:0.72rem;color:#a0a0a0;">© 2026 AMSI — Este é um email automático.</p>
@@ -175,10 +174,9 @@ def resetar_senha(id_usuario: int, db: Session = Depends(get_db), _=Depends(exig
             <p style="margin:0;font-size:0.85rem;color:#92400e;">⚠️ Você será solicitado a trocar esta senha no próximo login.</p>
           </div>
           <div style="text-align:center;margin:0 0 20px;">
-            <a href="{FRONTEND_URL}" style="display:inline-block;background:#1B4332;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-weight:600;font-size:0.95rem;letter-spacing:0.03em;">Acessar o sistema →</a>
+            <a href="{FRONTEND_URL}trocar-senha?senha={senha_provisoria}" style="display:inline-block;background:#1B4332;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-weight:600;font-size:0.95rem;letter-spacing:0.03em;">Acessar o sistema →</a>
           </div>
-          <p style="font-size:0.78rem;color:#6b7280;margin:0 0 12px;">Ou acesse: <a href="{FRONTEND_URL}" style="color:#1B4332;">{FRONTEND_URL}</a></p>
-          <p style="font-size:0.78rem;color:#6b7280;margin:0;">Se não solicitou este reset, entre em contato com o administrador imediatamente.</p>
+          <p style="font-size:0.78rem;color:#6b7280;margin:0 0 12px;">Ou acesse: <a href="{FRONTEND_URL}trocar-senha?senha={senha_provisoria}" style="color:#1B4332;">{FRONTEND_URL}</a></p>
         </td></tr>
         <tr><td style="padding:16px 40px;text-align:center;border-top:1px solid #d1c9bf;">
           <p style="margin:0;font-size:0.72rem;color:#a0a0a0;">© 2026 AMSI — Este é um email automático.</p>

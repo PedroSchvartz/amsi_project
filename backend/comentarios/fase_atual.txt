@@ -2,7 +2,7 @@
   AMSI PROJECT — FASE ATUAL BACKEND
 ================================================================================
 
-DATA: 2026-05-09
+DATA: 2026-05-11
 REFERÊNCIAS: comentarios/projeto_auth.txt, comentarios/projeto_notificador.txt,
              comentarios/projeto_bateria_pytest.txt, comentarios/projeto_sessao_token.txt,
              comentarios/projeto_pesquisas.txt
@@ -28,7 +28,9 @@ REFERÊNCIAS: comentarios/projeto_auth.txt, comentarios/projeto_notificador.txt,
   - JWT_EXPIRE_MINUTES configurável via config.env
 - Rotas protegidas: todas com get_current_user ou exige_admin
 - GET /usuarios/{id} acessível por qualquer usuário autenticado (não só admin)
-- Senha provisória no cadastro com envio por email
+- Senha provisória no cadastro e reset com envio por email
+  - Email inclui link direto para /trocar-senha?senha=ABC123
+  - TrocarSenhaPage lê o query param e preenche o campo automaticamente
 - Validação de domínio MX e email duplicado
 - config.env com todas as configurações sensíveis
 - CORS, ngrok, logs/ui funcionando
@@ -65,9 +67,13 @@ REFERÊNCIAS: comentarios/projeto_auth.txt, comentarios/projeto_notificador.txt,
   - GET  /lancamento/{id}/comprovante — baixar PDF
   - DELETE /lancamento/{id}/comprovante — remover
 - Cargo Desenvolvedor no CargoEnum
-- Pytest: 150/150 passando
+- Inadimplência gerenciada em dois lugares (redundância intencional):
+  - Trigger trigger_inadimplente no banco (INSERT/UPDATE/DELETE em lancamento)
+  - utils/inadimplencia.py → atualizar_inadimplente(id_clifor, db) no backend
+- Pytest: 162/162 passando
   - Rodar de dentro de backend/: cd backend && pytest
   - pytest.ini em backend/ com testpaths = tests e pythonpath = .
+  - conftest.py: snapshot do banco antes/depois — acusa se algum teste deixar dados
   - conftest.py limpa lançamentos vinculados antes de deletar usuario_base
 
 --------------------------------------------------------------------------------
@@ -75,7 +81,7 @@ REFERÊNCIAS: comentarios/projeto_auth.txt, comentarios/projeto_notificador.txt,
 --------------------------------------------------------------------------------
 
   Email: opedroschvartz@gmail.com
-  ID: 5
+  ID: 1 (banco recriado em 11/05)
   NUNCA deletar este usuário
 
 --------------------------------------------------------------------------------
@@ -93,6 +99,8 @@ REFERÊNCIAS: comentarios/projeto_auth.txt, comentarios/projeto_notificador.txt,
   - Telegram (porteiro + braço)
   - Atualização do log
   - Endpoint de perfil rico por usuário (resumo + lançamentos + último login)
+  - Testes: token expirado rejeitado, sliding session, CPF duplicado,
+    deletar tipo_conta com lançamentos vinculados
 
 --------------------------------------------------------------------------------
   AVISOS IMPORTANTES
@@ -104,8 +112,8 @@ REFERÊNCIAS: comentarios/projeto_auth.txt, comentarios/projeto_notificador.txt,
 - JWT_EXPIRE_MINUTES no config.env controla o timeout de inatividade
 - dnspython e python-dotenv são dependências obrigatórias
 - UsuarioCreate não tem campo senha — gerada automaticamente pelo sistema
-- UsuarioCreate NÃO tem campo estorno — usar PUT após criação para setar estorno=True
-- Troca de senha: POST /auth/trocar-senha (usuário) ou /usuarios/{id}/resetar-senha (admin)
 - LancamentoCreate não aceita estorno — setar via PUT após criar o lançamento
+- Troca de senha: POST /auth/trocar-senha (usuário) ou /usuarios/{id}/resetar-senha (admin)
+- FRONTEND_URL no config.env é usado nos emails para montar o link de primeiro acesso
 
 ================================================================================
