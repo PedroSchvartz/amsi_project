@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from models.tipo_conta import tipo_conta as TipoConta
+from models.lancamento import Lancamento
 from schemas.tipo_conta import TipoLancamentoCreate, TipoLancamentoUpdate, TipoLancamentoResponse
 from auth.dependencies import get_current_user, exige_admin
 from typing import List
@@ -46,6 +47,16 @@ def deletar_tipo(id_tipo_conta: int, db: Session = Depends(get_db), _=Depends(ex
     tipo = db.query(TipoConta).filter(TipoConta.id_tipo_conta == id_tipo_conta).first()
     if not tipo:
         raise HTTPException(status_code=404, detail="Tipo de lançamento não encontrado")
+
+    tem_lancamento = db.query(Lancamento).filter(
+        Lancamento.id_tipo_conta_fk == id_tipo_conta
+    ).first()
+    if tem_lancamento:
+        raise HTTPException(
+            status_code=409,
+            detail="Não é possível excluir: este tipo de conta possui lançamentos vinculados."
+        )
+
     db.delete(tipo)
     db.commit()
     return {"mensagem": "Tipo de lançamento deletado com sucesso"}

@@ -331,6 +331,7 @@ def test_resumo_realizado_fora_periodo(client, headers_admin, lancamento, usuari
 
 
 def test_resumo_saldo_total_independe_periodo(client, headers_admin, lancamento, usuario_base):
+    """saldo_total agora reflete o período selecionado (receita - despesa no período)."""
     from datetime import datetime, date
     hoje = date.today().isoformat()
     client.put(f"/lancamento/{lancamento['id_lancamento']}", json={
@@ -339,14 +340,16 @@ def test_resumo_saldo_total_independe_periodo(client, headers_admin, lancamento,
         "valor_pago": "250.00"
     }, headers=headers_admin)
 
-    # Com filtro de período que exclui o pagamento
+    # Com filtro de período que exclui o pagamento — saldo deve ser 0
     r1 = client.get("/lancamento/resumo?data_pagamento_de=2000-01-01&data_pagamento_ate=2000-01-31", headers=headers_admin)
-    # Sem filtro
-    r2 = client.get("/lancamento/resumo", headers=headers_admin)
+    # Sem filtro — saldo inclui o pagamento acima
+    r2 = client.get(f"/lancamento/resumo?data_pagamento_de={hoje}&data_pagamento_ate={hoje}", headers=headers_admin)
     assert r1.status_code == 200
     assert r2.status_code == 200
-    # saldo_total deve ser igual nos dois — não depende do período
-    assert float(r1.json()["saldo_total"]) == float(r2.json()["saldo_total"])
+    # Período que exclui o pagamento deve ter saldo_total 0
+    assert float(r1.json()["saldo_total"]) == 0.0
+    # Período que inclui o pagamento deve ter saldo_total != 0
+    assert float(r2.json()["saldo_total"]) != 0.0
 
 
 def test_resumo_a_receber_excluindo_inadimplentes(client, headers_admin, lancamento_vencido):
@@ -670,7 +673,10 @@ def test_resumo_reembolso_nao_entra_em_recebido_nem_pago(client, headers_admin, 
     r1 = client.get(f"/lancamento/resumo?data_pagamento_de={hoje}&data_pagamento_ate={hoje}", headers=headers_admin)
     assert r1.status_code == 200
     data = r1.json()
-    assert float(data["total_reembolsado"]) >= 50.00
+    # Crédito estornado tem natureza inversa: subtrai do total_reembolsado
+    assert float(data["total_reembolsado"]) == -50.0
+    # Não deve entrar em total_recebido
+    assert float(data["total_recebido"]) == 0.0
 
     client.delete(f"/lancamento/{id_estorno}", headers=headers_admin)
 
@@ -1164,3 +1170,93 @@ def test_resumo_a_receber_excluindo_inadimplentes_diminui(client, headers_admin,
 
     client.delete(f"/lancamento/{id_futuro}", headers=headers_admin)
     client.delete(f"/lancamento/{id_vencido}", headers=headers_admin)
+
+
+# ================================================
+# FK INEXISTENTE (404)
+# ================================================
+
+def test_criar_lancamento_usuario_inexistente(client, headers_admin, clifor_base, tipo_lancamento_base):
+    """Usuário criador inexistente retorna 404."""
+    r = client.post("/lancamento/", json={
+        "id_usuario_fk_lancamento": 999999,
+        "id_clifor_relacionado_fk": clifor_base["id_clifor"],
+        "id_tipo_conta_fk": tipo_lancamento_base["id_tipo_conta"],
+        "valor": "10.00",
+        "data_vencimento": "2099-12-31",
+        "natureza_lancamento": "Credito"
+    }, headers=headers_admin)
+    assert r.status_code == 404
+
+
+def test_fechar_lancamento_usuario_fechamento_inexistente(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base):
+    """Usuário de fechamento inexistente retorna 404 sem alterar o lançamento."""
+    r = client.post("/lancamento/", json={
+        "id_usuario_fk_lancamento": usuario_base["id_usuario"],
+        "id_clifor_relacionado_fk": clifor_base["id_clifor"],
+        "id_tipo_conta_fk": tipo_lancamento_base["id_tipo_conta"],
+        "valor": "10.00",
+        "data_vencimento": "2099-12-31",
+        "natureza_lancamento": "Debito"
+    }, headers=headers_admin)
+    assert r.status_code == 200
+    id_l = r.json()["id_lancamento"]
+
+    r_put = client.put(f"/lancamento/{id_l}", json={
+        "id_usuario_fk_fechamento": 999999,
+        "data_pagamento": "2099-12-31T00:00:00",
+        "valor_pago": "10.00",
+        "estorno": False
+    }, headers=headers_admin)
+    assert r_put.status_code == 404
+
+    client.delete(f"/lancamento/{id_l}", headers=headers_admin)
+
+
+# ================================================
+# COMPROVANTE — SEM TOKEN E LANÇAMENTO INEXISTENTE
+# ================================================
+
+def test_comprovante_endpoints_sem_token(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base):
+    """POST, GET e DELETE de comprovante sem token retornam 401."""
+    r = client.post("/lancamento/", json={
+        "id_usuario_fk_lancamento": usuario_base["id_usuario"],
+        "id_clifor_relacionado_fk": clifor_base["id_clifor"],
+        "id_tipo_conta_fk": tipo_lancamento_base["id_tipo_conta"],
+        "valor": "10.00",
+        "data_vencimento": "2099-12-31",
+        "natureza_lancamento": "Credito"
+    }, headers=headers_admin)
+    assert r.status_code == 200
+    id_l = r.json()["id_lancamento"]
+
+    pdf = b"%PDF-1.4 minimal"
+    assert client.post(f"/lancamento/{id_l}/comprovante",
+                       files={"arquivo": ("t.pdf", pdf, "application/pdf")}).status_code == 401
+    assert client.get(f"/lancamento/{id_l}/comprovante").status_code == 401
+    assert client.delete(f"/lancamento/{id_l}/comprovante").status_code == 401
+
+    client.delete(f"/lancamento/{id_l}", headers=headers_admin)
+
+
+def test_comprovante_lancamento_inexistente(client, headers_admin):
+    """Anexar comprovante em lançamento inexistente retorna 404."""
+    pdf = b"%PDF-1.4 minimal"
+    r = client.post("/lancamento/999999/comprovante",
+                    files={"arquivo": ("t.pdf", pdf, "application/pdf")},
+                    headers=headers_admin)
+    assert r.status_code == 404
+
+
+def test_nome_usuario_lancamento_nao_nulo(client, headers_admin, lancamento):
+    """Garante que o joinedload popula nome_usuario_lancamento e descricao_tipo_conta na listagem."""
+    r = client.get("/lancamento/", headers=headers_admin)
+    assert r.status_code == 200
+    alvo = next((l for l in r.json() if l["id_lancamento"] == lancamento["id_lancamento"]), None)
+    assert alvo is not None, "Lançamento criado não aparece na listagem"
+    assert alvo["nome_usuario_lancamento"] is not None, (
+        "nome_usuario_lancamento veio None — joinedload pode não estar funcionando"
+    )
+    assert alvo["descricao_tipo_conta"] is not None, (
+        "descricao_tipo_conta veio None — joinedload pode não estar funcionando"
+    )

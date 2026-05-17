@@ -34,6 +34,10 @@
   border-radius: 12px;
   overflow: hidden;
   border: 1px solid var(--border);
+  /* Override Bootstrap CSS vars para compatibilidade com ambos os temas */
+  --bs-table-bg: transparent;
+  --bs-table-color: var(--text);
+  --bs-table-border-color: var(--border);
 }
 
 /* Cabeçalho da tabela */

@@ -66,3 +66,26 @@ def test_deletar_contato(client, headers_admin, clifor_base):
     assert r.status_code == 200
     r = client.get(f"/contato/{id_cont}", headers=headers_admin)
     assert r.status_code == 404
+
+
+def test_criar_contato_clifor_inexistente(client, headers_admin):
+    """Clifor inexistente retorna 404."""
+    r = client.post("/contato/", json={
+        "id_clifor_fk": 999999,
+        "tipocontato": "Telefone",
+        "info_do_contato": "(11) 99999-9999",
+        "contato_principal": False
+    }, headers=headers_admin)
+    assert r.status_code == 404
+
+
+def test_atualizar_contato_inexistente(client, headers_admin):
+    """Contato inexistente retorna 404."""
+    r = client.put("/contato/999999", json={"info_do_contato": "(11) 11111-1111"}, headers=headers_admin)
+    assert r.status_code == 404
+
+
+def test_deletar_contato_inexistente(client, headers_admin):
+    """Contato inexistente retorna 404."""
+    r = client.delete("/contato/999999", headers=headers_admin)
+    assert r.status_code == 404

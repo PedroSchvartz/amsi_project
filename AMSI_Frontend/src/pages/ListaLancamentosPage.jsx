@@ -1,19 +1,20 @@
 import { useState, useEffect } from 'react';
 import LancamentoModal from '../components/LancamentoModal.jsx';
-import { useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import ModalConfirm from '../components/ModalConfirm.jsx';
 import ToastStack, { useToast } from '../components/ToastStack.jsx';
 import '../styles/listaLancamentos.css';
 import {
 	getLancamentos,
 	fecharLancamento,
+	editarLancamento,
 	getClifors,
 	getTiposConta,
 	anexarComprovante,
 	baixarComprovante,
 	removerComprovante
 } from '../services/api';
-import { getUserFromToken } from '../services/auth';
+import { getUserFromToken, isAdmin } from '../services/auth';
 
 const FILTROS_INICIAL = {
 	id_clifor: '',
@@ -28,6 +29,8 @@ const FILTROS_INICIAL = {
 	data_vencimento_ate: '',
 	data_lancamento_de: '',
 	data_lancamento_ate: '',
+	data_pagamento_de: '',
+	data_pagamento_ate: '',
 	estorno: '',
 	valor_minimo: '',
 	valor_maximo: ''
@@ -38,12 +41,22 @@ const FECHAR_INICIAL = {
 	valor_pago: '',
 	multa: '',
 	juros: '',
-	observacao: '',
+	observacao_pagamento: '',
 	estorno: false
 };
 
+const EDITAR_INICIAL = {
+	id_clifor_relacionado_fk: '',
+	id_tipo_conta_fk: '',
+	valor: '',
+	data_vencimento: '',
+	natureza_lancamento: '',
+	observacao: '',
+	observacao_pagamento: ''
+};
+
 function ListaLancamentosPage() {
-	const navigate = useNavigate();
+	const [searchParams] = useSearchParams();
 	const [modalAberto, setModalAberto] = useState(false);
 	const [lancamentos, setLancamentos] = useState([]);
 	const [clifors, setClifors] = useState([]);
@@ -52,17 +65,30 @@ function ListaLancamentosPage() {
 	const [filtrosAplicados, setFiltrosAplicados] = useState(FILTROS_INICIAL);
 	const { toasts, mostrarToast, removerToast } = useToast();
 
-	const [modalFechar, setModalFechar] = useState(null); // id_lancamento
+	const [modalFechar, setModalFechar] = useState(null);
 	const [formFechar, setFormFechar] = useState(FECHAR_INICIAL);
 	const [comprovante, setComprovante] = useState(null);
 	const [lancamentoSelecionado, setLancamentoSelecionado] = useState(null);
 	const [confirmarRemoverComprovante, setConfirmarRemoverComprovante] = useState(false);
 
+	const [modalEditar, setModalEditar] = useState(null);
+	const [formEditar, setFormEditar] = useState(EDITAR_INICIAL);
+
 	const usuario = getUserFromToken();
+	const admin = isAdmin();
 
 	useEffect(() => {
 		carregarAuxiliares();
-		buscar();
+		if (searchParams.has('origemDashboard')) {
+			const f = { ...FILTROS_INICIAL };
+			for (const [key, val] of searchParams.entries()) {
+				if (key !== 'origemDashboard' && key in FILTROS_INICIAL) f[key] = val;
+			}
+			setFiltros(f);
+			buscar(f);
+		} else {
+			buscar();
+		}
 	}, []);
 
 	const carregarAuxiliares = async () => {
@@ -90,6 +116,8 @@ function ListaLancamentosPage() {
 			if (f.data_vencimento_ate) params.data_vencimento_ate = f.data_vencimento_ate;
 			if (f.data_lancamento_de) params.data_lancamento_de = f.data_lancamento_de;
 			if (f.data_lancamento_ate) params.data_lancamento_ate = f.data_lancamento_ate;
+			if (f.data_pagamento_de) params.data_pagamento_de = f.data_pagamento_de;
+			if (f.data_pagamento_ate) params.data_pagamento_ate = f.data_pagamento_ate;
 			if (f.estorno !== '') params.estorno = f.estorno === 'true';
 			if (f.valor_minimo) params.valor_minimo = parseFloat(f.valor_minimo);
 			if (f.valor_maximo) params.valor_maximo = parseFloat(f.valor_maximo);
@@ -117,13 +145,29 @@ function ListaLancamentosPage() {
 
 	const filtrosPendentes = JSON.stringify(filtros) !== JSON.stringify(filtrosAplicados);
 
+	// ── Helpers de nome com fallback local ─────────────────────────────────────
+	const nomeClifor = (l) =>
+		l.nome_clifor || clifors.find((c) => c.id_clifor === l.id_clifor_relacionado_fk)?.nome || '—';
+
+	const nomeTipo = (l) => {
+		const desc = l.descricao_tipo_conta || tiposConta.find((t) => t.id_tipo_conta === l.id_tipo_conta_fk)?.descricao_conta;
+		return desc ? `${l.id_tipo_conta_fk} - ${desc}` : l.id_tipo_conta_fk;
+	};
+
+	const formatarTotal = (l) => {
+		if (l.valor_pago == null) return '—';
+		const total = (parseFloat(l.valor_pago) || 0) + (parseFloat(l.multa) || 0) + (parseFloat(l.juros) || 0);
+		return `R$ ${total.toFixed(2).replace('.', ',')}`;
+	};
+
+	// ── Modal fechar ────────────────────────────────────────────────────────────
 	const abrirModalFechar = (l) => {
 		setModalFechar(l.id_lancamento);
 		setLancamentoSelecionado(l);
 		setFormFechar({
 			...FECHAR_INICIAL,
 			id_usuario_fk_fechamento: usuario?.sub,
-			observacao: l.observacao || '',
+			observacao_pagamento: l.observacao_pagamento || '',
 			valor_pago: l.valor_pago ? String(l.valor_pago) : String(l.valor)
 		});
 		setComprovante(null);
@@ -132,11 +176,7 @@ function ListaLancamentosPage() {
 	const handleRemoverComprovante = async () => {
 		try {
 			await removerComprovante(lancamentoSelecionado.id_lancamento);
-			setLancamentoSelecionado({
-				...lancamentoSelecionado,
-				tem_comprovante: false,
-				comprovante_nome: null
-			});
+			setLancamentoSelecionado({ ...lancamentoSelecionado, tem_comprovante: false, comprovante_nome: null });
 			setConfirmarRemoverComprovante(false);
 			mostrarToast('Comprovante removido com sucesso.');
 		} catch (err) {
@@ -150,6 +190,13 @@ function ListaLancamentosPage() {
 		setFormFechar({ ...formFechar, [name]: type === 'checkbox' ? checked : value });
 	};
 
+	const totalPago = () => {
+		const v = parseFloat(formFechar.valor_pago) || 0;
+		const m = parseFloat(formFechar.multa) || 0;
+		const j = parseFloat(formFechar.juros) || 0;
+		return v + m + j;
+	};
+
 	const handleConfirmarFechar = async (e) => {
 		e.preventDefault();
 		try {
@@ -159,7 +206,7 @@ function ListaLancamentosPage() {
 				valor_pago: formFechar.valor_pago ? parseFloat(formFechar.valor_pago) : null,
 				multa: formFechar.multa ? parseFloat(formFechar.multa) : null,
 				juros: formFechar.juros ? parseFloat(formFechar.juros) : null,
-				observacao: formFechar.observacao || null,
+				observacao_pagamento: formFechar.observacao_pagamento || null,
 				estorno: formFechar.estorno
 			};
 			const id = modalFechar;
@@ -180,9 +227,48 @@ function ListaLancamentosPage() {
 		}
 	};
 
-	const nomeCliffor = (id) => clifors.find((c) => c.id_clifor === id)?.nome || id;
-	const nomeTipo = (id) => tiposConta.find((t) => t.id_tipo_conta === id)?.descricao_conta || id;
+	// ── Modal editar (admin) ────────────────────────────────────────────────────
+	const abrirModalEditar = (l) => {
+		setModalEditar(l.id_lancamento);
+		setLancamentoSelecionado(l);
+		setFormEditar({
+			id_clifor_relacionado_fk: String(l.id_clifor_relacionado_fk),
+			id_tipo_conta_fk: String(l.id_tipo_conta_fk),
+			valor: String(l.valor),
+			data_vencimento: l.data_vencimento || '',
+			natureza_lancamento: l.natureza_lancamento || '',
+			observacao: l.observacao || '',
+			observacao_pagamento: l.observacao_pagamento || ''
+		});
+	};
 
+	const handleEditarChange = (e) => {
+		setFormEditar({ ...formEditar, [e.target.name]: e.target.value });
+	};
+
+	const handleConfirmarEditar = async (e) => {
+		e.preventDefault();
+		try {
+			const payload = {};
+			if (formEditar.id_clifor_relacionado_fk)
+				payload.id_clifor_relacionado_fk = parseInt(formEditar.id_clifor_relacionado_fk);
+			if (formEditar.id_tipo_conta_fk)
+				payload.id_tipo_conta_fk = parseInt(formEditar.id_tipo_conta_fk);
+			if (formEditar.valor) payload.valor = parseFloat(formEditar.valor);
+			if (formEditar.data_vencimento) payload.data_vencimento = formEditar.data_vencimento;
+			if (formEditar.natureza_lancamento) payload.natureza_lancamento = formEditar.natureza_lancamento;
+			if (formEditar.observacao !== undefined) payload.observacao = formEditar.observacao || null;
+			if (formEditar.observacao_pagamento !== undefined) payload.observacao_pagamento = formEditar.observacao_pagamento || null;
+			await editarLancamento(modalEditar, payload);
+			mostrarToast('Lançamento editado com sucesso.');
+			setModalEditar(null);
+			buscar();
+		} catch (err) {
+			mostrarToast(err.message || 'Erro ao editar lançamento', 'erro');
+		}
+	};
+
+	// ── Formatação ──────────────────────────────────────────────────────────────
 	const formatarData = (iso) => {
 		if (!iso) return '—';
 		return iso.split('T')[0].split('-').reverse().join('/');
@@ -232,6 +318,18 @@ function ListaLancamentosPage() {
 						</button>
 					</div>
 
+					{searchParams.has('origemDashboard') && (
+						<div style={{
+							display: 'flex', alignItems: 'center', gap: 8,
+							padding: '8px 12px', marginTop: 12,
+							background: 'rgba(163, 177, 138, 0.12)',
+							borderRadius: 6, fontSize: '0.82rem', color: 'var(--primary)'
+						}}>
+							<i className="bi bi-funnel-fill" />
+							Filtros pré-carregados do Dashboard — confira e ajuste se necessário.
+						</div>
+					)}
+
 					<form onSubmit={handleAplicar}>
 						<h4>FILTROS</h4>
 
@@ -242,7 +340,7 @@ function ListaLancamentosPage() {
 									<option value="">Todos</option>
 									{clifors.map((c) => (
 										<option key={c.id_clifor} value={c.id_clifor}>
-											{c.nome}
+											{c.id_clifor} - {c.nome}
 										</option>
 									))}
 								</select>
@@ -258,7 +356,7 @@ function ListaLancamentosPage() {
 									<option value="">Todos</option>
 									{tiposConta.map((t) => (
 										<option key={t.id_tipo_conta} value={t.id_tipo_conta}>
-											{t.descricao_conta}
+											{t.id_tipo_conta} - {t.descricao_conta}
 										</option>
 									))}
 								</select>
@@ -398,6 +496,27 @@ function ListaLancamentosPage() {
 
 						<div className="ll-row">
 							<div className="ll-field">
+								<label>Pagamento de</label>
+								<input
+									type="date"
+									name="data_pagamento_de"
+									value={filtros.data_pagamento_de}
+									onChange={handleFiltroChange}
+								/>
+							</div>
+							<div className="ll-field">
+								<label>Pagamento até</label>
+								<input
+									type="date"
+									name="data_pagamento_ate"
+									value={filtros.data_pagamento_ate}
+									onChange={handleFiltroChange}
+								/>
+							</div>
+						</div>
+
+						<div className="ll-row">
+							<div className="ll-field">
 								<label>Valor mínimo</label>
 								<input
 									type="number"
@@ -444,11 +563,16 @@ function ListaLancamentosPage() {
 						<table className="ll-table">
 							<thead>
 								<tr>
-									<th>Cliente / Fornecedor</th>
-									<th>Tipo de Conta</th>
-									<th>Natureza</th>
-									<th>Vencimento</th>
-									<th>Valor</th>
+									<th data-tooltip="Código do cliente ou fornecedor">ID</th>
+									<th data-tooltip="Nome do cliente ou fornecedor vinculado ao lançamento">Cliente / Fornecedor</th>
+									<th data-tooltip="Tipo de conta / categoria do lançamento">Tipo de Conta</th>
+									<th data-tooltip="Código do usuário que registrou o lançamento">ID</th>
+									<th data-tooltip="Nome do usuário que registrou o lançamento">Operador</th>
+									<th data-tooltip="Natureza financeira: Crédito (entrada) ou Débito (saída)">Natureza</th>
+									<th data-tooltip="Data limite para pagamento do lançamento">Vencimento</th>
+									<th data-tooltip="Data em que o pagamento foi efetivado">Dt. Pagamento</th>
+									<th data-tooltip="Valor efetivamente pago: valor pago + multa + juros">Total</th>
+									<th data-tooltip="Valor original do lançamento, sem encargos">Valor</th>
 									<th>Status</th>
 									<th>Ações</th>
 								</tr>
@@ -456,17 +580,22 @@ function ListaLancamentosPage() {
 							<tbody>
 								{lancamentos.length === 0 ? (
 									<tr>
-										<td colSpan="7" className="ll-empty">
+										<td colSpan="12" className="ll-empty">
 											Nenhum lançamento encontrado
 										</td>
 									</tr>
 								) : (
 									lancamentos.map((l) => (
 										<tr key={l.id_lancamento}>
-											<td>{nomeCliffor(l.id_clifor_relacionado_fk)}</td>
-											<td>{nomeTipo(l.id_tipo_conta_fk)}</td>
+											<td>{l.id_clifor_relacionado_fk}</td>
+											<td>{nomeClifor(l)}</td>
+											<td>{nomeTipo(l)}</td>
+											<td>{l.id_usuario_fk_lancamento}</td>
+											<td>{l.nome_usuario_lancamento || '—'}</td>
 											<td>{l.natureza_lancamento}</td>
 											<td>{formatarData(l.data_vencimento)}</td>
+											<td>{formatarData(l.data_pagamento)}</td>
+											<td>{formatarTotal(l)}</td>
 											<td>{formatarValor(l.valor)}</td>
 											<td>{statusLabel(l)}</td>
 											<td>
@@ -478,6 +607,15 @@ function ListaLancamentosPage() {
 															title="Fechar lançamento"
 														>
 															<i className="bi bi-journal-check"></i>
+														</button>
+													)}
+													{admin && (
+														<button
+															className="ll-btn-acao"
+															onClick={() => abrirModalEditar(l)}
+															title="Editar lançamento (admin)"
+														>
+															<i className="bi bi-pencil"></i>
 														</button>
 													)}
 													{l.tem_comprovante && (
@@ -518,12 +656,10 @@ function ListaLancamentosPage() {
 								<div className="ll-field">
 									<label>Valor Pago (R$)</label>
 									<input
-										type="number"
+										type="text"
 										name="valor_pago"
 										value={formFechar.valor_pago}
 										onChange={handleFecharChange}
-										min="0"
-										step="0.01"
 										readOnly={!!lancamentoSelecionado?.valor_pago}
 										style={
 											lancamentoSelecionado?.valor_pago
@@ -536,31 +672,64 @@ function ListaLancamentosPage() {
 									<div className="ll-field">
 										<label>Multa (R$)</label>
 										<input
-											type="number"
+											type="text"
 											name="multa"
 											value={formFechar.multa}
 											onChange={handleFecharChange}
-											min="0"
-											step="0.01"
 										/>
 									</div>
 									<div className="ll-field">
 										<label>Juros (R$)</label>
 										<input
-											type="number"
+											type="text"
 											name="juros"
 											value={formFechar.juros}
 											onChange={handleFecharChange}
-											min="0"
-											step="0.01"
 										/>
 									</div>
 								</div>
+
+								{(formFechar.multa || formFechar.juros) && (
+									<div className="ll-field">
+										<label>Total Pago (R$)</label>
+										<div
+											style={{
+												padding: '6px 10px',
+												background: 'var(--input-bg)',
+												borderRadius: 6,
+												fontSize: '0.95rem',
+												fontWeight: 600,
+												color: 'var(--primary)'
+											}}
+										>
+											{formatarValor(totalPago())}
+										</div>
+									</div>
+								)}
+
+								{lancamentoSelecionado?.observacao && (
+									<div className="ll-field">
+										<label>Observação do Lançamento</label>
+										<div
+											style={{
+												padding: '6px 10px',
+												background: 'var(--input-bg)',
+												borderRadius: 6,
+												fontSize: '0.875rem',
+												color: 'var(--text-muted)',
+												opacity: 0.8
+											}}
+										>
+											{lancamentoSelecionado.observacao}
+										</div>
+									</div>
+								)}
+
 								<div className="ll-field">
-									<label>Observação</label>
+									<label>Observação do Pagamento</label>
 									<textarea
-										name="observacao"
-										value={formFechar.observacao}
+										name="observacao_pagamento"
+										value={formFechar.observacao_pagamento}
 										onChange={handleFecharChange}
 										rows="2"
 									/>
@@ -639,7 +808,118 @@ function ListaLancamentosPage() {
 						</div>
 					</div>
 				)}
+
+				{/* MODAL EDITAR (admin only) */}
+				{modalEditar && (
+					<div className="ll-overlay" onClick={() => setModalEditar(null)}>
+						<div className="ll-modal" onClick={(e) => e.stopPropagation()}>
+							<h3>Editar Lançamento</h3>
+							<p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: -8 }}>
+								Apenas administradores podem editar lançamentos realizados.
+							</p>
+
+							<form onSubmit={handleConfirmarEditar}>
+								<div className="ll-field">
+									<label>Cliente / Fornecedor</label>
+									<select
+										name="id_clifor_relacionado_fk"
+										value={formEditar.id_clifor_relacionado_fk}
+										onChange={handleEditarChange}
+									>
+										{clifors.map((c) => (
+											<option key={c.id_clifor} value={c.id_clifor}>
+												{c.id_clifor} - {c.nome}
+											</option>
+										))}
+									</select>
+								</div>
+
+								<div className="ll-field">
+									<label>Tipo de Conta</label>
+									<select
+										name="id_tipo_conta_fk"
+										value={formEditar.id_tipo_conta_fk}
+										onChange={handleEditarChange}
+									>
+										{tiposConta.map((t) => (
+											<option key={t.id_tipo_conta} value={t.id_tipo_conta}>
+												{t.id_tipo_conta} - {t.descricao_conta}
+											</option>
+										))}
+									</select>
+								</div>
+
+								<div className="ll-row">
+									<div className="ll-field">
+										<label>Valor (R$)</label>
+										<input
+											type="text"
+											name="valor"
+											value={formEditar.valor}
+											onChange={handleEditarChange}
+										/>
+									</div>
+									<div className="ll-field">
+										<label>Data de Vencimento</label>
+										<input
+											type="date"
+											name="data_vencimento"
+											value={formEditar.data_vencimento}
+											onChange={handleEditarChange}
+										/>
+									</div>
+								</div>
+
+								<div className="ll-field">
+									<label>Natureza</label>
+									<select
+										name="natureza_lancamento"
+										value={formEditar.natureza_lancamento}
+										onChange={handleEditarChange}
+									>
+										<option value="Credito">Crédito</option>
+										<option value="Debito">Débito</option>
+									</select>
+								</div>
+
+								<div className="ll-field">
+									<label>Observação do Lançamento</label>
+									<textarea
+										name="observacao"
+										value={formEditar.observacao}
+										onChange={handleEditarChange}
+										rows="2"
+									/>
+								</div>
+
+								<div className="ll-field">
+									<label>Observação do Pagamento</label>
+									<textarea
+										name="observacao_pagamento"
+										value={formEditar.observacao_pagamento}
+										onChange={handleEditarChange}
+										rows="2"
+									/>
+								</div>
+
+								<div className="ll-buttons">
+									<button
+										type="button"
+										className="ll-btn-limpar"
+										onClick={() => setModalEditar(null)}
+									>
+										Cancelar
+									</button>
+									<button type="submit" className="ll-btn-filtrar">
+										Salvar
+									</button>
+								</div>
+							</form>
+						</div>
+					</div>
+				)}
 			</div>
+
 			{confirmarRemoverComprovante && (
 				<ModalConfirm
 					titulo="Remover comprovante"

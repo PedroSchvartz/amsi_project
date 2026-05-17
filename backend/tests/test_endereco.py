@@ -82,3 +82,30 @@ def test_deletar_endereco(client, headers_admin, clifor_base):
     assert r.status_code == 200
     r = client.get(f"/endereco/{id_end}", headers=headers_admin)
     assert r.status_code == 404
+
+
+def test_criar_endereco_clifor_inexistente(client, headers_admin):
+    """Clifor inexistente retorna 404."""
+    r = client.post("/endereco/", json={
+        "id_clifor_fk": 999999,
+        "enderecoprimario": False,
+        "logradouro": "Rua Inexistente",
+        "numero": "1",
+        "bairro": "Bairro",
+        "cidade": "Cidade",
+        "uf": "SP",
+        "cep": "00000-000"
+    }, headers=headers_admin)
+    assert r.status_code == 404
+
+
+def test_atualizar_endereco_inexistente(client, headers_admin):
+    """Endereço inexistente retorna 404."""
+    r = client.put("/endereco/999999", json={"logradouro": "Rua X"}, headers=headers_admin)
+    assert r.status_code == 404
+
+
+def test_deletar_endereco_inexistente(client, headers_admin):
+    """Endereço inexistente retorna 404."""
+    r = client.delete("/endereco/999999", headers=headers_admin)
+    assert r.status_code == 404

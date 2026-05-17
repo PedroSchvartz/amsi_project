@@ -28,6 +28,7 @@ class Lancamento(Base):
     data_pagamento = Column(TIMESTAMP, nullable=True)
     valor_pago = Column(DECIMAL(15, 2), nullable=True)
     observacao = Column(Text, nullable=True)
+    observacao_pagamento = Column(Text, nullable=True)
     natureza_lancamento = Column(SAEnum(NaturezaLancamentoEnum, name="natureza_enum", values_callable=lambda x: [e.value for e in x]), nullable=False)
     estorno = Column(Boolean, nullable=False, default=False)
     comprovante = Column(LargeBinary, nullable=True)

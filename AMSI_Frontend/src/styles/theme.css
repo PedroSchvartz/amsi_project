@@ -45,6 +45,9 @@
    TEMA CORPORATIVO (data-theme="corporativo")
    ════════════════════════════════════════ */
 [data-theme="corporativo"] {
+  /* Diz ao browser para renderizar controles nativos (select, input, date, scrollbar) em dark */
+  color-scheme: dark;
+
   /* Cores principais */
   --primary:       #38BDF8;   /* azul céu */
   --btn-hover:     #0ea5e9;   /* hover do botão primário */

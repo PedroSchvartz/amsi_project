@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getClifors, getSaldosClifors } from '../services/api.js';
+import { getClifors, getSaldosClifors, deleteClifor } from '../services/api.js';
 import ToastStack, { useToast } from './ToastStack.jsx';
+import ModalConfirm from './ModalConfirm.jsx';
+import { isAdmin } from '../services/auth.js';
 import '../styles/clientList.css';
 
 const TIPO_LABEL = { C: 'Cliente', F: 'Fornecedor', A: 'Ambos' };
@@ -17,11 +19,13 @@ function rassurarCpfCnpj(doc) {
 function ClientList() {
 	const navigate = useNavigate();
 	const { toasts, mostrarToast, removerToast } = useToast();
+	const admin = isAdmin();
 
 	const [clifors, setClifors] = useState([]);
 	const [saldos, setSaldos] = useState({});
 	const [loading, setLoading] = useState(true);
 	const [cpfVisivel, setCpfVisivel] = useState({});
+	const [confirmarDeletar, setConfirmarDeletar] = useState(null);
 
 	const [busca, setBusca] = useState('');
 	const [filtroTipo, setFiltroTipo] = useState('');
@@ -48,6 +52,18 @@ function ClientList() {
 
 	const toggleCpf = (id) => setCpfVisivel((prev) => ({ ...prev, [id]: !prev[id] }));
 
+	const handleDeletar = async () => {
+		try {
+			await deleteClifor(confirmarDeletar.id_clifor);
+			mostrarToast('Cliente/Fornecedor excluído com sucesso.');
+			setConfirmarDeletar(null);
+			carregar();
+		} catch (err) {
+			mostrarToast(err.message || 'Erro ao excluir cliente/fornecedor', 'erro');
+			setConfirmarDeletar(null);
+		}
+	};
+
 	const cliforsFiltrados = clifors.filter((c) => {
 		if (busca && !c.nome.toLowerCase().includes(busca.toLowerCase())) return false;
 		if (filtroTipo && c.tipo_clifor !== filtroTipo) return false;
@@ -60,6 +76,18 @@ function ClientList() {
 	return (
 		<div className="cl-container">
 			<ToastStack toasts={toasts} onRemover={removerToast} />
+
+			{confirmarDeletar && (
+				<ModalConfirm
+					titulo="Excluir Cliente/Fornecedor"
+					mensagem={`Tem certeza que deseja excluir "${confirmarDeletar.nome}"? Esta ação não pode ser desfeita. Caso possua lançamentos vinculados, a exclusão será bloqueada.`}
+					textoBotaoConfirmar="Excluir"
+					textoBotaoCancelar="Cancelar"
+					onConfirmar={handleDeletar}
+					onCancelar={() => setConfirmarDeletar(null)}
+					variante="perigo"
+				/>
+			)}
 
 			<div className="cl-header">
 				<h2 className="cl-title">Clientes / Fornecedores</h2>
@@ -160,13 +188,23 @@ function ClientList() {
 												</span>
 											)}
 										</td>
-										<td>
+										<td style={{ display: 'flex', gap: 6 }}>
 											<button
 												className="cl-btn-editar"
 												onClick={() => navigate(`/cliente_fornecedor/${c.id_clifor}/editar`)}
 											>
 												<i className="bi bi-pencil"></i> Editar
 											</button>
+											{admin && (
+												<button
+													className="cl-btn-editar"
+													style={{ background: '#ef4444', borderColor: '#ef4444' }}
+													onClick={() => setConfirmarDeletar(c)}
+													title="Excluir cliente/fornecedor"
+												>
+													<i className="bi bi-trash"></i>
+												</button>
+											)}
 										</td>
 									</tr>
 								);

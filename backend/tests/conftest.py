@@ -1,3 +1,5 @@
+import warnings as _warnings
+
 import pytest
 from fastapi.testclient import TestClient
 from main import app
@@ -23,6 +25,18 @@ def contar_tabelas(db):
 
 
 # ================================================
+# HOOK — sumário de pré-requisitos ausentes
+# ================================================
+
+def pytest_terminal_summary(terminalreporter, exitstatus, config):
+    ausentes = getattr(config, "_prerequisitos_ausentes", [])
+    if ausentes:
+        terminalreporter.write_sep("=", "PRÉ-REQUISITOS AUSENTES (causaram skips)")
+        for motivo in ausentes:
+            terminalreporter.write_line(f"  • {motivo}")
+
+
+# ================================================
 # CLIENT
 # ================================================
 
@@ -33,34 +47,146 @@ def client():
 
 
 # ================================================
+# AUTH ADMIN
+# ================================================
+
+@pytest.fixture(scope="session")
+def token_admin(client):
+    r = client.post("/auth/token", json={
+        "email": "opedroschvartz@gmail.com",
+        "senha": "123"
+    })
+    assert r.status_code == 200, f"Falha ao autenticar admin: {r.text}"
+    return r.json()["access_token"]
+
+
+@pytest.fixture(scope="session")
+def headers_admin(token_admin):
+    return {"Authorization": f"Bearer {token_admin}"}
+
+
+# ================================================
+# USUÁRIO DE CONSULTA — senha temporária por sessão
+# ================================================
+
+@pytest.fixture(scope="session")
+def consulta_session(client, headers_admin):
+    """
+    Verifica se o usuário de consulta existe e pode autenticar.
+    Se não existir, retorna disponivel=False com instrução para rodar o bootstrap.
+    """
+    from utils.config import CONSULTA_TESTE_EMAIL, CONSULTA_TESTE_SENHA
+
+    r = client.get("/usuarios/", headers=headers_admin)
+    todos = r.json() if r.is_success else []
+    consulta = next((u for u in todos if u["email"] == CONSULTA_TESTE_EMAIL), None)
+
+    if not consulta:
+        yield {
+            "disponivel": False,
+            "motivo": (
+                f"Usuário de consulta ({CONSULTA_TESTE_EMAIL}) não encontrado — "
+                "execute: python -X utf8 utils/bootstrap.py"
+            ),
+            "id_usuario": None,
+            "email": CONSULTA_TESTE_EMAIL,
+            "senha_temp": None,
+        }
+        return
+
+    yield {
+        "disponivel": True,
+        "motivo": None,
+        "id_usuario": consulta["id_usuario"],
+        "email": CONSULTA_TESTE_EMAIL,
+        "senha_temp": CONSULTA_TESTE_SENHA,
+    }
+
+
+# ================================================
+# PRÉ-REQUISITOS — avisa antes e registra para o sumário final
+# ================================================
+
+@pytest.fixture(scope="session", autouse=True)
+def prerequisitos(request, consulta_session):
+    ausentes = []
+
+    if not consulta_session["disponivel"]:
+        ausentes.append(consulta_session["motivo"])
+
+    request.config._prerequisitos_ausentes = ausentes
+
+    if ausentes:
+        for motivo in ausentes:
+            _warnings.warn(
+                f"PRÉ-REQUISITO AUSENTE: {motivo}",
+                UserWarning,
+                stacklevel=2,
+            )
+
+    yield
+
+
+# ================================================
+# AUTH CONSULTA
+# ================================================
+
+@pytest.fixture(scope="session")
+def token_consulta(client, consulta_session):
+    if not consulta_session["disponivel"]:
+        pytest.skip(f"Pré-requisito ausente: {consulta_session['motivo']}")
+    r = client.post("/auth/token", json={
+        "email": consulta_session["email"],
+        "senha": consulta_session["senha_temp"],
+    })
+    assert r.status_code == 200, f"Falha ao autenticar usuário de consulta: {r.text}"
+    return r.json()["access_token"]
+
+
+@pytest.fixture(scope="session")
+def headers_consulta(token_consulta):
+    return {"Authorization": f"Bearer {token_consulta}"}
+
+
+# ================================================
 # SNAPSHOT DO BANCO
 # ================================================
 
 @pytest.fixture(scope="session", autouse=True)
-def db_snapshot(client, headers_admin):
+def db_snapshot(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base, consulta_session):
     db = SessionLocal()
     snapshot_antes = contar_tabelas(db)
     db.close()
 
-    # Registrar IDs de logins existentes antes dos testes
     ADMIN_EMAIL = "opedroschvartz@gmail.com"
-    r_admin = client.get("/usuarios/", headers=headers_admin)
-    admin = next((u for u in r_admin.json() if u["email"] == ADMIN_EMAIL), None)
-    ids_logins_antes = set()
+    todos_usuarios = client.get("/usuarios/", headers=headers_admin).json()
+
+    admin = next((u for u in todos_usuarios if u["email"] == ADMIN_EMAIL), None)
+    ids_logins_admin_antes = set()
     if admin:
-        r_logins = client.get(f"/login/por-usuario/{admin['id_usuario']}", headers=headers_admin)
-        if r_logins.is_success:
-            ids_logins_antes = {l["id_login"] for l in r_logins.json()}
+        r = client.get(f"/login/por-usuario/{admin['id_usuario']}", headers=headers_admin)
+        if r.is_success:
+            ids_logins_admin_antes = {l["id_login"] for l in r.json()}
+
+    ids_logins_consulta_antes = set()
+    if consulta_session["id_usuario"]:
+        r = client.get(f"/login/por-usuario/{consulta_session['id_usuario']}", headers=headers_admin)
+        if r.is_success:
+            ids_logins_consulta_antes = {l["id_login"] for l in r.json()}
 
     yield
 
-    # Deletar logins do admin criados durante os testes
-    if admin:
-        r_logins = client.get(f"/login/por-usuario/{admin['id_usuario']}", headers=headers_admin)
-        if r_logins.is_success:
-            for login in r_logins.json():
-                if login["id_login"] not in ids_logins_antes:
-                    client.delete(f"/login/{login['id_login']}", headers=headers_admin)
+    # Limpar logins gerados durante os testes para admin e consulta
+    for id_usuario, ids_antes in [
+        (admin["id_usuario"] if admin else None, ids_logins_admin_antes),
+        (consulta_session["id_usuario"], ids_logins_consulta_antes),
+    ]:
+        if id_usuario:
+            r = client.get(f"/login/por-usuario/{id_usuario}", headers=headers_admin)
+            if r.is_success:
+                for login in r.json():
+                    if login["id_login"] not in ids_antes:
+                        client.delete(f"/login/{login['id_login']}", headers=headers_admin)
 
     db = SessionLocal()
     snapshot_depois = contar_tabelas(db)
@@ -83,25 +209,6 @@ def db_snapshot(client, headers_admin):
 
 
 # ================================================
-# AUTH
-# ================================================
-
-@pytest.fixture(scope="session")
-def token_admin(client):
-    r = client.post("/auth/token", json={
-        "email": "opedroschvartz@gmail.com",
-        "senha": "123"
-    })
-    assert r.status_code == 200, f"Falha ao autenticar admin: {r.text}"
-    return r.json()["access_token"]
-
-
-@pytest.fixture(scope="session")
-def headers_admin(token_admin):
-    return {"Authorization": f"Bearer {token_admin}"}
-
-
-# ================================================
 # DADOS BASE — criados uma vez, usados em vários testes
 # ================================================
 
@@ -115,6 +222,11 @@ def tipo_lancamento_base(client, headers_admin):
     assert r.status_code == 200
     data = r.json()
     yield data
+    lancamentos = client.get("/lancamento/", headers=headers_admin)
+    if lancamentos.is_success:
+        for l in lancamentos.json():
+            if l["id_tipo_conta_fk"] == data["id_tipo_conta"]:
+                client.delete(f"/lancamento/{l['id_lancamento']}", headers=headers_admin)
     client.delete(f"/tipo_conta/{data['id_tipo_conta']}", headers=headers_admin)
 
 
@@ -128,19 +240,16 @@ def usuario_base(client, headers_admin):
         "notificacao": False
     }, headers=headers_admin)
     if r.status_code == 409:
-        # Usuário já existe — buscar pelo email na listagem
         todos = client.get("/usuarios/", headers=headers_admin).json()
         data = next(u for u in todos if u["email"] == "pytest_base@amsi.com")
     else:
         assert r.status_code == 200
         data = r.json()
     yield data
-    # Deletar lançamentos vinculados ao usuário antes de deletar o usuário
     lancamentos = client.get(f"/lancamento/por-usuario/{data['id_usuario']}", headers=headers_admin)
     if lancamentos.is_success:
         for l in lancamentos.json():
             client.delete(f"/lancamento/{l['id_lancamento']}", headers=headers_admin)
-    # Deletar logins de sessão antes de deletar o usuário
     logins = client.get(f"/login/por-usuario/{data['id_usuario']}", headers=headers_admin)
     if logins.is_success:
         for login in logins.json():
@@ -164,4 +273,9 @@ def clifor_base(client, headers_admin, usuario_base):
     assert r.status_code == 200
     data = r.json()
     yield data
+    lancamentos = client.get("/lancamento/", headers=headers_admin)
+    if lancamentos.is_success:
+        for l in lancamentos.json():
+            if l["id_clifor_relacionado_fk"] == data["id_clifor"]:
+                client.delete(f"/lancamento/{l['id_lancamento']}", headers=headers_admin)
     client.delete(f"/cliente_fornecedor/{data['id_clifor']}", headers=headers_admin)

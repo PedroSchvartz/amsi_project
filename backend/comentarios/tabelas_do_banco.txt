@@ -132,6 +132,7 @@ CREATE TABLE Lancamento (
     data_pagamento TIMESTAMP,
     Valor_Pago DECIMAL(15,2),
     Observacao TEXT,
+    Observacao_Pagamento TEXT,
     Natureza_Lancamento natureza_enum NOT NULL,
     Estorno BOOLEAN NOT NULL DEFAULT FALSE,
     Comprovante BYTEA DEFAULT NULL,
@@ -198,6 +199,16 @@ BEGIN
     RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
+
+-- ============================================================
+-- MIGRATIONS
+-- ============================================================
+
+-- [MVP item 11] Separa observação do lançamento da observação do pagamento
+ALTER TABLE Lancamento ADD COLUMN Observacao_Pagamento TEXT;
+
+-- ============================================================
+
 
 CREATE OR REPLACE TRIGGER trigger_inadimplente
 AFTER INSERT OR UPDATE OR DELETE ON lancamento

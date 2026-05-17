@@ -124,3 +124,5 @@ def test_request_sem_token(client):
 
     r = client.get("/cliente_fornecedor/")
     assert r.status_code == 401
+
+

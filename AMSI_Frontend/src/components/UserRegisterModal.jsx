@@ -125,7 +125,7 @@ function UserRegisterModal({ onFechar }) {
 								required
 							>
 								<option value="">Selecione</option>
-								<option value="Diretor">Diretor</option>
+								<option value="Presidente">Presidente</option>
 								<option value="Tesoureiro">Tesoureiro</option>
 								<option value="Secretário">Secretário</option>
 								<option value="Conselheiro">Conselheiro</option>

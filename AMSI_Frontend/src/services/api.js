@@ -2,11 +2,30 @@ import { getToken, logout } from './auth';
 import { loadingBus } from './loadingContext';
 
 const BASE_URL = import.meta.env.VITE_API_URL;
+const DB_SLEEP_MS = Number(import.meta.env.VITE_DB_SLEEP_MS ?? 120_000);
+
+// Marca o instante em que a última requisição terminou com sucesso.
+// Inicializado com Date.now() para não disparar retry em erros imediatos
+// logo após o app ser carregado.
+let ultimaRespostaOk = Date.now();
 
 async function fetchComLoading(url, options) {
 	loadingBus.iniciar();
 	try {
-		return await fetch(url, options);
+		const res = await fetch(url, options);
+		ultimaRespostaOk = Date.now();
+		return res;
+	} catch (err) {
+		// Só tenta novamente se for erro de rede (TypeError) E a última resposta
+		// bem-sucedida foi há mais tempo do que o limiar configurado — indica
+		// que o banco Vercel adormeceu por inatividade.
+		if (err instanceof TypeError && Date.now() - ultimaRespostaOk > DB_SLEEP_MS) {
+			await new Promise((r) => setTimeout(r, 4000));
+			const res = await fetch(url, options);
+			ultimaRespostaOk = Date.now();
+			return res;
+		}
+		throw err;
 	} finally {
 		loadingBus.finalizar();
 	}
@@ -424,8 +443,9 @@ export const getLancamentos = async (filtros = {}) => {
 	if (filtros.data_vencimento_ate)
 		params.append('data_vencimento_ate', filtros.data_vencimento_ate);
 	if (filtros.data_lancamento_de) params.append('data_lancamento_de', filtros.data_lancamento_de);
-	if (filtros.data_lancamento_ate)
-		params.append('data_lancamento_ate', filtros.data_lancamento_ate);
+	if (filtros.data_lancamento_ate) params.append('data_lancamento_ate', filtros.data_lancamento_ate);
+	if (filtros.data_pagamento_de) params.append('data_pagamento_de', filtros.data_pagamento_de);
+	if (filtros.data_pagamento_ate) params.append('data_pagamento_ate', filtros.data_pagamento_ate);
 	if (filtros.estorno != null) params.append('estorno', filtros.estorno);
 	if (filtros.valor_minimo != null) params.append('valor_minimo', filtros.valor_minimo);
 	if (filtros.valor_maximo != null) params.append('valor_maximo', filtros.valor_maximo);
@@ -515,6 +535,15 @@ export const deleteLancamento = async (id_lancamento) => {
 	const response = await fetchComLoading(`${BASE_URL}/lancamento/${id_lancamento}`, {
 		method: 'DELETE',
 		headers: authHeaders()
+	});
+	return handleResponse(response);
+};
+
+export const editarLancamento = async (id_lancamento, data) => {
+	const response = await fetchComLoading(`${BASE_URL}/lancamento/${id_lancamento}/editar`, {
+		method: 'PATCH',
+		headers: authHeaders(),
+		body: JSON.stringify(data)
 	});
 	return handleResponse(response);
 };

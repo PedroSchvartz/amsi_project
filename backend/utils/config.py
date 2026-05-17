@@ -39,3 +39,7 @@ APP_PORT = int(os.getenv("APP_PORT", 8000))
 
 # Frontend
 FRONTEND_URL = os.getenv("FRONTEND_URL", "https://amsi-project-chzs.vercel.app")
+
+# Usuário de teste (consulta) — criado pelo bootstrap para uso nos testes automatizados
+CONSULTA_TESTE_EMAIL = os.getenv("CONSULTA_TESTE_EMAIL", "pytest_consulta@amsi.com")
+CONSULTA_TESTE_SENHA = os.getenv("CONSULTA_TESTE_SENHA", "consultaTeste123")

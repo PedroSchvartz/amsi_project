@@ -242,6 +242,38 @@
 	white-space: nowrap;
 }
 
+/* ── Tooltip nos cabeçalhos ── */
+.ll-table th[data-tooltip] {
+	cursor: help;
+	position: relative;
+}
+
+.ll-table th[data-tooltip]::after {
+	content: attr(data-tooltip);
+	position: absolute;
+	top: calc(100% + 6px);
+	left: 0;
+	background: var(--bg-card);
+	color: var(--text);
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	padding: 6px 10px;
+	font-size: 0.75rem;
+	font-weight: 400;
+	text-transform: none;
+	letter-spacing: 0;
+	white-space: nowrap;
+	box-shadow: 0 4px 12px var(--shadow);
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 0.15s ease;
+	z-index: 200;
+}
+
+.ll-table th[data-tooltip]:hover::after {
+	opacity: 1;
+}
+
 .ll-table td {
 	padding: 11px 12px;
 	border-bottom: 1px solid var(--border);
@@ -282,52 +314,52 @@
 }
 
 .badge-aberto {
-	background: rgba(34, 197, 94, 0.12);
-	color: #15803d;
-	border: 1px solid rgba(34, 197, 94, 0.25);
+	background: #86efac;
+	color: #14532d;
+	border: 1px solid #22c55e;
 }
 
 .badge-pago {
-	background: rgba(59, 130, 246, 0.12);
-	color: #1d4ed8;
-	border: 1px solid rgba(59, 130, 246, 0.2);
+	background: #bfdbfe;
+	color: #1e3a8a;
+	border: 1px solid #60a5fa;
 }
 
 .badge-vencido {
-	background: rgba(239, 68, 68, 0.1);
-	color: #b91c1c;
-	border: 1px solid rgba(239, 68, 68, 0.2);
+	background: #fca5a5;
+	color: #7f1d1d;
+	border: 1px solid #ef4444;
 }
 
 .badge-estorno {
-	background: rgba(234, 179, 8, 0.1);
-	color: #92400e;
-	border: 1px solid rgba(234, 179, 8, 0.2);
+	background: #fde68a;
+	color: #78350f;
+	border: 1px solid #fbbf24;
 }
 
 /* Adaptação dos badges no tema corporativo (fundo escuro) */
 [data-theme='corporativo'] .badge-aberto {
-	background: rgba(34, 197, 94, 0.18);
-	color: #4ade80;
-	border-color: rgba(34, 197, 94, 0.3);
+	background: rgba(34, 197, 94, 0.22);
+	color: #86efac;
+	border-color: rgba(34, 197, 94, 0.45);
 }
 
 [data-theme='corporativo'] .badge-pago {
-	background: rgba(56, 189, 248, 0.15);
-	color: #38bdf8;
-	border-color: rgba(56, 189, 248, 0.25);
+	background: rgba(56, 189, 248, 0.22);
+	color: #7dd3fc;
+	border-color: rgba(56, 189, 248, 0.45);
 }
 
 [data-theme='corporativo'] .badge-vencido {
-	background: rgba(239, 68, 68, 0.15);
-	color: #f87171;
-	border-color: rgba(239, 68, 68, 0.25);
+	background: rgba(239, 68, 68, 0.22);
+	color: #fca5a5;
+	border-color: rgba(239, 68, 68, 0.45);
 }
 
 [data-theme='corporativo'] .badge-estorno {
-	background: rgba(250, 204, 21, 0.12);
-	color: #fbbf24;
-	border-color: rgba(250, 204, 21, 0.22);
+	background: rgba(250, 204, 21, 0.18);
+	color: #fde68a;
+	border-color: rgba(250, 204, 21, 0.40);
 }
 
 /* ════════════════════════════════════════
@@ -352,6 +384,8 @@
 	transition:
 		background 0.2s ease,
 		transform 0.15s ease;
+	background: transparent;
+	color: var(--text);
 }
 
 .ll-btn-acao:hover {

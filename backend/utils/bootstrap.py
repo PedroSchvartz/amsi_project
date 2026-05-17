@@ -13,6 +13,7 @@ from utils.auth_utils import hash_senha
 from utils.email_sender import enviar_email
 from utils.config import FRONTEND_URL
 from utils.frequentes import configure_logging, colorir
+from utils.config import CONSULTA_TESTE_EMAIL, CONSULTA_TESTE_SENHA
 
 
 def _gerar_senha_provisoria(tamanho: int = 12) -> str:
@@ -112,6 +113,29 @@ def garantir_admins_iniciais():
                     print(colorir(cor="amarelo", texto=f"⚠ Falha ao enviar email para {admin_data['email']} — conta criada mesmo assim"))
             else:
                 print(colorir(cor="verde", texto=f"✔ Admin {admin_data['email']} já existe."))
+
+        # Usuário de consulta para testes automatizados
+        consulta_existente = db.query(Usuario).filter(
+            Usuario.email == CONSULTA_TESTE_EMAIL,
+            Usuario.exclusao == None
+        ).first()
+
+        if not consulta_existente:
+            print(colorir(cor="azul", texto=f"🚀 Criando usuário de consulta: {CONSULTA_TESTE_EMAIL}"))
+            novo_consulta = Usuario(
+                email=CONSULTA_TESTE_EMAIL,
+                nome="Usuário Consulta Teste",
+                senha=hash_senha(CONSULTA_TESTE_SENHA),
+                cargo=CargoEnum.Desenvolvedor,
+                perfil_de_acesso=AcessoEnum.Consulta,
+                notificacao=False,
+                bloqueado=False,
+                primeiro_acesso=False
+            )
+            db.add(novo_consulta)
+            print(colorir(cor="verde", texto=f"✔ Usuário de consulta criado: {CONSULTA_TESTE_EMAIL}"))
+        else:
+            print(colorir(cor="verde", texto=f"✔ Usuário de consulta {CONSULTA_TESTE_EMAIL} já existe."))
 
         db.commit()
         print(colorir(cor="verde", texto="\n✨ Processo de semente concluído com sucesso."))

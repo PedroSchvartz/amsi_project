@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
 	getLancamentosResumo,
 	getResumoPorTipo,
@@ -16,30 +16,29 @@ function formatarValor(v) {
 		.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`;
 }
 
-const hoje = new Date();
 const PERIODOS = [
 	{
 		label: 'Último mês',
 		de: () => {
-			const d = new Date(hoje);
+			const d = new Date();
 			d.setMonth(d.getMonth() - 1);
 			return d.toISOString().split('T')[0];
 		},
-		ate: () => hoje.toISOString().split('T')[0]
+		ate: () => new Date().toISOString().split('T')[0]
 	},
 	{
 		label: 'Últimos 6 meses',
 		de: () => {
-			const d = new Date(hoje);
+			const d = new Date();
 			d.setMonth(d.getMonth() - 6);
 			return d.toISOString().split('T')[0];
 		},
-		ate: () => hoje.toISOString().split('T')[0]
+		ate: () => new Date().toISOString().split('T')[0]
 	},
 	{
 		label: 'Ano atual',
-		de: () => `${hoje.getFullYear()}-01-01`,
-		ate: () => hoje.toISOString().split('T')[0]
+		de: () => `${new Date().getFullYear()}-01-01`,
+		ate: () => new Date().toISOString().split('T')[0]
 	},
 	{ label: 'Desde sempre', de: () => null, ate: () => null }
 ];
@@ -58,45 +57,45 @@ function mesParaDia(mesAno, fim = false) {
 const KPI_INFO = {
 	receita_recebida: {
 		tooltip: 'Total de créditos efetivamente recebidos no período.',
-		titulo: 'Receita Recebida',
+		titulo: 'Total Receitas',
 		descricao:
-			'Soma de todos os lançamentos de natureza Crédito que foram quitados (com data de pagamento registrada) dentro do período selecionado. Inclui mensalidades, taxas e outras entradas confirmadas. Reembolsos são contabilizados separadamente e não entram neste valor.'
+			'Soma de todos os lançamentos de natureza Crédito que foram quitados (com data de pagamento registrada) dentro do período selecionado. Inclui mensalidades, taxas e outras entradas confirmadas. Estornos/reembolsos são contabilizados separadamente e não entram neste valor.'
 	},
 	despesa_paga: {
 		tooltip: 'Total de débitos efetivamente pagos no período.',
-		titulo: 'Despesa Paga',
+		titulo: 'Total Despesas',
 		descricao:
-			'Soma de todos os lançamentos de natureza Débito que foram quitados (com data de pagamento registrada) dentro do período selecionado. Inclui contas de água, luz, manutenção e outros custos confirmados. Reembolsos não entram neste valor.'
+			'Soma de todos os lançamentos de natureza Débito que foram quitados (com data de pagamento registrada) dentro do período selecionado. Inclui contas de água, luz, manutenção e outros custos confirmados. Estornos/reembolsos não entram neste valor.'
 	},
 	saldo_periodo: {
-		tooltip: 'Receita recebida menos despesa paga no período.',
+		tooltip: 'Total Receitas menos Total Despesas no período.',
 		titulo: 'Saldo do Período',
 		descricao:
-			'Resultado líquido do período: Receita Recebida menos Despesa Paga. Um valor positivo indica superávit — a associação recebeu mais do que gastou. Um valor negativo indica déficit. Este saldo considera apenas lançamentos quitados e ignora reembolsos e lançamentos em aberto.'
+			'Resultado líquido do período: Total Receitas menos Total Despesas. Um valor positivo indica superávit — a associação recebeu mais do que gastou. Um valor negativo indica déficit. Este saldo considera apenas lançamentos quitados e ignora estornos/reembolsos e lançamentos em aberto.'
 	},
 	reembolsos: {
-		tooltip: 'Total devolvido a clientes ou fornecedores no período.',
-		titulo: 'Reembolsos',
+		tooltip: 'Total de estornos e reembolsos no período (respeita natureza inversa).',
+		titulo: 'Estornos / Reembolsos',
 		descricao:
-			'Soma de todos os lançamentos marcados como estorno que foram quitados no período. Um reembolso representa a devolução de um valor pago anteriormente — por exemplo, uma cobrança indevida que foi corrigida. Estes valores são contabilizados separadamente para não distorcer as métricas de receita e despesa.'
+			'Soma de todos os lançamentos marcados como estorno que foram quitados no período, respeitando a natureza inversa do tipo de conta: lançamentos de Crédito subtraem (devolução ao associado), lançamentos de Débito somam (ressarcimento recebido). Exemplo: reembolso de mensalidade (Crédito) = −100,00; reembolso de energia (Débito) = +50,00.'
 	},
 	a_receber: {
 		tooltip: 'Total de créditos em aberto, ainda não recebidos.',
-		titulo: 'A Receber',
+		titulo: 'Total a Receber',
 		descricao:
 			'Soma de todos os lançamentos de natureza Crédito que ainda não foram pagos (sem data de pagamento) e não são estornos. Representa o valor que a associação tem a receber de clientes e associados, independentemente do período selecionado. Inclui tanto lançamentos dentro do prazo quanto vencidos.'
 	},
 	a_pagar: {
 		tooltip: 'Total de débitos em aberto, ainda não pagos.',
-		titulo: 'A Pagar',
+		titulo: 'Total a Pagar',
 		descricao:
 			'Soma de todos os lançamentos de natureza Débito que ainda não foram pagos (sem data de pagamento) e não são estornos. Representa compromissos financeiros pendentes da associação com fornecedores e prestadores. Inclui tanto lançamentos dentro do prazo quanto vencidos.'
 	},
-	a_receber_excl: {
-		tooltip: 'A receber considerando apenas clientes adimplentes.',
-		titulo: 'A Receber (excl. inadimplentes)',
+	inadimplencia: {
+		tooltip: 'Total de créditos vencidos e não pagos (inadimplência).',
+		titulo: 'Total Inadimplência',
 		descricao:
-			'Soma de lançamentos de Crédito em aberto, excluindo aqueles vinculados a clientes ou associados marcados como inadimplentes. Este valor representa uma estimativa mais realista do que a associação tem chance concreta de receber, desconsiderando devedores com histórico de atraso.'
+			'Soma de todos os lançamentos de Crédito que estão vencidos e ainda não foram pagos. Representa o total financeiro em atraso, ou seja, valores que a associação deveria ter recebido mas ainda não recebeu. Clientes com lançamentos nesta condição são marcados como inadimplentes no sistema.'
 	},
 	inadimplentes: {
 		tooltip: 'Número de clientes com cobranças vencidas e não pagas.',
@@ -106,8 +105,20 @@ const KPI_INFO = {
 	}
 };
 
+// ── Filtros que cada KPI pré-aplica ao navegar para a lista ─────────────────
+const KPI_FILTROS = {
+	receita_recebida: { natureza: 'Credito', apenas_quitados: 'true', estorno: 'false', usarData: true },
+	despesa_paga:     { natureza: 'Debito',  apenas_quitados: 'true', estorno: 'false', usarData: true },
+	saldo_periodo:    { natureza: '',        apenas_quitados: 'true', estorno: 'false', usarData: true },
+	reembolsos:       { natureza: '',        apenas_quitados: 'true', estorno: 'true',  usarData: true },
+	a_receber:        { natureza: 'Credito', apenas_abertos: 'true',  estorno: 'false', usarData: false },
+	a_pagar:          { natureza: 'Debito',  apenas_abertos: 'true',  estorno: 'false', usarData: false },
+	inadimplencia:    { natureza: 'Credito', apenas_vencidos: 'true', estorno: 'false', usarData: false },
+	inadimplentes:    { natureza: 'Credito', apenas_vencidos: 'true', estorno: 'false', usarData: false }
+};
+
 // ── Componente KpiCard com tooltip e popup ──────────────────────────────────
-function KpiCard({ infoKey, icon, iconClass, label, value, valueClass, children }) {
+function KpiCard({ infoKey, icon, iconClass, label, value, valueClass, children, onDiscriminar }) {
 	const [hover, setHover] = useState(false);
 	const [popup, setPopup] = useState(false);
 	const cardRef = useRef(null);
@@ -192,6 +203,26 @@ function KpiCard({ infoKey, icon, iconClass, label, value, valueClass, children 
 						<p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text)', lineHeight: 1.7 }}>
 							{info.descricao}
 						</p>
+						<div style={{ borderTop: '1px solid var(--border)', marginTop: 20, paddingTop: 16, textAlign: 'right' }}>
+							<button
+								onClick={() => { setPopup(false); onDiscriminar(); }}
+								style={{
+									padding: '8px 16px',
+									borderRadius: 8,
+									border: 'none',
+									background: 'var(--primary)',
+									color: '#fff',
+									fontWeight: 600,
+									fontSize: '0.82rem',
+									cursor: 'pointer',
+									display: 'inline-flex',
+									alignItems: 'center',
+									gap: 6
+								}}
+							>
+								<i className="bi bi-list-ul" /> Discriminar itens em consideração
+							</button>
+						</div>
 					</div>
 				</div>
 			)}
@@ -201,6 +232,7 @@ function KpiCard({ infoKey, icon, iconClass, label, value, valueClass, children 
 
 // ── Dashboard ───────────────────────────────────────────────────────────────
 function Dashboard() {
+	const navigate = useNavigate();
 	const [resumo, setResumo] = useState(null);
 	const [porTipoDespesa, setPorTipoDespesa] = useState([]);
 	const [porTipoReceita, setPorTipoReceita] = useState([]);
@@ -208,33 +240,24 @@ function Dashboard() {
 	const [carregando, setCarregando] = useState(true);
 	const [erro, setErro] = useState('');
 
-	const [periodoAtivo, setPeriodoAtivo] = useState(1);
-	const [datasDe, setDatasDe] = useState('');
-	const [datasAte, setDatasAte] = useState('');
+	// Últimos params efetivamente carregados — usados pelo Discriminar
+	const [filtrosAplicados, setFiltrosAplicados] = useState(() => {
+		const p = PERIODOS[1];
+		return { data_pagamento_de: p.de(), data_pagamento_ate: p.ate() };
+	});
 
-	const periodoParams = useCallback(() => {
-		if (datasDe || datasAte)
-			return {
-				data_pagamento_de: mesParaDia(datasDe, false),
-				data_pagamento_ate: mesParaDia(datasAte, true)
-			};
-		if (periodoAtivo !== null) {
-			const p = PERIODOS[periodoAtivo];
-			const de = p.de();
-			const ate = p.ate();
-			const params = {};
-			if (de) params.data_pagamento_de = de;
-			if (ate) params.data_pagamento_ate = ate;
-			return params;
-		}
-		return {};
-	}, [periodoAtivo, datasDe, datasAte]);
+	// Estado de seleção (rascunho) — só vira filtro ao clicar "Aplicar"
+	const [periodoSelecionado, setPeriodoSelecionado] = useState(1);
+	const [rascunhoDe, setRascunhoDe] = useState('');
+	const [rascunhoAte, setRascunhoAte] = useState('');
+	const [pendente, setPendente] = useState(false);
+	// Último período efetivamente aplicado (1 = "Últimos 6 meses", carregado na montagem)
+	const [periodoAplicado, setPeriodoAplicado] = useState(1);
 
-	const carregarDados = useCallback(async () => {
+	const carregarDados = useCallback(async (params) => {
 		setCarregando(true);
 		setErro('');
 		try {
-			const params = periodoParams();
 			const [res, despesas, receitas, clifors] = await Promise.all([
 				getLancamentosResumo(params),
 				getResumoPorTipo({ ...params, natureza: 'Debito' }),
@@ -250,21 +273,74 @@ function Dashboard() {
 		} finally {
 			setCarregando(false);
 		}
-	}, [periodoParams]);
+	}, []);
 
+	// Carrega apenas na montagem, com o período padrão (Últimos 6 meses)
 	useEffect(() => {
-		carregarDados();
+		const p = PERIODOS[1];
+		const de = p.de();
+		const ate = p.ate();
+		const params = {};
+		if (de) params.data_pagamento_de = de;
+		if (ate) params.data_pagamento_ate = ate;
+		setFiltrosAplicados(params);
+		carregarDados(params);
 	}, [carregarDados]);
 
-	const handlePeriodoRapido = (idx) => {
-		setPeriodoAtivo(idx);
-		setDatasDe('');
-		setDatasAte('');
+	const computarParams = () => {
+		if (rascunhoDe || rascunhoAte)
+			return {
+				data_pagamento_de: mesParaDia(rascunhoDe, false),
+				data_pagamento_ate: mesParaDia(rascunhoAte, true)
+			};
+		if (periodoSelecionado !== null) {
+			const p = PERIODOS[periodoSelecionado];
+			const de = p.de();
+			const ate = p.ate();
+			const params = {};
+			if (de) params.data_pagamento_de = de;
+			if (ate) params.data_pagamento_ate = ate;
+			return params;
+		}
+		return {};
 	};
+
+	const handlePeriodoRapido = (idx) => {
+		setPeriodoSelecionado(idx);
+		setRascunhoDe('');
+		setRascunhoAte('');
+		// Só fica pendente se for diferente do período já aplicado
+		setPendente(idx !== periodoAplicado);
+	};
+
 	const handleDataChange = (campo, valor) => {
-		setPeriodoAtivo(null);
-		if (campo === 'de') setDatasDe(valor);
-		else setDatasAte(valor);
+		setPeriodoSelecionado(null);
+		if (campo === 'de') setRascunhoDe(valor);
+		else setRascunhoAte(valor);
+		setPendente(true);
+	};
+
+	const aplicar = () => {
+		const params = computarParams();
+		setFiltrosAplicados(params);
+		carregarDados(params);
+		setPendente(false);
+		setPeriodoAplicado(periodoSelecionado); // null se datas customizadas
+	};
+
+	const discriminar = (infoKey) => {
+		const cfg = KPI_FILTROS[infoKey];
+		const q = new URLSearchParams({ origemDashboard: '1' });
+		if (cfg.natureza) q.set('natureza', cfg.natureza);
+		if (cfg.apenas_abertos) q.set('apenas_abertos', cfg.apenas_abertos);
+		if (cfg.apenas_vencidos) q.set('apenas_vencidos', cfg.apenas_vencidos);
+		if (cfg.apenas_quitados) q.set('apenas_quitados', cfg.apenas_quitados);
+		if (cfg.estorno) q.set('estorno', cfg.estorno);
+		if (cfg.usarData && filtrosAplicados.data_pagamento_de)
+			q.set('data_pagamento_de', filtrosAplicados.data_pagamento_de);
+		if (cfg.usarData && filtrosAplicados.data_pagamento_ate)
+			q.set('data_pagamento_ate', filtrosAplicados.data_pagamento_ate);
+		navigate(`/tipo_lancamento?${q.toString()}`);
 	};
 
 	if (carregando)
@@ -292,9 +368,6 @@ function Dashboard() {
 					<h1 className="dash-header__title">Dashboard</h1>
 					<p className="dash-header__subtitle">Visão geral financeira da associação</p>
 				</div>
-				<button className="dash-btn-atualizar" onClick={carregarDados}>
-					<i className="bi bi-arrow-clockwise" /> Atualizar
-				</button>
 			</div>
 
 			<div className="dash-periodo">
@@ -302,7 +375,13 @@ function Dashboard() {
 					{PERIODOS.map((p, i) => (
 						<button
 							key={i}
-							className={`dash-periodo__btn${periodoAtivo === i ? ' dash-periodo__btn--ativo' : ''}`}
+							className={`dash-periodo__btn${
+								periodoSelecionado === i
+									? pendente
+										? ' dash-periodo__btn--pendente'
+										: ' dash-periodo__btn--ativo'
+									: ''
+							}`}
 							onClick={() => handlePeriodoRapido(i)}
 						>
 							{p.label}
@@ -312,17 +391,24 @@ function Dashboard() {
 				<div className="dash-periodo__livre">
 					<input
 						type="month"
-						value={datasDe}
+						value={rascunhoDe}
 						onChange={(e) => handleDataChange('de', e.target.value)}
 						className="dash-periodo__input"
 					/>
 					<span className="dash-periodo__sep">até</span>
 					<input
 						type="month"
-						value={datasAte}
+						value={rascunhoAte}
 						onChange={(e) => handleDataChange('ate', e.target.value)}
 						className="dash-periodo__input"
 					/>
+					<button
+						onClick={aplicar}
+						className={`dash-periodo__btn${pendente ? ' dash-periodo__btn--pendente' : ' dash-periodo__btn--ativo'}`}
+						title="Aplicar filtros"
+					>
+						{pendente ? '⚠ Aplicar' : 'Aplicar'}
+					</button>
 				</div>
 			</div>
 
@@ -332,17 +418,19 @@ function Dashboard() {
 					infoKey="receita_recebida"
 					icon="bi-arrow-down-circle"
 					iconClass="dash-kpi-card__icon--receita"
-					label="Receita Recebida"
+					label="Total Receitas"
 					value={formatarValor(resumo?.total_recebido)}
 					valueClass="dash-kpi-card__value--positivo"
+					onDiscriminar={() => discriminar('receita_recebida')}
 				/>
 				<KpiCard
 					infoKey="despesa_paga"
 					icon="bi-arrow-up-circle"
 					iconClass="dash-kpi-card__icon--despesa"
-					label="Despesa Paga"
+					label="Total Despesas"
 					value={formatarValor(resumo?.total_pago)}
 					valueClass="dash-kpi-card__value--negativo"
+					onDiscriminar={() => discriminar('despesa_paga')}
 				/>
 				<KpiCard
 					infoKey="saldo_periodo"
@@ -355,13 +443,15 @@ function Dashboard() {
 							? 'dash-kpi-card__value--positivo'
 							: 'dash-kpi-card__value--negativo'
 					}
+					onDiscriminar={() => discriminar('saldo_periodo')}
 				/>
 				<KpiCard
 					infoKey="reembolsos"
 					icon="bi-arrow-left-right"
 					iconClass="dash-kpi-card__icon--reembolso"
-					label="Reembolsos"
+					label="Estornos / Reembolsos"
 					value={formatarValor(resumo?.total_reembolsado)}
+					onDiscriminar={() => discriminar('reembolsos')}
 				/>
 			</div>
 
@@ -371,25 +461,28 @@ function Dashboard() {
 					infoKey="a_receber"
 					icon="bi-hourglass-split"
 					iconClass="dash-kpi-card__icon--receita"
-					label="A Receber"
+					label="Total a Receber"
 					value={formatarValor(resumo?.total_a_receber)}
 					valueClass="dash-kpi-card__value--positivo"
+					onDiscriminar={() => discriminar('a_receber')}
 				/>
 				<KpiCard
 					infoKey="a_pagar"
 					icon="bi-hourglass-split"
 					iconClass="dash-kpi-card__icon--despesa"
-					label="A Pagar"
+					label="Total a Pagar"
 					value={formatarValor(resumo?.total_a_pagar)}
 					valueClass="dash-kpi-card__value--negativo"
+					onDiscriminar={() => discriminar('a_pagar')}
 				/>
 				<KpiCard
-					infoKey="a_receber_excl"
+					infoKey="inadimplencia"
 					icon="bi-person-x"
 					iconClass="dash-kpi-card__icon--inadimplente"
-					label="A Receber (excl. inadimplentes)"
-					value={formatarValor(resumo?.total_a_receber_excluindo_inadimplentes)}
-					valueClass="dash-kpi-card__value--positivo"
+					label="Total Inadimplência"
+					value={formatarValor(resumo?.total_inadimplencia)}
+					valueClass="dash-kpi-card__value--negativo"
+					onDiscriminar={() => discriminar('inadimplencia')}
 				/>
 				<KpiCard
 					infoKey="inadimplentes"
@@ -397,6 +490,7 @@ function Dashboard() {
 					iconClass="dash-kpi-card__icon--inadimplente"
 					label="Inadimplentes"
 					value={resumo?.quantidade_inadimplentes ?? 0}
+					onDiscriminar={() => discriminar('inadimplentes')}
 				/>
 			</div>
 

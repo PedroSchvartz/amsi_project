@@ -16,6 +16,7 @@ import Layout from './components/Layout';
 import { LoadingProvider, useLoading } from './services/loadingContext';
 import { logout } from './services/auth';
 import Dashboard from './pages/dashboard';
+import TipoContaPage from './pages/TipoContaPage';
 
 /* ════════════════════════════════════════
    SPINNER GLOBAL DE CARREGAMENTO
@@ -246,6 +247,15 @@ function App() {
 							element={
 								<PrivateRoute adminOnly>
 									<ListaLancamentosPage />
+								</PrivateRoute>
+							}
+						/>
+
+						<Route
+							path="/tipo_conta"
+							element={
+								<PrivateRoute adminOnly>
+									<TipoContaPage />
 								</PrivateRoute>
 							}
 						/>

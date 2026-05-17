@@ -353,6 +353,16 @@
 	opacity: 0.88;
 }
 
+.dash-periodo__btn--pendente {
+	background: #f59e0b;
+	color: #fff;
+	border-color: #f59e0b;
+}
+
+.dash-periodo__btn--pendente:hover {
+	opacity: 0.88;
+}
+
 .dash-periodo__livre {
 	display: flex;
 	align-items: center;

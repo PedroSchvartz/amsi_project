@@ -14,7 +14,7 @@ from schemas.cliente_fornecedor import (
     CliForResumo,
     CliForSaldoSimples
 )
-from auth.dependencies import get_current_user
+from auth.dependencies import get_current_user, exige_admin
 from typing import List, Optional
 from datetime import date
 from decimal import Decimal
@@ -61,7 +61,6 @@ def listar_clifors(
 
 @router.get("/saldos", response_model=List[CliForSaldoSimples])
 def saldos_clifors(db: Session = Depends(get_db), _=Depends(get_current_user)):
-    """Retorna saldo líquido (crédito - débito) de todos os clifors em uma única query."""
     from sqlalchemy import case as sa_case
     resultado = (
         db.query(
@@ -91,34 +90,26 @@ def resumo_clifor(id_clifor: int, db: Session = Depends(get_db), _=Depends(get_c
 
     hoje = date.today()
 
-    total_a_receber = db.query(
-        func.coalesce(func.sum(Lancamento.valor), 0)
-    ).filter(
+    total_a_receber = db.query(func.coalesce(func.sum(Lancamento.valor), 0)).filter(
         Lancamento.id_clifor_relacionado_fk == id_clifor,
         Lancamento.natureza_lancamento == "Credito",
         Lancamento.data_pagamento == None
     ).scalar()
 
-    total_a_pagar = db.query(
-        func.coalesce(func.sum(Lancamento.valor), 0)
-    ).filter(
+    total_a_pagar = db.query(func.coalesce(func.sum(Lancamento.valor), 0)).filter(
         Lancamento.id_clifor_relacionado_fk == id_clifor,
         Lancamento.natureza_lancamento == "Debito",
         Lancamento.data_pagamento == None
     ).scalar()
 
-    total_vencido_a_receber = db.query(
-        func.coalesce(func.sum(Lancamento.valor), 0)
-    ).filter(
+    total_vencido_a_receber = db.query(func.coalesce(func.sum(Lancamento.valor), 0)).filter(
         Lancamento.id_clifor_relacionado_fk == id_clifor,
         Lancamento.natureza_lancamento == "Credito",
         Lancamento.data_pagamento == None,
         Lancamento.data_vencimento < hoje
     ).scalar()
 
-    total_vencido_a_pagar = db.query(
-        func.coalesce(func.sum(Lancamento.valor), 0)
-    ).filter(
+    total_vencido_a_pagar = db.query(func.coalesce(func.sum(Lancamento.valor), 0)).filter(
         Lancamento.id_clifor_relacionado_fk == id_clifor,
         Lancamento.natureza_lancamento == "Debito",
         Lancamento.data_pagamento == None,
@@ -166,7 +157,7 @@ def criar_clifor(dados: ClienteFornecedorCreate, db: Session = Depends(get_db), 
     clifor_data = dados.model_dump(exclude={"enderecos", "contatos"})
     clifor = ClienteFornecedor(**clifor_data)
     db.add(clifor)
-    db.flush()  # gera id_clifor sem commitar
+    db.flush()
 
     if dados.enderecos:
         for end in dados.enderecos:
@@ -208,10 +199,20 @@ def atualizar_clifor(id_clifor: int, dados: ClienteFornecedorUpdate, db: Session
 
 
 @router.delete("/{id_clifor}")
-def deletar_clifor(id_clifor: int, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def deletar_clifor(id_clifor: int, db: Session = Depends(get_db), _=Depends(exige_admin)):
     clifor = db.query(ClienteFornecedor).filter(ClienteFornecedor.id_clifor == id_clifor).first()
     if not clifor:
         raise HTTPException(status_code=404, detail="Cliente/Fornecedor não encontrado")
+
+    tem_lancamento = db.query(Lancamento).filter(
+        Lancamento.id_clifor_relacionado_fk == id_clifor
+    ).first()
+    if tem_lancamento:
+        raise HTTPException(
+            status_code=409,
+            detail="Não é possível excluir: este cliente/fornecedor possui lançamentos vinculados."
+        )
+
     db.delete(clifor)
     db.commit()
     return {"mensagem": "Cliente/Fornecedor deletado com sucesso"}

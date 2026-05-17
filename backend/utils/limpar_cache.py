@@ -42,7 +42,7 @@ def limpar_cache(
     dict com chaves: removidos, bytes_liberados, itens, erros
     """
     if padroes is None:
-        padroes = ["cache"]
+        padroes = ["cache",".pyc","__pycache__",]
     padroes_lower = [p.lower() for p in padroes]
 
     ignorar_set = set()
@@ -217,4 +217,16 @@ def limpar_cache(
 
 
 if __name__ == "__main__":
+    CACHES_FRONTEND = [
+        r"C:\Codigos\AMSI_Project_Desenvolvimento\AMSI_Frontend\node_modules\.vite",
+        r"C:\Codigos\AMSI_Project_Desenvolvimento\AMSI_Frontend\dist",
+    ]
+
+    for caminho in CACHES_FRONTEND:
+        if os.path.exists(caminho):
+            shutil.rmtree(caminho)
+            print(f"\033[32m✓\033[0m Removido: {caminho}")
+        else:
+            print(f"— Não encontrado: {caminho}")
+
     limpar_cache()

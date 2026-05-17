@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Response
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from database import get_db
 from models.lancamento import Lancamento
 from models.usuario import Usuario
 from models.cliente_fornecedor import ClienteFornecedor
 from models.tipo_conta import tipo_conta
-from schemas.lancamento import LancamentoCreate, LancamentoUpdate, LancamentoResponse, LancamentoResumo, ResumoPorTipo
-from auth.dependencies import get_current_user
+from schemas.lancamento import LancamentoCreate, LancamentoUpdate, LancamentoEditAdmin, LancamentoResponse, LancamentoResumo, ResumoPorTipo
+from auth.dependencies import get_current_user, exige_admin
 from utils.inadimplencia import atualizar_inadimplente
 from typing import List, Optional
 from datetime import date
@@ -31,7 +31,6 @@ def resumo_lancamentos(
 ):
     hoje = date.today()
 
-    # ── Base de todos os lançamentos (sem filtro de período) ──
     def q_base():
         q = db.query(Lancamento)
         if id_clifor is not None:
@@ -42,7 +41,6 @@ def resumo_lancamentos(
             q = q.filter(Lancamento.natureza_lancamento == natureza)
         return q
 
-    # ── Base filtrada por período de pagamento (realizados) ──
     def q_periodo():
         q = q_base().filter(Lancamento.data_pagamento != None)
         if data_pagamento_de is not None:
@@ -60,19 +58,31 @@ def resumo_lancamentos(
     # Realizados no período
     q_recebido = q_periodo().filter(Lancamento.natureza_lancamento == "Credito", Lancamento.estorno == False)
     q_pago     = q_periodo().filter(Lancamento.natureza_lancamento == "Debito",  Lancamento.estorno == False)
-    q_reemb    = q_periodo().filter(Lancamento.estorno == True)
 
-    total_recebido   = Decimal(soma(q_recebido))
-    total_pago       = Decimal(soma(q_pago))
-    total_reembolsado = Decimal(soma(q_reemb))
+    total_recebido = Decimal(soma(q_recebido))
+    total_pago     = Decimal(soma(q_pago))
 
-    # Saldo total desde o primeiro lançamento (ignora filtro de período)
-    q_all_credito = q_base().filter(Lancamento.data_pagamento != None, Lancamento.natureza_lancamento == "Credito", Lancamento.estorno == False)
-    q_all_debito  = q_base().filter(Lancamento.data_pagamento != None, Lancamento.natureza_lancamento == "Debito",  Lancamento.estorno == False)
-    saldo_total = Decimal(soma(q_all_credito)) - Decimal(soma(q_all_debito))
+    # Reembolsos com natureza inversa: Crédito subtrai, Débito soma
+    from sqlalchemy import case as sa_case
+    q_reemb_ids = q_periodo().filter(Lancamento.estorno == True).with_entities(Lancamento.id_lancamento)
+    total_reembolsado = db.query(
+        func.coalesce(
+            func.sum(
+                sa_case(
+                    (Lancamento.natureza_lancamento == "Credito", -func.coalesce(Lancamento.valor_pago, Lancamento.valor)),
+                    else_=func.coalesce(Lancamento.valor_pago, Lancamento.valor)
+                )
+            ),
+            0
+        )
+    ).filter(Lancamento.id_lancamento.in_(q_reemb_ids)).scalar()
+    total_reembolsado = Decimal(total_reembolsado)
+
+    # Saldo do período (não mais "desde sempre" — conforme spec item 5)
+    saldo_total = total_recebido - total_pago
 
     # Pendentes (abertos)
-    q_abertos = q_base().filter(Lancamento.data_pagamento == None, Lancamento.estorno == False)
+    q_abertos   = q_base().filter(Lancamento.data_pagamento == None, Lancamento.estorno == False)
     q_a_receber = q_abertos.filter(Lancamento.natureza_lancamento == "Credito")
     q_a_pagar   = q_abertos.filter(Lancamento.natureza_lancamento == "Debito")
 
@@ -84,14 +94,22 @@ def resumo_lancamentos(
         Lancamento.id_lancamento.in_(q_a_pagar.with_entities(Lancamento.id_lancamento))
     ).scalar())
 
-    # A receber excluindo inadimplentes
+    # Inadimplência: créditos vencidos e não pagos
+    q_vencidos_credito = q_abertos.filter(
+        Lancamento.natureza_lancamento == "Credito",
+        Lancamento.data_vencimento < hoje
+    )
+    total_inadimplencia = Decimal(db.query(func.coalesce(func.sum(Lancamento.valor), 0)).filter(
+        Lancamento.id_lancamento.in_(q_vencidos_credito.with_entities(Lancamento.id_lancamento))
+    ).scalar())
+
+    # A receber excluindo inadimplentes (mantido para compatibilidade)
     ids_adimplentes = db.query(ClienteFornecedor.id_clifor).filter(ClienteFornecedor.inadimplente == False)
     total_a_receber_excl = Decimal(db.query(func.coalesce(func.sum(Lancamento.valor), 0)).filter(
         Lancamento.id_lancamento.in_(q_a_receber.with_entities(Lancamento.id_lancamento)),
         Lancamento.id_clifor_relacionado_fk.in_(ids_adimplentes)
     ).scalar())
 
-    # Vencidos
     q_vencidos = q_abertos.filter(Lancamento.data_vencimento < hoje)
     total_vencido_a_receber = Decimal(db.query(func.coalesce(func.sum(Lancamento.valor), 0)).filter(
         Lancamento.id_lancamento.in_(q_vencidos.filter(Lancamento.natureza_lancamento == "Credito").with_entities(Lancamento.id_lancamento))
@@ -100,8 +118,8 @@ def resumo_lancamentos(
         Lancamento.id_lancamento.in_(q_vencidos.filter(Lancamento.natureza_lancamento == "Debito").with_entities(Lancamento.id_lancamento))
     ).scalar())
 
-    quantidade_abertos  = q_abertos.count()
-    quantidade_vencidos = q_vencidos.count()
+    quantidade_abertos       = q_abertos.count()
+    quantidade_vencidos      = q_vencidos.count()
     quantidade_inadimplentes = db.query(func.count(ClienteFornecedor.id_clifor)).filter(ClienteFornecedor.inadimplente == True).scalar()
 
     return LancamentoResumo(
@@ -111,6 +129,7 @@ def resumo_lancamentos(
         saldo_total=saldo_total,
         total_a_receber=total_a_receber,
         total_a_pagar=total_a_pagar,
+        total_inadimplencia=total_inadimplencia,
         total_a_receber_excluindo_inadimplentes=total_a_receber_excl,
         total_vencido_a_receber=total_vencido_a_receber,
         total_vencido_a_pagar=total_vencido_a_pagar,
@@ -175,6 +194,8 @@ def listar_lancamentos(
     data_vencimento_ate: Optional[date] = None,
     data_lancamento_de: Optional[date] = None,
     data_lancamento_ate: Optional[date] = None,
+    data_pagamento_de: Optional[date] = None,
+    data_pagamento_ate: Optional[date] = None,
     estorno: Optional[bool] = None,
     valor_minimo: Optional[Decimal] = None,
     valor_maximo: Optional[Decimal] = None,
@@ -184,6 +205,9 @@ def listar_lancamentos(
     query = db.query(Lancamento).join(
         ClienteFornecedor,
         Lancamento.id_clifor_relacionado_fk == ClienteFornecedor.id_clifor
+    ).options(
+        joinedload(Lancamento.usuario_lancamento),
+        joinedload(Lancamento.tipo_conta_rel)
     )
 
     if id_clifor is not None:
@@ -213,6 +237,10 @@ def listar_lancamentos(
         query = query.filter(Lancamento.data_lancamento >= data_lancamento_de)
     if data_lancamento_ate is not None:
         query = query.filter(Lancamento.data_lancamento <= data_lancamento_ate)
+    if data_pagamento_de is not None:
+        query = query.filter(func.date(Lancamento.data_pagamento) >= data_pagamento_de)
+    if data_pagamento_ate is not None:
+        query = query.filter(func.date(Lancamento.data_pagamento) <= data_pagamento_ate)
     if estorno is not None:
         query = query.filter(Lancamento.estorno == estorno)
     if valor_minimo is not None:
@@ -237,6 +265,10 @@ def buscar_lancamento(id_lancamento: int, db: Session = Depends(get_db), _=Depen
 def listar_lancamentos_por_clifor(id_clifor: int, db: Session = Depends(get_db), _=Depends(get_current_user)):
     return db.query(Lancamento).filter(
         Lancamento.id_clifor_relacionado_fk == id_clifor
+    ).options(
+        joinedload(Lancamento.cliente_fornecedor),
+        joinedload(Lancamento.usuario_lancamento),
+        joinedload(Lancamento.tipo_conta_rel)
     ).order_by(Lancamento.data_vencimento).all()
 
 
@@ -247,6 +279,9 @@ def listar_lancamentos_por_usuario(id_usuario: int, db: Session = Depends(get_db
     ).join(
         ClienteFornecedor,
         Lancamento.id_clifor_relacionado_fk == ClienteFornecedor.id_clifor
+    ).options(
+        joinedload(Lancamento.usuario_lancamento),
+        joinedload(Lancamento.tipo_conta_rel)
     ).order_by(Lancamento.data_vencimento, ClienteFornecedor.nome).all()
 
 
@@ -282,6 +317,31 @@ def fechar_lancamento(id_lancamento: int, dados: LancamentoUpdate, db: Session =
     return lancamento
 
 
+@router.patch("/{id_lancamento}/editar", response_model=LancamentoResponse)
+def editar_lancamento_admin(
+    id_lancamento: int,
+    dados: LancamentoEditAdmin,
+    db: Session = Depends(get_db),
+    admin=Depends(exige_admin)
+):
+    """Edição completa de um lançamento — restrita a administradores."""
+    lancamento = db.query(Lancamento).filter(Lancamento.id_lancamento == id_lancamento).first()
+    if not lancamento:
+        raise HTTPException(status_code=404, detail="Lançamento não encontrado")
+    if dados.id_clifor_relacionado_fk is not None:
+        if not db.query(ClienteFornecedor).filter(ClienteFornecedor.id_clifor == dados.id_clifor_relacionado_fk).first():
+            raise HTTPException(status_code=404, detail="Cliente/Fornecedor não encontrado")
+    if dados.id_tipo_conta_fk is not None:
+        if not db.query(tipo_conta).filter(tipo_conta.id_tipo_conta == dados.id_tipo_conta_fk).first():
+            raise HTTPException(status_code=404, detail="Tipo de conta não encontrado")
+    for campo, valor in dados.model_dump(exclude_unset=True).items():
+        setattr(lancamento, campo, valor)
+    db.commit()
+    db.refresh(lancamento)
+    atualizar_inadimplente(lancamento.id_clifor_relacionado_fk, db)
+    return lancamento
+
+
 @router.post("/{id_lancamento}/comprovante")
 async def anexar_comprovante(
     id_lancamento: int,
@@ -297,7 +357,7 @@ async def anexar_comprovante(
         raise HTTPException(status_code=400, detail="Apenas arquivos PDF são aceitos")
 
     conteudo = await arquivo.read()
-    if len(conteudo) > 5 * 1024 * 1024:  # 5MB
+    if len(conteudo) > 5 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="Arquivo muito grande. Máximo 5MB.")
 
     lancamento.comprovante = conteudo

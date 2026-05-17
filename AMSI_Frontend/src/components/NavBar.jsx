@@ -71,6 +71,13 @@ function Navbar() {
 							)}
 							{admin && (
 								<li className="nav-item">
+									<Link className="nav-link" to="/tipo_conta">
+										Tipos de Conta
+									</Link>
+								</li>
+							)}
+							{admin && (
+								<li className="nav-item">
 									<Link className="nav-link" to="/usuarios">
 										Usuários
 									</Link>
