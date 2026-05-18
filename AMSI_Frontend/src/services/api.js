@@ -4,6 +4,10 @@ import { loadingBus } from './loadingContext';
 const BASE_URL = import.meta.env.VITE_API_URL;
 const DB_SLEEP_MS = Number(import.meta.env.VITE_DB_SLEEP_MS ?? 120_000);
 
+// Callback registrado pelo MonitorSessao — chamado direto no 401, sem evento de window
+let _onSessaoExpirada = null;
+export const setSessaoExpiradaCallback = (cb) => { _onSessaoExpirada = cb; };
+
 // Marca o instante em que a última requisição terminou com sucesso.
 // Inicializado com Date.now() para não disparar retry em erros imediatos
 // logo após o app ser carregado.
@@ -50,8 +54,8 @@ async function handleResponse(response, { noLogout = false } = {}) {
 	if (response.status === 401) {
 		if (!noLogout) {
 			logout();
-			window.dispatchEvent(new CustomEvent('sessao-expirada'));
-			return;
+			_onSessaoExpirada?.();
+			throw new Error('sessao-expirada');
 		}
 	}
 	if (!response.ok) {

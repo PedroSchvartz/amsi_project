@@ -15,6 +15,7 @@ import AdminRoute from './components/AdminRoute';
 import Layout from './components/Layout';
 import { LoadingProvider, useLoading } from './services/loadingContext';
 import { logout } from './services/auth';
+import { setSessaoExpiradaCallback } from './services/api';
 import Dashboard from './pages/dashboard';
 import TipoContaPage from './pages/TipoContaPage';
 
@@ -63,29 +64,35 @@ function MonitorSessao() {
 	const location = useLocation();
 	const intervalRef = useRef(null);
 
+	// Callback direto do api.js quando um 401 é recebido nesta aba
 	useEffect(() => {
-		const handleExpirado = () => {
+		setSessaoExpiradaCallback(() => setExpirado(true));
+		return () => setSessaoExpiradaCallback(null);
+	}, []);
+
+	// Detecta logout disparado em outra aba (localStorage.clear())
+	useEffect(() => {
+		const handleStorage = (e) => {
+			if (e.key !== null) return;
 			if (location.pathname === '/') return;
 			setExpirado(true);
-			clearInterval(intervalRef.current);
 		};
+		window.addEventListener('storage', handleStorage);
+		return () => window.removeEventListener('storage', handleStorage);
+	}, [location.pathname]);
 
-		window.addEventListener('sessao-expirada', handleExpirado);
-
+	// Verificação periódica do prazo da sessão (sliding session)
+	useEffect(() => {
 		intervalRef.current = setInterval(() => {
 			const token = localStorage.getItem('token');
 			const expiresAt = localStorage.getItem('expiresAt');
 			if (!token || !expiresAt) return;
 			if (location.pathname === '/') return;
 			if (Date.now() > Number(expiresAt)) {
-				window.dispatchEvent(new Event('sessao-expirada'));
+				setExpirado(true);
 			}
 		}, 30000);
-
-		return () => {
-			window.removeEventListener('sessao-expirada', handleExpirado);
-			clearInterval(intervalRef.current);
-		};
+		return () => clearInterval(intervalRef.current);
 	}, [location.pathname]);
 
 	const handleFechar = () => {
@@ -94,7 +101,7 @@ function MonitorSessao() {
 		navigate('/');
 	};
 
-	if (!expirado) return null;
+	if (!expirado || location.pathname === '/') return null;
 
 	return (
 		<div

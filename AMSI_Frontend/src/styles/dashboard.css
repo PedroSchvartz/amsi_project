@@ -324,6 +324,16 @@
 	display: flex;
 	gap: 8px;
 	flex-wrap: wrap;
+	align-items: center;
+}
+
+.dash-periodo__label {
+	font-size: 0.72rem;
+	font-weight: 600;
+	color: var(--text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	margin-right: 2px;
 }
 
 .dash-periodo__btn {

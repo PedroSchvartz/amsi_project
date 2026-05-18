@@ -54,7 +54,7 @@ def client():
 def token_admin(client):
     r = client.post("/auth/token", json={
         "email": "opedroschvartz@gmail.com",
-        "senha": "123"
+        "senha": "opedro"
     })
     assert r.status_code == 200, f"Falha ao autenticar admin: {r.text}"
     return r.json()["access_token"]

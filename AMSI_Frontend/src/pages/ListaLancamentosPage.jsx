@@ -125,7 +125,8 @@ function ListaLancamentosPage() {
 			setLancamentos(data);
 			setFiltrosAplicados(f);
 		} catch (err) {
-			mostrarToast(err.message || 'Erro ao buscar lançamentos', 'erro');
+			if (err.message !== 'sessao-expirada')
+				mostrarToast(err.message || 'Erro ao buscar lançamentos', 'erro');
 		}
 	};
 
@@ -180,7 +181,8 @@ function ListaLancamentosPage() {
 			setConfirmarRemoverComprovante(false);
 			mostrarToast('Comprovante removido com sucesso.');
 		} catch (err) {
-			mostrarToast(err.message || 'Erro ao remover comprovante', 'erro');
+			if (err.message !== 'sessao-expirada')
+				mostrarToast(err.message || 'Erro ao remover comprovante', 'erro');
 			setConfirmarRemoverComprovante(false);
 		}
 	};
@@ -223,7 +225,8 @@ function ListaLancamentosPage() {
 			setComprovante(null);
 			buscar();
 		} catch (err) {
-			mostrarToast(err.message || 'Erro ao fechar lançamento', 'erro');
+			if (err.message !== 'sessao-expirada')
+				mostrarToast(err.message || 'Erro ao fechar lançamento', 'erro');
 		}
 	};
 
@@ -264,7 +267,8 @@ function ListaLancamentosPage() {
 			setModalEditar(null);
 			buscar();
 		} catch (err) {
-			mostrarToast(err.message || 'Erro ao editar lançamento', 'erro');
+			if (err.message !== 'sessao-expirada')
+				mostrarToast(err.message || 'Erro ao editar lançamento', 'erro');
 		}
 	};
 

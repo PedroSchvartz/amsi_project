@@ -269,7 +269,8 @@ function Dashboard() {
 			setPorTipoReceita(receitas.slice(0, 5));
 			setInadimplentes(clifors);
 		} catch (err) {
-			setErro(err.message || 'Erro ao carregar dados do dashboard.');
+			if (err.message !== 'sessao-expirada')
+				setErro(err.message || 'Erro ao carregar dados do dashboard.');
 		} finally {
 			setCarregando(false);
 		}
@@ -372,6 +373,7 @@ function Dashboard() {
 
 			<div className="dash-periodo">
 				<div className="dash-periodo__rapido">
+					<span className="dash-periodo__label">Data de pagamento</span>
 					{PERIODOS.map((p, i) => (
 						<button
 							key={i}
