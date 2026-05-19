@@ -19,6 +19,7 @@ Leia os arquivos **na ordem abaixo**. Cada um assume que você leu os anteriores
 | 5 | [05_frontend.md](./05_frontend.md) | Como o React é organizado, roteamento, estado e chamadas de API |
 | 6 | [06_fluxo_completo.md](./06_fluxo_completo.md) | Rastrear um clique do browser até o banco e de volta |
 | 7 | [07_glossario.md](./07_glossario.md) | Definições rápidas dos termos técnicos usados no projeto |
+| 8 | [08_padroes_nao_obvios.md](./08_padroes_nao_obvios.md) | Padrões que causam confusão no primeiro contato: loadingBus, storage event, FormData, str+Enum |
 
 ---
 

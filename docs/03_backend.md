@@ -317,6 +317,37 @@ Isso força os testes a fazerem sua própria limpeza — cada teste que cria dad
 
 **Sem `db_snapshot`:** testes acumulam dados e podem passar ou falhar dependendo da ordem de execução. Isso é chamado de "teste frágil" (flaky test).
 
+### Teardown em cascata: a ordem importa
+
+Se um teste cria um `TipoConta` e o registra como fixture com teardown, não pode simplesmente deletar o `TipoConta` ao final. Se durante o teste foi criado algum `Lancamento` referenciando aquele tipo de conta, o banco vai recusar a deleção por violação de FK:
+
+```
+ERROR: delete on table "tipo_conta" violates foreign key constraint
+       on table "lancamento"
+```
+
+A ordem correta no teardown é sempre **do filho para o pai**:
+```
+1. Deleta lançamentos que referenciam o TipoConta
+2. Deleta o TipoConta
+```
+
+As fixtures de `conftest.py` já fazem isso:
+
+```python
+# backend/tests/conftest.py — fixture tipo_lancamento_base (simplificado)
+yield data  # ← o teste executa aqui com o tipo_conta criado
+
+# Teardown:
+lancamentos = client.get("/lancamento/", headers=headers_admin).json()
+for l in lancamentos:
+    if l["id_tipo_conta_fk"] == data["id_tipo_conta"]:
+        client.delete(f"/lancamento/{l['id_lancamento']}", headers=headers_admin)
+client.delete(f"/tipo_conta/{data['id_tipo_conta']}", headers=headers_admin)
+```
+
+Se você escrever uma fixture nova que cria entidades relacionadas, siga o mesmo padrão: liste as dependências, delete na ordem inversa de criação.
+
 ---
 
 ## Próximo passo

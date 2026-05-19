@@ -113,6 +113,36 @@ O frontend guarda em `localStorage.setItem('token', access_token)`.
 
 ---
 
+## Três formas de "desativar" um usuário
+
+O backend verifica três campos diferentes logo após validar a senha no login. Cada um representa uma situação de negócio distinta:
+
+```python
+# backend/auth/router.py
+if usuario.bloqueado:
+    raise HTTPException(403, "Usuário bloqueado")
+if usuario.suspenso and usuario.suspenso > datetime.now():
+    raise HTTPException(403, "Usuário suspenso")
+if usuario.exclusao:
+    raise HTTPException(403, "Usuário removido")
+```
+
+| Campo | Tipo | Semântica | Reversível? |
+|---|---|---|---|
+| `exclusao` | TIMESTAMP | Soft delete — usuário "removido", dado preservado para auditoria | Manualmente pelo admin |
+| `suspenso` | TIMESTAMP | Suspensão temporária com data de término — expira automaticamente | Automático quando a data passa |
+| `bloqueado` | Boolean | Bloqueio permanente por decisão administrativa | Só admin pode desbloquear |
+
+**Por que três campos em vez de um enum?** Porque os comportamentos são fundamentalmente diferentes:
+
+- `exclusao` preserva o histórico de lançamentos associados ao usuário. Se o campo fosse "deletado do banco", todos os lançamentos que referenciam esse usuário quebrariam por FK.
+- `suspenso` tem data de término — um operador suspenso por 30 dias volta automaticamente. Nenhum job periódico é necessário: o check `suspenso > datetime.now()` é feito a cada login.
+- `bloqueado` não tem data — é ação humana e requer ação humana para ser revertida.
+
+Todos retornam 403, mas o motivo em `detail` é diferente, permitindo que o frontend mostre a mensagem certa ao usuário.
+
+---
+
 ## Fluxo de uma requisição autenticada
 
 Após o login, todo request envia o token no header:
