@@ -20,14 +20,19 @@ async function fetchComLoading(url, options) {
 		ultimaRespostaOk = Date.now();
 		return res;
 	} catch (err) {
-		// Só tenta novamente se for erro de rede (TypeError) E a última resposta
-		// bem-sucedida foi há mais tempo do que o limiar configurado — indica
-		// que o banco Vercel adormeceu por inatividade.
-		if (err instanceof TypeError && Date.now() - ultimaRespostaOk > DB_SLEEP_MS) {
-			await new Promise((r) => setTimeout(r, 4000));
-			const res = await fetch(url, options);
-			ultimaRespostaOk = Date.now();
-			return res;
+		if (err instanceof TypeError) {
+			// Banco Vercel adormecido: tenta novamente uma vez após delay
+			if (Date.now() - ultimaRespostaOk > DB_SLEEP_MS) {
+				try {
+					await new Promise((r) => setTimeout(r, 4000));
+					const res = await fetch(url, options);
+					ultimaRespostaOk = Date.now();
+					return res;
+				} catch {
+					// retry também falhou — cai no throw abaixo
+				}
+			}
+			throw new Error('');
 		}
 		throw err;
 	} finally {
@@ -61,10 +66,21 @@ async function handleResponse(response, { noLogout = false } = {}) {
 	if (!response.ok) {
 		const error = await response.json().catch(() => ({}));
 		const detail = error.detail;
-		const message = Array.isArray(detail)
-			? detail.map((e) => e.msg).join(', ')
-			: detail || `Erro ${response.status}`;
-		throw new Error(message);
+		if (detail) {
+			const message = Array.isArray(detail)
+				? detail.map((e) => e.msg).join(', ')
+				: detail;
+			throw new Error(message);
+		}
+		const fallbacks = {
+			400: 'Requisição inválida — verifique os dados enviados.',
+			403: 'Sem permissão para esta ação.',
+			404: 'Registro não encontrado.',
+			409: 'Conflito: registro já existe ou possui dependências.',
+			422: 'Dados inválidos — verifique os campos.',
+			500: 'Erro interno do servidor. Tente novamente mais tarde.',
+		};
+		throw new Error(fallbacks[response.status] ?? `Erro ${response.status}.`);
 	}
 	return response.json();
 }
@@ -171,6 +187,7 @@ export const getCliforDoUsuario = async (id_usuario) => {
 		method: 'GET',
 		headers: authHeaders()
 	});
+	if (response.status === 404) return null;
 	return handleResponse(response, { noLogout: false });
 };
 

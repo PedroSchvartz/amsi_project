@@ -11,13 +11,14 @@ import TrocarSenhaPage from './pages/TrocarSenhaPage';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 
 import PrivateRoute from './components/PrivateRoute';
-import AdminRoute from './components/AdminRoute';
 import Layout from './components/Layout';
 import { LoadingProvider, useLoading } from './services/loadingContext';
+import { ToastProvider } from './components/ToastStack';
 import { logout } from './services/auth';
 import { setSessaoExpiradaCallback } from './services/api';
 import Dashboard from './pages/dashboard';
 import TipoContaPage from './pages/TipoContaPage';
+import NotFoundPage from './pages/NotFoundPage';
 
 /* ════════════════════════════════════════
    SPINNER GLOBAL DE CARREGAMENTO
@@ -51,6 +52,47 @@ function Spinner() {
 				}}
 			/>
 			<style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+		</div>
+	);
+}
+
+/* ════════════════════════════════════════
+   MONITOR DE REDE (offline / online)
+   ════════════════════════════════════════ */
+function MonitorRede() {
+	const [offline, setOffline] = useState(!navigator.onLine);
+
+	useEffect(() => {
+		const onOffline = () => setOffline(true);
+		const onOnline  = () => { setOffline(false); window.location.reload(); };
+		window.addEventListener('offline', onOffline);
+		window.addEventListener('online',  onOnline);
+		return () => {
+			window.removeEventListener('offline', onOffline);
+			window.removeEventListener('online',  onOnline);
+		};
+	}, []);
+
+	if (!offline) return null;
+
+	return (
+		<div style={{
+			position: 'fixed',
+			top: 0, left: 0, right: 0,
+			background: '#b91c1c',
+			color: '#fff',
+			textAlign: 'center',
+			padding: '10px 16px',
+			fontSize: '0.85rem',
+			fontWeight: 600,
+			zIndex: 10000,
+			display: 'flex',
+			alignItems: 'center',
+			justifyContent: 'center',
+			gap: '8px'
+		}}>
+			<i className="bi bi-wifi-off" />
+			Sem conexão com a internet — aguardando reconexão…
 		</div>
 	);
 }
@@ -176,9 +218,11 @@ function MonitorSessao() {
    ════════════════════════════════════════ */
 function App() {
 	return (
+		<ToastProvider>
 		<LoadingProvider>
 			<Spinner />
 			<BrowserRouter>
+				<MonitorRede />
 				<MonitorSessao />
 				<Routes>
 					{/* Página pública */}
@@ -207,9 +251,9 @@ function App() {
 						<Route
 							path="/dashboard"
 							element={
-								<AdminRoute>
+								<PrivateRoute minPerfil="Operador">
 									<Dashboard />
-								</AdminRoute>
+								</PrivateRoute>
 							}
 						/>
 
@@ -225,7 +269,7 @@ function App() {
 						<Route
 							path="/cliente_fornecedor"
 							element={
-								<PrivateRoute adminOnly>
+								<PrivateRoute minPerfil="Operador">
 									<ClientListPage />
 								</PrivateRoute>
 							}
@@ -234,7 +278,7 @@ function App() {
 						<Route
 							path="/cliente_fornecedor/novo"
 							element={
-								<PrivateRoute adminOnly>
+								<PrivateRoute minPerfil="Operador">
 									<ClientRegisterPage />
 								</PrivateRoute>
 							}
@@ -243,16 +287,16 @@ function App() {
 						<Route
 							path="/cliente_fornecedor/:id/editar"
 							element={
-								<PrivateRoute adminOnly>
+								<PrivateRoute minPerfil="Operador">
 									<ClientEditPage />
 								</PrivateRoute>
 							}
 						/>
 
 						<Route
-							path="/tipo_lancamento"
+							path="/lancamentos"
 							element={
-								<PrivateRoute adminOnly>
+								<PrivateRoute minPerfil="Operador">
 									<ListaLancamentosPage />
 								</PrivateRoute>
 							}
@@ -266,10 +310,13 @@ function App() {
 								</PrivateRoute>
 							}
 						/>
+						<Route path="*" element={<NotFoundPage />} />
 					</Route>
+					<Route path="*" element={<NotFoundPage />} />
 				</Routes>
 			</BrowserRouter>
 		</LoadingProvider>
+		</ToastProvider>
 	);
 }
 

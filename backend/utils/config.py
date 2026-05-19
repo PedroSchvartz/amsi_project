@@ -43,3 +43,7 @@ FRONTEND_URL = os.getenv("FRONTEND_URL", "https://amsi-project-chzs.vercel.app")
 # Usuário de teste (consulta) — criado pelo bootstrap para uso nos testes automatizados
 CONSULTA_TESTE_EMAIL = os.getenv("CONSULTA_TESTE_EMAIL", "pytest_consulta@amsi.com")
 CONSULTA_TESTE_SENHA = os.getenv("CONSULTA_TESTE_SENHA", "consultaTeste123")
+
+# Usuário de teste (operador) — criado pelo bootstrap para uso nos testes automatizados
+OPERADOR_TESTE_EMAIL = os.getenv("OPERADOR_TESTE_EMAIL", "pytest_operador@amsi.com")
+OPERADOR_TESTE_SENHA = os.getenv("OPERADOR_TESTE_SENHA", "operadorTeste123")

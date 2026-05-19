@@ -1057,14 +1057,14 @@ if __name__ == "__main__":
     # ======================================================================
 
     os_termos_procurados=[
-        'openapi_ai',
+        'https://amsi-project-chzs.vercel.app/',
     ]
 
 
     lista = buscar_em_arquivos(
     termos_procurados=os_termos_procurados,
     # base_dir="C:\C:\Codigos\AMSI_Project_Desenvolvimento\\backend",
-    extensoes=['.py'],
+    extensoes=['.py','.env'],
     max_workers=10,
     sensivel=True,
     update_interval=0.5,

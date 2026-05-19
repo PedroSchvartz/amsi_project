@@ -13,7 +13,7 @@ from utils.auth_utils import hash_senha
 from utils.email_sender import enviar_email
 from utils.config import FRONTEND_URL
 from utils.frequentes import configure_logging, colorir
-from utils.config import CONSULTA_TESTE_EMAIL, CONSULTA_TESTE_SENHA
+from utils.config import CONSULTA_TESTE_EMAIL, CONSULTA_TESTE_SENHA, OPERADOR_TESTE_EMAIL, OPERADOR_TESTE_SENHA
 
 
 def _gerar_senha_provisoria(tamanho: int = 12) -> str:
@@ -21,9 +21,26 @@ def _gerar_senha_provisoria(tamanho: int = 12) -> str:
     return "".join(secrets.choice(caracteres) for _ in range(tamanho))
 
 
+def _migrar_acesso_enum(db: Session):
+    """Adiciona 'Operador' ao acesso_enum do PostgreSQL se ainda não existir."""
+    resultado = db.execute(
+        __import__('sqlalchemy').text(
+            "SELECT 1 FROM pg_enum WHERE enumtypid = 'acesso_enum'::regtype::oid AND enumlabel = 'Operador'"
+        )
+    ).fetchone()
+    if not resultado:
+        db.execute(__import__('sqlalchemy').text("ALTER TYPE acesso_enum ADD VALUE 'Operador'"))
+        db.commit()
+        print(colorir(cor="azul", texto="✔ 'Operador' adicionado ao enum acesso_enum"))
+    else:
+        print(colorir(cor="verde", texto="✔ acesso_enum já contém 'Operador'"))
+
+
 def garantir_admins_iniciais():
     configure_logging()
     db: Session = SessionLocal()
+
+    _migrar_acesso_enum(db)
 
     ADMINS_INICIAIS = [
         {
@@ -136,6 +153,29 @@ def garantir_admins_iniciais():
             print(colorir(cor="verde", texto=f"✔ Usuário de consulta criado: {CONSULTA_TESTE_EMAIL}"))
         else:
             print(colorir(cor="verde", texto=f"✔ Usuário de consulta {CONSULTA_TESTE_EMAIL} já existe."))
+
+        # Usuário de operador para testes automatizados
+        operador_existente = db.query(Usuario).filter(
+            Usuario.email == OPERADOR_TESTE_EMAIL,
+            Usuario.exclusao == None
+        ).first()
+
+        if not operador_existente:
+            print(colorir(cor="azul", texto=f"🚀 Criando usuário de operador: {OPERADOR_TESTE_EMAIL}"))
+            novo_operador = Usuario(
+                email=OPERADOR_TESTE_EMAIL,
+                nome="Usuário Operador Teste",
+                senha=hash_senha(OPERADOR_TESTE_SENHA),
+                cargo=CargoEnum.Desenvolvedor,
+                perfil_de_acesso=AcessoEnum.Operador,
+                notificacao=False,
+                bloqueado=False,
+                primeiro_acesso=False
+            )
+            db.add(novo_operador)
+            print(colorir(cor="verde", texto=f"✔ Usuário de operador criado: {OPERADOR_TESTE_EMAIL}"))
+        else:
+            print(colorir(cor="verde", texto=f"✔ Usuário de operador {OPERADOR_TESTE_EMAIL} já existe."))
 
         db.commit()
         print(colorir(cor="verde", texto="\n✨ Processo de semente concluído com sucesso."))

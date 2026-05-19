@@ -9,11 +9,11 @@ import {
 import '../styles/dashboard.css';
 
 function formatarValor(v) {
-	if (v == null || isNaN(v)) return 'R$ 0,00';
-	return `R$ ${parseFloat(v)
+	if (v == null || isNaN(v)) return '0,00';
+	return parseFloat(v)
 		.toFixed(2)
 		.replace('.', ',')
-		.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`;
+		.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
 
 const PERIODOS = [
@@ -341,7 +341,7 @@ function Dashboard() {
 			q.set('data_pagamento_de', filtrosAplicados.data_pagamento_de);
 		if (cfg.usarData && filtrosAplicados.data_pagamento_ate)
 			q.set('data_pagamento_ate', filtrosAplicados.data_pagamento_ate);
-		navigate(`/tipo_lancamento?${q.toString()}`);
+		navigate(`/lancamentos?${q.toString()}`);
 	};
 
 	if (carregando)

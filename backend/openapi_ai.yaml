@@ -1580,6 +1580,9 @@
     total_a_pagar:
       tipo: string
       obrigatorio: true
+    total_inadimplencia:
+      tipo: string
+      obrigatorio: true
     total_a_receber_excluindo_inadimplentes:
       tipo: string
       obrigatorio: true
@@ -1687,6 +1690,14 @@
     local: query
     obrigatorio: false
     tipo: desconhecido
+  - nome: data_pagamento_de
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: data_pagamento_ate
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
   - nome: estorno
     local: query
     obrigatorio: false
@@ -1740,6 +1751,9 @@
     observacao:
       tipo: desconhecido
       obrigatorio: false
+    observacao_pagamento:
+      tipo: desconhecido
+      obrigatorio: false
     natureza_lancamento:
       tipo: NaturezaEnum
       obrigatorio: true
@@ -1751,6 +1765,15 @@
       obrigatorio: false
       default: false
     comprovante_nome:
+      tipo: desconhecido
+      obrigatorio: false
+    nome_clifor:
+      tipo: desconhecido
+      obrigatorio: false
+    descricao_tipo_conta:
+      tipo: desconhecido
+      obrigatorio: false
+    nome_usuario_lancamento:
       tipo: desconhecido
       obrigatorio: false
   respostas:
@@ -1821,6 +1844,9 @@
     observacao:
       tipo: desconhecido
       obrigatorio: false
+    observacao_pagamento:
+      tipo: desconhecido
+      obrigatorio: false
     natureza_lancamento:
       tipo: NaturezaEnum
       obrigatorio: true
@@ -1832,6 +1858,15 @@
       obrigatorio: false
       default: false
     comprovante_nome:
+      tipo: desconhecido
+      obrigatorio: false
+    nome_clifor:
+      tipo: desconhecido
+      obrigatorio: false
+    descricao_tipo_conta:
+      tipo: desconhecido
+      obrigatorio: false
+    nome_usuario_lancamento:
       tipo: desconhecido
       obrigatorio: false
   respostas:
@@ -1885,6 +1920,9 @@
     observacao:
       tipo: desconhecido
       obrigatorio: false
+    observacao_pagamento:
+      tipo: desconhecido
+      obrigatorio: false
     natureza_lancamento:
       tipo: NaturezaEnum
       obrigatorio: true
@@ -1896,6 +1934,15 @@
       obrigatorio: false
       default: false
     comprovante_nome:
+      tipo: desconhecido
+      obrigatorio: false
+    nome_clifor:
+      tipo: desconhecido
+      obrigatorio: false
+    descricao_tipo_conta:
+      tipo: desconhecido
+      obrigatorio: false
+    nome_usuario_lancamento:
       tipo: desconhecido
       obrigatorio: false
   respostas:
@@ -1924,7 +1971,7 @@
     juros:
       tipo: desconhecido
       obrigatorio: false
-    observacao:
+    observacao_pagamento:
       tipo: desconhecido
       obrigatorio: false
     estorno:
@@ -1970,6 +2017,9 @@
     observacao:
       tipo: desconhecido
       obrigatorio: false
+    observacao_pagamento:
+      tipo: desconhecido
+      obrigatorio: false
     natureza_lancamento:
       tipo: NaturezaEnum
       obrigatorio: true
@@ -1981,6 +2031,15 @@
       obrigatorio: false
       default: false
     comprovante_nome:
+      tipo: desconhecido
+      obrigatorio: false
+    nome_clifor:
+      tipo: desconhecido
+      obrigatorio: false
+    descricao_tipo_conta:
+      tipo: desconhecido
+      obrigatorio: false
+    nome_usuario_lancamento:
       tipo: desconhecido
       obrigatorio: false
   respostas:
@@ -2046,6 +2105,9 @@
     observacao:
       tipo: desconhecido
       obrigatorio: false
+    observacao_pagamento:
+      tipo: desconhecido
+      obrigatorio: false
     natureza_lancamento:
       tipo: NaturezaEnum
       obrigatorio: true
@@ -2057,6 +2119,15 @@
       obrigatorio: false
       default: false
     comprovante_nome:
+      tipo: desconhecido
+      obrigatorio: false
+    nome_clifor:
+      tipo: desconhecido
+      obrigatorio: false
+    descricao_tipo_conta:
+      tipo: desconhecido
+      obrigatorio: false
+    nome_usuario_lancamento:
       tipo: desconhecido
       obrigatorio: false
   respostas:
@@ -2110,6 +2181,9 @@
     observacao:
       tipo: desconhecido
       obrigatorio: false
+    observacao_pagamento:
+      tipo: desconhecido
+      obrigatorio: false
     natureza_lancamento:
       tipo: NaturezaEnum
       obrigatorio: true
@@ -2121,6 +2195,127 @@
       obrigatorio: false
       default: false
     comprovante_nome:
+      tipo: desconhecido
+      obrigatorio: false
+    nome_clifor:
+      tipo: desconhecido
+      obrigatorio: false
+    descricao_tipo_conta:
+      tipo: desconhecido
+      obrigatorio: false
+    nome_usuario_lancamento:
+      tipo: desconhecido
+      obrigatorio: false
+  respostas:
+  - '200'
+  - '422'
+- endpoint: PATCH /lancamento/{id_lancamento}/editar
+  descricao: Editar Lancamento Admin
+  parametros:
+  - nome: id_lancamento
+    local: path
+    obrigatorio: true
+    tipo: integer
+  request_body:
+    id_clifor_relacionado_fk:
+      tipo: desconhecido
+      obrigatorio: false
+    id_tipo_conta_fk:
+      tipo: desconhecido
+      obrigatorio: false
+    valor:
+      tipo: desconhecido
+      obrigatorio: false
+    data_vencimento:
+      tipo: desconhecido
+      obrigatorio: false
+    natureza_lancamento:
+      tipo: desconhecido
+      obrigatorio: false
+    observacao:
+      tipo: desconhecido
+      obrigatorio: false
+    observacao_pagamento:
+      tipo: desconhecido
+      obrigatorio: false
+    data_pagamento:
+      tipo: desconhecido
+      obrigatorio: false
+    valor_pago:
+      tipo: desconhecido
+      obrigatorio: false
+    multa:
+      tipo: desconhecido
+      obrigatorio: false
+    juros:
+      tipo: desconhecido
+      obrigatorio: false
+    estorno:
+      tipo: desconhecido
+      obrigatorio: false
+  response_200:
+    id_lancamento:
+      tipo: integer
+      obrigatorio: true
+    id_usuario_fk_lancamento:
+      tipo: integer
+      obrigatorio: true
+    id_clifor_relacionado_fk:
+      tipo: integer
+      obrigatorio: true
+    id_tipo_conta_fk:
+      tipo: integer
+      obrigatorio: true
+    data_lancamento:
+      tipo: string
+      obrigatorio: true
+    valor:
+      tipo: string
+      obrigatorio: true
+    data_vencimento:
+      tipo: string
+      obrigatorio: true
+    multa:
+      tipo: desconhecido
+      obrigatorio: false
+    juros:
+      tipo: desconhecido
+      obrigatorio: false
+    id_usuario_fk_fechamento:
+      tipo: desconhecido
+      obrigatorio: false
+    data_pagamento:
+      tipo: desconhecido
+      obrigatorio: false
+    valor_pago:
+      tipo: desconhecido
+      obrigatorio: false
+    observacao:
+      tipo: desconhecido
+      obrigatorio: false
+    observacao_pagamento:
+      tipo: desconhecido
+      obrigatorio: false
+    natureza_lancamento:
+      tipo: NaturezaEnum
+      obrigatorio: true
+    estorno:
+      tipo: boolean
+      obrigatorio: true
+    tem_comprovante:
+      tipo: boolean
+      obrigatorio: false
+      default: false
+    comprovante_nome:
+      tipo: desconhecido
+      obrigatorio: false
+    nome_clifor:
+      tipo: desconhecido
+      obrigatorio: false
+    descricao_tipo_conta:
+      tipo: desconhecido
+      obrigatorio: false
+    nome_usuario_lancamento:
       tipo: desconhecido
       obrigatorio: false
   respostas:

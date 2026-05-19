@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { getTiposConta, createTipoConta, updateTipoConta, deleteTipoConta } from '../services/api';
-import ToastStack, { useToast } from '../components/ToastStack.jsx';
+import { useToast } from '../components/ToastStack.jsx';
 import ModalConfirm from '../components/ModalConfirm.jsx';
 
 const FORM_INICIAL = { descricao_conta: '', natureza_conta: 'Credito', observacao: '' };
 
 function TipoContaPage() {
-	const { toasts, mostrarToast, removerToast } = useToast();
+	const { mostrarToast } = useToast();
 	const [tipos, setTipos] = useState([]);
 	const [loading, setLoading] = useState(true);
 
@@ -80,8 +80,6 @@ function TipoContaPage() {
 
 	return (
 		<div style={{ maxWidth: 860, margin: '0 auto', padding: '24px 16px' }}>
-			<ToastStack toasts={toasts} onRemover={removerToast} />
-
 			{confirmarDeletar && (
 				<ModalConfirm
 					titulo="Excluir Tipo de Conta"

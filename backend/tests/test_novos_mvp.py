@@ -249,6 +249,11 @@ def test_resumo_reembolso_debito_soma(client, headers_admin, usuario_base, clifo
     """Estorno de conta Débito deve SOMAR no total_reembolsado (natureza inversa)."""
     hoje = date.today().isoformat()
 
+    base_reembolsado = float(
+        client.get(f"/lancamento/resumo?data_pagamento_de={hoje}&data_pagamento_ate={hoje}", headers=headers_admin)
+        .json()["total_reembolsado"]
+    )
+
     r = client.post("/lancamento/", json={
         "id_usuario_fk_lancamento": usuario_base["id_usuario"],
         "id_clifor_relacionado_fk": clifor_base["id_clifor"],
@@ -260,74 +265,81 @@ def test_resumo_reembolso_debito_soma(client, headers_admin, usuario_base, clifo
     assert r.status_code == 200
     id_lancamento = r.json()["id_lancamento"]
 
-    client.put(f"/lancamento/{id_lancamento}", json={
-        "id_usuario_fk_fechamento": usuario_base["id_usuario"],
-        "data_pagamento": datetime.now().isoformat(),
-        "valor_pago": "80.00",
-        "estorno": True
-    }, headers=headers_admin)
+    try:
+        client.put(f"/lancamento/{id_lancamento}", json={
+            "id_usuario_fk_fechamento": usuario_base["id_usuario"],
+            "data_pagamento": datetime.now().isoformat(),
+            "valor_pago": "80.00",
+            "estorno": True
+        }, headers=headers_admin)
 
-    r_resumo = client.get(f"/lancamento/resumo?data_pagamento_de={hoje}&data_pagamento_ate={hoje}", headers=headers_admin)
-    assert r_resumo.status_code == 200
-    # Débito estornado soma no total_reembolsado
-    assert float(r_resumo.json()["total_reembolsado"]) == 80.0
-
-    client.delete(f"/lancamento/{id_lancamento}", headers=headers_admin)
+        r_resumo = client.get(f"/lancamento/resumo?data_pagamento_de={hoje}&data_pagamento_ate={hoje}", headers=headers_admin)
+        assert r_resumo.status_code == 200
+        # Débito estornado: delta de total_reembolsado deve ser +80
+        assert float(r_resumo.json()["total_reembolsado"]) - base_reembolsado == 80.0
+    finally:
+        client.delete(f"/lancamento/{id_lancamento}", headers=headers_admin)
 
 
 def test_resumo_reembolso_regra_exemplo_spec(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base):
     """
     Valida o exemplo exato do spec:
-    2x Crédito R$100 (subtrai) + 2x Débito R$50 (soma) = -100
+    2x Crédito R$100 (subtrai) + 2x Débito R$50 (soma) = delta de -100
     """
     hoje = date.today().isoformat()
     ids = []
 
-    # 2 estornos de Crédito R$100
-    for _ in range(2):
-        r = client.post("/lancamento/", json={
-            "id_usuario_fk_lancamento": usuario_base["id_usuario"],
-            "id_clifor_relacionado_fk": clifor_base["id_clifor"],
-            "id_tipo_conta_fk": tipo_lancamento_base["id_tipo_conta"],
-            "valor": "100.00",
-            "data_vencimento": hoje,
-            "natureza_lancamento": "Credito"
-        }, headers=headers_admin)
-        assert r.status_code == 200
-        id_l = r.json()["id_lancamento"]
-        ids.append(id_l)
-        client.put(f"/lancamento/{id_l}", json={
-            "id_usuario_fk_fechamento": usuario_base["id_usuario"],
-            "data_pagamento": datetime.now().isoformat(),
-            "valor_pago": "100.00",
-            "estorno": True
-        }, headers=headers_admin)
+    base_reembolsado = float(
+        client.get(f"/lancamento/resumo?data_pagamento_de={hoje}&data_pagamento_ate={hoje}", headers=headers_admin)
+        .json()["total_reembolsado"]
+    )
 
-    # 2 estornos de Débito R$50
-    for _ in range(2):
-        r = client.post("/lancamento/", json={
-            "id_usuario_fk_lancamento": usuario_base["id_usuario"],
-            "id_clifor_relacionado_fk": clifor_base["id_clifor"],
-            "id_tipo_conta_fk": tipo_lancamento_base["id_tipo_conta"],
-            "valor": "50.00",
-            "data_vencimento": hoje,
-            "natureza_lancamento": "Debito"
-        }, headers=headers_admin)
-        assert r.status_code == 200
-        id_l = r.json()["id_lancamento"]
-        ids.append(id_l)
-        client.put(f"/lancamento/{id_l}", json={
-            "id_usuario_fk_fechamento": usuario_base["id_usuario"],
-            "data_pagamento": datetime.now().isoformat(),
-            "valor_pago": "50.00",
-            "estorno": True
-        }, headers=headers_admin)
+    try:
+        # 2 estornos de Crédito R$100
+        for _ in range(2):
+            r = client.post("/lancamento/", json={
+                "id_usuario_fk_lancamento": usuario_base["id_usuario"],
+                "id_clifor_relacionado_fk": clifor_base["id_clifor"],
+                "id_tipo_conta_fk": tipo_lancamento_base["id_tipo_conta"],
+                "valor": "100.00",
+                "data_vencimento": hoje,
+                "natureza_lancamento": "Credito"
+            }, headers=headers_admin)
+            assert r.status_code == 200
+            id_l = r.json()["id_lancamento"]
+            ids.append(id_l)
+            client.put(f"/lancamento/{id_l}", json={
+                "id_usuario_fk_fechamento": usuario_base["id_usuario"],
+                "data_pagamento": datetime.now().isoformat(),
+                "valor_pago": "100.00",
+                "estorno": True
+            }, headers=headers_admin)
 
-    r_resumo = client.get(f"/lancamento/resumo?data_pagamento_de={hoje}&data_pagamento_ate={hoje}", headers=headers_admin)
-    assert r_resumo.status_code == 200
-    # -100 + -100 + 50 + 50 = -100
-    assert float(r_resumo.json()["total_reembolsado"]) == -100.0
+        # 2 estornos de Débito R$50
+        for _ in range(2):
+            r = client.post("/lancamento/", json={
+                "id_usuario_fk_lancamento": usuario_base["id_usuario"],
+                "id_clifor_relacionado_fk": clifor_base["id_clifor"],
+                "id_tipo_conta_fk": tipo_lancamento_base["id_tipo_conta"],
+                "valor": "50.00",
+                "data_vencimento": hoje,
+                "natureza_lancamento": "Debito"
+            }, headers=headers_admin)
+            assert r.status_code == 200
+            id_l = r.json()["id_lancamento"]
+            ids.append(id_l)
+            client.put(f"/lancamento/{id_l}", json={
+                "id_usuario_fk_fechamento": usuario_base["id_usuario"],
+                "data_pagamento": datetime.now().isoformat(),
+                "valor_pago": "50.00",
+                "estorno": True
+            }, headers=headers_admin)
 
-    for id_l in ids:
-        client.delete(f"/lancamento/{id_l}", headers=headers_admin)
+        r_resumo = client.get(f"/lancamento/resumo?data_pagamento_de={hoje}&data_pagamento_ate={hoje}", headers=headers_admin)
+        assert r_resumo.status_code == 200
+        # delta: -100 + -100 + 50 + 50 = -100
+        assert float(r_resumo.json()["total_reembolsado"]) - base_reembolsado == -100.0
+    finally:
+        for id_l in ids:
+            client.delete(f"/lancamento/{id_l}", headers=headers_admin)
         

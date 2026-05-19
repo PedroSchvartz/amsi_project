@@ -650,7 +650,10 @@ def test_resumo_reembolso_nao_entra_em_recebido_nem_pago(client, headers_admin, 
     from datetime import datetime, date
     hoje = date.today().isoformat()
 
-    # Criar lançamento normal
+    baseline = client.get(f"/lancamento/resumo?data_pagamento_de={hoje}&data_pagamento_ate={hoje}", headers=headers_admin).json()
+    base_recebido = float(baseline["total_recebido"])
+    base_reembolsado = float(baseline["total_reembolsado"])
+
     r = client.post("/lancamento/", json={
         "id_usuario_fk_lancamento": usuario_base["id_usuario"],
         "id_clifor_relacionado_fk": clifor_base["id_clifor"],
@@ -662,23 +665,23 @@ def test_resumo_reembolso_nao_entra_em_recebido_nem_pago(client, headers_admin, 
     assert r.status_code == 200
     id_estorno = r.json()["id_lancamento"]
 
-    # Fechar com estorno=True
-    client.put(f"/lancamento/{id_estorno}", json={
-        "id_usuario_fk_fechamento": usuario_base["id_usuario"],
-        "data_pagamento": datetime.now().isoformat(),
-        "valor_pago": "50.00",
-        "estorno": True
-    }, headers=headers_admin)
+    try:
+        client.put(f"/lancamento/{id_estorno}", json={
+            "id_usuario_fk_fechamento": usuario_base["id_usuario"],
+            "data_pagamento": datetime.now().isoformat(),
+            "valor_pago": "50.00",
+            "estorno": True
+        }, headers=headers_admin)
 
-    r1 = client.get(f"/lancamento/resumo?data_pagamento_de={hoje}&data_pagamento_ate={hoje}", headers=headers_admin)
-    assert r1.status_code == 200
-    data = r1.json()
-    # Crédito estornado tem natureza inversa: subtrai do total_reembolsado
-    assert float(data["total_reembolsado"]) == -50.0
-    # Não deve entrar em total_recebido
-    assert float(data["total_recebido"]) == 0.0
-
-    client.delete(f"/lancamento/{id_estorno}", headers=headers_admin)
+        r1 = client.get(f"/lancamento/resumo?data_pagamento_de={hoje}&data_pagamento_ate={hoje}", headers=headers_admin)
+        assert r1.status_code == 200
+        data = r1.json()
+        # Crédito estornado: delta de total_reembolsado deve ser -50
+        assert float(data["total_reembolsado"]) - base_reembolsado == -50.0
+        # Não deve entrar em total_recebido: delta == 0
+        assert float(data["total_recebido"]) - base_recebido == 0.0
+    finally:
+        client.delete(f"/lancamento/{id_estorno}", headers=headers_admin)
 
 
 def test_resumo_a_receber_excluindo_inadimplentes_igual_quando_nenhum_inadimplente(client, headers_admin, clifor_base):

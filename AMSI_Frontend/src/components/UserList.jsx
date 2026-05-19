@@ -4,7 +4,7 @@ import UserRegisterModal from './UserRegisterModal.jsx';
 import UserEditModal from './UserEditModal.jsx';
 import PerfilCompletoPopup from './PerfilCompletoPopup.jsx';
 import ModalConfirm from './ModalConfirm.jsx';
-import ToastStack, { useToast } from './ToastStack.jsx';
+import { useToast } from './ToastStack.jsx';
 import '../styles/userList.css';
 
 function UserList() {
@@ -14,7 +14,7 @@ function UserList() {
 	const [confirmarDelete, setConfirmarDelete] = useState(null);
 	const [confirmarReset, setConfirmarReset] = useState(null);
 	const [perfilCompleto, setPerfilCompleto] = useState(null);
-	const { toasts, mostrarToast, removerToast } = useToast();
+	const { mostrarToast } = useToast();
 
 	useEffect(() => {
 		carregarUsuarios();
@@ -176,7 +176,6 @@ function UserList() {
 				/>
 			)}
 
-			<ToastStack toasts={toasts} onRemover={removerToast} />
 		</div>
 	);
 }

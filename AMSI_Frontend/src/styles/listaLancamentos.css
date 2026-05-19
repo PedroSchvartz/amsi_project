@@ -217,12 +217,20 @@
    ════════════════════════════════════════ */
 .ll-table-wrapper {
 	overflow-x: auto;
+	background:
+		linear-gradient(to right, var(--bg-card) 20%, transparent),
+		linear-gradient(to left,  var(--bg-card) 20%, transparent) right,
+		radial-gradient(farthest-side at 0%   50%, rgba(0,0,0,.12), transparent),
+		radial-gradient(farthest-side at 100% 50%, rgba(0,0,0,.12), transparent) right;
+	background-repeat: no-repeat;
+	background-size: 32px 100%, 32px 100%, 12px 100%, 12px 100%;
+	background-attachment: local, local, scroll, scroll;
 }
 
 .ll-table {
 	width: 100%;
 	border-collapse: collapse;
-	font-size: 0.87rem;
+	font-size: 0.8rem;
 	color: var(--text);
 	font-family: var(--font-body);
 }
@@ -278,6 +286,10 @@
 	padding: 11px 12px;
 	border-bottom: 1px solid var(--border);
 	vertical-align: middle;
+}
+
+.ll-table td:first-child {
+	white-space: nowrap;
 }
 
 .ll-table tbody tr {
@@ -431,10 +443,15 @@
 	background: rgba(0, 0, 0, 0.45);
 	display: flex;
 	justify-content: center;
-	align-items: center;
+	align-items: flex-start;
 	z-index: 1000;
-	/* Previne scroll do fundo quando modal aberto */
-	overflow: hidden;
+	overflow-y: auto;
+	padding: 20px;
+	scrollbar-width: none;
+}
+
+.ll-overlay::-webkit-scrollbar {
+	display: none;
 }
 
 .ll-modal {
@@ -442,9 +459,96 @@
 	padding: 30px;
 	border-radius: 12px;
 	width: 440px;
-	max-width: calc(100vw - 32px); /* nunca transborda em mobile */
+	max-width: calc(100vw - 32px);
 	border: 1px solid var(--border);
 	box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22);
+	margin: auto;
+}
+
+/* ── Modal largo (layout duas colunas) ── */
+.ll-modal--duplo {
+	width: 820px;
+}
+
+/* ── Layout lado a lado do modal Efetivar ── */
+.ll-efetiva-layout {
+	display: grid;
+	grid-template-columns: 1fr auto 1fr;
+	align-items: start;
+}
+
+.ll-efetiva-col {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.ll-efetiva-col .ll-row {
+	margin-bottom: 0;
+}
+
+.ll-col-titulo {
+	font-size: 0.68rem;
+	font-weight: 600;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding-bottom: 8px;
+	border-bottom: 1px solid var(--border);
+}
+
+.ll-efetiva-divider {
+	width: 1px;
+	background: var(--border);
+	margin: 0 20px;
+	align-self: stretch;
+}
+
+@media (max-width: 640px) {
+	.ll-efetiva-layout {
+		grid-template-columns: 1fr;
+	}
+	.ll-efetiva-divider {
+		width: auto;
+		height: 1px;
+		margin: 12px 0;
+	}
+}
+
+/* ── Espaçamento entre campos do modal ── */
+.ll-modal form {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+/* ── Input de arquivo ── */
+.ll-modal input[type='file'] {
+	font-size: 0.8rem;
+	color: var(--text-muted);
+	width: 100%;
+	padding: 6px 0 6px 6px;
+}
+
+.ll-modal input[type='file']::file-selector-button {
+	padding: 5px 14px;
+	border-radius: 6px;
+	border: 1px solid var(--border);
+	background: var(--bg-hover, var(--bg-card));
+	color: var(--text);
+	font-size: 0.8rem;
+	cursor: pointer;
+	margin-right: 10px;
+	transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.ll-modal input[type='file']::file-selector-button:hover {
+	background: var(--primary);
+	color: #fff;
+	border-color: var(--primary);
 }
 
 .ll-modal h3 {
@@ -481,4 +585,41 @@
 	height: 15px;
 	accent-color: var(--primary);
 	cursor: pointer;
+}
+
+/* ── Checkbox redondo (campo Estorno) ── */
+.ll-checkbox-round {
+	appearance: none;
+	-webkit-appearance: none;
+	width: 20px !important;
+	height: 20px !important;
+	min-width: 20px;
+	border-radius: 50% !important;
+	border: 2px solid var(--border);
+	background: var(--input-bg);
+	cursor: pointer;
+	position: relative;
+	transition: background 0.15s, border-color 0.15s;
+	flex-shrink: 0;
+}
+
+.ll-checkbox-round:checked {
+	background: var(--primary);
+	border-color: var(--primary);
+}
+
+.ll-checkbox-round:checked::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	margin: auto;
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: #fff;
+}
+
+.ll-checkbox-round:focus-visible {
+	outline: 2px solid var(--primary);
+	outline-offset: 2px;
 }

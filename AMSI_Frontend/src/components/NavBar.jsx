@@ -50,7 +50,7 @@ function Navbar() {
 							)}
 							{admin && (
 								<li className="nav-item">
-									<Link className="nav-link" to="/tipo_lancamento">
+									<Link className="nav-link" to="/lancamentos">
 										Lista de Lançamentos
 									</Link>
 								</li>

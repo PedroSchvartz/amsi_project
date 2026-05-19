@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import ToastStack, { useToast } from '../components/ToastStack.jsx';
+import { useToast } from '../components/ToastStack.jsx';
 import { useNavigate } from 'react-router-dom';
 import '../styles/lancamento.css';
 import { createLancamento, getClifors, getTiposConta, createTipoConta } from '../services/api';
@@ -10,7 +10,7 @@ function LancamentoPage() {
 
 	const [clifors, setClifors] = useState([]);
 	const [tiposConta, setTiposConta] = useState([]);
-	const { toasts, mostrarToast, removerToast } = useToast();
+	const { mostrarToast } = useToast();
 
 	const [form, setForm] = useState({
 		id_clifor_relacionado_fk: '',
@@ -44,7 +44,10 @@ function LancamentoPage() {
 
 	const handleChange = (e) => {
 		const { name, value, type, checked } = e.target;
-		setForm({ ...form, [name]: type === 'checkbox' ? checked : value });
+		const val = type === 'checkbox' ? checked
+			: name === 'valor' ? value.replace(/[^0-9,]/g, '')
+			: value;
+		setForm({ ...form, [name]: val });
 	};
 
 	const handleSubmit = async (e) => {
@@ -69,7 +72,7 @@ function LancamentoPage() {
 				id_usuario_fk_lancamento: usuario.sub,
 				id_clifor_relacionado_fk: parseInt(form.id_clifor_relacionado_fk),
 				id_tipo_conta_fk: parseInt(form.id_tipo_conta_fk),
-				valor: parseFloat(form.valor),
+				valor: parseFloat(form.valor.replace(',', '.')),
 				data_vencimento: form.data_vencimento,
 				natureza_lancamento: natureza,
 				observacao: form.observacao || null,
@@ -198,14 +201,13 @@ function LancamentoPage() {
 						<div className="field valor">
 							<label>Valor</label>
 							<div className="input-valor">
-								<span>R$</span>
 								<input
-									type="number"
+									type="text"
+									inputMode="decimal"
 									name="valor"
 									value={form.valor}
 									onChange={handleChange}
-									min="0"
-									step="0.01"
+									placeholder="0,00"
 									required
 								/>
 							</div>
@@ -239,7 +241,6 @@ function LancamentoPage() {
 					</div>
 				</form>
 
-				<ToastStack toasts={toasts} onRemover={removerToast} />
 			</div>
 
 			{/* Popup novo tipo de conta */}

@@ -7,7 +7,7 @@ import {
 	getEnderecosPorClifor,
 	getContatosPorClifor
 } from '../services/api';
-import ToastStack, { useToast } from './ToastStack.jsx';
+import { useToast } from './ToastStack.jsx';
 import '../styles/clientForm.css'; /* substitui clientRegister.css — suporte a temas */
 
 /* ════════════════════════════════════════
@@ -119,7 +119,7 @@ const UFS = [
 function ClientEdit() {
 	const { id } = useParams();
 	const navigate = useNavigate();
-	const { toasts, mostrarToast, mostrarToasts, removerToast } = useToast();
+	const { mostrarToast, mostrarToasts } = useToast();
 
 	const [carregando, setCarregando] = useState(true);
 	const [form, setForm] = useState(null);
@@ -327,8 +327,6 @@ function ClientEdit() {
 	   ════════════════════════════════════════ */
 	return (
 		<div className="client-form-container">
-			<ToastStack toasts={toasts} onRemover={removerToast} />
-
 			{/* ── Cabeçalho ── */}
 			<div className="client-form-header">
 				<button
@@ -419,7 +417,7 @@ function ClientEdit() {
 						<div className="row g-3">
 							<div className="col-12 col-md-6">
 								<label className="form-label">
-									Nome Completo / Razão Social <span className="text-danger">*</span>
+									{isPF ? 'Nome Completo' : 'Razão Social'} <span className="text-danger">*</span>
 								</label>
 								<input
 									className={`form-control ${erros.nome ? 'is-invalid' : ''}`}
@@ -462,7 +460,7 @@ function ClientEdit() {
 							</div>
 							<div className="col-12 col-md-3">
 								<label className="form-label">
-									Data de Nascimento <span className="text-danger">*</span>
+									{isPF ? 'Data de Nascimento' : 'Data de Fundação'} <span className="text-danger">*</span>
 								</label>
 								<input
 									type="date"

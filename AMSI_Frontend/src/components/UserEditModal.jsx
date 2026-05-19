@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { updateUser } from '../services/api';
 import ModalConfirm from './ModalConfirm.jsx';
-import ToastStack, { useToast } from './ToastStack.jsx';
+import { useToast } from './ToastStack.jsx';
 
 const CARGOS = ['Presidente', 'Tesoureiro', 'Secretário', 'Conselheiro', 'Associado', 'Desenvolvedor'];
-const PERFIS = ['Administrador', 'Consulta'];
+const PERFIS = ['Administrador', 'Operador', 'Consulta'];
 
 const s = {
 	campo: { display: 'flex', flexDirection: 'column', marginBottom: 14 },
@@ -37,7 +37,7 @@ function UserEditModal({ usuario, onFechar, onSalvo }) {
 	});
 	const [salvando, setSalvando] = useState(false);
 	const [confirmarNotificacao, setConfirmarNotificacao] = useState(false);
-	const { toasts, mostrarToast, removerToast } = useToast();
+	const { mostrarToast } = useToast();
 
 	const handleChange = (e) => {
 		const { name, value, type, checked } = e.target;
@@ -74,7 +74,6 @@ function UserEditModal({ usuario, onFechar, onSalvo }) {
 
 	return (
 		<>
-			<ToastStack toasts={toasts} onRemover={removerToast} />
 			{confirmarNotificacao && (
 				<ModalConfirm
 					titulo="Remover notificações"

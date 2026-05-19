@@ -6,7 +6,7 @@ import {
 	desvincularCliforDoUsuario
 } from '../services/api.js';
 import ModalConfirm from './ModalConfirm.jsx';
-import ToastStack, { useToast } from './ToastStack.jsx';
+import { useToast } from './ToastStack.jsx';
 
 const s = {
 	overlay: {
@@ -145,7 +145,7 @@ function CampoRasurado({ valor, label }) {
 }
 
 function PerfilCompletoPopup({ usuario, onFechar }) {
-	const { toasts, mostrarToast, removerToast } = useToast();
+	const { mostrarToast } = useToast();
 	const [clifor, setClifor] = useState(null);
 	const [carregando, setCarregando] = useState(true);
 	const [semClifor, setSemClifor] = useState(false);
@@ -167,13 +167,16 @@ function PerfilCompletoPopup({ usuario, onFechar }) {
 		setCarregando(true);
 		try {
 			const data = await getCliforDoUsuario(usuario.id_usuario);
-			setClifor(data);
-			setSemClifor(false);
-		} catch (err) {
-			if (err.message?.includes('404') || err.message?.includes('vinculado')) {
+			if (data === null) {
 				setSemClifor(true);
+				setClifor(null);
 				carregarSugestoes('');
+			} else {
+				setClifor(data);
+				setSemClifor(false);
 			}
+		} catch (err) {
+			mostrarToast(err.message || 'Erro ao carregar clifor', 'erro');
 		} finally {
 			setCarregando(false);
 		}
@@ -216,10 +219,8 @@ function PerfilCompletoPopup({ usuario, onFechar }) {
 		try {
 			await desvincularCliforDoUsuario(usuario.id_usuario);
 			setConfirmandoDesv(false);
-			setClifor(null);
-			setSemClifor(true);
 			setBusca('');
-			carregarSugestoes('');
+			await carregarClifor();
 		} catch (err) {
 			mostrarToast(err.message || 'Erro ao desvincular', 'erro');
 			setConfirmandoDesv(false);
@@ -239,8 +240,6 @@ function PerfilCompletoPopup({ usuario, onFechar }) {
 
 	return (
 		<>
-			<ToastStack toasts={toasts} onRemover={removerToast} />
-
 			{confirmandoAssoc && (
 				<ModalConfirm
 					titulo="Confirmar associação"

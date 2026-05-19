@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getClifors, getSaldosClifors, deleteClifor } from '../services/api.js';
-import ToastStack, { useToast } from './ToastStack.jsx';
+import { useToast } from './ToastStack.jsx';
 import ModalConfirm from './ModalConfirm.jsx';
 import { isAdmin } from '../services/auth.js';
 import '../styles/clientList.css';
@@ -18,7 +18,7 @@ function rassurarCpfCnpj(doc) {
 
 function ClientList() {
 	const navigate = useNavigate();
-	const { toasts, mostrarToast, removerToast } = useToast();
+	const { mostrarToast } = useToast();
 	const admin = isAdmin();
 
 	const [clifors, setClifors] = useState([]);
@@ -75,8 +75,6 @@ function ClientList() {
 
 	return (
 		<div className="cl-container">
-			<ToastStack toasts={toasts} onRemover={removerToast} />
-
 			{confirmarDeletar && (
 				<ModalConfirm
 					titulo="Excluir Cliente/Fornecedor"
@@ -180,7 +178,7 @@ function ClientList() {
 												<span
 													className={`cl-saldo ${saldoNum >= 0 ? 'cl-saldo--positivo' : 'cl-saldo--negativo'}`}
 												>
-													R$ {saldoNum.toFixed(2).replace('.', ',')}
+													{saldoNum.toFixed(2).replace('.', ',')}
 												</span>
 											) : (
 												<span className="cl-saldo" style={{ color: 'var(--text-muted)' }}>

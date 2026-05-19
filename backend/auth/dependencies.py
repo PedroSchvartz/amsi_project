@@ -126,3 +126,23 @@ def exige_admin(current_user: Usuario = Depends(get_current_user)) -> Usuario:
             detail="Acesso restrito a administradores"
         )
     return current_user
+
+
+def exige_perfil_minimo(perfil: AcessoEnum):
+    HIERARQUIA = [AcessoEnum.Consulta, AcessoEnum.Operador, AcessoEnum.Administrador]
+
+    def _dep(current_user: Usuario = Depends(get_current_user)) -> Usuario:
+        if HIERARQUIA.index(current_user.perfil_de_acesso) < HIERARQUIA.index(perfil):
+            raise HTTPException(status_code=403, detail="Perfil insuficiente")
+        return current_user
+
+    return _dep
+
+
+def exige_operador_ou_admin(current_user: Usuario = Depends(get_current_user)) -> Usuario:
+    if current_user.perfil_de_acesso not in (AcessoEnum.Administrador, AcessoEnum.Operador):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acesso restrito a operadores e administradores"
+        )
+    return current_user

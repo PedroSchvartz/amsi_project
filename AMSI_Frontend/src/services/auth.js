@@ -29,6 +29,15 @@ export const isAdmin = () => {
 	return user.perfil === 'Administrador';
 };
 
+const PERFIL_HIERARQUIA = ['Consulta', 'Operador', 'Administrador'];
+
+export const isOperador = () => getPerfil() === 'Operador';
+
+export const hasPerfilMinimo = (perfilRequerido) => {
+	const atual = getPerfil();
+	return PERFIL_HIERARQUIA.indexOf(atual) >= PERFIL_HIERARQUIA.indexOf(perfilRequerido);
+};
+
 export const isAuthenticated = () => {
 	const token = getToken();
 	const expiresAt = localStorage.getItem('expiresAt');

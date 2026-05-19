@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation, Outlet } from 'react-router-dom';
+import ErrorBoundary from './ErrorBoundary';
 import '../styles/layout.css';
 import logo from '../assets/AMSI_Logo.png';
-import { getUserFromToken, logout, isAdmin } from '../services/auth';
+import { getUserFromToken, logout, isAdmin, isOperador } from '../services/auth';
 import { logoutUser } from '../services/api';
 import PerfilPopup from './PerfilCompletoPopup.jsx';
 
@@ -15,6 +16,7 @@ function Layout() {
 	const [menuAberto, setMenuAberto] = useState(false);
 	const [perfilAberto, setPerfilAberto] = useState(false);
 	const admin = isAdmin();
+	const operador = isOperador();
 
 	// ── Aplica data-theme no <html> e persiste no localStorage ──
 	useEffect(() => {
@@ -59,13 +61,12 @@ function Layout() {
 	const nomeUsuario = usuarioLocal?.nome || payload?.sub || 'Usuário';
 	const isActive = (path) => location.pathname === path;
 
-	// Somente admins visualizam o menu completo
 	const menuLinks = [
-		{ to: '/dashboard', label: 'Dashboard', icon: 'bi-speedometer2' },
-		{ to: '/usuarios', label: 'Usuários', icon: 'bi-people' },
-		{ to: '/tipo_lancamento', label: 'Lançamentos', icon: 'bi-journal-text' },
-		{ to: '/cliente_fornecedor', label: 'Clientes / Fornecedores', icon: 'bi-person-lines-fill' }
-	].filter(() => admin);
+		(admin || operador) && { to: '/dashboard', label: 'Dashboard', icon: 'bi-speedometer2' },
+		admin && { to: '/usuarios', label: 'Usuários', icon: 'bi-people' },
+		(admin || operador) && { to: '/lancamentos', label: 'Lançamentos', icon: 'bi-journal-text' },
+		(admin || operador) && { to: '/cliente_fornecedor', label: 'Clientes / Fornecedores', icon: 'bi-person-lines-fill' }
+	].filter(Boolean);
 
 	return (
 		<div className="layout-wrapper">
@@ -190,7 +191,9 @@ function Layout() {
 			    CONTEÚDO PRINCIPAL
 			    ════════════════════════════════════════ */}
 			<main className="layout-content">
-				<Outlet />
+				<ErrorBoundary>
+					<Outlet />
+				</ErrorBoundary>
 			</main>
 
 			{/* ════════════════════════════════════════

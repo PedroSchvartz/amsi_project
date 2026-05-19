@@ -14,12 +14,6 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 -- ORDEM DE CRIAÇÃO: Usuario > tipo_conta > ClienteFornecedor > Endereco > Contato > Login > Lancamento
 -- ================================================
 
-
--- ================================================
--- ORDEM DE CRIAÇÃO: Usuario > tipo_conta > ClienteFornecedor > Endereco > Contato > Login > Lancamento
--- ================================================
-
-
 CREATE TABLE Usuario (
     id_usuario BIGINT GENERATED ALWAYS AS IDENTITY,
     Senha VARCHAR(255) NOT NULL,
@@ -200,14 +194,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- ============================================================
--- MIGRATIONS
--- ============================================================
-
--- [MVP item 11] Separa observação do lançamento da observação do pagamento
-ALTER TABLE Lancamento ADD COLUMN Observacao_Pagamento TEXT;
-
--- ============================================================
 
 
 CREATE OR REPLACE TRIGGER trigger_inadimplente

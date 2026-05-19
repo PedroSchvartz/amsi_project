@@ -14,7 +14,7 @@ from schemas.cliente_fornecedor import (
     CliForResumo,
     CliForSaldoSimples
 )
-from auth.dependencies import get_current_user, exige_admin
+from auth.dependencies import get_current_user, exige_admin, exige_operador_ou_admin
 from typing import List, Optional
 from datetime import date
 from decimal import Decimal
@@ -149,7 +149,7 @@ def buscar_clifor(id_clifor: int, db: Session = Depends(get_db), _=Depends(get_c
 
 
 @router.post("/", response_model=ClienteFornecedorResponse)
-def criar_clifor(dados: ClienteFornecedorCreate, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def criar_clifor(dados: ClienteFornecedorCreate, db: Session = Depends(get_db), _=Depends(exige_operador_ou_admin)):
     if dados.id_usuario_fk:
         if not db.query(Usuario).filter(Usuario.id_usuario == dados.id_usuario_fk).first():
             raise HTTPException(status_code=404, detail="Usuário não encontrado")
@@ -173,7 +173,7 @@ def criar_clifor(dados: ClienteFornecedorCreate, db: Session = Depends(get_db), 
 
 
 @router.put("/{id_clifor}", response_model=ClienteFornecedorResponse)
-def atualizar_clifor(id_clifor: int, dados: ClienteFornecedorUpdate, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def atualizar_clifor(id_clifor: int, dados: ClienteFornecedorUpdate, db: Session = Depends(get_db), _=Depends(exige_operador_ou_admin)):
     clifor = db.query(ClienteFornecedor).filter(ClienteFornecedor.id_clifor == id_clifor).first()
     if not clifor:
         raise HTTPException(status_code=404, detail="Cliente/Fornecedor não encontrado")

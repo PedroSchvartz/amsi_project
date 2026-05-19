@@ -1,22 +1,26 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, createContext, useContext } from 'react';
 
-// ── Hook ──────────────────────────────────────────────────────────────────────
+const ToastContext = createContext(null);
 
-export function useToast() {
+export function ToastProvider({ children }) {
 	const [toasts, setToasts] = useState([]);
-	const counterRef = useRef(0);
+	const counter = useRef(0);
 
 	const mostrarToast = (mensagem, tipo = 'sucesso', duracao = 5000) => {
-		const id = ++counterRef.current;
-		setToasts((prev) => [...prev, { id, mensagem, tipo }]);
-		setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), duracao);
+		if (!mensagem) return;
+		const id = ++counter.current;
+		setToasts((prev) => {
+			if (prev.some((t) => t.mensagem === mensagem && t.tipo === tipo)) return prev;
+			setTimeout(() => setToasts((p) => p.filter((t) => t.id !== id)), duracao);
+			return [...prev, { id, mensagem, tipo }];
+		});
 	};
 
 	const mostrarToasts = (mensagens, tipo = 'erro') => {
 		setToasts([]);
 		const lista = Array.isArray(mensagens) ? mensagens : [mensagens];
 		const novos = lista.map((mensagem, i) => ({
-			id: ++counterRef.current,
+			id: ++counter.current,
 			mensagem,
 			tipo,
 			duracao: (5 + i) * 1000
@@ -29,12 +33,19 @@ export function useToast() {
 
 	const removerToast = (id) => setToasts((prev) => prev.filter((t) => t.id !== id));
 
-	return { toasts, mostrarToast, mostrarToasts, removerToast };
+	return (
+		<ToastContext.Provider value={{ toasts, mostrarToast, mostrarToasts, removerToast }}>
+			{children}
+			<ToastStackInternal toasts={toasts} onRemover={removerToast} />
+		</ToastContext.Provider>
+	);
 }
 
-// ── Componente ────────────────────────────────────────────────────────────────
+export function useToast() {
+	return useContext(ToastContext);
+}
 
-function ToastStack({ toasts, onRemover }) {
+function ToastStackInternal({ toasts, onRemover }) {
 	if (!toasts.length) return null;
 
 	return (
@@ -55,7 +66,8 @@ function ToastStack({ toasts, onRemover }) {
 				<div
 					key={t.id}
 					style={{
-						background: t.tipo === 'erro' ? '#dc2626' : t.tipo === 'aviso' ? '#d97706' : '#16a34a',
+						background:
+							t.tipo === 'erro' ? '#dc2626' : t.tipo === 'aviso' ? '#d97706' : '#16a34a',
 						color: '#fff',
 						padding: '10px 16px',
 						borderRadius: 8,
@@ -88,5 +100,3 @@ function ToastStack({ toasts, onRemover }) {
 		</div>
 	);
 }
-
-export default ToastStack;

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import ToastStack, { useToast } from './ToastStack.jsx';
+import { useToast } from './ToastStack.jsx';
 import { createUser } from '../services/api';
 
 const campo = { display: 'flex', flexDirection: 'column', marginBottom: 14 };
@@ -23,7 +23,7 @@ const input = {
 
 function UserRegisterModal({ onFechar }) {
 	const [form, setForm] = useState({ nome: '', email: '', cargo: '', perfil_de_acesso: '' });
-	const { toasts, mostrarToast, removerToast } = useToast();
+	const { mostrarToast } = useToast();
 
 	const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -40,7 +40,6 @@ function UserRegisterModal({ onFechar }) {
 
 	return (
 		<>
-			<ToastStack toasts={toasts} onRemover={removerToast} />
 			<div
 				style={{
 					position: 'fixed',
@@ -144,6 +143,7 @@ function UserRegisterModal({ onFechar }) {
 							>
 								<option value="">Selecione</option>
 								<option value="Administrador">Administrador</option>
+								<option value="Operador">Operador</option>
 								<option value="Consulta">Consulta</option>
 							</select>
 						</div>

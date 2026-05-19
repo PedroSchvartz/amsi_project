@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createClifor, getUsers } from '../services/api';
-import ToastStack, { useToast } from './ToastStack.jsx';
+import { useToast } from './ToastStack.jsx';
 import '../styles/clientForm.css'; /* suporte completo aos dois temas */
 
 /* ════════════════════════════════════════
@@ -21,7 +21,7 @@ const ENDERECO_VAZIO = {
 
 const FORM_INICIAL = {
 	tipo_clifor: '',
-	pessoafisica_juridica: '',
+	pessoafisica_juridica: 'true',
 	nome: '',
 	cpf_cnpj: '',
 	rg_inscricaoestadual: '',
@@ -123,7 +123,7 @@ const UFS = [
    ════════════════════════════════════════ */
 function ClientRegister() {
 	const navigate = useNavigate();
-	const { toasts, mostrarToast, mostrarToasts, removerToast } = useToast();
+	const { mostrarToast, mostrarToasts } = useToast();
 
 	const [form, setForm] = useState(FORM_INICIAL);
 	const [enderecos, setEnderecos] = useState([{ ...ENDERECO_VAZIO }]);
@@ -286,8 +286,6 @@ function ClientRegister() {
 	   ════════════════════════════════════════ */
 	return (
 		<div className="client-form-container">
-			<ToastStack toasts={toasts} onRemover={removerToast} />
-
 			{/* ── Cabeçalho ── */}
 			<div className="client-form-header">
 				<button
@@ -378,14 +376,14 @@ function ClientRegister() {
 						<div className="row g-3">
 							<div className="col-12 col-md-6">
 								<label className="form-label">
-									Nome Completo / Razão Social <span className="text-danger">*</span>
+									{isPF ? 'Nome Completo' : 'Razão Social'} <span className="text-danger">*</span>
 								</label>
 								<input
 									className={`form-control ${erros.nome ? 'is-invalid' : ''}`}
 									name="nome"
 									value={form.nome}
 									onChange={handleChange}
-									placeholder="Nome completo ou razão social"
+									placeholder={isPF ? 'Nome completo' : 'Razão social'}
 								/>
 								{erros.nome && <div className="invalid-feedback">{erros.nome}</div>}
 							</div>
@@ -422,7 +420,7 @@ function ClientRegister() {
 							</div>
 							<div className="col-12 col-md-3">
 								<label className="form-label">
-									Data de Nascimento <span className="text-danger">*</span>
+									{isPF ? 'Data de Nascimento' : 'Data de Fundação'} <span className="text-danger">*</span>
 								</label>
 								<input
 									type="date"

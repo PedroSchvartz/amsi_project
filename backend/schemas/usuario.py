@@ -15,6 +15,7 @@ class CargoEnum(str, Enum):
 
 class AcessoEnum(str, Enum):
     Administrador = "Administrador"
+    Operador = "Operador"
     Consulta = "Consulta"
 
 

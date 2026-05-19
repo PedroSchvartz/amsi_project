@@ -7,7 +7,7 @@ from models.usuario import Usuario
 from models.cliente_fornecedor import ClienteFornecedor
 from models.tipo_conta import tipo_conta
 from schemas.lancamento import LancamentoCreate, LancamentoUpdate, LancamentoEditAdmin, LancamentoResponse, LancamentoResumo, ResumoPorTipo
-from auth.dependencies import get_current_user, exige_admin
+from auth.dependencies import exige_admin, exige_operador_ou_admin
 from utils.inadimplencia import atualizar_inadimplente
 from typing import List, Optional
 from datetime import date
@@ -27,7 +27,7 @@ def resumo_lancamentos(
     id_tipo_conta: Optional[int] = None,
     natureza: Optional[str] = None,
     db: Session = Depends(get_db),
-    _=Depends(get_current_user)
+    _=Depends(exige_operador_ou_admin)
 ):
     hoje = date.today()
 
@@ -145,7 +145,7 @@ def resumo_por_tipo(
     data_pagamento_ate: Optional[date] = None,
     natureza: Optional[str] = None,
     db: Session = Depends(get_db),
-    _=Depends(get_current_user)
+    _=Depends(exige_operador_ou_admin)
 ):
     q = (
         db.query(
@@ -200,7 +200,7 @@ def listar_lancamentos(
     valor_minimo: Optional[Decimal] = None,
     valor_maximo: Optional[Decimal] = None,
     db: Session = Depends(get_db),
-    _=Depends(get_current_user)
+    _=Depends(exige_operador_ou_admin)
 ):
     query = db.query(Lancamento).join(
         ClienteFornecedor,
@@ -254,7 +254,7 @@ def listar_lancamentos(
 
 
 @router.get("/{id_lancamento}", response_model=LancamentoResponse)
-def buscar_lancamento(id_lancamento: int, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def buscar_lancamento(id_lancamento: int, db: Session = Depends(get_db), _=Depends(exige_operador_ou_admin)):
     lancamento = db.query(Lancamento).filter(Lancamento.id_lancamento == id_lancamento).first()
     if not lancamento:
         raise HTTPException(status_code=404, detail="Lançamento não encontrado")
@@ -262,7 +262,7 @@ def buscar_lancamento(id_lancamento: int, db: Session = Depends(get_db), _=Depen
 
 
 @router.get("/por-clifor/{id_clifor}", response_model=List[LancamentoResponse])
-def listar_lancamentos_por_clifor(id_clifor: int, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def listar_lancamentos_por_clifor(id_clifor: int, db: Session = Depends(get_db), _=Depends(exige_operador_ou_admin)):
     return db.query(Lancamento).filter(
         Lancamento.id_clifor_relacionado_fk == id_clifor
     ).options(
@@ -273,7 +273,7 @@ def listar_lancamentos_por_clifor(id_clifor: int, db: Session = Depends(get_db),
 
 
 @router.get("/por-usuario/{id_usuario}", response_model=List[LancamentoResponse])
-def listar_lancamentos_por_usuario(id_usuario: int, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def listar_lancamentos_por_usuario(id_usuario: int, db: Session = Depends(get_db), _=Depends(exige_operador_ou_admin)):
     return db.query(Lancamento).filter(
         Lancamento.id_usuario_fk_lancamento == id_usuario
     ).join(
@@ -286,7 +286,7 @@ def listar_lancamentos_por_usuario(id_usuario: int, db: Session = Depends(get_db
 
 
 @router.post("/", response_model=LancamentoResponse)
-def criar_lancamento(dados: LancamentoCreate, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def criar_lancamento(dados: LancamentoCreate, db: Session = Depends(get_db), _=Depends(exige_operador_ou_admin)):
     if not db.query(Usuario).filter(Usuario.id_usuario == dados.id_usuario_fk_lancamento).first():
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
     if not db.query(ClienteFornecedor).filter(ClienteFornecedor.id_clifor == dados.id_clifor_relacionado_fk).first():
@@ -302,7 +302,7 @@ def criar_lancamento(dados: LancamentoCreate, db: Session = Depends(get_db), _=D
 
 
 @router.put("/{id_lancamento}", response_model=LancamentoResponse)
-def fechar_lancamento(id_lancamento: int, dados: LancamentoUpdate, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def fechar_lancamento(id_lancamento: int, dados: LancamentoUpdate, db: Session = Depends(get_db), _=Depends(exige_operador_ou_admin)):
     lancamento = db.query(Lancamento).filter(Lancamento.id_lancamento == id_lancamento).first()
     if not lancamento:
         raise HTTPException(status_code=404, detail="Lançamento não encontrado")
@@ -347,7 +347,7 @@ async def anexar_comprovante(
     id_lancamento: int,
     arquivo: UploadFile = File(...),
     db: Session = Depends(get_db),
-    _=Depends(get_current_user)
+    _=Depends(exige_operador_ou_admin)
 ):
     lancamento = db.query(Lancamento).filter(Lancamento.id_lancamento == id_lancamento).first()
     if not lancamento:
@@ -370,7 +370,7 @@ async def anexar_comprovante(
 def baixar_comprovante(
     id_lancamento: int,
     db: Session = Depends(get_db),
-    _=Depends(get_current_user)
+    _=Depends(exige_operador_ou_admin)
 ):
     lancamento = db.query(Lancamento).filter(Lancamento.id_lancamento == id_lancamento).first()
     if not lancamento:
@@ -389,7 +389,7 @@ def baixar_comprovante(
 def remover_comprovante(
     id_lancamento: int,
     db: Session = Depends(get_db),
-    _=Depends(get_current_user)
+    _=Depends(exige_operador_ou_admin)
 ):
     lancamento = db.query(Lancamento).filter(Lancamento.id_lancamento == id_lancamento).first()
     if not lancamento:
@@ -403,7 +403,7 @@ def remover_comprovante(
 
 
 @router.delete("/{id_lancamento}")
-def deletar_lancamento(id_lancamento: int, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def deletar_lancamento(id_lancamento: int, db: Session = Depends(get_db), _=Depends(exige_admin)):
     lancamento = db.query(Lancamento).filter(Lancamento.id_lancamento == id_lancamento).first()
     if not lancamento:
         raise HTTPException(status_code=404, detail="Lançamento não encontrado")

@@ -107,12 +107,48 @@ def consulta_session(client, headers_admin):
 # PRÉ-REQUISITOS — avisa antes e registra para o sumário final
 # ================================================
 
+@pytest.fixture(scope="session")
+def operador_session(client, headers_admin):
+    """
+    Verifica se o usuário de operador existe e pode autenticar.
+    Se não existir, retorna disponivel=False com instrução para rodar o bootstrap.
+    """
+    from utils.config import OPERADOR_TESTE_EMAIL, OPERADOR_TESTE_SENHA
+
+    r = client.get("/usuarios/", headers=headers_admin)
+    todos = r.json() if r.is_success else []
+    operador = next((u for u in todos if u["email"] == OPERADOR_TESTE_EMAIL), None)
+
+    if not operador:
+        yield {
+            "disponivel": False,
+            "motivo": (
+                f"Usuário de operador ({OPERADOR_TESTE_EMAIL}) não encontrado — "
+                "execute: python -X utf8 utils/bootstrap.py"
+            ),
+            "id_usuario": None,
+            "email": OPERADOR_TESTE_EMAIL,
+            "senha_temp": None,
+        }
+        return
+
+    yield {
+        "disponivel": True,
+        "motivo": None,
+        "id_usuario": operador["id_usuario"],
+        "email": OPERADOR_TESTE_EMAIL,
+        "senha_temp": OPERADOR_TESTE_SENHA,
+    }
+
+
 @pytest.fixture(scope="session", autouse=True)
-def prerequisitos(request, consulta_session):
+def prerequisitos(request, consulta_session, operador_session):
     ausentes = []
 
     if not consulta_session["disponivel"]:
         ausentes.append(consulta_session["motivo"])
+    if not operador_session["disponivel"]:
+        ausentes.append(operador_session["motivo"])
 
     request.config._prerequisitos_ausentes = ausentes
 
@@ -149,11 +185,32 @@ def headers_consulta(token_consulta):
 
 
 # ================================================
+# AUTH OPERADOR
+# ================================================
+
+@pytest.fixture(scope="session")
+def token_operador(client, operador_session):
+    if not operador_session["disponivel"]:
+        pytest.skip(f"Pré-requisito ausente: {operador_session['motivo']}")
+    r = client.post("/auth/token", json={
+        "email": operador_session["email"],
+        "senha": operador_session["senha_temp"],
+    })
+    assert r.status_code == 200, f"Falha ao autenticar usuário de operador: {r.text}"
+    return r.json()["access_token"]
+
+
+@pytest.fixture(scope="session")
+def headers_operador(token_operador):
+    return {"Authorization": f"Bearer {token_operador}"}
+
+
+# ================================================
 # SNAPSHOT DO BANCO
 # ================================================
 
 @pytest.fixture(scope="session", autouse=True)
-def db_snapshot(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base, consulta_session):
+def db_snapshot(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base, consulta_session, operador_session):
     db = SessionLocal()
     snapshot_antes = contar_tabelas(db)
     db.close()
@@ -174,12 +231,19 @@ def db_snapshot(client, headers_admin, usuario_base, clifor_base, tipo_lancament
         if r.is_success:
             ids_logins_consulta_antes = {l["id_login"] for l in r.json()}
 
+    ids_logins_operador_antes = set()
+    if operador_session["id_usuario"]:
+        r = client.get(f"/login/por-usuario/{operador_session['id_usuario']}", headers=headers_admin)
+        if r.is_success:
+            ids_logins_operador_antes = {l["id_login"] for l in r.json()}
+
     yield
 
-    # Limpar logins gerados durante os testes para admin e consulta
+    # Limpar logins gerados durante os testes para admin, consulta e operador
     for id_usuario, ids_antes in [
         (admin["id_usuario"] if admin else None, ids_logins_admin_antes),
         (consulta_session["id_usuario"], ids_logins_consulta_antes),
+        (operador_session["id_usuario"], ids_logins_operador_antes),
     ]:
         if id_usuario:
             r = client.get(f"/login/por-usuario/{id_usuario}", headers=headers_admin)

@@ -66,6 +66,7 @@ class LancamentoResponse(BaseModel):
     tem_comprovante: bool = False
     comprovante_nome: Optional[str] = None
     nome_clifor: Optional[str] = None
+    cpf_cnpj_clifor: Optional[str] = None
     descricao_tipo_conta: Optional[str] = None
     nome_usuario_lancamento: Optional[str] = None
 
@@ -77,6 +78,7 @@ class LancamentoResponse(BaseModel):
             cf = getattr(values, 'cliente_fornecedor', None)
             if cf:
                 values.__dict__['nome_clifor'] = cf.nome
+                values.__dict__['cpf_cnpj_clifor'] = cf.cpf_cnpj
             tc = getattr(values, 'tipo_conta_rel', None)
             if tc:
                 values.__dict__['descricao_tipo_conta'] = tc.descricao_conta

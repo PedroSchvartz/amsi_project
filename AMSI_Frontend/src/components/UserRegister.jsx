@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import ToastStack, { useToast } from './ToastStack.jsx';
+import { useToast } from './ToastStack.jsx';
 import { Navigate } from 'react-router-dom';
 import '../styles/userregister.css';
 import { createUser } from '../services/api';
@@ -17,7 +17,7 @@ function UserRegister() {
 		perfil_de_acesso: ''
 	});
 
-	const { toasts, mostrarToast, removerToast } = useToast();
+	const { mostrarToast } = useToast();
 
 	const handleChange = (e) => {
 		setForm({ ...form, [e.target.name]: e.target.value });
@@ -67,6 +67,7 @@ function UserRegister() {
 					>
 						<option value="">Selecione</option>
 						<option value="Administrador">Administrador</option>
+						<option value="Operador">Operador</option>
 						<option value="Consulta">Consulta</option>
 					</select>
 
@@ -80,7 +81,6 @@ function UserRegister() {
 					</div>
 				</form>
 
-				<ToastStack toasts={toasts} onRemover={removerToast} />
 			</div>
 		</div>
 	);

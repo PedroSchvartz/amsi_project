@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import ToastStack, { useToast } from '../components/ToastStack.jsx';
+import { useToast } from '../components/ToastStack.jsx';
 import { createLancamento, getClifors, getTiposConta, createTipoConta } from '../services/api';
-import { getUserFromToken } from '../services/auth';
+import { getUserFromToken, isAdmin } from '../services/auth';
 import '../styles/lancamento.css';
 
 const FORM_INICIAL = {
@@ -17,7 +17,7 @@ const FORM_INICIAL = {
 function LancamentoModal({ onFechar }) {
 	const [clifors, setClifors] = useState([]);
 	const [tiposConta, setTiposConta] = useState([]);
-	const { toasts, mostrarToast, removerToast } = useToast();
+	const { mostrarToast } = useToast();
 	const [form, setForm] = useState(FORM_INICIAL);
 	const [popup, setPopup] = useState(false);
 	const [novoTipo, setNovoTipo] = useState({
@@ -42,7 +42,10 @@ function LancamentoModal({ onFechar }) {
 
 	const handleChange = (e) => {
 		const { name, value, type, checked } = e.target;
-		setForm({ ...form, [name]: type === 'checkbox' ? checked : value });
+		const val = type === 'checkbox' ? checked
+			: name === 'valor' ? value.replace(/[^0-9,]/g, '')
+			: value;
+		setForm({ ...form, [name]: val });
 	};
 
 	const handleSubmit = async (e) => {
@@ -64,7 +67,7 @@ function LancamentoModal({ onFechar }) {
 				id_usuario_fk_lancamento: usuario.sub,
 				id_clifor_relacionado_fk: parseInt(form.id_clifor_relacionado_fk),
 				id_tipo_conta_fk: parseInt(form.id_tipo_conta_fk),
-				valor: parseFloat(form.valor),
+				valor: parseFloat(form.valor.replace(',', '.')),
 				data_vencimento: form.data_vencimento,
 				natureza_lancamento: natureza,
 				observacao: form.observacao || null,
@@ -106,8 +109,6 @@ function LancamentoModal({ onFechar }) {
 
 	return createPortal(
 		<>
-			<ToastStack toasts={toasts} onRemover={removerToast} />
-
 			<div className="lm-wrapper" onClick={onFechar}>
 				<div className="lm-container" onClick={(e) => e.stopPropagation()}>
 					<div className="lm-header">
@@ -133,8 +134,9 @@ function LancamentoModal({ onFechar }) {
 							))}
 						</select>
 
-						<label>Tipo de Conta</label>
 						<div className="lm-tipo-row">
+						<div>
+							<label>Tipo de Conta</label>
 							<select
 								name="id_tipo_conta_fk"
 								value={form.id_tipo_conta_fk}
@@ -148,60 +150,68 @@ function LancamentoModal({ onFechar }) {
 									</option>
 								))}
 							</select>
-							<button type="button" className="novo-tipo" onClick={() => setPopup(true)}>
-								+ Novo Tipo
-							</button>
 						</div>
+						<div>
+							<label>Natureza</label>
+							<input value={naturezaExibida} readOnly />
+						</div>
+					</div>
 
-						<label>Natureza</label>
-						<input value={naturezaExibida} readOnly />
-
-						<label>Descrição</label>
-						<textarea name="observacao" value={form.observacao} onChange={handleChange} rows="3" />
-
-						<div className="row">
-							<div>
-								<label>Data de Vencimento</label>
+					<div className="lm-row3">
+						<div>
+							<label>Data de Vencimento</label>
+							<input
+								type="date"
+								name="data_vencimento"
+								value={form.data_vencimento}
+								onChange={handleChange}
+								required
+							/>
+						</div>
+						<div>
+							<label>Valor</label>
+							<div className="input-valor">
 								<input
-									type="date"
-									name="data_vencimento"
-									value={form.data_vencimento}
+									type="text"
+									inputMode="decimal"
+									name="valor"
+									value={form.valor}
 									onChange={handleChange}
+									placeholder="0,00"
 									required
 								/>
 							</div>
-							<div>
-								<label>Valor</label>
-								<div className="input-valor">
-									<span>R$</span>
-									<input
-										type="number"
-										name="valor"
-										value={form.valor}
-										onChange={handleChange}
-										min="0"
-										step="0.01"
-										required
-									/>
-								</div>
-							</div>
 						</div>
-
-						<div className="tipo" style={{ marginTop: 8 }}>
-							<label style={{ textTransform: 'none', letterSpacing: 0, fontSize: '0.875rem' }}>
+						<div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+							<label>Reembolso</label>
+							<label style={{ textTransform: 'none', letterSpacing: 0, fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: 6 }}>
 								<input
 									type="checkbox"
 									name="estorno"
-									id="estorno"
 									checked={form.estorno}
 									onChange={handleChange}
 									style={{ width: 'auto', accentColor: 'var(--primary)' }}
 								/>
-								Reembolso (inverte a natureza)
+								Inverte natureza
 							</label>
 						</div>
+					</div>
 
-						<div className="buttons">
+					<div>
+						<label>Descrição</label>
+						<textarea name="observacao" value={form.observacao} onChange={handleChange} rows="2" />
+					</div>
+
+					<hr style={{ margin: '20px 0 0', border: 'none', borderTop: '1px solid var(--border)' }} />
+					<div className="lm-footer">
+						<div>
+							{isAdmin() && (
+								<button type="button" className="novo-tipo" onClick={() => setPopup(true)}>
+									+ Novo Tipo
+								</button>
+							)}
+						</div>
+						<div className="lm-footer-right">
 							<button type="button" className="cancel" onClick={onFechar}>
 								CANCELAR
 							</button>
@@ -209,6 +219,7 @@ function LancamentoModal({ onFechar }) {
 								SALVAR
 							</button>
 						</div>
+					</div>
 					</form>
 				</div>
 			</div>
