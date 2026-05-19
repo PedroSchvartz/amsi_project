@@ -2,6 +2,8 @@
 
 Bem-vindo ao projeto AMSI. Esta pasta contém um guia técnico completo pensado para quem está tendo o primeiro contato com o código.
 
+> **Antes de começar:** se ainda não rodou o projeto na sua máquina, siga primeiro o [SETUP.md](../SETUP.md) na raiz do repositório. Ele explica como instalar dependências, configurar o banco e subir backend e frontend.
+
 Leia os arquivos **na ordem abaixo**. Cada um assume que você leu os anteriores.
 
 ---

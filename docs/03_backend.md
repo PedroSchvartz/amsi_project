@@ -77,6 +77,19 @@ class Lancamento(Base):
 
 **Regra:** os models nunca saem do backend. Nenhum dado do banco é exposto diretamente ao frontend — sempre passa por um schema.
 
+#### O que é `relationship()` e por que existe
+
+O `relationship()` é a forma do SQLAlchemy declarar que dois models estão conectados via chave estrangeira. Ele não cria uma coluna no banco — apenas diz ao SQLAlchemy "quando eu acessar `lancamento.cliente_fornecedor`, você sabe como fazer o JOIN".
+
+```python
+# backend/models/lancamento.py
+cliente_fornecedor = relationship("ClienteFornecedor", back_populates="lancamentos")
+```
+
+Isso permite escrever `lancamento.cliente_fornecedor.nome` em Python como se fosse um atributo normal, sem nenhum SQL explícito. O SQLAlchemy traduz para um `JOIN` quando necessário.
+
+**Porém:** por padrão, o SQLAlchemy só carrega o relacionamento quando ele é acessado pela primeira vez (lazy loading). Se você acessar `lancamento.cliente_fornecedor` para 100 lançamentos em um loop, ele fará 100 queries separadas. A solução é o `joinedload` descrito adiante.
+
 ### Camada 2 — Schemas (`schemas/`)
 
 Define o **contrato da API**: o que cada rota aceita e o que ela devolve. Um mesmo model pode ter múltiplos schemas.
@@ -223,6 +236,86 @@ app.include_router(auth_router,       prefix="/auth")
 def root():
     return {"status": "online"}
 ```
+
+---
+
+## Testes automatizados
+
+Os testes ficam em `backend/tests/` e usam **pytest** + **TestClient** (cliente HTTP que simula requisições sem precisar subir o servidor).
+
+### Como rodar
+
+```bash
+cd backend
+pytest tests/ -v
+```
+
+### Estrutura de um teste
+
+```python
+# backend/tests/test_lancamento.py
+
+def test_criar_lancamento_operador(client_operador, db_snapshot):
+    response = client_operador.post("/lancamento/", json={
+        "id_usuario_fk_lancamento": 2,
+        "id_clifor_relacionado_fk": 1,
+        "id_tipo_conta_fk": 1,
+        "valor": 150.00,
+        "data_vencimento": "2026-06-30",
+        "natureza_lancamento": "Credito",
+        "estorno": False
+    })
+    assert response.status_code == 200
+    assert response.json()["valor"] == "150.00"
+```
+
+- `client_operador` — fixture definida em `conftest.py` que já tem um token de Operador no header
+- `db_snapshot` — fixture especial de limpeza, explicada abaixo
+
+### Fixtures compartilhadas (`conftest.py`)
+
+`backend/tests/conftest.py` define fixtures reutilizadas por todos os testes:
+
+| Fixture | O que faz |
+|---|---|
+| `client` | TestClient sem autenticação |
+| `client_admin` | TestClient com token de Administrador no header |
+| `client_operador` | TestClient com token de Operador |
+| `client_consulta` | TestClient com token de Consulta |
+| `db_snapshot` | Garante limpeza do banco após o teste |
+
+### O que é `db_snapshot` e por que existe
+
+`db_snapshot` é uma fixture de sessão — executa uma vez antes de todos os testes e uma vez depois de todos:
+
+```python
+# backend/tests/conftest.py (simplificado)
+@pytest.fixture(scope="session", autouse=True)
+def db_snapshot(...):
+    db = SessionLocal()
+    snapshot_antes = contar_tabelas(db)   # ← conta linhas de cada tabela
+    db.close()
+
+    yield  # ← todos os testes executam aqui
+
+    db = SessionLocal()
+    snapshot_depois = contar_tabelas(db)  # ← conta novamente
+    db.close()
+
+    divergencias = {
+        tabela: (antes, depois)
+        for tabela, antes, depois in ...
+        if antes != depois    # ← se alguma tabela cresceu ou encolheu
+    }
+    if divergencias:
+        raise AssertionError("O banco ficou sujo após os testes.")
+```
+
+O efeito prático: **se qualquer teste criar um registro e não deletá-lo, a suite inteira falha ao final** com uma mensagem indicando qual tabela ficou com contagem diferente.
+
+Isso força os testes a fazerem sua própria limpeza — cada teste que cria dados deve deletá-los ao final. O `db_snapshot` é o "fiscal" que garante que nenhum teste esqueceu.
+
+**Sem `db_snapshot`:** testes acumulam dados e podem passar ou falhar dependendo da ordem de execução. Isso é chamado de "teste frágil" (flaky test).
 
 ---
 

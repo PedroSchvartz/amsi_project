@@ -93,6 +93,46 @@ Se o token estiver expirado ou inválido, o backend devolve `401 Unauthorized` e
 
 ---
 
+## Vocabulário do domínio
+
+Antes de ler o restante do guia, é essencial entender os termos de negócio usados em todo o código. Variáveis, tabelas e endpoints usam esses nomes diretamente.
+
+### Lançamento
+O registro central do sistema. Todo movimento financeiro da associação é um lançamento: uma cobrança de condomínio, um pagamento recebido, uma multa por atraso. Tecnicamente é uma linha na tabela `lancamento`.
+
+Um lançamento tem dois estados possíveis:
+- **Aberto** → `data_pagamento IS NULL` — ainda não foi pago
+- **Efetivado** → `data_pagamento` preenchido — pagamento registrado
+
+### Natureza do lançamento (Débito vs Crédito)
+Define a direção do dinheiro **do ponto de vista da associação**:
+- **Crédito** → dinheiro que a associação **recebe** (ex: mensalidade paga por um morador)
+- **Débito** → dinheiro que a associação **paga** (ex: conta de água, serviço contratado)
+
+Esse campo é chamado `natureza_lancamento` no banco e aparece como `NaturezaEnum` no código.
+
+### Clifor (Cliente/Fornecedor)
+Abreviação de **Cli**ente + **For**necedor. É a pessoa ou empresa associada a um lançamento. Pode ser:
+- Um **morador** que paga mensalidade (cliente)
+- Uma **empresa** que presta serviço e recebe pagamento (fornecedor)
+- **Ambos** ao mesmo tempo
+
+No banco: tabela `clientefornecedor`, abreviada como `clifor` em variáveis e parâmetros.
+
+### Tipo de Conta
+Categoria de um lançamento: "Condomínio", "Taxa de Administração", "Manutenção", etc. Cada tipo já tem uma natureza pré-definida (Débito ou Crédito). Tabela `tipo_conta` no banco.
+
+### Inadimplência
+Um clifor é **inadimplente** quando tem pelo menos um lançamento de Crédito vencido e não pago (e não é estorno). O campo `inadimplente` na tabela `clientefornecedor` é recalculado automaticamente sempre que um lançamento é criado, efetivado ou excluído — pela função `atualizar_inadimplente()` em `backend/utils/inadimplencia.py`.
+
+### Estorno
+Inversão da natureza de um lançamento. Um lançamento de Crédito com `estorno = True` vira efetivamente um Débito — representa um reembolso ou devolução. O campo `estorno` é um booleano na tabela `lancamento`.
+
+### Efetivar
+Ato de registrar o pagamento de um lançamento: preencher `data_pagamento`, `valor_pago`, e opcionalmente `multa`, `juros` e um comprovante em PDF. Depois de efetivado, o lançamento sai do estado "aberto".
+
+---
+
 ## Próximo passo
 
 Continue em [02_stack.md](./02_stack.md) para entender por que cada tecnologia foi escolhida.

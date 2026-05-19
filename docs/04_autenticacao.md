@@ -6,7 +6,7 @@
 
 ## O que é JWT e por que usar
 
-JWT (JSON Web Token) é um token assinado que carrega informações sobre o usuário. Diferente de uma sessão tradicional (onde o servidor guarda "quem está logado"), o JWT é **stateless**: o servidor não precisa consultar o banco para saber quem é o usuário — as informações estão no próprio token.
+JWT (JSON Web Token) é um token assinado que carrega informações sobre o usuário. A principal vantagem é que o **conteúdo do payload pode ser lido sem consultar o banco** — as informações estão no próprio token, codificadas em Base64.
 
 Um JWT tem três partes separadas por `.`:
 
@@ -25,6 +25,18 @@ Decodificando o payload:
   "exp": 1748000000               ← timestamp de expiração
 }
 ```
+
+**Importante: o payload não é criptografado — é só Base64.** Qualquer um que tiver o token consegue ler o `sub` e o `perfil`. O que o JWT garante não é sigilo, mas **integridade**: sem a chave secreta do servidor, não dá para falsificar a assinatura. O frontend usa isso em `getUserFromToken()` para ler o id e perfil sem fazer nenhuma requisição.
+
+### "Stateless" não significa "sem estado no banco"
+
+Você vai ouvir que JWT é "stateless". Isso significa que o **conteúdo** do token não exige ida ao banco — o servidor lê o payload diretamente. Mas stateless e "sem estado no banco" são coisas diferentes.
+
+O projeto salva o `jti` (JWT ID) na tabela `token_ativo`. Por quê? Porque sem isso não existe logout real. O JWT continuaria válido até a expiração mesmo depois do usuário sair. Isso **não contradiz** o conceito de stateless — apenas adiciona a capacidade de **revogar tokens individualmente**.
+
+Resumindo:
+- Leitura do payload (id, perfil) → sem banco ✓ (stateless)
+- Validação se o token ainda está ativo → banco obrigatório (revogação real)
 
 O frontend **não precisa ir ao backend** para saber o id ou perfil do usuário — lê direto do token. Veja `AMSI_Frontend/src/services/auth.js`, função `getUserFromToken()`.
 
@@ -86,8 +98,7 @@ db.add(token_ativo)
 db.commit()
 ```
 
-**Por que salvar no banco se JWT é "stateless"?**
-Porque sem isso não existe logout real. O JWT continuaria válido até a expiração mesmo depois do usuário sair. Ao guardar o `jti`, o backend pode invalidar o token imediatamente na hora do logout.
+Ao guardar o `jti`, o backend pode invalidar o token imediatamente na hora do logout — sem esperar a expiração natural.
 
 ### 6. Devolve o token ao frontend
 ```json

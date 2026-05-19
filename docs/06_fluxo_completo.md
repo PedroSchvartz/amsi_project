@@ -337,6 +337,105 @@ BROWSER                          BACKEND                        BANCO
 
 ---
 
+## E quando algo dá errado?
+
+O fluxo acima é o **caminho feliz**. Veja o que acontece nas falhas mais comuns:
+
+### Caso 1 — Token expirado (401)
+
+```
+POST /lancamento/
+Authorization: Bearer eyJ...  ← token expirado
+
+Backend (get_current_user):
+  1. Decodifica JWT, extrai jti
+  2. Busca jti em token_ativo → encontra
+  3. token_ativo.exp < agora → EXPIRADO
+  4. Deleta o registro do banco
+  5. Retorna HTTP 401 Unauthorized
+
+Frontend (handleResponse em api.js):
+  6. Detecta status 401
+  7. Chama logout() → localStorage.clear()
+  8. Exibe popup "Sessão expirada"
+  9. Redireciona para /login
+```
+
+O usuário precisa fazer login novamente. Isso não é bug — é o comportamento esperado de segurança.
+
+### Caso 2 — Sem permissão (403)
+
+```
+DELETE /lancamento/5
+Authorization: Bearer eyJ...  ← token de Operador (não Admin)
+
+Backend (exige_admin):
+  1. get_current_user() valida o token → OK
+  2. Verifica perfil: "Operador" não está em ['Administrador']
+  3. Retorna HTTP 403 Forbidden
+
+Frontend (handleResponse):
+  4. Detecta status 403
+  5. Lança exceção com a mensagem do backend
+  6. LancamentoModal captura e exibe Toast vermelho: "Sem permissão"
+```
+
+### Caso 3 — Dado inválido (422)
+
+```
+POST /lancamento/
+Body: { "valor": "abc", ... }  ← string onde era esperado número
+
+Backend (Pydantic, LancamentoCreate):
+  1. Tenta converter "abc" para Decimal
+  2. Falha na validação
+  3. Retorna HTTP 422 Unprocessable Entity
+     {
+       "detail": [
+         { "loc": ["body", "valor"], "msg": "value is not a valid decimal" }
+       ]
+     }
+
+Frontend (handleResponse):
+  4. Detecta status 422
+  5. Extrai a mensagem de erro do campo "detail"
+  6. Exibe Toast vermelho com o detalhe
+```
+
+Na prática, isso raramente acontece para o usuário final porque os campos monetários do frontend filtram `/[^0-9,]/g` antes de enviar. O 422 aparece principalmente durante desenvolvimento ou integração.
+
+### Caso 4 — FK não encontrada (404)
+
+```
+POST /lancamento/
+Body: { "id_clifor_relacionado_fk": 9999, ... }  ← clifor que não existe
+
+Backend (criar_lancamento):
+  1. Valida o body com Pydantic → OK (9999 é um inteiro válido)
+  2. Executa: db.query(ClienteFornecedor).filter(id == 9999).first()
+  3. Resultado: None
+  4. raise HTTPException(404, "Cliente/Fornecedor não encontrado")
+  5. Retorna HTTP 404 Not Found
+
+Frontend (handleResponse):
+  6. Detecta status 404
+  7. Lança exceção com a mensagem do backend
+  8. Exibe Toast vermelho: "Cliente/Fornecedor não encontrado"
+```
+
+### Resumo dos códigos HTTP usados no projeto
+
+| Código | Significado | Quando ocorre |
+|---|---|---|
+| `200` | Sucesso | Rota executou normalmente |
+| `201` | Criado | Alguns POSTs retornam 201 em vez de 200 |
+| `401` | Não autenticado | Token ausente, inválido ou expirado |
+| `403` | Sem permissão | Token válido mas perfil insuficiente |
+| `404` | Não encontrado | Recurso ou FK inexistente |
+| `422` | Dados inválidos | Pydantic rejeitou o body |
+
+---
+
 ## Critérios de verificação
 
 Você terminou o guia quando conseguir responder estas 14 perguntas **só com os arquivos do projeto**:
