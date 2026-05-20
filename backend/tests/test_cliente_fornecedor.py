@@ -484,11 +484,17 @@ def test_resumo_clifor_sem_token(client, clifor_base):
 # ─── Endpoint saldos e ordenação ──────────────────────────────────────────────
 
 def test_listar_clifors_ordenado_por_nome(client, headers_admin):
-    """Lista de clifors deve estar em ordem alfabética."""
+    """Lista de clifors deve estar em ordem alfabética (collation do banco)."""
+    import locale
     r = client.get("/cliente_fornecedor/", headers=headers_admin)
     assert r.status_code == 200
     nomes = [c["nome"] for c in r.json()]
-    assert nomes == sorted(nomes, key=str.lower)
+    try:
+        locale.setlocale(locale.LC_COLLATE, 'pt_BR.UTF-8')
+        chave = locale.strxfrm
+    except locale.Error:
+        chave = str.lower
+    assert nomes == sorted(nomes, key=chave)
 
 
 def test_saldos_clifors_retorna_lista(client, headers_admin):

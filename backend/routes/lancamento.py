@@ -306,7 +306,7 @@ def fechar_lancamento(id_lancamento: int, dados: LancamentoUpdate, db: Session =
     lancamento = db.query(Lancamento).filter(Lancamento.id_lancamento == id_lancamento).first()
     if not lancamento:
         raise HTTPException(status_code=404, detail="Lançamento não encontrado")
-    if not dados.data_pagamento:
+    if 'data_pagamento' in dados.model_fields_set and dados.data_pagamento is None:
         raise HTTPException(status_code=422, detail="data_pagamento é obrigatório para fechar um lançamento")
     if dados.id_usuario_fk_fechamento:
         if not db.query(Usuario).filter(Usuario.id_usuario == dados.id_usuario_fk_fechamento).first():

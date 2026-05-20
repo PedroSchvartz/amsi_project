@@ -324,10 +324,10 @@ def test_deletar_clifor_proibido_operador(client, headers_operador, operador_ses
 # LANÇAMENTOS — restrição de leitura a Consulta
 # ================================================
 
-def test_listar_lancamentos_proibido_consulta(client, headers_consulta):
-    """GET /lancamento/ por Consulta retorna 403."""
+def test_listar_lancamentos_permitido_consulta(client, headers_consulta):
+    """GET /lancamento/ por Consulta retorna 200 — perfil Consulta pode listar lançamentos."""
     r = client.get("/lancamento/", headers=headers_consulta)
-    assert r.status_code == 403
+    assert r.status_code == 200
 
 
 def test_ver_lancamento_proibido_consulta(client, headers_consulta, headers_admin, usuario_base, clifor_base, tipo_lancamento_base):
