@@ -81,7 +81,7 @@ Permite navegar entre páginas sem recarregar o browser (SPA — Single Page App
 ```jsx
 // AMSI_Frontend/src/App.jsx
 <Route path="/lancamentos" element={
-    <PrivateRoute minPerfil="Operador">
+    <PrivateRoute minPerfil="Consulta">
         <ListaLancamentosPage />
     </PrivateRoute>
 } />

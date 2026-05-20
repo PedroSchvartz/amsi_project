@@ -18,7 +18,7 @@ O sistema tem três níveis de acesso, do mais restrito ao mais amplo:
 
 | Perfil | O que pode fazer |
 |---|---|
-| **Consulta** | Somente visualizar dados. Não cria, não edita, não deleta nada. |
+| **Consulta** | Visualizar lançamentos, clientes/fornecedores e dashboard. CPF/CNPJ sempre mascarado. Sem criar, editar ou excluir. |
 | **Operador** | Visualizar e **efetivar** lançamentos (registrar pagamento). Gerenciar clientes/fornecedores. |
 | **Administrador** | Tudo — incluindo criar/editar/excluir usuários, lançamentos e tipos de conta. |
 

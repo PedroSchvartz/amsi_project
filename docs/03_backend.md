@@ -159,8 +159,9 @@ Exemplo: `GET /lancamento/?apenas_abertos=true` com token JWT no header.
 
 2. FastAPI resolve os Depends() antes de executar a função:
    ├── get_db()               → abre sessão com PostgreSQL
-   └── exige_operador_ou_admin() → valida JWT, verifica perfil
-       └── Se inválido → retorna 401 ou 403 antes de qualquer query
+   └── get_current_user() → valida JWT e extrai o usuário autenticado
+       └── Se token inválido/expirado → retorna 401 antes de qualquer query
+       └── (rotas de escrita como POST /lancamento/ usam exige_operador_ou_admin)
 
 3. A função listar_lancamentos() executa:
    ├── Monta query SQLAlchemy com joinedload (evita N+1 queries)

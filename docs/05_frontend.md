@@ -63,7 +63,7 @@ AMSI_Frontend/src/
     {/* Rotas protegidas com layout completo */}
     <Route element={<Layout />}>
         <Route path="/lancamentos" element={
-            <PrivateRoute minPerfil="Operador">
+            <PrivateRoute minPerfil="Consulta">
                 <ListaLancamentosPage />
             </PrivateRoute>
         } />

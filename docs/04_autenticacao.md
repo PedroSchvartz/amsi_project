@@ -250,9 +250,9 @@ def deletar_usuario(db=Depends(get_db), _=Depends(exige_admin)):
 Em `AMSI_Frontend/src/App.jsx`, envolva a página com `PrivateRoute`:
 
 ```jsx
-// Acesso mínimo: Operador
+// Acesso mínimo: Consulta (leitura; criação exige Operador via hasPerfilMinimo nos componentes)
 <Route path="/lancamentos" element={
-    <PrivateRoute minPerfil="Operador">
+    <PrivateRoute minPerfil="Consulta">
         <ListaLancamentosPage />
     </PrivateRoute>
 } />
@@ -265,11 +265,16 @@ Em `AMSI_Frontend/src/App.jsx`, envolva a página com `PrivateRoute`:
 } />
 ```
 
-E dentro dos componentes, use `isAdmin()` ou `hasPerfilMinimo()` para mostrar/esconder elementos:
+E dentro dos componentes, use `isAdmin()`, `isConsulta()` ou `hasPerfilMinimo()` para mostrar/esconder elementos:
 ```jsx
-// AMSI_Frontend/src/pages/ListaLancamentosPage.jsx
+// Ocultar ação destrutiva para não-admins
 {isAdmin() && (
     <button onClick={() => setConfirmarDeletar(true)}>Excluir</button>
+)}
+
+// Ocultar ação de escrita para Consulta
+{!isConsulta() && (
+    <button onClick={() => setModalAberto(true)}>+ Novo Lançamento</button>
 )}
 ```
 

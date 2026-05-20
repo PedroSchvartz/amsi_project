@@ -1770,6 +1770,9 @@
     nome_clifor:
       tipo: desconhecido
       obrigatorio: false
+    cpf_cnpj_clifor:
+      tipo: desconhecido
+      obrigatorio: false
     descricao_tipo_conta:
       tipo: desconhecido
       obrigatorio: false
@@ -1863,6 +1866,9 @@
     nome_clifor:
       tipo: desconhecido
       obrigatorio: false
+    cpf_cnpj_clifor:
+      tipo: desconhecido
+      obrigatorio: false
     descricao_tipo_conta:
       tipo: desconhecido
       obrigatorio: false
@@ -1937,6 +1943,9 @@
       tipo: desconhecido
       obrigatorio: false
     nome_clifor:
+      tipo: desconhecido
+      obrigatorio: false
+    cpf_cnpj_clifor:
       tipo: desconhecido
       obrigatorio: false
     descricao_tipo_conta:
@@ -2036,6 +2045,9 @@
     nome_clifor:
       tipo: desconhecido
       obrigatorio: false
+    cpf_cnpj_clifor:
+      tipo: desconhecido
+      obrigatorio: false
     descricao_tipo_conta:
       tipo: desconhecido
       obrigatorio: false
@@ -2124,6 +2136,9 @@
     nome_clifor:
       tipo: desconhecido
       obrigatorio: false
+    cpf_cnpj_clifor:
+      tipo: desconhecido
+      obrigatorio: false
     descricao_tipo_conta:
       tipo: desconhecido
       obrigatorio: false
@@ -2198,6 +2213,9 @@
       tipo: desconhecido
       obrigatorio: false
     nome_clifor:
+      tipo: desconhecido
+      obrigatorio: false
+    cpf_cnpj_clifor:
       tipo: desconhecido
       obrigatorio: false
     descricao_tipo_conta:
@@ -2310,6 +2328,9 @@
       tipo: desconhecido
       obrigatorio: false
     nome_clifor:
+      tipo: desconhecido
+      obrigatorio: false
+    cpf_cnpj_clifor:
       tipo: desconhecido
       obrigatorio: false
     descricao_tipo_conta:
