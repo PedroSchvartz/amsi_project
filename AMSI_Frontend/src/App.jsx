@@ -251,7 +251,7 @@ function App() {
 						<Route
 							path="/dashboard"
 							element={
-								<PrivateRoute minPerfil="Operador">
+								<PrivateRoute minPerfil="Consulta">
 									<Dashboard />
 								</PrivateRoute>
 							}
@@ -269,7 +269,7 @@ function App() {
 						<Route
 							path="/cliente_fornecedor"
 							element={
-								<PrivateRoute minPerfil="Operador">
+								<PrivateRoute minPerfil="Consulta">
 									<ClientListPage />
 								</PrivateRoute>
 							}
@@ -296,7 +296,7 @@ function App() {
 						<Route
 							path="/lancamentos"
 							element={
-								<PrivateRoute minPerfil="Operador">
+								<PrivateRoute minPerfil="Consulta">
 									<ListaLancamentosPage />
 								</PrivateRoute>
 							}

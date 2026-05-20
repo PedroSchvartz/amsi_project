@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation, Outlet } from 'react-router-dom';
 import ErrorBoundary from './ErrorBoundary';
 import '../styles/layout.css';
 import logo from '../assets/AMSI_Logo.png';
-import { getUserFromToken, logout, isAdmin, isOperador } from '../services/auth';
+import { getUserFromToken, logout, isAdmin, isOperador, isConsulta } from '../services/auth';
 import { logoutUser } from '../services/api';
 import PerfilPopup from './PerfilCompletoPopup.jsx';
 
@@ -17,6 +17,7 @@ function Layout() {
 	const [perfilAberto, setPerfilAberto] = useState(false);
 	const admin = isAdmin();
 	const operador = isOperador();
+	const consulta = isConsulta();
 
 	// ── Aplica data-theme no <html> e persiste no localStorage ──
 	useEffect(() => {
@@ -58,14 +59,14 @@ function Layout() {
 
 	const payload = getUserFromToken();
 	const usuarioLocal = JSON.parse(localStorage.getItem('user') || 'null');
-	const nomeUsuario = usuarioLocal?.nome || payload?.sub || 'Usuário';
+	const nomeUsuario = usuarioLocal?.nome || 'Usuário';
 	const isActive = (path) => location.pathname === path;
 
 	const menuLinks = [
-		(admin || operador) && { to: '/dashboard', label: 'Dashboard', icon: 'bi-speedometer2' },
+		(admin || operador || consulta) && { to: '/dashboard', label: 'Dashboard', icon: 'bi-speedometer2' },
 		admin && { to: '/usuarios', label: 'Usuários', icon: 'bi-people' },
-		(admin || operador) && { to: '/lancamentos', label: 'Lançamentos', icon: 'bi-journal-text' },
-		(admin || operador) && { to: '/cliente_fornecedor', label: 'Clientes / Fornecedores', icon: 'bi-person-lines-fill' }
+		(admin || operador || consulta) && { to: '/lancamentos', label: 'Lançamentos', icon: 'bi-journal-text' },
+		(admin || operador || consulta) && { to: '/cliente_fornecedor', label: 'Clientes / Fornecedores', icon: 'bi-person-lines-fill' }
 	].filter(Boolean);
 
 	return (

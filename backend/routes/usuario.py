@@ -206,8 +206,10 @@ from typing import Optional as Opt
 def buscar_clifor_do_usuario(
     id_usuario: int,
     db: Session = Depends(get_db),
-    _=Depends(exige_admin)
+    usuario_atual=Depends(get_current_user)
 ):
+    if usuario_atual.id_usuario != id_usuario and usuario_atual.perfil_de_acesso.value != "Administrador":
+        raise HTTPException(status_code=403, detail="Acesso negado")
     usuario = db.query(Usuario).filter(Usuario.id_usuario == id_usuario).first()
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")

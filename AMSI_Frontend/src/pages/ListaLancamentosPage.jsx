@@ -15,7 +15,15 @@ import {
 	baixarComprovante,
 	removerComprovante
 } from '../services/api';
-import { getUserFromToken, isAdmin, hasPerfilMinimo } from '../services/auth';
+import { getUserFromToken, isAdmin, isConsulta, hasPerfilMinimo } from '../services/auth';
+
+function rassurarCpfCnpj(doc) {
+	if (!doc) return '—';
+	const d = doc.replace(/\D/g, '');
+	if (d.length === 11) return `***.***.${d.slice(6, 9)}-**`;
+	if (d.length === 14) return `**.${d.slice(2, 5)}.${d.slice(5, 8)}/****.${d.slice(12)}`;
+	return doc;
+}
 
 const FILTROS_INICIAL = {
 	id_clifor: '',
@@ -64,6 +72,7 @@ const EDITAR_INICIAL = {
 function ListaLancamentosPage() {
 	const [searchParams] = useSearchParams();
 	const [modalAberto, setModalAberto] = useState(false);
+	const [cpfVisivelLanc, setCpfVisivelLanc] = useState({});
 	const [lancamentos, setLancamentos] = useState([]);
 	const [clifors, setClifors] = useState([]);
 	const [tiposConta, setTiposConta] = useState([]);
@@ -222,6 +231,10 @@ function ListaLancamentosPage() {
 
 	const handleConfirmarFechar = async (e) => {
 		e.preventDefault();
+		if (!formFechar.data_pagamento) {
+			mostrarToast('Informe a data de pagamento.', 'aviso');
+			return;
+		}
 		try {
 			const payload = {
 				id_usuario_fk_fechamento: usuario?.sub,
@@ -364,21 +377,23 @@ function ListaLancamentosPage() {
 						}}
 					>
 						<h2 style={{ margin: 0 }}>Lista de Lançamentos</h2>
-						<button
-							onClick={() => setModalAberto(true)}
-							style={{
-								padding: '8px 18px',
-								borderRadius: 8,
-								border: 'none',
-								background: 'var(--primary)',
-								color: '#fff',
-								fontWeight: 600,
-								fontSize: '0.875rem',
-								cursor: 'pointer'
-							}}
-						>
-							+ Novo Lançamento
-						</button>
+						{hasPerfilMinimo('Operador') && (
+							<button
+								onClick={() => setModalAberto(true)}
+								style={{
+									padding: '8px 18px',
+									borderRadius: 8,
+									border: 'none',
+									background: 'var(--primary)',
+									color: '#fff',
+									fontWeight: 600,
+									fontSize: '0.875rem',
+									cursor: 'pointer'
+								}}
+							>
+								+ Novo Lançamento
+							</button>
+						)}
 					</div>
 
 					{searchParams.has('origemDashboard') && (
@@ -632,8 +647,8 @@ function ListaLancamentosPage() {
 									<th data-tooltip="Data em que o pagamento foi efetivado">Pagamento</th>
 									<th data-tooltip="Valor original registrado no lançamento">Vl. Lançamento</th>
 									<th data-tooltip="Total efetivamente pago: valor pago + multa + juros">Vl. Pagamento</th>
-									<th>Status</th>
-									<th>Ações</th>
+									<th data-tooltip="Situação do lançamento: Pago, Em aberto ou Vencido">Status</th>
+									<th data-tooltip="Ações disponíveis: editar, comprovante, efetivar">Ações</th>
 								</tr>
 							</thead>
 							<tbody>
@@ -646,7 +661,19 @@ function ListaLancamentosPage() {
 								) : (
 									lancamentos.map((l) => (
 										<tr key={l.id_lancamento}>
-											<td>{l.cpf_cnpj_clifor || '—'}</td>
+											<td>
+											{isConsulta() ? (
+												<span title="Dado protegido">{rassurarCpfCnpj(l.cpf_cnpj_clifor)}</span>
+											) : (
+												<span
+													title={cpfVisivelLanc[l.id_lancamento] ? 'Clique para ocultar' : 'Clique para revelar'}
+													onClick={() => setCpfVisivelLanc((prev) => ({ ...prev, [l.id_lancamento]: !prev[l.id_lancamento] }))}
+													style={{ cursor: 'pointer' }}
+												>
+													{cpfVisivelLanc[l.id_lancamento] ? l.cpf_cnpj_clifor || '—' : rassurarCpfCnpj(l.cpf_cnpj_clifor)}
+												</span>
+											)}
+										</td>
 											<td>{nomeClifor(l)}</td>
 											<td>{nomeTipo(l)}</td>
 											<td>{l.natureza_lancamento}</td>

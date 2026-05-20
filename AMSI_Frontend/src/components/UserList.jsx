@@ -5,6 +5,7 @@ import UserEditModal from './UserEditModal.jsx';
 import PerfilCompletoPopup from './PerfilCompletoPopup.jsx';
 import ModalConfirm from './ModalConfirm.jsx';
 import { useToast } from './ToastStack.jsx';
+import { getUserFromToken } from '../services/auth';
 import '../styles/userList.css';
 
 function UserList() {
@@ -15,6 +16,7 @@ function UserList() {
 	const [confirmarReset, setConfirmarReset] = useState(null);
 	const [perfilCompleto, setPerfilCompleto] = useState(null);
 	const { mostrarToast } = useToast();
+	const meuId = parseInt(getUserFromToken()?.sub);
 
 	useEffect(() => {
 		carregarUsuarios();
@@ -88,7 +90,14 @@ function UserList() {
 					) : (
 						usuarios.map((u) => (
 							<tr key={u.id_usuario}>
-								<td>{u.nome}</td>
+								<td>
+									{u.nome}
+									{u.bloqueado && (
+										<span style={{ marginLeft: 6, fontSize: '0.7rem', background: '#dc2626', color: '#fff', borderRadius: 4, padding: '1px 6px', verticalAlign: 'middle' }}>
+											Bloqueado
+										</span>
+									)}
+								</td>
 								<td>{u.email}</td>
 								<td>{u.cargo || '—'}</td>
 								<td>{u.perfil_de_acesso}</td>
@@ -117,8 +126,14 @@ function UserList() {
 										</button>
 										<button
 											className="btn-acao-deletar"
-											onClick={() => setConfirmarDelete(u.id_usuario)}
-											title="Remover usuário"
+											onClick={() => {
+												if (u.id_usuario === meuId) {
+													mostrarToast('Não é possível remover sua própria conta.', 'aviso');
+													return;
+												}
+												setConfirmarDelete(u.id_usuario);
+											}}
+											title={u.id_usuario === meuId ? 'Não é possível remover sua própria conta' : 'Remover usuário'}
 										>
 											<i className="bi bi-trash" />
 										</button>

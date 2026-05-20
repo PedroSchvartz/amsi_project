@@ -253,9 +253,14 @@ function ClientEdit() {
 		if (!form.rg_inscricaoestadual.trim())
 			e.rg_inscricaoestadual = isPF ? 'RG obrigatório.' : 'Inscrição Estadual obrigatória.';
 		const doc = form.cpf_cnpj.replace(/\D/g, '');
-		if (isPF && !validarCPF(doc)) e.cpf_cnpj = 'CPF inválido.';
-		if (!isPF && form.pessoafisica_juridica !== '' && !validarCNPJ(doc))
-			e.cpf_cnpj = 'CNPJ inválido.';
+		if (isPF) {
+			if (!doc) e.cpf_cnpj = 'CPF obrigatório.';
+			else if (!validarCPF(doc)) e.cpf_cnpj = 'CPF inválido.';
+		}
+		if (!isPF && form.pessoafisica_juridica !== '') {
+			if (!doc) e.cpf_cnpj = 'CNPJ obrigatório.';
+			else if (!validarCNPJ(doc)) e.cpf_cnpj = 'CNPJ inválido.';
+		}
 		enderecos.forEach((end, i) => {
 			const n = enderecos.length > 1 ? ` (Endereço ${i + 1})` : '';
 			if (!end.logradouro.trim()) e[`end_logradouro_${i}`] = `Logradouro obrigatório${n}.`;

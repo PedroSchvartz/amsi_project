@@ -55,6 +55,22 @@ function LancamentoModal({ onFechar }) {
 			mostrarToast('Sessão expirada.', 'erro');
 			return;
 		}
+		if (!form.id_clifor_relacionado_fk) {
+			mostrarToast('Selecione o cliente/fornecedor.', 'aviso');
+			return;
+		}
+		if (!form.id_tipo_conta_fk) {
+			mostrarToast('Selecione o tipo de conta.', 'aviso');
+			return;
+		}
+		if (!form.valor || parseFloat(form.valor.replace(',', '.')) <= 0) {
+			mostrarToast('Informe um valor válido.', 'aviso');
+			return;
+		}
+		if (!form.data_vencimento) {
+			mostrarToast('Informe a data de vencimento.', 'aviso');
+			return;
+		}
 
 		const tipoSelecionado = tiposConta.find(
 			(t) => t.id_tipo_conta === parseInt(form.id_tipo_conta_fk)
@@ -153,7 +169,7 @@ function LancamentoModal({ onFechar }) {
 						</div>
 						<div>
 							<label>Natureza</label>
-							<input value={naturezaExibida} readOnly />
+							<input value={naturezaExibida} readOnly title="Preenchido automaticamente ao selecionar o Tipo de Conta" />
 						</div>
 					</div>
 

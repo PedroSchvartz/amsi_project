@@ -37,6 +37,7 @@ function UserEditModal({ usuario, onFechar, onSalvo }) {
 	});
 	const [salvando, setSalvando] = useState(false);
 	const [confirmarNotificacao, setConfirmarNotificacao] = useState(false);
+	const [confirmarBloqueio, setConfirmarBloqueio] = useState(false);
 	const { mostrarToast } = useToast();
 
 	const handleChange = (e) => {
@@ -58,8 +59,7 @@ function UserEditModal({ usuario, onFechar, onSalvo }) {
 		}
 	};
 
-	const handleSubmit = async (e) => {
-		e.preventDefault();
+	const salvar = async () => {
 		setSalvando(true);
 		try {
 			await updateUser(usuario.id_usuario, form);
@@ -72,8 +72,27 @@ function UserEditModal({ usuario, onFechar, onSalvo }) {
 		}
 	};
 
+	const handleSubmit = async (e) => {
+		e.preventDefault();
+		if (!usuario.bloqueado && form.bloqueado) {
+			setConfirmarBloqueio(true);
+			return;
+		}
+		await salvar();
+	};
+
 	return (
 		<>
+			{confirmarBloqueio && (
+				<ModalConfirm
+					titulo="Bloquear usuário"
+					mensagem="Tem certeza que deseja bloquear este usuário? Ele não conseguirá mais fazer login."
+					textoBotaoConfirmar="Bloquear"
+					onConfirmar={async () => { setConfirmarBloqueio(false); await salvar(); }}
+					onCancelar={() => setConfirmarBloqueio(false)}
+					variante="perigo"
+				/>
+			)}
 			{confirmarNotificacao && (
 				<ModalConfirm
 					titulo="Remover notificações"

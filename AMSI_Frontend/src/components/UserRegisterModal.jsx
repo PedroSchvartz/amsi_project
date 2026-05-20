@@ -29,6 +29,10 @@ function UserRegisterModal({ onFechar }) {
 
 	const handleSubmit = async (e) => {
 		e.preventDefault();
+		if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+			mostrarToast('E-mail inválido.', 'aviso');
+			return;
+		}
 		try {
 			await createUser(form);
 			mostrarToast('Usuário cadastrado com sucesso!');

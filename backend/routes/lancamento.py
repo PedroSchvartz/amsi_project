@@ -7,7 +7,7 @@ from models.usuario import Usuario
 from models.cliente_fornecedor import ClienteFornecedor
 from models.tipo_conta import tipo_conta
 from schemas.lancamento import LancamentoCreate, LancamentoUpdate, LancamentoEditAdmin, LancamentoResponse, LancamentoResumo, ResumoPorTipo
-from auth.dependencies import exige_admin, exige_operador_ou_admin
+from auth.dependencies import exige_admin, exige_operador_ou_admin, get_current_user
 from utils.inadimplencia import atualizar_inadimplente
 from typing import List, Optional
 from datetime import date
@@ -200,7 +200,7 @@ def listar_lancamentos(
     valor_minimo: Optional[Decimal] = None,
     valor_maximo: Optional[Decimal] = None,
     db: Session = Depends(get_db),
-    _=Depends(exige_operador_ou_admin)
+    _=Depends(get_current_user)
 ):
     query = db.query(Lancamento).join(
         ClienteFornecedor,
@@ -306,6 +306,8 @@ def fechar_lancamento(id_lancamento: int, dados: LancamentoUpdate, db: Session =
     lancamento = db.query(Lancamento).filter(Lancamento.id_lancamento == id_lancamento).first()
     if not lancamento:
         raise HTTPException(status_code=404, detail="Lançamento não encontrado")
+    if not dados.data_pagamento:
+        raise HTTPException(status_code=422, detail="data_pagamento é obrigatório para fechar um lançamento")
     if dados.id_usuario_fk_fechamento:
         if not db.query(Usuario).filter(Usuario.id_usuario == dados.id_usuario_fk_fechamento).first():
             raise HTTPException(status_code=404, detail="Usuário de fechamento não encontrado")

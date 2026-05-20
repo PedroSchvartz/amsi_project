@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { getClifors, getSaldosClifors, deleteClifor } from '../services/api.js';
 import { useToast } from './ToastStack.jsx';
 import ModalConfirm from './ModalConfirm.jsx';
-import { isAdmin } from '../services/auth.js';
+import { isAdmin, isConsulta } from '../services/auth.js';
 import '../styles/clientList.css';
 
 const TIPO_LABEL = { C: 'Cliente', F: 'Fornecedor', A: 'Ambos' };
@@ -20,6 +20,7 @@ function ClientList() {
 	const navigate = useNavigate();
 	const { mostrarToast } = useToast();
 	const admin = isAdmin();
+	const consulta = isConsulta();
 
 	const [clifors, setClifors] = useState([]);
 	const [saldos, setSaldos] = useState({});
@@ -89,9 +90,11 @@ function ClientList() {
 
 			<div className="cl-header">
 				<h2 className="cl-title">Clientes / Fornecedores</h2>
-				<button className="cl-btn-novo" onClick={() => navigate('/cliente_fornecedor/novo')}>
-					+ Novo
-				</button>
+				{!consulta && (
+					<button className="cl-btn-novo" onClick={() => navigate('/cliente_fornecedor/novo')}>
+						+ Novo
+					</button>
+				)}
 			</div>
 
 			<div className="cl-filtros">
@@ -152,11 +155,12 @@ function ClientList() {
 										<td>{TIPO_LABEL[c.tipo_clifor] ?? c.tipo_clifor}</td>
 										<td>
 											<span
-												className="cl-doc cl-rasurado"
-												title="Clique para revelar"
-												onClick={() => toggleCpf(c.id_clifor)}
+												className={`cl-doc${consulta ? '' : ' cl-rasurado'}`}
+												title={consulta ? 'Dado protegido' : cpfVisivel[c.id_clifor] ? 'Clique para ocultar' : 'Clique para revelar'}
+												onClick={() => !consulta && toggleCpf(c.id_clifor)}
+												style={consulta ? {} : { cursor: 'pointer' }}
 											>
-												{cpfVisivel[c.id_clifor] ? c.cpf_cnpj || '—' : rassurarCpfCnpj(c.cpf_cnpj)}
+												{!consulta && cpfVisivel[c.id_clifor] ? c.cpf_cnpj || '—' : rassurarCpfCnpj(c.cpf_cnpj)}
 											</span>
 										</td>
 										<td>
@@ -187,12 +191,14 @@ function ClientList() {
 											)}
 										</td>
 										<td style={{ display: 'flex', gap: 6 }}>
-											<button
-												className="cl-btn-editar"
-												onClick={() => navigate(`/cliente_fornecedor/${c.id_clifor}/editar`)}
-											>
-												<i className="bi bi-pencil"></i> Editar
-											</button>
+											{!consulta && (
+												<button
+													className="cl-btn-editar"
+													onClick={() => navigate(`/cliente_fornecedor/${c.id_clifor}/editar`)}
+												>
+													<i className="bi bi-pencil"></i> Editar
+												</button>
+											)}
 											{admin && (
 												<button
 													className="cl-btn-editar"

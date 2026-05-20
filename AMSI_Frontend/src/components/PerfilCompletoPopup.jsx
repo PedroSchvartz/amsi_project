@@ -7,6 +7,7 @@ import {
 } from '../services/api.js';
 import ModalConfirm from './ModalConfirm.jsx';
 import { useToast } from './ToastStack.jsx';
+import { isConsulta } from '../services/auth.js';
 
 const s = {
 	overlay: {
@@ -170,7 +171,7 @@ function PerfilCompletoPopup({ usuario, onFechar }) {
 			if (data === null) {
 				setSemClifor(true);
 				setClifor(null);
-				carregarSugestoes('');
+				if (!isConsulta()) carregarSugestoes('');
 			} else {
 				setClifor(data);
 				setSemClifor(false);
@@ -305,36 +306,40 @@ function PerfilCompletoPopup({ usuario, onFechar }) {
 							<p style={{ ...s.sectionTitle, color: 'var(--text-muted)' }}>
 								Nenhum Cliente/Fornecedor vinculado.
 							</p>
-							<p style={{ ...s.sectionTitle, marginBottom: 6 }}>
-								Associar a um Cliente/Fornecedor?
-							</p>
-							<input
-								style={s.input}
-								placeholder="Buscar por nome..."
-								value={busca}
-								onChange={handleBuscaChange}
-							/>
-							{carregandoSugestao ? (
-								<p style={s.muted}>Buscando...</p>
-							) : sugestoes.length === 0 ? (
-								<p style={s.muted}>Nenhum resultado.</p>
-							) : (
-								sugestoes.map((c) => (
-									<div
-										key={c.id_clifor}
-										style={s.sugestaoItem}
-										onClick={() => !associando && setConfirmandoAssoc(c)}
-									>
-										<strong>{c.nome}</strong>
-										<span style={{ ...s.muted, marginLeft: 8 }}>
-											{c.tipo_clifor === 'C'
-												? 'Cliente'
-												: c.tipo_clifor === 'F'
-													? 'Fornecedor'
-													: 'Ambos'}
-										</span>
-									</div>
-								))
+							{!isConsulta() && (
+								<>
+									<p style={{ ...s.sectionTitle, marginBottom: 6 }}>
+										Associar a um Cliente/Fornecedor?
+									</p>
+									<input
+										style={s.input}
+										placeholder="Buscar por nome..."
+										value={busca}
+										onChange={handleBuscaChange}
+									/>
+									{carregandoSugestao ? (
+										<p style={s.muted}>Buscando...</p>
+									) : sugestoes.length === 0 ? (
+										<p style={s.muted}>Nenhum resultado.</p>
+									) : (
+										sugestoes.map((c) => (
+											<div
+												key={c.id_clifor}
+												style={s.sugestaoItem}
+												onClick={() => !associando && setConfirmandoAssoc(c)}
+											>
+												<strong>{c.nome}</strong>
+												<span style={{ ...s.muted, marginLeft: 8 }}>
+													{c.tipo_clifor === 'C'
+														? 'Cliente'
+														: c.tipo_clifor === 'F'
+															? 'Fornecedor'
+															: 'Ambos'}
+												</span>
+											</div>
+										))
+									)}
+								</>
 							)}
 						</>
 					) : clifor ? (
@@ -348,9 +353,11 @@ function PerfilCompletoPopup({ usuario, onFechar }) {
 								}}
 							>
 								<p style={{ ...s.sectionTitle, margin: 0 }}>Cliente / Fornecedor Vinculado</p>
-								<button style={s.btnDanger} onClick={() => setConfirmandoDesv(true)}>
-									Desvincular
-								</button>
+								{!isConsulta() && (
+									<button style={s.btnDanger} onClick={() => setConfirmandoDesv(true)}>
+										Desvincular
+									</button>
+								)}
 							</div>
 
 							<div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 4 }}>
