@@ -18,8 +18,14 @@ TABELAS_MONITORADAS = [
 
 
 def contar_tabelas(db):
+    # Usuário usa soft-delete: contar apenas registros ativos para não gerar falso-alarme
+    QUERIES_ESPECIAIS = {
+        "usuario": "SELECT COUNT(*) FROM usuario WHERE exclusao IS NULL",
+    }
     return {
-        tabela: db.execute(__import__("sqlalchemy").text(f"SELECT COUNT(*) FROM {tabela}")).scalar()
+        tabela: db.execute(
+            __import__("sqlalchemy").text(QUERIES_ESPECIAIS.get(tabela, f"SELECT COUNT(*) FROM {tabela}"))
+        ).scalar()
         for tabela in TABELAS_MONITORADAS
     }
 

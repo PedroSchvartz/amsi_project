@@ -19,6 +19,7 @@ import { setSessaoExpiradaCallback } from './services/api';
 import Dashboard from './pages/dashboard';
 import TipoContaPage from './pages/TipoContaPage';
 import NotFoundPage from './pages/NotFoundPage';
+import DemoRegistroPage from './pages/DemoRegistroPage';
 
 /* ════════════════════════════════════════
    SPINNER GLOBAL DE CARREGAMENTO
@@ -225,8 +226,9 @@ function App() {
 				<MonitorRede />
 				<MonitorSessao />
 				<Routes>
-					{/* Página pública */}
+					{/* Páginas públicas */}
 					<Route path="/" element={<LoginPage />} />
+					<Route path="/demo-registro" element={<DemoRegistroPage />} />
 
 					{/* Primeiro acesso — sem navbar */}
 					<Route

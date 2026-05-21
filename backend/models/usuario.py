@@ -5,6 +5,7 @@ from database import Base
 import enum
 
 class CargoEnum(enum.Enum):
+    Presidente = "Presidente"
     Diretor = "Diretor"
     Tesoureiro = "Tesoureiro"
     Secretario = "Secretário"

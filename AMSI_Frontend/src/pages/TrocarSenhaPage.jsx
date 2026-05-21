@@ -58,10 +58,12 @@ function TrocarSenhaPage() {
 		try {
 			await trocarSenha({ senha_atual: form.senha_atual, nova_senha: form.nova_senha });
 			setSucesso(true);
-			// Aguarda 2s para o usuário ler o feedback e redireciona para login
+			// Aguarda 2s para o usuário ler o feedback e redireciona para login com email preenchido
 			setTimeout(() => {
+				const userStr = localStorage.getItem('user');
+				const emailAtual = userStr ? (JSON.parse(userStr)?.email ?? '') : '';
 				logout();
-				navigate('/');
+				navigate(emailAtual ? `/?email=${encodeURIComponent(emailAtual)}` : '/');
 			}, 2000);
 		} catch (err) {
 			setErro(err.message || 'Erro ao trocar a senha.');

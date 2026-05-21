@@ -1,15 +1,31 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import '../styles/login.css';
-import { loginUser, getUser } from '../services/api.js';
+import { loginUser, getUser, getDemoStatus } from '../services/api.js';
 import logo from '../assets/AMSI_Logo.png';
 
 function Login() {
 	const navigate = useNavigate();
-	const [email, setEmail] = useState('');
-	const [senha, setSenha] = useState('');
+	const [searchParams] = useSearchParams();
+	const [email, setEmail] = useState(() => searchParams.get('email') ?? '');
+	const [senha, setSenha] = useState(() => {
+		// Extrai a senha provisória do parâmetro redirect (/trocar-senha?senha=XXXX)
+		// para que o usuário não precise digitá-la manualmente ao clicar no link do e-mail
+		const redirect = searchParams.get('redirect') ?? '';
+		if (redirect.startsWith('/trocar-senha')) {
+			const redirectParams = new URLSearchParams(redirect.split('?')[1] ?? '');
+			return redirectParams.get('senha') ?? '';
+		}
+		return '';
+	});
 	const [erro, setErro] = useState('');
 	const [tema, setTema] = useState('verde');
+	const [modoDemo, setModoDemo] = useState(false);
+
+	// Verifica se o backend está em modo demo para exibir o link de auto-registro
+	useEffect(() => {
+		getDemoStatus().then((res) => setModoDemo(res.demo_ativo ?? false));
+	}, []);
 
 	useEffect(() => {
 		if (tema === 'corporativo') {
@@ -49,10 +65,16 @@ function Login() {
 				}
 			}
 
+			const redirect = searchParams.get('redirect');
 			if (data.primeiro_acesso) {
-				navigate('/trocar-senha');
+				// Primeiro acesso: ir para trocar-senha preservando ?senha se veio do email
+				if (redirect && redirect.startsWith('/trocar-senha')) {
+					navigate(redirect);
+				} else {
+					navigate('/trocar-senha');
+				}
 			} else {
-				navigate('/home');
+				navigate(redirect ?? '/home');
 			}
 		} catch (err) {
 			setErro(err.message || 'Erro ao fazer login');
@@ -123,6 +145,24 @@ function Login() {
 
 							{erro && <p className="login-erro">{erro}</p>}
 						</form>
+
+						{/* Link de auto-registro — visível apenas em modo demo */}
+						{modoDemo && (
+							<p style={{
+								textAlign: 'center',
+								marginTop: '20px',
+								fontSize: '0.82rem',
+								color: 'var(--text-muted)'
+							}}>
+								Participando do ensaio?{' '}
+								<Link
+									to="/demo-registro"
+									style={{ color: 'var(--primary)', fontWeight: 500 }}
+								>
+									Criar conta →
+								</Link>
+							</p>
+						)}
 					</div>
 				</div>
 			</div>

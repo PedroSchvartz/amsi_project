@@ -3,7 +3,7 @@ import { updateUser } from '../services/api';
 import ModalConfirm from './ModalConfirm.jsx';
 import { useToast } from './ToastStack.jsx';
 
-const CARGOS = ['Presidente', 'Tesoureiro', 'Secretário', 'Conselheiro', 'Associado', 'Desenvolvedor'];
+const CARGOS = ['Presidente', 'Diretor', 'Tesoureiro', 'Secretário', 'Conselheiro', 'Associado', 'Desenvolvedor'];
 const PERFIS = ['Administrador', 'Operador', 'Consulta'];
 
 const s = {

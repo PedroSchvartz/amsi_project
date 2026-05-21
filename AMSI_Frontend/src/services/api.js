@@ -126,8 +126,9 @@ export const trocarSenha = async ({ senha_atual, nova_senha }) => {
 // 👤 USUÁRIOS
 // ======================
 
-export const getUsers = async () => {
-	const response = await fetchComLoading(`${BASE_URL}/usuarios/`, {
+export const getUsers = async (incluirExcluidos = false) => {
+	const params = incluirExcluidos ? '?incluir_excluidos=true' : '';
+	const response = await fetchComLoading(`${BASE_URL}/usuarios/${params}`, {
 		method: 'GET',
 		headers: authHeaders()
 	});
@@ -177,6 +178,14 @@ export const deleteUser = async (id_usuario) => {
 
 export const resetarSenhaUsuario = async (id_usuario) => {
 	const response = await fetchComLoading(`${BASE_URL}/usuarios/${id_usuario}/resetar-senha`, {
+		method: 'POST',
+		headers: authHeaders()
+	});
+	return handleResponse(response);
+};
+
+export const restaurarUsuario = async (id_usuario) => {
+	const response = await fetchComLoading(`${BASE_URL}/usuarios/${id_usuario}/restaurar`, {
 		method: 'POST',
 		headers: authHeaders()
 	});
@@ -670,4 +679,33 @@ export const deleteLogin = async (id_login) => {
 		headers: authHeaders()
 	});
 	return handleResponse(response);
+};
+
+// ======================
+// 🧪 DEMO — Auto-registro para ensaio
+// Ativo apenas quando o backend está com APP_ENV=demo
+// ======================
+
+export const getDemoStatus = async () => {
+	try {
+		const response = await fetch(`${BASE_URL}/demo/status`);
+		if (!response.ok) return { demo_ativo: false };
+		return await response.json();
+	} catch {
+		return { demo_ativo: false };
+	}
+};
+
+export const demoRegistro = async ({ nome, email, senha, cargo, perfil_de_acesso }) => {
+	const response = await fetchComLoading(`${BASE_URL}/demo/registro`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ nome, email, senha, cargo, perfil_de_acesso })
+	});
+	const data = await response.json().catch(() => ({}));
+	if (!response.ok) {
+		const message = data?.detail || 'Erro ao criar conta.';
+		throw new Error(message);
+	}
+	return data;
 };

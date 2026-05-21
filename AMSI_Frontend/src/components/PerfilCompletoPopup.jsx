@@ -151,6 +151,10 @@ function PerfilCompletoPopup({ usuario, onFechar }) {
 	const [carregando, setCarregando] = useState(true);
 	const [semClifor, setSemClifor] = useState(false);
 
+	// Associação com clifor só faz sentido para perfil Consulta (associados).
+	// Administrador e Operador são operadores internos — não têm vínculo com clifor.
+	const exibeClifor = usuario.perfil_de_acesso === 'Consulta';
+
 	const [busca, setBusca] = useState('');
 	const [sugestoes, setSugestoes] = useState([]);
 	const [carregandoSugestao, setCarregandoSugestao] = useState(false);
@@ -161,7 +165,8 @@ function PerfilCompletoPopup({ usuario, onFechar }) {
 	const [desvinculando, setDesvinculando] = useState(false);
 
 	useEffect(() => {
-		carregarClifor();
+		if (exibeClifor) carregarClifor();
+		else setCarregando(false);
 	}, [usuario.id_usuario]);
 
 	async function carregarClifor() {
@@ -297,9 +302,9 @@ function PerfilCompletoPopup({ usuario, onFechar }) {
 						</div>
 					</div>
 
-					<hr style={s.divider} />
+					{exibeClifor && <hr style={s.divider} />}
 
-					{carregando ? (
+					{exibeClifor && (carregando ? (
 						<p style={{ ...s.muted, textAlign: 'center' }}>Carregando...</p>
 					) : semClifor ? (
 						<>
@@ -436,7 +441,7 @@ function PerfilCompletoPopup({ usuario, onFechar }) {
 								</>
 							)}
 						</>
-					) : null}
+					) : null)}
 
 					<hr style={s.divider} />
 					<div style={{ display: 'flex', justifyContent: 'flex-end' }}>

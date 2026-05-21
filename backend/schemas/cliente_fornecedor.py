@@ -110,4 +110,5 @@ class CliForSaldoSimples(BaseModel):
     model_config = {"from_attributes": True}
 
     id_clifor: int
-    saldo_liquido: Decimal
+    total_a_receber: Decimal
+    total_a_pagar: Decimal

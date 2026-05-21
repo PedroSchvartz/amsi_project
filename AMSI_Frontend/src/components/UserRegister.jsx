@@ -52,10 +52,12 @@ function UserRegister() {
 					<select name="cargo" value={form.cargo} onChange={handleChange} required>
 						<option value="">Selecione</option>
 						<option value="Presidente">Presidente</option>
+						<option value="Diretor">Diretor</option>
 						<option value="Tesoureiro">Tesoureiro</option>
 						<option value="Secretário">Secretário</option>
 						<option value="Conselheiro">Conselheiro</option>
 						<option value="Associado">Associado</option>
+						<option value="Desenvolvedor">Desenvolvedor</option>
 					</select>
 
 					<label>Perfil de Acesso</label>

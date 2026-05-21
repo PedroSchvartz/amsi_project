@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { getClifors, getSaldosClifors, deleteClifor } from '../services/api.js';
 import { useToast } from './ToastStack.jsx';
 import ModalConfirm from './ModalConfirm.jsx';
+import CliforResumoPopup from './CliforResumoPopup.jsx';
 import { isAdmin, isConsulta } from '../services/auth.js';
 import '../styles/clientList.css';
 
@@ -27,6 +28,7 @@ function ClientList() {
 	const [loading, setLoading] = useState(true);
 	const [cpfVisivel, setCpfVisivel] = useState({});
 	const [confirmarDeletar, setConfirmarDeletar] = useState(null);
+	const [cliforDetalhe, setCliforDetalhe] = useState(null);
 
 	const [busca, setBusca] = useState('');
 	const [filtroTipo, setFiltroTipo] = useState('');
@@ -42,7 +44,11 @@ function ClientList() {
 			const [lista, saldosData] = await Promise.all([getClifors(), getSaldosClifors()]);
 			setClifors(lista);
 			const mapa = {};
-			for (const s of saldosData) mapa[s.id_clifor] = s.saldo_liquido;
+			for (const s of saldosData)
+				mapa[s.id_clifor] = {
+					total_a_receber: s.total_a_receber,
+					total_a_pagar: s.total_a_pagar
+				};
 			setSaldos(mapa);
 		} catch (err) {
 			mostrarToast(err.message || 'Erro ao carregar clientes/fornecedores', 'erro');
@@ -85,6 +91,13 @@ function ClientList() {
 					onConfirmar={handleDeletar}
 					onCancelar={() => setConfirmarDeletar(null)}
 					variante="perigo"
+				/>
+			)}
+
+			{cliforDetalhe && (
+				<CliforResumoPopup
+					clifor={cliforDetalhe}
+					onFechar={() => setCliforDetalhe(null)}
 				/>
 			)}
 
@@ -141,19 +154,41 @@ function ClientList() {
 								<th>Documento</th>
 								<th>Status</th>
 								<th>Inadimplente</th>
-								<th>Saldo</th>
+								<th>
+									<span className="cl-th-info">
+										A Receber
+										<span className="cl-th-icon">ℹ</span>
+										<span className="cl-tooltip-box">
+											Soma dos créditos em aberto (o que esta entidade deve à associação)
+										</span>
+									</span>
+								</th>
+								<th>
+									<span className="cl-th-info">
+										A Pagar
+										<span className="cl-th-icon">ℹ</span>
+										<span className="cl-tooltip-box">
+											Soma dos débitos em aberto (o que a associação deve a esta entidade)
+										</span>
+									</span>
+								</th>
 								<th>Ações</th>
 							</tr>
 						</thead>
 						<tbody>
 							{cliforsFiltrados.map((c) => {
 								const saldo = saldos[c.id_clifor];
-								const saldoNum = saldo != null ? parseFloat(saldo) : null;
+								const totalReceber = saldo ? parseFloat(saldo.total_a_receber) : null;
+								const totalPagar = saldo ? parseFloat(saldo.total_a_pagar) : null;
 								return (
-									<tr key={c.id_clifor}>
+									<tr
+										key={c.id_clifor}
+										className="cl-row-clicavel"
+										onClick={() => setCliforDetalhe(c)}
+									>
 										<td>{c.nome}</td>
 										<td>{TIPO_LABEL[c.tipo_clifor] ?? c.tipo_clifor}</td>
-										<td>
+										<td onClick={(e) => e.stopPropagation()}>
 											<span
 												className={`cl-doc${consulta ? '' : ' cl-rasurado'}`}
 												title={consulta ? 'Dado protegido' : cpfVisivel[c.id_clifor] ? 'Clique para ocultar' : 'Clique para revelar'}
@@ -178,19 +213,24 @@ function ClientList() {
 											</span>
 										</td>
 										<td>
-											{saldoNum != null ? (
-												<span
-													className={`cl-saldo ${saldoNum >= 0 ? 'cl-saldo--positivo' : 'cl-saldo--negativo'}`}
-												>
-													{saldoNum.toFixed(2).replace('.', ',')}
+											{totalReceber != null ? (
+												<span className="cl-saldo cl-saldo--positivo">
+													{totalReceber.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
 												</span>
 											) : (
-												<span className="cl-saldo" style={{ color: 'var(--text-muted)' }}>
-													—
-												</span>
+												<span className="cl-saldo" style={{ color: 'var(--text-muted)' }}>—</span>
 											)}
 										</td>
-										<td style={{ display: 'flex', gap: 6 }}>
+										<td>
+											{totalPagar != null ? (
+												<span className="cl-saldo cl-saldo--negativo">
+													{totalPagar.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+												</span>
+											) : (
+												<span className="cl-saldo" style={{ color: 'var(--text-muted)' }}>—</span>
+											)}
+										</td>
+										<td style={{ display: 'flex', gap: 6 }} onClick={(e) => e.stopPropagation()}>
 											{!consulta && (
 												<button
 													className="cl-btn-editar"

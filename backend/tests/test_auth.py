@@ -1,6 +1,57 @@
 import pytest
 
 
+# ================================================
+# HELPERS — usuário isolado com senha conhecida
+# ================================================
+
+def _criar_usuario_com_senha(client, headers_admin, email, senha="SenhaTest@123"):
+    """Cria (ou recria) usuário via admin com senha conhecida.
+    Idempotente: limpa qualquer usuário ativo com o mesmo email de runs anteriores.
+    """
+    todos = client.get("/usuarios/", headers=headers_admin).json()
+    existente = next((u for u in todos if u["email"] == email), None)
+    if existente:
+        logins = client.get(f"/login/por-usuario/{existente['id_usuario']}", headers=headers_admin)
+        if logins.is_success:
+            for login in logins.json():
+                client.delete(f"/login/{login['id_login']}", headers=headers_admin)
+        client.delete(f"/usuarios/{existente['id_usuario']}", headers=headers_admin)
+
+    r = client.post("/usuarios/", json={
+        "nome": "Auth Test Temp",
+        "email": email,
+        "cargo": "Associado",
+        "perfil_de_acesso": "Consulta",
+        "notificacao": False
+    }, headers=headers_admin)
+    assert r.status_code == 200, f"Falha ao criar usuário: {r.text}"
+    u = r.json()
+
+    # Define senha conhecida + marca primeiro_acesso=False via PUT
+    r2 = client.put(f"/usuarios/{u['id_usuario']}", json={
+        "senha": senha,
+        "primeiro_acesso": False
+    }, headers=headers_admin)
+    assert r2.status_code == 200, f"Falha ao definir senha: {r2.text}"
+    return u
+
+
+def _limpar_usuario(client, headers_admin, id_usuario):
+    """Remove logins e faz soft-delete do usuário temporário."""
+    logins = client.get(f"/login/por-usuario/{id_usuario}", headers=headers_admin)
+    if logins.is_success:
+        for login in logins.json():
+            client.delete(f"/login/{login['id_login']}", headers=headers_admin)
+    client.delete(f"/usuarios/{id_usuario}", headers=headers_admin)
+
+
+def _login(client, email, senha):
+    r = client.post("/auth/token", json={"email": email, "senha": senha})
+    assert r.status_code == 200, f"Login falhou: {r.text}"
+    return r.json()["access_token"]
+
+
 def test_login_sucesso(client, headers_admin):
     """Testa login com usuário temporário para não invalidar a sessão do admin."""
     # Criar usuário temporário
@@ -120,6 +171,109 @@ def test_request_sem_token(client):
     assert r.status_code == 401
 
     r = client.get("/lancamento/")
+    assert r.status_code == 401
+
+
+# ================================================
+# TROCAR SENHA
+# ================================================
+
+def test_trocar_senha_senha_atual_errada(client, headers_admin):
+    """POST /auth/trocar-senha com senha_atual errada deve retornar 401."""
+    email = "pytest_trocar_errada@amsi.com"
+    senha = "SenhaTest@123"
+    u = _criar_usuario_com_senha(client, headers_admin, email, senha)
+    id_u = u["id_usuario"]
+    token = _login(client, email, senha)
+    try:
+        r = client.post("/auth/trocar-senha", json={
+            "senha_atual": "senhaErradaQualquer",
+            "senha_nova": "NovaSenha@456"
+        }, headers={"Authorization": f"Bearer {token}"})
+        assert r.status_code == 401
+    finally:
+        _limpar_usuario(client, headers_admin, id_u)
+
+
+def test_trocar_senha_seta_primeiro_acesso_false(client, headers_admin):
+    """Após trocar_senha, o flag primeiro_acesso deve ser False."""
+    email = "pytest_primeiro_acesso_trocar@amsi.com"
+    senha = "SenhaTest@123"
+    u = _criar_usuario_com_senha(client, headers_admin, email, senha)
+    id_u = u["id_usuario"]
+
+    # Simular primeiro acesso pendente
+    client.put(f"/usuarios/{id_u}", json={"primeiro_acesso": True}, headers=headers_admin)
+
+    token = _login(client, email, senha)
+    r = client.post("/auth/trocar-senha", json={
+        "senha_atual": senha,
+        "senha_nova": "NovaSenha@456"
+    }, headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 200
+
+    estado = client.get(f"/usuarios/{id_u}", headers=headers_admin).json()
+    assert estado["primeiro_acesso"] is False
+
+    # Limpeza
+    _limpar_usuario(client, headers_admin, id_u)
+
+
+# ================================================
+# INVALIDAÇÃO DE TOKEN — garantia end-to-end
+# ================================================
+
+def test_token_invalidado_apos_resetar_senha(client, headers_admin):
+    """Após admin resetar senha, o token anterior do usuário deve ser rejeitado."""
+    email = "pytest_token_reset@amsi.com"
+    senha = "SenhaTest@123"
+    u = _criar_usuario_com_senha(client, headers_admin, email, senha)
+    id_u = u["id_usuario"]
+
+    token_antigo = _login(client, email, senha)
+
+    # Confirmar que o token funciona antes do reset
+    assert client.get("/lancamento/", headers={"Authorization": f"Bearer {token_antigo}"}).status_code == 200
+
+    # Admin reseta a senha — deve invalidar token_ativo
+    client.post(f"/usuarios/{id_u}/resetar-senha", headers=headers_admin)
+
+    # Token antigo deve ser rejeitado
+    r = client.get("/lancamento/", headers={"Authorization": f"Bearer {token_antigo}"})
+    assert r.status_code == 401
+
+    # Limpeza (Login records + soft-delete)
+    logins = client.get(f"/login/por-usuario/{id_u}", headers=headers_admin)
+    if logins.is_success:
+        for login in logins.json():
+            client.delete(f"/login/{login['id_login']}", headers=headers_admin)
+    # resetar-senha não faz soft-delete — precisamos deletar explicitamente
+    client.delete(f"/usuarios/{id_u}", headers=headers_admin)
+
+
+def test_token_invalidado_apos_soft_delete(client, headers_admin):
+    """Após soft-delete do usuário, o token dele deve ser rejeitado imediatamente."""
+    email = "pytest_token_softdel@amsi.com"
+    senha = "SenhaTest@123"
+    u = _criar_usuario_com_senha(client, headers_admin, email, senha)
+    id_u = u["id_usuario"]
+
+    token_antigo = _login(client, email, senha)
+
+    # Confirmar que o token funciona antes do delete
+    assert client.get("/lancamento/", headers={"Authorization": f"Bearer {token_antigo}"}).status_code == 200
+
+    # Limpar Login records antes do soft-delete (manter banco limpo)
+    logins = client.get(f"/login/por-usuario/{id_u}", headers=headers_admin)
+    if logins.is_success:
+        for login in logins.json():
+            client.delete(f"/login/{login['id_login']}", headers=headers_admin)
+
+    # Admin faz soft-delete — deve invalidar token_ativo
+    client.delete(f"/usuarios/{id_u}", headers=headers_admin)
+
+    # Token antigo deve ser rejeitado
+    r = client.get("/lancamento/", headers={"Authorization": f"Bearer {token_antigo}"})
     assert r.status_code == 401
 
     r = client.get("/cliente_fornecedor/")

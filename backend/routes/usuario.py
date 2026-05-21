@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from models.usuario import Usuario
+from models.token_ativo import TokenAtivo
 from schemas.usuario import UsuarioCreate, UsuarioUpdate, UsuarioResponse
 from utils.auth_utils import hash_senha
 from utils.email_sender import enviar_email
@@ -11,6 +12,8 @@ from typing import List
 import secrets
 import string
 import dns.resolver
+import urllib.parse
+from datetime import datetime
 
 router = APIRouter(
     prefix="/usuarios",
@@ -33,13 +36,23 @@ def _validar_dominio_email(email: str) -> bool:
 
 
 @router.get("/", response_model=List[UsuarioResponse])
-def listar_usuarios(db: Session = Depends(get_db), _=Depends(exige_admin)):
-    return db.query(Usuario).all()
+def listar_usuarios(
+    incluir_excluidos: bool = False,
+    db: Session = Depends(get_db),
+    _=Depends(exige_admin)
+):
+    q = db.query(Usuario)
+    if not incluir_excluidos:
+        q = q.filter(Usuario.exclusao == None)  # noqa: E711
+    return q.all()
 
 
 @router.get("/{id_usuario}", response_model=UsuarioResponse)
 def buscar_usuario(id_usuario: int, db: Session = Depends(get_db), _=Depends(get_current_user)):
-    usuario = db.query(Usuario).filter(Usuario.id_usuario == id_usuario).first()
+    usuario = db.query(Usuario).filter(
+        Usuario.id_usuario == id_usuario,
+        Usuario.exclusao == None  # noqa: E711
+    ).first()
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
     return usuario
@@ -50,7 +63,10 @@ def criar_usuario(dados: UsuarioCreate, db: Session = Depends(get_db), _=Depends
     if not _validar_dominio_email(dados.email):
         raise HTTPException(status_code=400, detail="Domínio de email inválido ou inexistente")
 
-    if db.query(Usuario).filter(Usuario.email == dados.email).first():
+    if db.query(Usuario).filter(
+        Usuario.email == dados.email,
+        Usuario.exclusao == None  # noqa: E711
+    ).first():
         raise HTTPException(status_code=409, detail="Email já cadastrado")
 
     senha_provisoria = _gerar_senha_provisoria()
@@ -65,6 +81,8 @@ def criar_usuario(dados: UsuarioCreate, db: Session = Depends(get_db), _=Depends
     db.refresh(usuario)
 
     # Enviar senha por email
+    _redirect = urllib.parse.quote(f"/trocar-senha?senha={senha_provisoria}")
+    _link_acesso = f"{FRONTEND_URL}?email={urllib.parse.quote(usuario.email)}&redirect={_redirect}"
     corpo = f"""
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -88,9 +106,9 @@ def criar_usuario(dados: UsuarioCreate, db: Session = Depends(get_db), _=Depends
             <p style="margin:0;font-size:0.85rem;color:#92400e;">⚠️ Você será solicitado a trocar esta senha no primeiro login.</p>
           </div>
           <div style="text-align:center;margin:0 0 20px;">
-            <a href="{FRONTEND_URL}trocar-senha?senha={senha_provisoria}" style="display:inline-block;background:#1B4332;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-weight:600;font-size:0.95rem;letter-spacing:0.03em;">Acessar o sistema →</a>
+            <a href="{_link_acesso}" style="display:inline-block;background:#1B4332;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-weight:600;font-size:0.95rem;letter-spacing:0.03em;">Acessar o sistema →</a>
           </div>
-          <p style="font-size:0.78rem;color:#6b7280;margin:0 0 12px;">Ou acesse: <a href="{FRONTEND_URL}trocar-senha?senha={senha_provisoria}" style="color:#1B4332;">{FRONTEND_URL}</a></p>
+          <p style="font-size:0.78rem;color:#6b7280;margin:0 0 12px;">Ou acesse: <a href="{_link_acesso}" style="color:#1B4332;">{FRONTEND_URL}</a></p>
         </td></tr>
         <tr><td style="padding:16px 40px;text-align:center;border-top:1px solid #d1c9bf;">
           <p style="margin:0;font-size:0.72rem;color:#a0a0a0;">© 2026 AMSI — Este é um email automático.</p>
@@ -133,24 +151,49 @@ def atualizar_usuario(id_usuario: int, dados: UsuarioUpdate, db: Session = Depen
 
 @router.delete("/{id_usuario}")
 def deletar_usuario(id_usuario: int, db: Session = Depends(get_db), _=Depends(exige_admin)):
-    usuario = db.query(Usuario).filter(Usuario.id_usuario == id_usuario).first()
+    usuario = db.query(Usuario).filter(
+        Usuario.id_usuario == id_usuario,
+        Usuario.exclusao == None  # noqa: E711
+    ).first()
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
-    db.delete(usuario)
+    usuario.exclusao = datetime.now()
+    # Invalida sessão ativa imediatamente — impede uso do token até expirar
+    db.query(TokenAtivo).filter(TokenAtivo.id_usuario_fk == id_usuario).delete()
     db.commit()
     return {"detail": "Usuário deletado com sucesso"}
 
+@router.post("/{id_usuario}/restaurar", response_model=UsuarioResponse)
+def restaurar_usuario(id_usuario: int, db: Session = Depends(get_db), _=Depends(exige_admin)):
+    usuario = db.query(Usuario).filter(
+        Usuario.id_usuario == id_usuario,
+        Usuario.exclusao != None  # noqa: E711
+    ).first()
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado ou não está excluído")
+    usuario.exclusao = None
+    db.commit()
+    db.refresh(usuario)
+    return usuario
+
+
 @router.post("/{id_usuario}/resetar-senha")
 def resetar_senha(id_usuario: int, db: Session = Depends(get_db), _=Depends(exige_admin)):
-    usuario = db.query(Usuario).filter(Usuario.id_usuario == id_usuario).first()
+    usuario = db.query(Usuario).filter(
+        Usuario.id_usuario == id_usuario,
+        Usuario.exclusao == None  # noqa: E711
+    ).first()
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
 
     senha_provisoria = _gerar_senha_provisoria()
     usuario.senha = hash_senha(senha_provisoria)
     usuario.primeiro_acesso = True
+    db.query(TokenAtivo).filter(TokenAtivo.id_usuario_fk == id_usuario).delete()
     db.commit()
 
+    _redirect = urllib.parse.quote(f"/trocar-senha?senha={senha_provisoria}")
+    _link_acesso = f"{FRONTEND_URL}?email={urllib.parse.quote(usuario.email)}&redirect={_redirect}"
     corpo = f"""
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -174,9 +217,9 @@ def resetar_senha(id_usuario: int, db: Session = Depends(get_db), _=Depends(exig
             <p style="margin:0;font-size:0.85rem;color:#92400e;">⚠️ Você será solicitado a trocar esta senha no próximo login.</p>
           </div>
           <div style="text-align:center;margin:0 0 20px;">
-            <a href="{FRONTEND_URL}trocar-senha?senha={senha_provisoria}" style="display:inline-block;background:#1B4332;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-weight:600;font-size:0.95rem;letter-spacing:0.03em;">Acessar o sistema →</a>
+            <a href="{_link_acesso}" style="display:inline-block;background:#1B4332;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-weight:600;font-size:0.95rem;letter-spacing:0.03em;">Acessar o sistema →</a>
           </div>
-          <p style="font-size:0.78rem;color:#6b7280;margin:0 0 12px;">Ou acesse: <a href="{FRONTEND_URL}trocar-senha?senha={senha_provisoria}" style="color:#1B4332;">{FRONTEND_URL}</a></p>
+          <p style="font-size:0.78rem;color:#6b7280;margin:0 0 12px;">Ou acesse: <a href="{_link_acesso}" style="color:#1B4332;">{FRONTEND_URL}</a></p>
         </td></tr>
         <tr><td style="padding:16px 40px;text-align:center;border-top:1px solid #d1c9bf;">
           <p style="margin:0;font-size:0.72rem;color:#a0a0a0;">© 2026 AMSI — Este é um email automático.</p>

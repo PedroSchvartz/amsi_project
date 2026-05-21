@@ -397,3 +397,50 @@ def test_atualizar_campos_permitidos(client, headers_admin, usuario_base):
         "perfil_de_acesso": usuario_base["perfil_de_acesso"],
         "bloqueado": False
     }, headers=headers_admin)
+
+
+# ================================================
+# ISOLAMENTO — usuários excluídos são invisíveis
+# ================================================
+
+def test_buscar_usuario_excluido_retorna_404(client, headers_admin):
+    """GET /usuarios/{id} de usuário soft-deletado deve retornar 404."""
+    r = client.post("/usuarios/", json={
+        "nome": "Busca Excluido Pytest",
+        "email": "pytest_busca_excluido@amsi.com",
+        "cargo": "Associado",
+        "perfil_de_acesso": "Consulta",
+        "notificacao": False
+    }, headers=headers_admin)
+    assert r.status_code == 200
+    id_u = r.json()["id_usuario"]
+
+    client.delete(f"/usuarios/{id_u}", headers=headers_admin)
+
+    r = client.get(f"/usuarios/{id_u}", headers=headers_admin)
+    assert r.status_code == 404
+
+
+def test_resetar_senha_usuario_excluido_retorna_404(client, headers_admin):
+    """POST /usuarios/{id}/resetar-senha em usuário soft-deletado deve retornar 404."""
+    r = client.post("/usuarios/", json={
+        "nome": "Reset Excluido Pytest",
+        "email": "pytest_reset_excluido@amsi.com",
+        "cargo": "Associado",
+        "perfil_de_acesso": "Consulta",
+        "notificacao": False
+    }, headers=headers_admin)
+    assert r.status_code == 200
+    id_u = r.json()["id_usuario"]
+
+    client.delete(f"/usuarios/{id_u}", headers=headers_admin)
+
+    r = client.post(f"/usuarios/{id_u}/resetar-senha", headers=headers_admin)
+    assert r.status_code == 404
+
+
+def test_restaurar_usuario_ja_ativo_retorna_404(client, headers_admin, usuario_base):
+    """POST /usuarios/{id}/restaurar em usuário ativo deve retornar 404
+    (restaurar só faz sentido para usuários que estão excluídos)."""
+    r = client.post(f"/usuarios/{usuario_base['id_usuario']}/restaurar", headers=headers_admin)
+    assert r.status_code == 404

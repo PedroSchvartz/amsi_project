@@ -1,5 +1,6 @@
 # ponto de entrada, registra as rotas
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 import logging
 
 from database import engine, Base
@@ -11,6 +12,7 @@ from routes import cliente_fornecedor as clifor_router
 from routes import endereco as endereco_router
 from routes import contato as contato_router
 from routes import lancamento as lancamento_router
+from routes import demo as demo_router
 from auth.router import router as auth_router
 
 from fastapi.middleware.cors import CORSMiddleware
@@ -39,6 +41,16 @@ app.add_middleware(
 )
 app.add_middleware(RequestLoggerMiddleware)
 
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    """Garante que exceções não tratadas retornem JSON com headers CORS."""
+    logging.exception(f"Exceção não tratada em {request.method} {request.url.path}: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Erro interno do servidor. Contate o administrador."},
+    )
+
 app.include_router(auth_router)
 app.include_router(usuario_router.router)
 app.include_router(login_router.router)
@@ -47,6 +59,7 @@ app.include_router(clifor_router.router)
 app.include_router(endereco_router.router)
 app.include_router(contato_router.router)
 app.include_router(lancamento_router.router)
+app.include_router(demo_router.router)
 app.include_router(logs_router)
 
 

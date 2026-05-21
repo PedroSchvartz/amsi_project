@@ -498,14 +498,16 @@ def test_listar_clifors_ordenado_por_nome(client, headers_admin):
 
 
 def test_saldos_clifors_retorna_lista(client, headers_admin):
-    """Endpoint /saldos retorna lista com id_clifor e saldo_liquido."""
+    """Endpoint /saldos retorna lista com id_clifor, total_a_receber e total_a_pagar."""
     r = client.get("/cliente_fornecedor/saldos", headers=headers_admin)
     assert r.status_code == 200
     data = r.json()
     assert isinstance(data, list)
     if data:
         assert "id_clifor" in data[0]
-        assert "saldo_liquido" in data[0]
+        assert "total_a_receber" in data[0]
+        assert "total_a_pagar" in data[0]
+        assert "saldo_liquido" not in data[0]
 
 
 def test_saldos_clifors_sem_token(client):
@@ -514,12 +516,21 @@ def test_saldos_clifors_sem_token(client):
     assert r.status_code == 401
 
 
+def test_saldo_clifor_sem_lancamentos_e_zero(client, headers_admin, clifor):
+    """Clifor sem lançamentos deve aparecer no /saldos com total_a_receber=0 e total_a_pagar=0."""
+    saldos = client.get("/cliente_fornecedor/saldos", headers=headers_admin).json()
+    entrada = next((s for s in saldos if s["id_clifor"] == clifor["id_clifor"]), None)
+    assert entrada is not None, "Clifor sem lançamentos deve aparecer na lista de saldos"
+    assert float(entrada["total_a_receber"]) == 0.0
+    assert float(entrada["total_a_pagar"]) == 0.0
+
+
 def test_saldos_clifor_calculo(client, headers_admin, clifor_base, usuario_base, tipo_lancamento_base):
-    """Saldo de clifor_base deve bater com total_a_receber - total_a_pagar do resumo."""
+    """total_a_receber e total_a_pagar do /saldos devem bater com o /resumo."""
     resumo = client.get(f"/cliente_fornecedor/{clifor_base['id_clifor']}/resumo", headers=headers_admin).json()
-    saldo_esperado = round(float(resumo["total_a_receber"]) - float(resumo["total_a_pagar"]), 2)
 
     saldos = client.get("/cliente_fornecedor/saldos", headers=headers_admin).json()
-    saldo_encontrado = next((s for s in saldos if s["id_clifor"] == clifor_base["id_clifor"]), None)
-    assert saldo_encontrado is not None
-    assert round(float(saldo_encontrado["saldo_liquido"]), 2) == saldo_esperado
+    entrada = next((s for s in saldos if s["id_clifor"] == clifor_base["id_clifor"]), None)
+    assert entrada is not None
+    assert round(float(entrada["total_a_receber"]), 2) == round(float(resumo["total_a_receber"]), 2)
+    assert round(float(entrada["total_a_pagar"]), 2) == round(float(resumo["total_a_pagar"]), 2)

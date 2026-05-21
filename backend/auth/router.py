@@ -36,7 +36,10 @@ class TrocarSenhaRequest(BaseModel):
 
 @router.post("/token", response_model=TokenResponse)
 def login(dados: LoginRequest, request: Request, response: Response, db: Session = Depends(get_db)):
-    usuario = db.query(Usuario).filter(Usuario.email == dados.email).first()
+    usuario = db.query(Usuario).filter(
+        Usuario.email == dados.email,
+        Usuario.exclusao == None  # noqa: E711
+    ).first()
 
     if not usuario or not verificar_senha(dados.senha, usuario.senha):
         raise HTTPException(

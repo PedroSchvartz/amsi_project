@@ -184,7 +184,9 @@ def test_login_usuario_suspenso(client, headers_admin, consulta_session):
 
 
 def test_login_usuario_excluido(client, headers_admin, consulta_session):
-    """Usuário marcado como excluído não consegue autenticar — retorna 403."""
+    """Usuário soft-deletado não consegue autenticar.
+    Retorna 401 (invisível para o auth — o registro excluído é ignorado na query).
+    """
     from utils.config import CONSULTA_TESTE_EMAIL, CONSULTA_TESTE_SENHA
     from datetime import datetime
     if not consulta_session["disponivel"]:
@@ -196,7 +198,7 @@ def test_login_usuario_excluido(client, headers_admin, consulta_session):
             "email": CONSULTA_TESTE_EMAIL,
             "senha": CONSULTA_TESTE_SENHA,
         })
-        assert r.status_code == 403
+        assert r.status_code == 401
     finally:
         client.put(f"/usuarios/{id_u}", json={"exclusao": None}, headers=headers_admin)
 

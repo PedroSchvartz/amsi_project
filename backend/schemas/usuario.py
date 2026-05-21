@@ -5,6 +5,7 @@ from enum import Enum
 
 
 class CargoEnum(str, Enum):
+    Presidente = "Presidente"
     Diretor = "Diretor"
     Tesoureiro = "Tesoureiro"
     Secretario = "Secretário"
@@ -38,6 +39,8 @@ class UsuarioUpdate(BaseModel):
     qtd_suspensao: Optional[int] = None
     bloqueado: Optional[bool] = None
     exclusao: Optional[datetime] = None
+    senha: Optional[str] = None
+    primeiro_acesso: Optional[bool] = None
 
 
 class UsuarioResponse(BaseModel):

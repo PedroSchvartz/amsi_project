@@ -69,17 +69,26 @@ def saldos_clifors(db: Session = Depends(get_db), _=Depends(get_current_user)):
                 func.sum(
                     sa_case(
                         (Lancamento.natureza_lancamento == "Credito", Lancamento.valor),
-                        else_=-Lancamento.valor
+                        else_=0
                     )
                 ),
                 0
-            ).label("saldo_liquido")
+            ).label("total_a_receber"),
+            func.coalesce(
+                func.sum(
+                    sa_case(
+                        (Lancamento.natureza_lancamento == "Debito", Lancamento.valor),
+                        else_=0
+                    )
+                ),
+                0
+            ).label("total_a_pagar"),
         )
         .outerjoin(Lancamento, (Lancamento.id_clifor_relacionado_fk == ClienteFornecedor.id_clifor) & (Lancamento.data_pagamento == None))
         .group_by(ClienteFornecedor.id_clifor)
         .all()
     )
-    return [{"id_clifor": r.id_clifor, "saldo_liquido": r.saldo_liquido} for r in resultado]
+    return [{"id_clifor": r.id_clifor, "total_a_receber": r.total_a_receber, "total_a_pagar": r.total_a_pagar} for r in resultado]
 
 
 @router.get("/{id_clifor}/resumo", response_model=CliForResumo)

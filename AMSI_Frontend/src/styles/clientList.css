@@ -201,3 +201,50 @@
 .cl-saldo--negativo {
 	color: #dc2626;
 }
+
+/* ── Tooltip de cabeçalho ── */
+.cl-th-info {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.cl-th-icon {
+	font-size: 11px;
+	opacity: 0.65;
+	cursor: help;
+	line-height: 1;
+}
+
+.cl-tooltip-box {
+	visibility: hidden;
+	opacity: 0;
+	position: absolute;
+	top: calc(100% + 8px);
+	left: 50%;
+	transform: translateX(-50%);
+	background: #1e293b;
+	color: #fff;
+	font-size: 11px;
+	font-weight: 400;
+	text-transform: none;
+	letter-spacing: 0;
+	white-space: nowrap;
+	padding: 5px 10px;
+	border-radius: 6px;
+	z-index: 200;
+	pointer-events: none;
+	transition: opacity 0.15s;
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+
+.cl-th-info:hover .cl-tooltip-box {
+	visibility: visible;
+	opacity: 1;
+}
+
+/* ── Linha clicável ── */
+.cl-table tbody tr.cl-row-clicavel {
+	cursor: pointer;
+}

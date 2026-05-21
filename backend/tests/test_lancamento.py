@@ -1263,3 +1263,69 @@ def test_nome_usuario_lancamento_nao_nulo(client, headers_admin, lancamento):
     assert alvo["descricao_tipo_conta"] is not None, (
         "descricao_tipo_conta veio None — joinedload pode não estar funcionando"
     )
+
+
+# ================================================
+# FECHAMENTO COM MULTA E JUROS
+# ================================================
+
+def test_fechamento_com_multa_e_juros(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base):
+    """Fechar lançamento com multa e juros deve persistir os valores corretamente."""
+    from datetime import datetime
+
+    r = client.post("/lancamento/", json={
+        "id_usuario_fk_lancamento": usuario_base["id_usuario"],
+        "id_clifor_relacionado_fk": clifor_base["id_clifor"],
+        "id_tipo_conta_fk": tipo_lancamento_base["id_tipo_conta"],
+        "valor": "100.00",
+        "data_vencimento": "2000-01-01",  # vencido
+        "natureza_lancamento": "Credito"
+    }, headers=headers_admin)
+    assert r.status_code == 200
+    id_lanc = r.json()["id_lancamento"]
+
+    try:
+        r_fechar = client.put(f"/lancamento/{id_lanc}", json={
+            "id_usuario_fk_fechamento": usuario_base["id_usuario"],
+            "data_pagamento": datetime.now().isoformat(),
+            "valor_pago": "100.00",
+            "multa": "10.00",
+            "juros": "5.50"
+        }, headers=headers_admin)
+        assert r_fechar.status_code == 200
+        data = r_fechar.json()
+        assert float(data["multa"]) == 10.00
+        assert float(data["juros"]) == 5.50
+        assert float(data["valor_pago"]) == 100.00
+        assert data["data_pagamento"] is not None
+    finally:
+        client.delete(f"/lancamento/{id_lanc}", headers=headers_admin)
+
+
+def test_fechamento_sem_multa_e_juros_ficam_nulos(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base):
+    """Fechar lançamento sem informar multa/juros — devem permanecer None."""
+    from datetime import datetime
+
+    r = client.post("/lancamento/", json={
+        "id_usuario_fk_lancamento": usuario_base["id_usuario"],
+        "id_clifor_relacionado_fk": clifor_base["id_clifor"],
+        "id_tipo_conta_fk": tipo_lancamento_base["id_tipo_conta"],
+        "valor": "50.00",
+        "data_vencimento": "2099-12-31",
+        "natureza_lancamento": "Debito"
+    }, headers=headers_admin)
+    assert r.status_code == 200
+    id_lanc = r.json()["id_lancamento"]
+
+    try:
+        r_fechar = client.put(f"/lancamento/{id_lanc}", json={
+            "id_usuario_fk_fechamento": usuario_base["id_usuario"],
+            "data_pagamento": datetime.now().isoformat(),
+            "valor_pago": "50.00"
+        }, headers=headers_admin)
+        assert r_fechar.status_code == 200
+        data = r_fechar.json()
+        assert data["multa"] is None
+        assert data["juros"] is None
+    finally:
+        client.delete(f"/lancamento/{id_lanc}", headers=headers_admin)

@@ -38,7 +38,10 @@ function UserRegisterModal({ onFechar }) {
 			mostrarToast('Usuário cadastrado com sucesso!');
 			setForm({ nome: '', email: '', cargo: '', perfil_de_acesso: '' });
 		} catch (err) {
-			mostrarToast(err.message || 'Erro ao cadastrar usuário', 'erro');
+			const msg = err.message === 'Failed to fetch'
+				? 'Não foi possível conectar ao servidor.'
+				: (err.message || 'Erro ao cadastrar usuário');
+			mostrarToast(msg, 'erro');
 		}
 	};
 
@@ -129,6 +132,7 @@ function UserRegisterModal({ onFechar }) {
 							>
 								<option value="">Selecione</option>
 								<option value="Presidente">Presidente</option>
+								<option value="Diretor">Diretor</option>
 								<option value="Tesoureiro">Tesoureiro</option>
 								<option value="Secretário">Secretário</option>
 								<option value="Conselheiro">Conselheiro</option>

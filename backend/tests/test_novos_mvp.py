@@ -342,4 +342,94 @@ def test_resumo_reembolso_regra_exemplo_spec(client, headers_admin, usuario_base
     finally:
         for id_l in ids:
             client.delete(f"/lancamento/{id_l}", headers=headers_admin)
-        
+
+
+# ================================================
+# SOFT-DELETE E RESTAURAÇÃO DE USUÁRIO
+# ================================================
+
+def _criar_usuario_temp(client, headers_admin, email, nome="Usuario Soft Delete Pytest"):
+    r = client.post("/usuarios/", json={
+        "nome": nome,
+        "email": email,
+        "cargo": "Associado",
+        "perfil_de_acesso": "Consulta",
+        "notificacao": False
+    }, headers=headers_admin)
+    assert r.status_code == 200, f"Falha ao criar usuário temp: {r.text}"
+    return r.json()
+
+
+def test_soft_delete_usuario_invisivel_na_listagem(client, headers_admin):
+    """Usuário deletado não deve aparecer na listagem padrão."""
+    u = _criar_usuario_temp(client, headers_admin, "pytest_softdel_list@amsi.com")
+    client.delete(f"/usuarios/{u['id_usuario']}", headers=headers_admin)
+
+    todos = client.get("/usuarios/", headers=headers_admin).json()
+    assert not any(x["id_usuario"] == u["id_usuario"] for x in todos)
+
+
+def test_soft_delete_usuario_aparece_com_incluir_excluidos(client, headers_admin):
+    """Usuário deletado deve aparecer quando incluir_excluidos=true."""
+    u = _criar_usuario_temp(client, headers_admin, "pytest_softdel_incl@amsi.com")
+    client.delete(f"/usuarios/{u['id_usuario']}", headers=headers_admin)
+
+    todos = client.get("/usuarios/?incluir_excluidos=true", headers=headers_admin).json()
+    assert any(x["id_usuario"] == u["id_usuario"] for x in todos)
+
+
+def test_restaurar_usuario(client, headers_admin):
+    """Usuário restaurado deve voltar a aparecer na listagem padrão."""
+    u = _criar_usuario_temp(client, headers_admin, "pytest_restaurar@amsi.com")
+    client.delete(f"/usuarios/{u['id_usuario']}", headers=headers_admin)
+
+    r = client.post(f"/usuarios/{u['id_usuario']}/restaurar", headers=headers_admin)
+    assert r.status_code == 200
+
+    todos = client.get("/usuarios/", headers=headers_admin).json()
+    assert any(x["id_usuario"] == u["id_usuario"] for x in todos)
+
+    # Limpeza
+    logins = client.get(f"/login/por-usuario/{u['id_usuario']}", headers=headers_admin)
+    if logins.is_success:
+        for login in logins.json():
+            client.delete(f"/login/{login['id_login']}", headers=headers_admin)
+    client.delete(f"/usuarios/{u['id_usuario']}", headers=headers_admin)
+
+
+def test_restaurar_usuario_nao_admin_proibido(client, headers_consulta):
+    """Restaurar usuário exige perfil Administrador."""
+    r = client.post("/usuarios/999999/restaurar", headers=headers_consulta)
+    assert r.status_code == 403
+
+
+def test_restaurar_usuario_inexistente(client, headers_admin):
+    """Restaurar ID inexistente deve retornar 404."""
+    r = client.post("/usuarios/999999/restaurar", headers=headers_admin)
+    assert r.status_code == 404
+
+
+def test_email_reutilizavel_apos_soft_delete(client, headers_admin):
+    """Após soft-delete, o mesmo e-mail pode ser recadastrado."""
+    email = "pytest_reutilizar_email@amsi.com"
+
+    u1 = _criar_usuario_temp(client, headers_admin, email, nome="Usuario Original")
+    client.delete(f"/usuarios/{u1['id_usuario']}", headers=headers_admin)
+
+    r2 = client.post("/usuarios/", json={
+        "nome": "Usuario Novo Mesmo Email",
+        "email": email,
+        "cargo": "Associado",
+        "perfil_de_acesso": "Consulta",
+        "notificacao": False
+    }, headers=headers_admin)
+    assert r2.status_code == 200
+    u2 = r2.json()
+    assert u2["id_usuario"] != u1["id_usuario"]
+
+    # Limpeza
+    logins = client.get(f"/login/por-usuario/{u2['id_usuario']}", headers=headers_admin)
+    if logins.is_success:
+        for login in logins.json():
+            client.delete(f"/login/{login['id_login']}", headers=headers_admin)
+    client.delete(f"/usuarios/{u2['id_usuario']}", headers=headers_admin)

@@ -27,7 +27,7 @@ def resumo_lancamentos(
     id_tipo_conta: Optional[int] = None,
     natureza: Optional[str] = None,
     db: Session = Depends(get_db),
-    _=Depends(exige_operador_ou_admin)
+    _=Depends(get_current_user)
 ):
     hoje = date.today()
 
@@ -145,7 +145,7 @@ def resumo_por_tipo(
     data_pagamento_ate: Optional[date] = None,
     natureza: Optional[str] = None,
     db: Session = Depends(get_db),
-    _=Depends(exige_operador_ou_admin)
+    _=Depends(get_current_user)
 ):
     q = (
         db.query(
