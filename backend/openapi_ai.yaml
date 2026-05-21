@@ -2378,6 +2378,74 @@
   respostas:
   - '200'
   - '422'
+- endpoint: GET /demo/status
+  descricao: Status Demo
+  parametros: []
+  request_body: null
+  response_200: null
+  respostas:
+  - '200'
+- endpoint: POST /demo/registro
+  descricao: Demo Registro
+  parametros: []
+  request_body:
+    nome:
+      tipo: string
+      obrigatorio: true
+    email:
+      tipo: string
+      obrigatorio: true
+    senha:
+      tipo: string
+      obrigatorio: true
+    cargo:
+      tipo: CargoEnum
+      obrigatorio: false
+      default: Associado
+    perfil_de_acesso:
+      tipo: AcessoEnum
+      obrigatorio: false
+      default: Administrador
+  response_200:
+    id_usuario:
+      tipo: integer
+      obrigatorio: true
+    nome:
+      tipo: string
+      obrigatorio: true
+    email:
+      tipo: string
+      obrigatorio: true
+    cargo:
+      tipo: CargoEnum
+      obrigatorio: true
+    perfil_de_acesso:
+      tipo: AcessoEnum
+      obrigatorio: true
+    notificacao:
+      tipo: boolean
+      obrigatorio: true
+    suspenso:
+      tipo: desconhecido
+      obrigatorio: false
+    qtd_suspensao:
+      tipo: integer
+      obrigatorio: true
+    bloqueado:
+      tipo: boolean
+      obrigatorio: true
+    exclusao:
+      tipo: desconhecido
+      obrigatorio: false
+    data_cadastro:
+      tipo: string
+      obrigatorio: true
+    primeiro_acesso:
+      tipo: boolean
+      obrigatorio: true
+  respostas:
+  - '200'
+  - '422'
 - endpoint: GET /logs/
   descricao: Listar Logs
   parametros: []
