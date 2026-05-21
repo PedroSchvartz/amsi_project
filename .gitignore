@@ -26,3 +26,15 @@ output.txt
 # IDEs
 .vscode/
 .idea/
+
+# Claude Code
+.claude/
+
+# Arquivos locais — não versionar no repositório
+*.pdf
+podcast_amsi*.md
+avaliacao.md
+resultados_dos_testes.md
+docs/09_*.md
+docs/10_*.md
+docs/11_*.md
