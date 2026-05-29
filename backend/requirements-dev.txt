@@ -1,0 +1,7 @@
+# Dependências de desenvolvimento (local)
+# Para instalar: pip install -r requirements-dev.txt
+-r requirements.txt
+pyngrok
+pytest
+httpx
+pytest-env

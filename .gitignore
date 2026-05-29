@@ -38,3 +38,6 @@ resultados_dos_testes.md
 docs/09_*.md
 docs/10_*.md
 docs/11_*.md
+
+# Prints de testes web (gerados automaticamente)
+docs/testes_web/prints/

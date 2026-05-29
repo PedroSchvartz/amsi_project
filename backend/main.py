@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 import logging
 
 from database import engine, Base
-from models import usuario, tipo_conta, cliente_fornecedor, endereco, contato, login, lancamento, token_ativo
+from models import usuario, tipo_conta, cliente_fornecedor, endereco, contato, login, lancamento, token_ativo, log_atividade
 from routes import usuario as usuario_router
 from routes import login as login_router
 from routes import tipo_conta as tipo_lancamento_router
@@ -13,12 +13,37 @@ from routes import endereco as endereco_router
 from routes import contato as contato_router
 from routes import lancamento as lancamento_router
 from routes import demo as demo_router
+from routes import log_atividade as log_atividade_router
 from auth.router import router as auth_router
 
 from fastapi.middleware.cors import CORSMiddleware
 from utils.request_logger import RequestLoggerMiddleware, router as logs_router
+from utils.activity_log_middleware import ActivityLogMiddleware
 
 Base.metadata.create_all(bind=engine)
+
+
+def _aplicar_migracoes():
+    """Aplica migrações incrementais que o create_all não consegue (ALTER TABLE)."""
+    from sqlalchemy import text, inspect as sa_inspect
+    insp = sa_inspect(engine)
+
+    # Migration: id_login_fk em token_ativo
+    if "token_ativo" in insp.get_table_names():
+        cols = [c["name"] for c in insp.get_columns("token_ativo")]
+        if "id_login_fk" not in cols:
+            with engine.connect() as conn:
+                conn.execute(text(
+                    "ALTER TABLE token_ativo "
+                    "ADD COLUMN id_login_fk BIGINT REFERENCES login(id_login) ON DELETE SET NULL"
+                ))
+                conn.execute(text(
+                    "CREATE INDEX IF NOT EXISTS idx_token_ativo_login ON token_ativo(id_login_fk)"
+                ))
+                conn.commit()
+
+
+_aplicar_migracoes()
 
 from fastapi.security import HTTPBearer
 from fastapi.openapi.utils import get_openapi
@@ -39,6 +64,7 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["X-Session-Expires"],
 )
+app.add_middleware(ActivityLogMiddleware)
 app.add_middleware(RequestLoggerMiddleware)
 
 
@@ -60,6 +86,7 @@ app.include_router(endereco_router.router)
 app.include_router(contato_router.router)
 app.include_router(lancamento_router.router)
 app.include_router(demo_router.router)
+app.include_router(log_atividade_router.router)
 app.include_router(logs_router)
 
 

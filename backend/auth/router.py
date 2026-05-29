@@ -71,6 +71,7 @@ def login(dados: LoginRequest, request: Request, response: Response, db: Session
         navegador=user_agent[:255]
     )
     db.add(sessao)
+    db.flush()  # garante que sessao.id_login está disponível antes do commit
 
     # Gerar token e salvar na tabela token_ativo
     token = criar_token_acesso({
@@ -85,7 +86,8 @@ def login(dados: LoginRequest, request: Request, response: Response, db: Session
     token_ativo = TokenAtivo(
         jti=payload["jti"],
         id_usuario_fk=usuario.id_usuario,
-        exp=datetime.utcfromtimestamp(payload["exp"])
+        exp=datetime.utcfromtimestamp(payload["exp"]),
+        id_login_fk=sessao.id_login,
     )
     db.add(token_ativo)
     db.commit()

@@ -46,7 +46,11 @@
   - '422'
 - endpoint: GET /usuarios/
   descricao: Listar Usuarios
-  parametros: []
+  parametros:
+  - nome: incluir_excluidos
+    local: query
+    obrigatorio: false
+    tipo: boolean
   request_body: null
   response_200:
     id_usuario:
@@ -87,6 +91,7 @@
       obrigatorio: true
   respostas:
   - '200'
+  - '422'
 - endpoint: POST /usuarios/
   descricao: Criar Usuario
   parametros: []
@@ -230,6 +235,12 @@
     exclusao:
       tipo: desconhecido
       obrigatorio: false
+    senha:
+      tipo: desconhecido
+      obrigatorio: false
+    primeiro_acesso:
+      tipo: desconhecido
+      obrigatorio: false
   response_200:
     id_usuario:
       tipo: integer
@@ -279,6 +290,54 @@
     tipo: integer
   request_body: null
   response_200: null
+  respostas:
+  - '200'
+  - '422'
+- endpoint: POST /usuarios/{id_usuario}/restaurar
+  descricao: Restaurar Usuario
+  parametros:
+  - nome: id_usuario
+    local: path
+    obrigatorio: true
+    tipo: integer
+  request_body: null
+  response_200:
+    id_usuario:
+      tipo: integer
+      obrigatorio: true
+    nome:
+      tipo: string
+      obrigatorio: true
+    email:
+      tipo: string
+      obrigatorio: true
+    cargo:
+      tipo: CargoEnum
+      obrigatorio: true
+    perfil_de_acesso:
+      tipo: AcessoEnum
+      obrigatorio: true
+    notificacao:
+      tipo: boolean
+      obrigatorio: true
+    suspenso:
+      tipo: desconhecido
+      obrigatorio: false
+    qtd_suspensao:
+      tipo: integer
+      obrigatorio: true
+    bloqueado:
+      tipo: boolean
+      obrigatorio: true
+    exclusao:
+      tipo: desconhecido
+      obrigatorio: false
+    data_cadastro:
+      tipo: string
+      obrigatorio: true
+    primeiro_acesso:
+      tipo: boolean
+      obrigatorio: true
   respostas:
   - '200'
   - '422'
@@ -449,6 +508,30 @@
       tipo: array
       obrigatorio: false
       default: *id002
+  respostas:
+  - '200'
+  - '422'
+- endpoint: GET /usuarios/{id_usuario}/exportar-dados
+  descricao: Exportar Dados LGPD
+  parametros:
+  - nome: id_usuario
+    local: path
+    obrigatorio: true
+    tipo: integer
+  request_body: null
+  response_200:
+    usuario:
+      tipo: object
+      obrigatorio: true
+    clifor:
+      tipo: object
+      obrigatorio: false
+    lancamentos:
+      tipo: array
+      obrigatorio: true
+    logins:
+      tipo: array
+      obrigatorio: true
   respostas:
   - '200'
   - '422'
@@ -923,7 +1006,10 @@
     id_clifor:
       tipo: integer
       obrigatorio: true
-    saldo_liquido:
+    total_a_receber:
+      tipo: string
+      obrigatorio: true
+    total_a_pagar:
       tipo: string
       obrigatorio: true
   respostas:

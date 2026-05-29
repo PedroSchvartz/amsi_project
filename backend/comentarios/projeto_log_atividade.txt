@@ -1,0 +1,165 @@
+================================================================================
+  AMSI PROJECT — PLANO DE IMPLEMENTAÇÃO: LOG DE ATIVIDADE POR SESSÃO
+================================================================================
+
+DATA: 2026-05-27
+STATUS: Implementado
+
+--------------------------------------------------------------------------------
+  CONTEXTO
+--------------------------------------------------------------------------------
+
+Motivação:
+  - Conformidade LGPD (Art. 37) — rastreabilidade de quem fez o quê e quando
+  - Auditoria operacional: Admin pode ver todas as ações de uma sessão de login
+  - Exportação de dados (Art. 18, V) — incluído no endpoint exportar-dados
+
+Objetivo:
+  - Registrar automaticamente todas as mutações (POST/PUT/PATCH/DELETE) com
+    status 2xx que ocorrem durante uma sessão autenticada
+  - Vincular cada ação ao registro de login (tabela Login) que originou a sessão
+  - Não registrar GETs (sem alteração de estado) nem ações que falharam (4xx/5xx)
+
+--------------------------------------------------------------------------------
+  ALTERAÇÃO NO FLUXO DE LOGIN
+--------------------------------------------------------------------------------
+
+Problema anterior:
+  - TokenAtivo e Login eram criados no mesmo request de login mas sem FK entre si
+  - O logout buscava o Login ativo por "usuario + data_logout IS NULL" (frágil)
+
+Solução:
+  - Adicionada coluna id_login_fk em token_ativo (FK → login.id_login)
+  - No POST /auth/token: db.flush() após criar Login para obter id_login,
+    depois token_ativo.id_login_fk = sessao.id_login
+
+Impacto:
+  - Migration manual necessária antes de subir o servidor pela primeira vez
+    após esta implementação (ver seção MIGRATION)
+
+--------------------------------------------------------------------------------
+  TABELA: log_atividade
+--------------------------------------------------------------------------------
+
+  id_log        BIGINT PK autoincrement
+  id_login_fk   BIGINT FK → login.id_login  ON DELETE SET NULL  (nullable)
+  id_usuario_fk BIGINT FK → usuario.id_usuario  ON DELETE SET NULL  (nullable)
+  timestamp     TIMESTAMP NOT NULL DEFAULT NOW()
+  metodo        VARCHAR(10) NOT NULL   -- POST | PUT | PATCH | DELETE
+  endpoint      VARCHAR(255) NOT NULL  -- ex: /lancamento/42
+  entidade      VARCHAR(100) nullable  -- lancamento | usuario | clifor | …
+  id_entidade   BIGINT nullable        -- ID do recurso afetado (quando aplicável)
+  descricao     VARCHAR(255) nullable  -- "POST /lancamento/42"
+  status_code   INTEGER NOT NULL       -- 200, 201, …
+
+FKs com ON DELETE SET NULL: se login ou usuário for deletado, os logs ficam
+como registro histórico (id_login_fk e id_usuario_fk ficam NULL).
+
+--------------------------------------------------------------------------------
+  MIDDLEWARE: ActivityLogMiddleware
+--------------------------------------------------------------------------------
+
+Arquivo: utils/activity_log_middleware.py
+Registrado em main.py APÓS CORSMiddleware e ANTES de RequestLoggerMiddleware
+
+Fluxo por request:
+
+  1. Se método NÃO é POST/PUT/PATCH/DELETE → passa sem registrar
+  2. Se path começa com /demo/, /logs/, /docs, /openapi.json → passa sem registrar
+  3. Chama await call_next(request) → obtém response
+  4. Se status_code >= 300 → não registra (só 2xx)
+  5. Lê header Authorization, extrai Bearer token
+  6. Decodifica JWT (sem verificar exp) → obtém jti
+  7. Busca TokenAtivo pelo jti → obtém id_usuario_fk e id_login_fk
+     Se não encontrar → encerra sem registrar
+  8. Chama _parse_entidade(path) → obtém (entidade, id_entidade)
+  9. Cria LogAtividade com SessionLocal() própria (try/finally para fechar)
+  10. Retorna response original
+
+Função _parse_entidade(path) — mapeamento de segmento → entidade:
+
+  Segmento         → Entidade
+  lancamento       → lancamento
+  usuarios         → usuario
+  cliente_fornecedor → clifor
+  tipo_conta       → tipo_conta
+  endereco         → endereco
+  contato          → contato
+  login            → login
+  auth             → auth
+
+  Se o segundo segmento do path for numérico → id_entidade
+  Exemplos:
+    /lancamento/42/editar    → ("lancamento", 42)
+    /lancamento/             → ("lancamento", None)
+    /usuarios/5/clifor       → ("usuario", 5)
+    /auth/trocar-senha       → ("auth", None)
+
+--------------------------------------------------------------------------------
+  ENDPOINTS
+--------------------------------------------------------------------------------
+
+GET /log-atividade/por-sessao/{id_login}
+  - Requer: Admin
+  - Retorna: lista de LogAtividadeResponse desta sessão, ordenado por timestamp
+
+GET /log-atividade/por-usuario/{id_usuario}
+  - Requer: Admin
+  - Retorna: lista de todas as atividades do usuário (todas as sessões)
+
+Ambos retornam schema LogAtividadeResponse:
+  id_log, id_login_fk, id_usuario_fk, timestamp,
+  metodo, endpoint, entidade, id_entidade, descricao, status_code
+
+--------------------------------------------------------------------------------
+  INTEGRAÇÃO COM EXPORTAR-DADOS (LGPD)
+--------------------------------------------------------------------------------
+
+GET /usuarios/{id_usuario}/exportar-dados agora inclui chave "atividades"
+com a lista de LogAtividadeResponse do usuário.
+
+--------------------------------------------------------------------------------
+  MIGRATION
+--------------------------------------------------------------------------------
+
+Executar no banco ANTES de subir o servidor:
+
+  ALTER TABLE token_ativo
+      ADD COLUMN id_login_fk BIGINT REFERENCES login(id_login) ON DELETE SET NULL;
+
+  CREATE INDEX idx_token_ativo_login ON token_ativo(id_login_fk);
+
+  -- (a tabela log_atividade é criada automaticamente pelo Base.metadata.create_all)
+
+--------------------------------------------------------------------------------
+  ARQUIVOS MODIFICADOS / CRIADOS
+--------------------------------------------------------------------------------
+
+  Criados:
+    models/log_atividade.py
+    schemas/log_atividade.py
+    utils/activity_log_middleware.py
+    routes/log_atividade.py
+    backend/comentarios/projeto_log_atividade.txt  (este arquivo)
+
+  Alterados:
+    models/token_ativo.py          — add id_login_fk
+    auth/router.py                 — db.flush() + setar id_login_fk no token_ativo
+    routes/usuario.py              — exportar-dados inclui "atividades"
+    main.py                        — registrar model, middleware e router
+    comentarios/tabelas_do_banco.txt — documentar ALTER + CREATE TABLE
+
+--------------------------------------------------------------------------------
+  CRITÉRIOS DE FUNCIONAMENTO
+--------------------------------------------------------------------------------
+
+  ✔ POST /auth/token → token_ativo.id_login_fk não é NULL
+  ✔ POST /lancamento/ com sucesso → 1 registro em log_atividade
+  ✔ DELETE /usuarios/5 com 403 → NÃO gera registro
+  ✔ GET /lancamento/ → NÃO gera registro
+  ✔ GET /log-atividade/por-sessao/{id} como Admin → lista as ações da sessão
+  ✔ GET /log-atividade/ como Operador ou Consulta → 403
+  ✔ Restart do servidor → logs anteriores persistem (banco, não memória)
+  ✔ GET /usuarios/{id}/exportar-dados → bloco "atividades" presente
+
+================================================================================

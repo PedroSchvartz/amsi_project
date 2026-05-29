@@ -346,3 +346,119 @@ def desvincular_clifor_do_usuario(
     clifor.id_usuario_fk = None
     db.commit()
     return {"detail": "Cliente/Fornecedor desvinculado com sucesso"}
+
+
+# ─── Exportação LGPD ──────────────────────────────────────────────────────────
+
+from models.login import Login
+from models.lancamento import Lancamento
+from models.cliente_fornecedor import ClienteFornecedor as CliForModel
+
+
+@router.get("/{id_usuario}/exportar-dados")
+def exportar_dados_usuario(
+    id_usuario: int,
+    db: Session = Depends(get_db),
+    _=Depends(exige_admin)
+):
+    usuario = db.query(Usuario).filter(Usuario.id_usuario == id_usuario).first()
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+
+    clifor = db.query(CliForModel).filter(CliForModel.id_usuario_fk == id_usuario).first()
+
+    lancamentos = []
+    if clifor:
+        lancamentos = db.query(Lancamento).filter(
+            Lancamento.id_clifor_relacionado_fk == clifor.id_clifor
+        ).all()
+
+    logins = db.query(Login).filter(Login.id_usuario_fk == id_usuario).all()
+
+    from models.log_atividade import LogAtividade
+    atividades = db.query(LogAtividade).filter(
+        LogAtividade.id_usuario_fk == id_usuario
+    ).order_by(LogAtividade.timestamp).all()
+
+    return {
+        "usuario": {
+            "id_usuario": usuario.id_usuario,
+            "nome": usuario.nome,
+            "email": usuario.email,
+            "cargo": usuario.cargo.value,
+            "perfil_de_acesso": usuario.perfil_de_acesso.value,
+            "data_cadastro": usuario.data_cadastro,
+            "notificacao": usuario.notificacao,
+            "suspenso": usuario.suspenso,
+            "bloqueado": usuario.bloqueado,
+            "exclusao": usuario.exclusao,
+        },
+        "clifor": {
+            "id_clifor": clifor.id_clifor,
+            "nome": clifor.nome,
+            "cpf_cnpj": clifor.cpf_cnpj,
+            "rg_inscricaoestadual": clifor.rg_inscricaoestadual,
+            "datanascimento": clifor.datanascimento,
+            "pessoafisica_juridica": clifor.pessoafisica_juridica,
+            "tipo_clifor": clifor.tipo_clifor.value,
+            "ativo": clifor.ativo,
+            "inadimplente": clifor.inadimplente,
+            "enderecos": [
+                {
+                    "logradouro": e.logradouro,
+                    "numero": e.numero,
+                    "complemento": e.complemento,
+                    "bairro": e.bairro,
+                    "cidade": e.cidade,
+                    "uf": e.uf,
+                    "cep": e.cep,
+                    "enderecoprimario": e.enderecoprimario,
+                }
+                for e in clifor.enderecos
+            ],
+            "contatos": [
+                {
+                    "tipocontato": c.tipocontato,
+                    "info_do_contato": c.info_do_contato,
+                    "contato_principal": c.contato_principal,
+                }
+                for c in clifor.contatos
+            ],
+        } if clifor else None,
+        "lancamentos": [
+            {
+                "id_lancamento": l.id_lancamento,
+                "natureza": l.natureza_lancamento.value,
+                "valor": str(l.valor),
+                "data_vencimento": l.data_vencimento,
+                "data_lancamento": l.data_lancamento,
+                "data_pagamento": l.data_pagamento,
+                "valor_pago": str(l.valor_pago) if l.valor_pago else None,
+                "estorno": l.estorno,
+                "observacao": l.observacao,
+            }
+            for l in lancamentos
+        ],
+        "logins": [
+            {
+                "data_login": lg.data_login,
+                "data_logout": lg.data_logout,
+                "dispositivo_logado": lg.dispositivo_logado,
+                "localizacao": lg.localizacao,
+                "navegador": lg.navegador,
+            }
+            for lg in logins
+        ],
+        "atividades": [
+            {
+                "timestamp": a.timestamp,
+                "metodo": a.metodo,
+                "endpoint": a.endpoint,
+                "entidade": a.entidade,
+                "id_entidade": a.id_entidade,
+                "descricao": a.descricao,
+                "status_code": a.status_code,
+            }
+            for a in atividades
+        ],
+    }
