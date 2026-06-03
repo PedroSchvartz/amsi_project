@@ -22,7 +22,7 @@ router = APIRouter(
 
 
 def _gerar_senha_provisoria(tamanho: int = 12) -> str:
-    caracteres = string.ascii_letters + string.digits + "!@#$%"
+    caracteres = string.ascii_letters + string.digits + "!@$"  # # e % removidos — quebram URL
     return "".join(secrets.choice(caracteres) for _ in range(tamanho))
 
 
