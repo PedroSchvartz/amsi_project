@@ -1,3 +1,4 @@
+import asyncio
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from jose import jwt, JWTError
@@ -41,6 +42,38 @@ def _parse_entidade(path: str):
     return entidade, id_entidade
 
 
+def _gravar_log(jti: str, method: str, path: str, status_code: int):
+    """Gravação do log de atividade em background — não bloqueia o response."""
+    from models.token_ativo import TokenAtivo
+    from models.log_atividade import LogAtividade
+
+    entidade, id_entidade = _parse_entidade(path)
+    descricao = f"{method} {path}"
+
+    db = SessionLocal()
+    try:
+        token_ativo = db.query(TokenAtivo).filter(TokenAtivo.jti == jti).first()
+        if not token_ativo:
+            return
+
+        log = LogAtividade(
+            id_login_fk=token_ativo.id_login_fk,
+            id_usuario_fk=token_ativo.id_usuario_fk,
+            metodo=method,
+            endpoint=path[:255],
+            entidade=entidade,
+            id_entidade=id_entidade,
+            descricao=descricao[:255],
+            status_code=status_code,
+        )
+        db.add(log)
+        db.commit()
+    except Exception:
+        db.rollback()
+    finally:
+        db.close()
+
+
 class ActivityLogMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
@@ -74,33 +107,8 @@ class ActivityLogMiddleware(BaseHTTPMiddleware):
         if not jti:
             return response
 
-        entidade, id_entidade = _parse_entidade(path)
-        descricao = f"{request.method} {path}"
-
-        db = SessionLocal()
-        try:
-            from models.token_ativo import TokenAtivo
-            from models.log_atividade import LogAtividade
-
-            token_ativo = db.query(TokenAtivo).filter(TokenAtivo.jti == jti).first()
-            if not token_ativo:
-                return response
-
-            log = LogAtividade(
-                id_login_fk=token_ativo.id_login_fk,
-                id_usuario_fk=token_ativo.id_usuario_fk,
-                metodo=request.method,
-                endpoint=path[:255],
-                entidade=entidade,
-                id_entidade=id_entidade,
-                descricao=descricao[:255],
-                status_code=response.status_code,
-            )
-            db.add(log)
-            db.commit()
-        except Exception:
-            db.rollback()
-        finally:
-            db.close()
+        # Dispara a gravação em background — response já volta ao cliente
+        loop = asyncio.get_event_loop()
+        loop.run_in_executor(None, _gravar_log, jti, request.method, path, response.status_code)
 
         return response
