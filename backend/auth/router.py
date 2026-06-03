@@ -154,6 +154,11 @@ f"""
         <tr><td style="padding:36px 40px;">
           <p style="font-size:1.3rem;font-weight:600;color:#1B4332;margin:0 0 8px;">Senha alterada com sucesso 🔒</p>
           <p style="color:#6b7280;margin:0 0 20px;">Olá, <strong style="color:#2C2C2C;">{current_user.nome}</strong>! Sua senha foi alterada com sucesso.</p>
+          <p style="color:#2C2C2C;margin:0 0 12px;">Sua nova senha:</p>
+          <div style="background:#f4f1ec;border:1px solid #d1c9bf;border-radius:8px;padding:18px;text-align:center;margin:0 0 20px;">
+            <p style="margin:0 0 4px;font-size:0.7rem;color:#6b7280;letter-spacing:0.12em;text-transform:uppercase;">nova senha</p>
+            <p style="margin:0;font-size:1.5rem;font-weight:700;color:#1B4332;letter-spacing:0.2em;">{dados.senha_nova}</p>
+          </div>
           <div style="text-align:center;margin:0 0 20px;">
             <a href="{FRONTEND_URL}" style="display:inline-block;background:#1B4332;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-weight:600;font-size:0.95rem;letter-spacing:0.03em;">Acessar o sistema →</a>
           </div>
