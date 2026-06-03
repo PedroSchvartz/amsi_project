@@ -186,6 +186,9 @@ def resetar_senha(id_usuario: int, db: Session = Depends(get_db), _=Depends(exig
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
 
+    senha_anterior = usuario.senha
+    primeiro_acesso_anterior = usuario.primeiro_acesso
+
     senha_provisoria = _gerar_senha_provisoria()
     usuario.senha = hash_senha(senha_provisoria)
     usuario.primeiro_acesso = True
@@ -230,10 +233,17 @@ def resetar_senha(id_usuario: int, db: Session = Depends(get_db), _=Depends(exig
 </body>
 </html>
 """
-    try:
-        enviar_email(usuario.email, "Redefinição de senha — AMSI Project", corpo)
-    except Exception:
-        pass
+    enviado = enviar_email(usuario.email, "Redefinição de senha — AMSI Project", corpo)
+    if not enviado:
+        # Rollback: o e-mail carrega a ÚNICA cópia da nova senha. Se não saiu,
+        # restauramos a senha anterior para não trancar o usuário para fora.
+        usuario.senha = senha_anterior
+        usuario.primeiro_acesso = primeiro_acesso_anterior
+        db.commit()
+        raise HTTPException(
+            status_code=502,
+            detail="Falha ao enviar o e-mail de redefinição. A senha NÃO foi alterada — a senha anterior continua válida.",
+        )
 
     return {"detail": "Senha redefinida e enviada por email"}
 

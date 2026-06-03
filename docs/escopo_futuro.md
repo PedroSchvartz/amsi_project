@@ -64,6 +64,151 @@ Com 8 threads paralelas e latência de 100ms por query:
 - Histórico de alterações por lançamento (quem criou, quem editou, quando, o que mudou).
 - Atualmente apenas o `log_atividade` registra ações por rota, não diff de campos.
 
+### 2.6 Exibir "último acesso" do usuário
+
+Na página de gerenciamento de usuários (menu de Ações de cada linha) e no `PerfilPopup` (informações do próprio usuário logado), exibir quando o usuário acessou o sistema pela última vez.
+
+**Comportamento esperado:**
+- Se o usuário já fez login ao menos uma vez: exibir a data/hora do login mais recente (ex.: `"Último acesso: 02/06/2026 às 14:32"`).
+- Se nunca fez login além do primeiro acesso (ou `Data_Login` for nulo): exibir `"Nunca acessou"`.
+
+**Implementação técnica:**
+- Dado não existe na tabela `usuario` — reside na tabela `Login` (campo `Data_Login`).
+- Backend: ao retornar os dados do usuário (endpoint de listagem e endpoint de perfil), fazer `SELECT MAX(Data_Login) FROM Login WHERE id_usuario_FK = :id` e incluir o campo `ultimo_acesso` na resposta.
+- Alternativamente, desnormalizar: adicionar coluna `ultimo_acesso TIMESTAMP` em `usuario` e atualizá-la a cada login bem-sucedido (em `auth/router.py`, no mesmo fluxo que grava o registro em `Login`).
+- Frontend: renderizar o campo nas duas superfícies mencionadas; tratar `null` como "Nunca acessou".
+
+### 2.8 Rework do sistema de loading — UI otimista com toasts clicáveis e popup de detalhe
+
+Atualmente muitas ações prendem o usuário aguardando a resposta do servidor antes de retornar à atividade (fechar popup, recarregar lista, etc.). A proposta é separar dois tipos de carregamento e enriquecer o feedback com toasts clicáveis que abrem um popup contextual.
+
+---
+
+**1. Carregamento de página (comportamento atual mantido)**
+- Spinner centralizado na tela enquanto os dados iniciais da rota são buscados.
+- Usuário aguarda — sem essa espera a página estaria incompleta.
+
+---
+
+**2. Resultado de ações em botões de enviar / confirmar (novo comportamento)**
+- Aplicar **UI otimista**: ao clicar em "Salvar", "Confirmar", "Excluir" etc., o sistema **assume sucesso imediato**, fecha o popup / retorna à tela anterior e dispara a operação em background.
+- Feedback via **toast** (notificação no canto da tela):
+  - **Amarelo + spinner girando** enquanto a requisição ainda está em andamento.
+  - Muda para **verde** ao receber confirmação de sucesso.
+  - Muda para **vermelho** em caso de erro.
+- O usuário **não fica preso** na tela de loading; pode continuar navegando enquanto a ação finaliza.
+
+---
+
+**3. Toasts clicáveis — popup de detalhe por ação**
+
+Cada toast é **clicável em qualquer estado** (pending / sucesso / erro) e abre um popup modal contextual com título e descrição dinâmicos baseados na ação e no sujeito envolvido.
+
+O conteúdo do popup varia conforme o estado:
+
+| Estado | Cor | Título (exemplo: redefinição de senha) | Corpo do popup |
+|---|---|---|---|
+| Pending | 🟡 Amarelo | "Atualizando a senha de Fulano de Tal…" | "A solicitação de troca de senha está sendo processada. Em instantes o e-mail será enviado para fulano@email.com." |
+| Sucesso | 🟢 Verde | "Senha de Fulano de Tal atualizada" | "A senha de Fulano de Tal foi redefinida e enviada para fulano@email.com. A senha anterior não poderá mais ser usada para acessar o sistema." |
+| Erro | 🔴 Vermelho | "Falha ao atualizar a senha de Fulano de Tal" | "Não foi possível concluir a troca de senha. Verifique sua conexão e tente novamente. Se o problema persistir, contate o suporte." |
+
+Cada ação do sistema deve ter seu próprio conjunto de três mensagens (pending / sucesso / erro), sempre incluindo:
+- **Nome do sujeito** (usuário, lançamento, clifor, etc.) no título.
+- **Detalhe contextual relevante** no corpo (e-mail de destino, valor do lançamento, nome do clifor, etc.).
+- **Orientação clara** no estado de erro sobre o que fazer a seguir.
+
+**Exemplos de outras ações:**
+- *Criando lançamento de R$ 350,00 para João Silva…* → *Lançamento criado com sucesso.* → *Falha ao criar lançamento.*
+- *Suspendendo acesso de Maria Souza…* → *Acesso de Maria Souza suspenso.* → *Não foi possível suspender o acesso de Maria Souza.*
+- *Associando Carlos Lima ao clifor "Padaria Central"…* → *Carlos Lima vinculado a "Padaria Central".* → *Falha ao associar Carlos Lima.*
+
+---
+
+**Onde aplicar (exemplos):**
+- Criação / edição de lançamentos, clifors, usuários.
+- Exclusão de registros.
+- Ações de suspender / bloquear / redefinir senha / associar clifor em usuários.
+- Qualquer ação cujo popup fecha após o clique de confirmar.
+
+**Onde NÃO aplicar (manter spinner atual):**
+- Carregamento inicial de rotas (listas, detalhes).
+- Login / autenticação (resultado precisa ser síncrono para redirecionar corretamente).
+- Ações destrutivas irreversíveis de alto impacto (avaliar caso a caso — pode manter confirmação bloqueante).
+
+---
+
+**Implementação técnica sugerida:**
+- Expandir o `ToastStack` existente:
+  - Adicionar estado `pending` (amarelo + spinner) além de `success`/`error`.
+  - Cada toast recebe um objeto `{ estado, titulo, corpo }` em vez de só uma string.
+  - Ao clicar no toast, abre um componente `ToastDetailPopup` (modal leve) exibindo título e corpo completos.
+  - O popup tem botão "Fechar" e, em estados de erro, botão opcional "Tentar novamente" que re-dispara a ação.
+- Fluxo por ação:
+  1. Usuário confirma → popup/form fecha imediatamente.
+  2. `toast.pending({ titulo: "Atualizando a senha de Fulano…", corpo: "…" })` é chamado — retorna um `id` do toast.
+  3. Promise da API resolve:
+     - Sucesso → `toast.update(id, { estado: 'success', titulo: "…", corpo: "…" })`.
+     - Erro → `toast.update(id, { estado: 'error', titulo: "…", corpo: "…" })` + reverte estado local se necessário.
+- Padrão de nomeação dos títulos: gerúndio + sujeito no pending ("Atualizando a senha de Fulano…"), verbo no passado + sujeito no sucesso ("Senha de Fulano atualizada"), substantivo de falha + sujeito no erro ("Falha ao atualizar a senha de Fulano").
+- Centralizar as mensagens por ação em um arquivo de constantes (ex.: `toastMessages.js`) para fácil manutenção e consistência de tom.
+
+### 2.9 Dica de senha esquecida após falhas repetidas no login
+
+Após **3 tentativas consecutivas com falha** de login usando o mesmo e-mail, exibir abaixo do formulário uma mensagem sutil e gentil convidando o usuário a verificar o e-mail:
+
+> *"Esqueceu sua senha? Confira seu e-mail!"*
+
+**Comportamento esperado:**
+- O contador de tentativas é por e-mail digitado e por sessão de página (não persiste entre reloads — não precisa de backend).
+- A mensagem aparece somente após a 3ª falha e permanece visível enquanto o usuário estiver na tela de login.
+- Tom gentil e não-bloqueante: não impede nova tentativa, não exibe aviso de segurança assustador — apenas um lembrete amigável.
+- Se o usuário trocar o campo de e-mail para um diferente, o contador zera para aquele e-mail.
+
+**Implementação técnica:**
+- Controle 100% no frontend: `ref` ou estado local `{ email: string, tentativas: number }`.
+- A cada resposta 401 do `/auth/token`, incrementar o contador para o e-mail atual.
+- Ao atingir 3, renderizar o texto abaixo do botão de entrar — em estilo discreto (fonte pequena, cor cinza ou azul claro, sem ícone de alerta).
+- Não exibir se o campo de e-mail estiver em branco ou se a falha for por outro motivo (ex.: conta bloqueada — nesse caso já existe mensagem específica).
+
+### 2.10 Indicador de lentidão em ações do usuário
+
+O sistema já possui um indicador visual quando a internet cai completamente. Complementar com um indicador para quando uma **ação disparada pelo usuário** demora sem retornar resposta — o usuário não sabe se travou, se está processando, se deve tentar de novo.
+
+**Contexto:** o cold start de ~6s no primeiro acesso ao login é aceitável — o usuário está abrindo o app e esperar um pouco é natural. O problema é diferente: o usuário já está dentro do sistema, clica em "Trocar senha" ou "Salvar lançamento", e fica aguardando por tempo indeterminado sem qualquer feedback de que algo está acontecendo. Isso é o que o indicador resolve.
+
+**Onde se aplica — exclusivamente em ações (não em carregamentos de página):**
+- Requisições disparadas por botões de confirmar/salvar/enviar (POST, PUT, PATCH, DELETE).
+- **Não** se aplica ao carregamento inicial de rotas, login ou listagens — esses têm o spinner de página já existente e um tempo de espera mais aceitável.
+
+**Comportamento esperado:**
+- Ao disparar uma requisição de ação, iniciar um timer silencioso.
+- Se o timer atingir o limiar sem resposta (sugestão: **8s**), exibir o indicador — ícone de sinal fraco, cor amarela/laranja, texto *"Aguardando resposta do servidor…"*.
+- Quando a resposta chegar (sucesso ou erro), o indicador some e o toast de resultado (2.8) assume.
+- Não bloquear a UI — é informativo, aparece no mesmo canto dos toasts.
+
+**Diferença do indicador existente:**
+- **Sem internet:** evento `offline` do browser / falha total — indicador já existe.
+- **Ação lenta:** requisição iniciada, servidor não respondeu em X segundos — indicador novo, restrito a ações de mutação.
+
+**Implementação técnica sugerida:**
+- No interceptor de requisições, checar o método: só ativar o timer para POST/PUT/PATCH/DELETE.
+- Timer de 8s: se disparar antes da resposta, setar `acaoLenta = true` no store global.
+- Ao receber resposta, limpar o timer e `acaoLenta = false`.
+- O componente de indicador existente ("sem internet") pode ganhar uma variante `lento` — mesma posição na tela, cor e ícone distintos.
+
+### 2.7 Associar usuário a clifor — corrigir regra de exibição
+
+A opção "Associar a cliente/fornecedor" no menu de Ações da página de usuários deve aparecer para **qualquer usuário sem clifor vinculado**, independentemente do perfil. Atualmente a condição no frontend restringe a opção apenas ao perfil `Consulta`, deixando usuários `Operador` ou `Admin` sem clifor sem a possibilidade de vinculação.
+
+**Comportamento esperado:**
+- Admin logado vê a opção "Associar a cliente/fornecedor" para todo usuário que ainda não possui `id_clifor_fk` preenchido, independente do perfil (`Consulta`, `Operador` ou `Admin`).
+- Usuário já vinculado a um clifor não exibe a opção (comportamento atual correto).
+
+**Implementação técnica:**
+- Localizar a condição no componente de listagem de usuários (frontend) que renderiza o item de menu de Ações.
+- Substituir a verificação `perfil === 'Consulta'` (ou equivalente) por `!usuario.id_clifor_fk` (ou campo equivalente que indica ausência de vínculo).
+- Validar que a rota/endpoint de associação no backend não bloqueia por perfil — se bloquear, ajustar lá também.
+
 ---
 
 ## 3. Melhorias Técnicas
@@ -86,6 +231,50 @@ Com 8 threads paralelas e latência de 100ms por query:
 ### 3.4 Rate limiting nas rotas de autenticação
 - `/auth/token` sem rate limit é vulnerável a brute force.
 - Implementar limite por IP (ex: 10 tentativas/minuto) usando middleware ou Redis.
+
+### 3.6 Consistência de rollback em fluxos de senha — falha de e-mail
+
+**Problema identificado:** os fluxos que envolvem troca de senha devem assumir que o envio de e-mail **pode falhar**, e nenhum deles deve deixar o sistema em estado inconsistente (senha trocada no banco, usuário sem receber a nova).
+
+**Estado atual dos fluxos:**
+
+| Fluxo | Comportamento atual se e-mail falhar |
+|---|---|
+| `POST /usuarios` (criar usuário) | ✅ Correto — deleta o usuário recém-criado e retorna erro |
+| `POST /usuarios/{id}/resetar-senha` | ❌ Bug — `except Exception: pass` engole o erro; senha já foi trocada no banco e tokens já foram invalidados, mas o usuário nunca recebe a nova senha |
+
+**Comportamento esperado (política unificada):**
+- Antes de qualquer operação destrutiva, **salvar o estado anterior** (`senha_hash_anterior`, `primeiro_acesso_anterior`).
+- Executar a operação (trocar senha, invalidar tokens).
+- Tentar enviar o e-mail.
+- Se o envio **falhar**: restaurar `usuario.senha = senha_hash_anterior` e `usuario.primeiro_acesso = primeiro_acesso_anterior`, fazer commit do rollback e retornar erro HTTP ao chamador.
+- Se o envio **der certo**: manter o novo estado, retornar sucesso.
+
+**Exceções — ações que NÃO precisam de rollback:**
+- Suspensão e bloqueio de usuário: não envolvem troca de senha nem envio de e-mail transacional com credencial, portanto não há estado de senha a restaurar.
+
+**Implementação técnica (`resetar_senha`):**
+```python
+senha_anterior = usuario.senha
+primeiro_acesso_anterior = usuario.primeiro_acesso
+
+senha_provisoria = _gerar_senha_provisoria()
+usuario.senha = hash_senha(senha_provisoria)
+usuario.primeiro_acesso = True
+db.query(TokenAtivo).filter(TokenAtivo.id_usuario_fk == id_usuario).delete()
+db.commit()
+
+enviado = enviar_email(usuario.email, "Redefinição de senha — AMSI Project", corpo)
+if not enviado:
+    usuario.senha = senha_anterior
+    usuario.primeiro_acesso = primeiro_acesso_anterior
+    db.commit()
+    raise HTTPException(status_code=502, detail="Falha ao enviar e-mail. Senha não foi alterada.")
+```
+
+> ⚠️ Nota: os tokens invalidados **não são restaurados** no rollback (os objetos `TokenAtivo` já foram deletados). O usuário precisará fazer login normalmente com a senha anterior. Isso é aceitável — a sessão dele continua válida se o token ainda existia antes do reset.
+
+**Impacto no frontend (item 2.8):** com essa correção, o toast de erro de "Resetar senha" pode afirmar com segurança que *"a senha anterior continua ativa"*, o que deixa a mensagem de erro mais clara e tranquilizadora para o Admin.
 
 ### 3.5 Remoção do `@sveltejs/adapter-vercel` desnecessário
 - Pacote foi adicionado durante troubleshooting de deploy e nunca utilizado (`svelte.config.js` ainda usa `adapter-auto`).
@@ -288,4 +477,4 @@ Permitir que associados paguem seus lançamentos via PIX gerado pelo próprio si
 
 ---
 
-*Última atualização: 2026-06-03*
+*Última atualização: 2026-06-03 (adicionados 2.6, 2.7, 2.8, 2.9, 2.10 e 3.6)*

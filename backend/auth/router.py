@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
@@ -136,7 +137,7 @@ def trocar_senha(
     db.commit()
 
     try:
-        enviar_email(
+        enviado = enviar_email(
             current_user.email,
             "Senha alterada — AMSI Project",
 f"""
@@ -169,7 +170,13 @@ f"""
 </html>
 """
         )
-    except Exception:
-        pass
+        if not enviado:
+            logging.warning(
+                f"Senha de {current_user.email} alterada, mas e-mail de confirmação falhou."
+            )
+    except Exception as e:
+        logging.warning(
+            f"Erro ao enviar e-mail de confirmação para {current_user.email}: {e}"
+        )
 
     return {"detail": "Senha alterada com sucesso"}

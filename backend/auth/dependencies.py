@@ -12,12 +12,21 @@ bearer_scheme = HTTPBearer()
 
 
 def _renovar_token(token_ativo: TokenAtivo, db: Session, response: Response) -> datetime:
-    """Renova o exp do token ativo e injeta o novo exp no header de resposta."""
-    novo_exp = datetime.utcnow() + timedelta(minutes=JWT_EXPIRE_MINUTES)
-    token_ativo.exp = novo_exp
-    db.commit()
-    response.headers["X-Session-Expires"] = str(int(novo_exp.timestamp() * 1000))
-    return novo_exp
+    """Sliding session: estende o exp do token, mas só grava no banco quando
+    falta menos de metade da janela. Evita um write+commit em TODA requisição
+    autenticada (gargalo de latência), preservando a renovação por atividade."""
+    agora = datetime.utcnow()
+    tempo_restante = token_ativo.exp - agora
+
+    if tempo_restante <= timedelta(minutes=JWT_EXPIRE_MINUTES / 2):
+        exp_efetivo = agora + timedelta(minutes=JWT_EXPIRE_MINUTES)
+        token_ativo.exp = exp_efetivo
+        db.commit()
+    else:
+        exp_efetivo = token_ativo.exp
+
+    response.headers["X-Session-Expires"] = str(int(exp_efetivo.timestamp() * 1000))
+    return exp_efetivo
 
 
 def get_current_user(
