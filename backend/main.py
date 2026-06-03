@@ -18,6 +18,7 @@ from auth.router import router as auth_router
 
 from fastapi.middleware.cors import CORSMiddleware
 from utils.request_logger import RequestLoggerMiddleware, router as logs_router
+from utils.config import APP_ENV
 from utils.activity_log_middleware import ActivityLogMiddleware
 
 Base.metadata.create_all(bind=engine)
@@ -27,6 +28,11 @@ def _aplicar_migracoes():
     """Aplica migrações incrementais que o create_all não consegue (ALTER TABLE)."""
     from sqlalchemy import text, inspect as sa_inspect
     insp = sa_inspect(engine)
+
+    # Extensão: pg_trgm (necessária para func.similarity usada em sugestão de clifor)
+    with engine.connect() as conn:
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
+        conn.commit()
 
     # Migration: id_login_fk em token_ativo
     if "token_ativo" in insp.get_table_names():
@@ -87,7 +93,8 @@ app.include_router(contato_router.router)
 app.include_router(lancamento_router.router)
 app.include_router(demo_router.router)
 app.include_router(log_atividade_router.router)
-app.include_router(logs_router)
+if APP_ENV != "production":
+    app.include_router(logs_router)
 
 
 @app.get("/")
