@@ -14,7 +14,6 @@ JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 # Email
 EMAIL_REMETENTE = os.getenv("EMAIL_REMETENTE", "")
 EMAIL_SENHA_APP = os.getenv("EMAIL_SENHA_APP", "")
-RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
 
 # Banco
 DB_HOST = os.getenv("DB_HOST", "localhost")
