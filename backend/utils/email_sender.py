@@ -31,7 +31,7 @@ def _enviar_via_resend(destinatario: str, assunto: str, corpo: str) -> bool:
 
 
 def _enviar_via_smtp(destinatario: str, assunto: str, corpo: str) -> bool:
-    """Envia e-mail via SMTP do Gmail — usado em dev local."""
+    """Envia e-mail via SMTP SSL do Gmail (porta 465) — fallback e dev local."""
     if not EMAIL_REMETENTE or not EMAIL_SENHA_APP:
         logging.warning(
             "Email NÃO enviado: EMAIL_REMETENTE/EMAIL_SENHA_APP não configurados."
@@ -44,22 +44,23 @@ def _enviar_via_smtp(destinatario: str, assunto: str, corpo: str) -> bool:
     msg["To"] = destinatario
 
     try:
-        with smtplib.SMTP("smtp.gmail.com", 587, timeout=10) as server:
-            server.starttls()
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=10) as server:
             server.login(EMAIL_REMETENTE, EMAIL_SENHA_APP)
             server.send_message(msg)
-        logging.info(f"Email enviado via SMTP para {destinatario}")
+        logging.info(f"Email enviado via SMTP SSL para {destinatario}")
         return True
     except Exception as e:
-        logging.warning(f"Falha ao enviar email via SMTP para {destinatario}: {e}")
+        logging.warning(f"Falha ao enviar email via SMTP SSL para {destinatario}: {e}")
         return False
 
 
 def enviar_email(destinatario: str, assunto: str, corpo: str) -> bool:
     """
-    Envia e-mail priorizando Resend (produção/Railway) e caindo para SMTP (dev local).
-    Railway bloqueia conexões SMTP de saída (porta 587) — Resend usa HTTPS (443).
+    Tenta Resend primeiro (HTTPS 443 — funciona no Railway).
+    Se Resend falhar (ex: sem domínio verificado → 403), cai para SMTP SSL porta 465.
     """
     if RESEND_API_KEY:
-        return _enviar_via_resend(destinatario, assunto, corpo)
+        if _enviar_via_resend(destinatario, assunto, corpo):
+            return True
+        logging.warning("Resend falhou — tentando SMTP SSL (porta 465) como fallback.")
     return _enviar_via_smtp(destinatario, assunto, corpo)
