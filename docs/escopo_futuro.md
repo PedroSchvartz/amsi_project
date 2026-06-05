@@ -304,10 +304,15 @@ if not enviado:
 
 ### 5.1 Plataforma multi-associação
 
+> 📋 **Plano técnico detalhado:** [`docs/planos/multi-associacao-jwt-fundacao.md`](./planos/multi-associacao-jwt-fundacao.md)
+
 Atualmente o sistema é construído para gerenciar exclusivamente a AMSI (Associação de Moradores de Santa Isabel). A visão de longo prazo é transformá-lo em uma plataforma capaz de atender múltiplas associações de moradores independentes, cada uma com seus próprios usuários, lançamentos e configurações.
 
 **O que muda na arquitetura:**
 - Introdução de uma entidade `Associacao` no modelo de dados, à qual todos os recursos existentes (usuários, clientes/fornecedores, lançamentos, tipos de conta) passam a ser vinculados via chave estrangeira.
+- **JWT como fonte de verdade**: `id_associacao`, `cargo` e `perfil` são embutidos no token — o backend elimina a releitura do `Usuario` a cada request autenticado (passa de 2 queries para 1).
+- Novo `ContextoUsuario` (dataclass) substitui o objeto ORM em todos os handlers — cada query já nasce filtrada pela associação do usuário.
+- **Paginação de listas**: toda rota de listagem passa a retornar em lotes (`skip`/`limit`), com o tamanho definido pelo frontend e teto de 1000 no backend, e o total no header `X-Total-Count`. Evita payloads gigantes conforme as associações somam milhares de registros. **Exige atualizações no frontend** (enviar `skip`/`limit`, ler o header, renderizar controles de paginação).
 - Isolamento total de dados entre associações — nenhum usuário de uma associação enxerga dados de outra.
 - Novo perfil de acesso `Super Admin` (acima de Administrador): gerencia associações, cria e desativa instâncias, acessa métricas consolidadas entre todas.
 - Bootstrap multi-tenant: cada nova associação recebe seu próprio admin inicial via fluxo de onboarding.
@@ -317,8 +322,10 @@ Atualmente o sistema é construído para gerenciar exclusivamente a AMSI (Associ
 - Alternativa: deploy isolado por associação (mais simples operacionalmente, mais caro em infraestrutura).
 
 **Pontos de atenção:**
-- Migração do banco atual (AMSI) para o modelo multi-tenant sem perda de dados.
+- Migração do banco atual (AMSI) para o modelo multi-tenant sem perda de dados (script SQL incluído no plano).
 - Revisão completa das permissões RBAC para incluir o escopo da associação em cada verificação.
+- Ao fazer o deploy das Fases 2+3, todos os tokens existentes expiram — todos os usuários deslogam (esperado).
+- A paginação (Fase 5) exige **release coordenado back+front**: se o backend paginar e o frontend antigo esperar a lista inteira, as telas mostram só os primeiros registros sem erro visível.
 - Plano de precificação por associação (gratuito, plano básico, plano completo).
 
 ---
@@ -477,4 +484,4 @@ Permitir que associados paguem seus lançamentos via PIX gerado pelo próprio si
 
 ---
 
-*Última atualização: 2026-06-03 (adicionados 2.6, 2.7, 2.8, 2.9, 2.10 e 3.6)*
+*Última atualização: 2026-06-03 (adicionados 2.6, 2.7, 2.8, 2.9, 2.10, 3.6; 5.1 expandido com plano técnico detalhado)*
