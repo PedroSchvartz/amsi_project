@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from jose import jwt, JWTError
 from datetime import datetime, timedelta
 from database import get_db
-from models.usuario import Usuario, AcessoEnum
+from models.usuario import Usuario, AcessoEnum, CargoEnum
 from models.token_ativo import TokenAtivo
 from utils.config import JWT_SECRET_KEY, JWT_ALGORITHM, JWT_EXPIRE_MINUTES
 
@@ -154,4 +154,14 @@ def exige_operador_ou_admin(current_user: Usuario = Depends(get_current_user)) -
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Acesso restrito a operadores e administradores"
         )
+    return current_user
+
+
+def exige_admin_desenvolvedor(current_user: Usuario = Depends(get_current_user)) -> Usuario:
+    """Guard duplo: perfil Administrador E cargo Desenvolvedor.
+    Usado em operações destrutivas que não devem ser acessíveis pelo frontend nem por admins comuns."""
+    if current_user.perfil_de_acesso != AcessoEnum.Administrador:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acesso restrito a administradores")
+    if current_user.cargo != CargoEnum.Desenvolvedor:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Ação restrita a usuários com cargo Desenvolvedor")
     return current_user

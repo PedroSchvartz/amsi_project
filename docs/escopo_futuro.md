@@ -484,4 +484,20 @@ Permitir que associados paguem seus lançamentos via PIX gerado pelo próprio si
 
 ---
 
-*Última atualização: 2026-06-03 (adicionados 2.6, 2.7, 2.8, 2.9, 2.10, 3.6; 5.1 expandido com plano técnico detalhado)*
+## 10. Correções de Segurança (prioritárias)
+
+> Uma auditoria de segurança realizada em **2026-06-11** identificou vulnerabilidades que têm **prioridade sobre qualquer funcionalidade nova** desta lista.
+>
+> O laudo completo — com localização exata no código, prova de conceito e correção de cada item — está em **[12_auditoria_seguranca.md](./12_auditoria_seguranca.md)**. Esse arquivo é **local (gitignored)** porque descreve falhas exploráveis de um sistema em produção; os vetores **não** devem ser detalhados aqui, pois este arquivo é versionado no repositório.
+
+Resumo do que precisa ser corrigido (detalhe no doc 12):
+
+- 🔴 **2 itens críticos** de controle de acesso e autenticação — corrigir imediatamente. O principal é uma falha de autorização que permite escalonamento de privilégio; a correção é pequena.
+- 🟠 **2 itens altos**: gestão do segredo JWT em produção e exposição de credencial no fluxo de envio de senha (ver também [3.6](#36-consistência-de-rollback-em-fluxos-de-senha--falha-de-e-mail)).
+- 🟡 **Itens médios** de endurecimento: CORS restrito à origem da Vercel (já citado em [09_seguranca.md](./09_seguranca.md) §6), rate limiting no login (já planejado em [3.4](#34-rate-limiting-nas-rotas-de-autenticação)), escape de HTML no painel `/logs/ui`, e alinhamento do escopo de perfil nas rotas de endereço e contato.
+
+**Sequência recomendada:** críticos → altos (antes do próximo deploy) → médios.
+
+---
+
+*Última atualização: 2026-06-11 (adicionada seção 10 — Correções de Segurança, a partir da auditoria; laudo completo em docs/12)*

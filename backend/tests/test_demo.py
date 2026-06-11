@@ -15,8 +15,6 @@ Para rodar individualmente:
 """
 
 import pytest
-from database import SessionLocal
-from models.token_ativo import TokenAtivo
 from utils.config import APP_ENV
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -44,32 +42,15 @@ _SENHA_DEMO = "senhaDemo123"
 # ────────────────────────────────────────────────────────────────────────────
 
 def _limpar_usuario_demo(client, headers_admin, email: str = _EMAIL_DEMO):
-    """Remove completamente o usuário de demo e seus registros dependentes."""
-    todos = client.get("/usuarios/", headers=headers_admin)
+    """Remove completamente TODOS os usuários de demo via hard delete (cascade no backend).
+    Inclui soft-deletados: o hard delete enxerga registros que o delete comum apenas marcou
+    como excluídos, evitando o acúmulo de lixo e colisões de email (409) entre testes."""
+    todos = client.get("/usuarios/?incluir_excluidos=True", headers=headers_admin)
     if not todos.is_success:
         return
-    usuario = next((u for u in todos.json() if u["email"] == email), None)
-    if not usuario:
-        return
-
-    uid = usuario["id_usuario"]
-
-    # 1. token_ativo — FK sem ON DELETE CASCADE; deve vir antes do DELETE usuário
-    db = SessionLocal()
-    try:
-        db.query(TokenAtivo).filter(TokenAtivo.id_usuario_fk == uid).delete()
-        db.commit()
-    finally:
-        db.close()
-
-    # 2. login — também tem FK para usuário
-    logins = client.get(f"/login/por-usuario/{uid}", headers=headers_admin)
-    if logins.is_success:
-        for registro in logins.json():
-            client.delete(f"/login/{registro['id_login']}", headers=headers_admin)
-
-    # 3. usuário
-    client.delete(f"/usuarios/{uid}", headers=headers_admin)
+    for u in todos.json():
+        if u["email"] == email:
+            client.delete(f"/usuarios/{u['id_usuario']}/hard", headers=headers_admin)
 
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -120,15 +101,18 @@ class TestDemoRegistro:
         assert data["email"] == _EMAIL_DEMO
         assert data["nome"] == _NOME_DEMO
 
-    def test_registro_perfil_default_e_administrador(self, client):
-        """Sem perfil_de_acesso informado, o default deve ser Administrador."""
+    def test_registro_perfil_default_e_consulta(self, client):
+        """Sem perfil_de_acesso informado, o default deve ser Consulta (menor privilégio).
+
+        Correção de segurança: antes o default era Administrador, o que permitia
+        auto-registro de admin sem autenticação quando o modo demo estava ativo."""
         r = client.post("/demo/registro", json={
             "nome": _NOME_DEMO,
             "email": _EMAIL_DEMO,
             "senha": _SENHA_DEMO,
         })
         assert r.status_code == 200
-        assert r.json()["perfil_de_acesso"] == "Administrador"
+        assert r.json()["perfil_de_acesso"] == "Consulta"
 
     def test_registro_salva_perfil_informado(self, client, headers_admin):
         """Os três perfis válidos devem ser persistidos corretamente."""

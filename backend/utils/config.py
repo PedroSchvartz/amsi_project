@@ -7,7 +7,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 load_dotenv(BASE_DIR / "config.env")
 
 # Auth
-JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "fallback_dev_key_troque_em_producao")
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+if not JWT_SECRET_KEY:
+    # Em produção, falhar é melhor que subir com uma chave pública conhecida
+    # (qualquer um forjaria tokens válidos). Em dev/teste, usa fallback.
+    if os.getenv("APP_ENV", "development") == "production":
+        raise RuntimeError(
+            "JWT_SECRET_KEY é obrigatório em produção. Defina a variável de ambiente no Railway."
+        )
+    JWT_SECRET_KEY = "fallback_dev_key_troque_em_producao"  # apenas dev/teste
 JWT_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRE_MINUTES", 5))
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 

@@ -31,7 +31,7 @@ class DemoRegistroRequest(BaseModel):
     email: EmailStr
     senha: str
     cargo: CargoEnum = CargoEnum.Associado
-    perfil_de_acesso: AcessoEnum = AcessoEnum.Administrador
+    perfil_de_acesso: AcessoEnum = AcessoEnum.Consulta
 
 
 def _exige_demo():
@@ -53,10 +53,11 @@ def status_demo():
 def demo_registro(dados: DemoRegistroRequest, db: Session = Depends(get_db)):
     """
     Cria uma conta de estagiário sem envio de email e sem DNS check.
-    Perfil padrão: Operador (cria lançamentos, gerencia clientes, vê dashboard).
+    Perfil padrão: Consulta (somente leitura) — o menor privilégio.
 
-    Para acesso administrativo completo, troque:
-        AcessoEnum.Operador  →  AcessoEnum.Administrador
+    O perfil pode ser elevado explicitamente no corpo da requisição quando o
+    modo demo estiver ativo. A proteção real contra abuso é APP_ENV=production,
+    que desativa esta rota por completo (_exige_demo → 403).
     """
     _exige_demo()
 

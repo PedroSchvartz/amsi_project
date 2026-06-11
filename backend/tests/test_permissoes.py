@@ -31,6 +31,27 @@ def test_deletar_usuario_proibido_consulta(client, headers_consulta, usuario_bas
     assert r.status_code == 403
 
 
+def test_atualizar_usuario_proibido_consulta(client, headers_consulta, usuario_base):
+    """PUT /usuarios/{id} por Consulta retorna 403 — impede escalonamento de privilégio.
+
+    Sem esta proteção, qualquer usuário poderia se promover a Administrador ou
+    trocar a senha de qualquer conta (account takeover)."""
+    r = client.put(f"/usuarios/{usuario_base['id_usuario']}",
+                   json={"perfil_de_acesso": "Administrador"},
+                   headers=headers_consulta)
+    assert r.status_code == 403
+
+
+def test_atualizar_usuario_proibido_operador(client, headers_operador, operador_session, usuario_base):
+    """PUT /usuarios/{id} por Operador retorna 403 — gestão de usuários é só de Admin."""
+    if not operador_session["disponivel"]:
+        pytest.skip(operador_session["motivo"])
+    r = client.put(f"/usuarios/{usuario_base['id_usuario']}",
+                   json={"perfil_de_acesso": "Administrador"},
+                   headers=headers_operador)
+    assert r.status_code == 403
+
+
 def test_resetar_senha_proibido_consulta(client, headers_consulta, usuario_base):
     """POST /usuarios/{id}/resetar-senha por Consulta retorna 403."""
     r = client.post(f"/usuarios/{usuario_base['id_usuario']}/resetar-senha", headers=headers_consulta)

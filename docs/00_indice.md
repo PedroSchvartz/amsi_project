@@ -23,6 +23,7 @@ Leia os arquivos **na ordem abaixo**. Cada um assume que você leu os anteriores
 | 9 | [09_seguranca.md](./09_seguranca.md) | Como o sistema previne SQL Injection, XSS, CSRF, bcrypt, JWT híbrido, CORS e auditoria |
 | 10 | [10_decisoes_arquiteturais.md](./10_decisoes_arquiteturais.md) | Por que FastAPI, PostgreSQL, JWT, 3 camadas, normalização 3NF, ACID, React, fetch nativo |
 | 11 | [11_perguntas_de_banca.md](./11_perguntas_de_banca.md) | Q&A: perguntas prováveis de professores com respostas baseadas no código real |
+| 12 | [12_auditoria_seguranca.md](./12_auditoria_seguranca.md) | Auditoria de segurança: vulnerabilidades reais encontradas no código, com PoC e correção (local — gitignored) |
 
 ---
 

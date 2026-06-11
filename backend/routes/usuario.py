@@ -7,7 +7,7 @@ from schemas.usuario import UsuarioCreate, UsuarioUpdate, UsuarioResponse
 from utils.auth_utils import hash_senha
 from utils.email_sender import enviar_email
 from utils.config import FRONTEND_URL
-from auth.dependencies import get_current_user, exige_admin
+from auth.dependencies import get_current_user, exige_admin, exige_admin_desenvolvedor
 from typing import List
 import secrets
 import string
@@ -59,7 +59,10 @@ def buscar_usuario(id_usuario: int, db: Session = Depends(get_db), _=Depends(get
 
 
 @router.post("/", response_model=UsuarioResponse)
-def criar_usuario(dados: UsuarioCreate, db: Session = Depends(get_db), _=Depends(exige_admin)):
+def criar_usuario(dados: UsuarioCreate, db: Session = Depends(get_db), usuario_atual: Usuario = Depends(exige_admin)):
+    if dados.cargo.value == "Desenvolvedor" and usuario_atual.cargo.value != "Desenvolvedor":
+        raise HTTPException(status_code=403, detail="Apenas usuários com cargo Desenvolvedor podem cadastrar outros desenvolvedores")
+
     if not _validar_dominio_email(dados.email):
         raise HTTPException(status_code=400, detail="Domínio de email inválido ou inexistente")
 
@@ -132,7 +135,7 @@ def criar_usuario(dados: UsuarioCreate, db: Session = Depends(get_db), _=Depends
 
 
 @router.put("/{id_usuario}", response_model=UsuarioResponse)
-def atualizar_usuario(id_usuario: int, dados: UsuarioUpdate, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def atualizar_usuario(id_usuario: int, dados: UsuarioUpdate, db: Session = Depends(get_db), _=Depends(exige_admin)):
     usuario = db.query(Usuario).filter(Usuario.id_usuario == id_usuario).first()
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
@@ -162,6 +165,52 @@ def deletar_usuario(id_usuario: int, db: Session = Depends(get_db), _=Depends(ex
     db.query(TokenAtivo).filter(TokenAtivo.id_usuario_fk == id_usuario).delete()
     db.commit()
     return {"detail": "Usuário deletado com sucesso"}
+
+@router.delete("/{id_usuario}/hard", include_in_schema=False)
+def deletar_usuario_hard(
+    id_usuario: int,
+    db: Session = Depends(get_db),
+    _=Depends(exige_admin_desenvolvedor)
+):
+    """Hard delete com cascade — remove a linha do banco.
+    Disponível apenas para Administrador+Desenvolvedor. Oculto do OpenAPI/frontend."""
+    from models.lancamento import Lancamento
+    from models.login import Login
+    from models.log_atividade import LogAtividade
+    from models.cliente_fornecedor import ClienteFornecedor as _CliFor
+
+    if id_usuario == 1:
+        raise HTTPException(status_code=403, detail="Não é permitido deletar o usuário raiz do sistema")
+
+    usuario = db.query(Usuario).filter(Usuario.id_usuario == id_usuario).first()
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+
+    # 1. Tokens ativos
+    db.query(TokenAtivo).filter(TokenAtivo.id_usuario_fk == id_usuario).delete(synchronize_session=False)
+
+    # 2. Lançamentos — fechamento (nullable) → NULL; criação (NOT NULL) → reassign admin raiz
+    db.query(Lancamento).filter(Lancamento.id_usuario_fk_fechamento == id_usuario)\
+        .update({"id_usuario_fk_fechamento": None}, synchronize_session=False)
+    db.query(Lancamento).filter(Lancamento.id_usuario_fk_lancamento == id_usuario)\
+        .update({"id_usuario_fk_lancamento": 1}, synchronize_session=False)
+
+    # 3. Clifor — desvincular
+    db.query(_CliFor).filter(_CliFor.id_usuario_fk == id_usuario)\
+        .update({"id_usuario_fk": None}, synchronize_session=False)
+
+    # 4. Log de atividade — tem ondelete=SET NULL no DB, mas nullificamos antes por segurança
+    db.query(LogAtividade).filter(LogAtividade.id_usuario_fk == id_usuario)\
+        .update({"id_usuario_fk": None}, synchronize_session=False)
+
+    # 5. Logins (log_atividade.id_login_fk tem ondelete=SET NULL no DB)
+    db.query(Login).filter(Login.id_usuario_fk == id_usuario).delete(synchronize_session=False)
+
+    # 6. Usuário
+    db.delete(usuario)
+    db.commit()
+    return {"detail": "Usuário permanentemente removido"}
+
 
 @router.post("/{id_usuario}/restaurar", response_model=UsuarioResponse)
 def restaurar_usuario(id_usuario: int, db: Session = Depends(get_db), _=Depends(exige_admin)):
