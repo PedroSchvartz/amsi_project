@@ -147,8 +147,8 @@ function ClientEdit() {
 				pessoafisica_juridica: String(clifor.pessoafisica_juridica),
 				nome: clifor.nome,
 				cpf_cnpj: clifor.cpf_cnpj,
-				rg_inscricaoestadual: clifor.rg_inscricaoestadual,
-				datanascimento: clifor.datanascimento,
+				rg_inscricaoestadual: clifor.rg_inscricaoestadual || '',
+				datanascimento: clifor.datanascimento || '',
 				id_usuario_fk: clifor.id_usuario_fk ? String(clifor.id_usuario_fk) : '',
 				ativo: clifor.ativo
 			});
@@ -249,9 +249,6 @@ function ClientEdit() {
 			e.pessoafisica_juridica = 'Selecione pessoa física ou jurídica.';
 		if (!form.nome.trim() || form.nome.trim().length < 3)
 			e.nome = 'Nome deve ter pelo menos 3 caracteres.';
-		if (!form.datanascimento) e.datanascimento = 'Data de nascimento obrigatória.';
-		if (!form.rg_inscricaoestadual.trim())
-			e.rg_inscricaoestadual = isPF ? 'RG obrigatório.' : 'Inscrição Estadual obrigatória.';
 		const doc = form.cpf_cnpj.replace(/\D/g, '');
 		if (isPF) {
 			if (!doc) e.cpf_cnpj = 'CPF obrigatório.';
@@ -261,21 +258,14 @@ function ClientEdit() {
 			if (!doc) e.cpf_cnpj = 'CNPJ obrigatório.';
 			else if (!validarCNPJ(doc)) e.cpf_cnpj = 'CNPJ inválido.';
 		}
-		enderecos.forEach((end, i) => {
-			const n = enderecos.length > 1 ? ` (Endereço ${i + 1})` : '';
-			if (!end.logradouro.trim()) e[`end_logradouro_${i}`] = `Logradouro obrigatório${n}.`;
-			if (!end.numero.trim()) e[`end_numero_${i}`] = `Número obrigatório${n}.`;
-			if (!end.bairro.trim()) e[`end_bairro_${i}`] = `Bairro obrigatório${n}.`;
-			if (!end.cidade.trim()) e[`end_cidade_${i}`] = `Cidade obrigatória${n}.`;
-			if (!end.uf) e[`end_uf_${i}`] = `UF obrigatória${n}.`;
-			if (end.cep.replace(/\D/g, '').length !== 8) e[`end_cep_${i}`] = `CEP inválido${n}.`;
-		});
+		// RG, data, endereços e contatos são opcionais; só validamos o formato dos contatos preenchidos.
 		telefones.forEach((t, i) => {
-			if (t.info_do_contato.replace(/\D/g, '').length < 10) e[`tel_${i}`] = 'Telefone inválido.';
+			const v = t.info_do_contato.replace(/\D/g, '');
+			if (v && v.length < 10) e[`tel_${i}`] = 'Telefone inválido.';
 		});
 		emails.forEach((em, i) => {
-			if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em.info_do_contato.trim()))
-				e[`email_${i}`] = 'Email inválido.';
+			const v = em.info_do_contato.trim();
+			if (v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) e[`email_${i}`] = 'Email inválido.';
 		});
 		setErros(e);
 		if (Object.keys(e).length > 0) mostrarToasts(Object.values(e));
@@ -290,31 +280,41 @@ function ClientEdit() {
 			pessoafisica_juridica: isPF,
 			nome: form.nome.trim(),
 			cpf_cnpj: form.cpf_cnpj.replace(/\D/g, ''),
-			rg_inscricaoestadual: form.rg_inscricaoestadual.trim(),
-			datanascimento: form.datanascimento,
+			rg_inscricaoestadual: (form.rg_inscricaoestadual || '').trim() || null,
+			datanascimento: form.datanascimento || null,
 			ativo: form.ativo,
 			id_usuario_fk: form.id_usuario_fk ? parseInt(form.id_usuario_fk) : null,
-			enderecos: enderecos.map((end) => ({
-				logradouro: end.logradouro.trim(),
-				numero: end.numero.trim(),
-				complemento: end.complemento.trim() || null,
-				bairro: end.bairro.trim(),
-				cidade: end.cidade.trim(),
-				uf: end.uf,
-				cep: end.cep.replace(/\D/g, ''),
-				enderecoprimario: end.endereco_primario
-			})),
-			contatos: [
-				...telefones.map((t) => ({
-					tipocontato: 'Telefone',
-					info_do_contato: t.info_do_contato.replace(/\D/g, ''),
-					contato_principal: t.contato_principal
+			enderecos: enderecos
+				.filter((end) =>
+					['logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'uf', 'cep'].some(
+						(f) => (end[f] || '').trim() !== ''
+					)
+				)
+				.map((end) => ({
+					logradouro: end.logradouro.trim(),
+					numero: end.numero.trim(),
+					complemento: end.complemento.trim() || null,
+					bairro: end.bairro.trim(),
+					cidade: end.cidade.trim(),
+					uf: end.uf,
+					cep: end.cep.replace(/\D/g, ''),
+					enderecoprimario: end.endereco_primario
 				})),
-				...emails.map((em) => ({
-					tipocontato: 'Email',
-					info_do_contato: em.info_do_contato.trim(),
-					contato_principal: em.contato_principal
-				}))
+			contatos: [
+				...telefones
+					.filter((t) => t.info_do_contato.trim() !== '')
+					.map((t) => ({
+						tipocontato: 'Telefone',
+						info_do_contato: t.info_do_contato.replace(/\D/g, ''),
+						contato_principal: t.contato_principal
+					})),
+				...emails
+					.filter((em) => em.info_do_contato.trim() !== '')
+					.map((em) => ({
+						tipocontato: 'Email',
+						info_do_contato: em.info_do_contato.trim(),
+						contato_principal: em.contato_principal
+					}))
 			]
 		};
 		try {
@@ -451,7 +451,8 @@ function ClientEdit() {
 							</div>
 							<div className="col-12 col-md-3">
 								<label className="form-label">
-									{isPF ? 'RG' : 'Inscrição Estadual'} <span className="text-danger">*</span>
+									{isPF ? 'RG' : 'Inscrição Estadual'}{' '}
+								<span className="text-muted fw-normal">(opcional)</span>
 								</label>
 								<input
 									className={`form-control ${erros.rg_inscricaoestadual ? 'is-invalid' : ''}`}
@@ -465,7 +466,8 @@ function ClientEdit() {
 							</div>
 							<div className="col-12 col-md-3">
 								<label className="form-label">
-									{isPF ? 'Data de Nascimento' : 'Data de Fundação'} <span className="text-danger">*</span>
+									{isPF ? 'Data de Nascimento' : 'Data de Fundação'}{' '}
+								<span className="text-muted fw-normal">(opcional)</span>
 								</label>
 								<input
 									type="date"
@@ -548,7 +550,7 @@ function ClientEdit() {
 								<div className="row g-2">
 									<div className="col-12 col-md-5">
 										<label className="form-label">
-											Logradouro <span className="text-danger">*</span>
+											Logradouro
 										</label>
 										<input
 											className={`form-control ${erros[`end_logradouro_${i}`] ? 'is-invalid' : ''}`}
@@ -561,7 +563,7 @@ function ClientEdit() {
 									</div>
 									<div className="col-6 col-md-2">
 										<label className="form-label">
-											Número <span className="text-danger">*</span>
+											Número
 										</label>
 										<input
 											className={`form-control ${erros[`end_numero_${i}`] ? 'is-invalid' : ''}`}
@@ -582,7 +584,7 @@ function ClientEdit() {
 									</div>
 									<div className="col-12 col-md-2">
 										<label className="form-label">
-											CEP <span className="text-danger">*</span>
+											CEP
 										</label>
 										<input
 											className={`form-control ${erros[`end_cep_${i}`] ? 'is-invalid' : ''}`}
@@ -596,7 +598,7 @@ function ClientEdit() {
 									</div>
 									<div className="col-12 col-md-4">
 										<label className="form-label">
-											Bairro <span className="text-danger">*</span>
+											Bairro
 										</label>
 										<input
 											className={`form-control ${erros[`end_bairro_${i}`] ? 'is-invalid' : ''}`}
@@ -609,7 +611,7 @@ function ClientEdit() {
 									</div>
 									<div className="col-12 col-md-4">
 										<label className="form-label">
-											Cidade <span className="text-danger">*</span>
+											Cidade
 										</label>
 										<input
 											className={`form-control ${erros[`end_cidade_${i}`] ? 'is-invalid' : ''}`}
@@ -622,7 +624,7 @@ function ClientEdit() {
 									</div>
 									<div className="col-6 col-md-2">
 										<label className="form-label">
-											UF <span className="text-danger">*</span>
+											UF
 										</label>
 										<select
 											className={`form-select ${erros[`end_uf_${i}`] ? 'is-invalid' : ''}`}

@@ -6,7 +6,6 @@ import '../styles/clientForm.css'; /* suporte completo aos dois temas */
 
 /* ════════════════════════════════════════
    HELPERS — Validação e Formatação
-   Idênticos ao ClientEdit para consistência
    ════════════════════════════════════════ */
 const ENDERECO_VAZIO = {
 	logradouro: '',
@@ -18,6 +17,8 @@ const ENDERECO_VAZIO = {
 	cep: '',
 	endereco_primario: true
 };
+
+const CONTATO_VAZIO = { tipo_contato: 'Telefone', info_do_contato: '', contato_principal: true };
 
 const FORM_INICIAL = {
 	tipo_clifor: '',
@@ -127,12 +128,7 @@ function ClientRegister() {
 
 	const [form, setForm] = useState(FORM_INICIAL);
 	const [enderecos, setEnderecos] = useState([{ ...ENDERECO_VAZIO }]);
-	const [telefones, setTelefones] = useState([
-		{ tipo_contato: 'Telefone', info_do_contato: '', contato_principal: true }
-	]);
-	const [emails, setEmails] = useState([
-		{ tipo_contato: 'Email', info_do_contato: '', contato_principal: true }
-	]);
+	const [contatos, setContatos] = useState([{ ...CONTATO_VAZIO }]);
 	const [usuarios, setUsuarios] = useState([]);
 	const [erros, setErros] = useState({});
 
@@ -159,14 +155,54 @@ function ClientRegister() {
 		const u = usuarios.find((u) => String(u.id_usuario) === id);
 		if (!u) return;
 		setForm((prev) => ({ ...prev, id_usuario_fk: id, nome: u.nome }));
-		setEmails([{ tipo_contato: 'Email', info_do_contato: u.email, contato_principal: true }]);
+		setContatos([{ tipo_contato: 'Email', info_do_contato: u.email, contato_principal: true }]);
 	};
 
-	const togglePrincipal = (list, setList, index) => {
-		if (list[index].contato_principal && list.length === 1) return;
-		setList(list.map((item, i) => ({ ...item, contato_principal: i === index })));
+	/* ── Contatos (telefone + email unificados, uma única estrela) ── */
+	const toggleContatoPrincipal = (index) => {
+		setContatos((prev) => prev.map((c, i) => ({ ...c, contato_principal: i === index })));
 	};
 
+	const mudarTipoContato = (index, tipo) => {
+		setContatos((prev) => {
+			const novos = [...prev];
+			// troca de tipo limpa o valor (a máscara muda entre telefone e email)
+			novos[index] = { ...novos[index], tipo_contato: tipo, info_do_contato: '' };
+			return novos;
+		});
+		setErros((p) => ({ ...p, [`contato_${index}`]: '' }));
+	};
+
+	const atualizarContato = (index, value) => {
+		setContatos((prev) => {
+			const novos = [...prev];
+			const tipo = novos[index].tipo_contato;
+			novos[index] = {
+				...novos[index],
+				info_do_contato: tipo === 'Telefone' ? formatarTelefone(value) : value
+			};
+			return novos;
+		});
+		setErros((p) => ({ ...p, [`contato_${index}`]: '' }));
+	};
+
+	const removerContato = (index) => {
+		setContatos((prev) => {
+			const novos = prev.filter((_, j) => j !== index);
+			// garante que sempre reste um principal entre os contatos existentes
+			if (novos.length > 0 && !novos.some((c) => c.contato_principal))
+				novos[0] = { ...novos[0], contato_principal: true };
+			return novos;
+		});
+	};
+
+	const adicionarContato = () =>
+		setContatos((prev) => [
+			...prev,
+			{ tipo_contato: 'Telefone', info_do_contato: '', contato_principal: prev.length === 0 }
+		]);
+
+	/* ── Endereços (nada obrigatório) ── */
 	const toggleEnderecoPrimario = (index) => {
 		if (enderecos[index].endereco_primario && enderecos.length === 1) return;
 		setEnderecos(enderecos.map((end, i) => ({ ...end, endereco_primario: i === index })));
@@ -176,7 +212,6 @@ function ClientRegister() {
 		const novos = [...enderecos];
 		novos[index] = { ...novos[index], [field]: value };
 		setEnderecos(novos);
-		setErros((prev) => ({ ...prev, [`end_${field}_${index}`]: '' }));
 		if (field === 'cep') {
 			const digits = value.replace(/\D/g, '');
 			if (digits.length === 8) {
@@ -201,6 +236,7 @@ function ClientRegister() {
 		}
 	};
 
+	/* ── Validação: só os 4 campos essenciais + formato de contatos preenchidos ── */
 	const validar = () => {
 		const e = {};
 		if (!form.tipo_clifor) e.tipo_clifor = 'Selecione o tipo.';
@@ -208,9 +244,6 @@ function ClientRegister() {
 			e.pessoafisica_juridica = 'Selecione pessoa física ou jurídica.';
 		if (!form.nome.trim() || form.nome.trim().length < 3)
 			e.nome = 'Nome deve ter pelo menos 3 caracteres.';
-		if (!form.datanascimento) e.datanascimento = 'Data de nascimento obrigatória.';
-		if (!form.rg_inscricaoestadual.trim())
-			e.rg_inscricaoestadual = isPF ? 'RG obrigatório.' : 'Inscrição Estadual obrigatória.';
 		const doc = form.cpf_cnpj.replace(/\D/g, '');
 		if (isPF) {
 			if (!doc) e.cpf_cnpj = 'CPF obrigatório.';
@@ -220,22 +253,16 @@ function ClientRegister() {
 			if (!doc) e.cpf_cnpj = 'CNPJ obrigatório.';
 			else if (!validarCNPJ(doc)) e.cpf_cnpj = 'CNPJ inválido.';
 		}
-		enderecos.forEach((end, i) => {
-			const n = enderecos.length > 1 ? ` (Endereço ${i + 1})` : '';
-			if (!end.logradouro.trim()) e[`end_logradouro_${i}`] = `Logradouro obrigatório${n}.`;
-			if (!end.numero.trim()) e[`end_numero_${i}`] = `Número obrigatório${n}.`;
-			if (!end.bairro.trim()) e[`end_bairro_${i}`] = `Bairro obrigatório${n}.`;
-			if (!end.cidade.trim()) e[`end_cidade_${i}`] = `Cidade obrigatória${n}.`;
-			if (!end.uf) e[`end_uf_${i}`] = `UF obrigatória${n}.`;
-			if (end.cep.replace(/\D/g, '').length !== 8) e[`end_cep_${i}`] = `CEP inválido${n}.`;
+		// Contatos são opcionais; só validamos o formato dos que foram preenchidos.
+		contatos.forEach((c, i) => {
+			const v = c.info_do_contato.trim();
+			if (!v) return;
+			if (c.tipo_contato === 'Telefone' && v.replace(/\D/g, '').length < 10)
+				e[`contato_${i}`] = 'Telefone inválido.';
+			if (c.tipo_contato === 'Email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v))
+				e[`contato_${i}`] = 'Email inválido.';
 		});
-		telefones.forEach((t, i) => {
-			if (t.info_do_contato.replace(/\D/g, '').length < 10) e[`tel_${i}`] = 'Telefone inválido.';
-		});
-		emails.forEach((em, i) => {
-			if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em.info_do_contato.trim()))
-				e[`email_${i}`] = 'Email inválido.';
-		});
+		// Endereços: absolutamente nada obrigatório → sem validação.
 		setErros(e);
 		if (Object.keys(e).length > 0) mostrarToasts(Object.values(e));
 		return Object.keys(e).length === 0;
@@ -244,16 +271,29 @@ function ClientRegister() {
 	const handleSubmit = async (e) => {
 		e.preventDefault();
 		if (!validar()) return;
+
+		// Só envia contatos preenchidos; garante um principal entre eles.
+		const contatosPreenchidos = contatos.filter((c) => c.info_do_contato.trim() !== '');
+		if (contatosPreenchidos.length > 0 && !contatosPreenchidos.some((c) => c.contato_principal))
+			contatosPreenchidos[0] = { ...contatosPreenchidos[0], contato_principal: true };
+
+		// Só envia endereços com pelo menos um campo preenchido.
+		const enderecosPreenchidos = enderecos.filter((end) =>
+			['logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'uf', 'cep'].some(
+				(f) => (end[f] || '').trim() !== ''
+			)
+		);
+
 		const payload = {
 			tipo_clifor: form.tipo_clifor,
 			pessoafisica_juridica: isPF,
 			nome: form.nome.trim(),
 			cpf_cnpj: form.cpf_cnpj.replace(/\D/g, ''),
-			rg_inscricaoestadual: form.rg_inscricaoestadual.trim(),
-			datanascimento: form.datanascimento,
+			rg_inscricaoestadual: form.rg_inscricaoestadual.trim() || null,
+			datanascimento: form.datanascimento || null,
 			ativo: form.ativo,
 			id_usuario_fk: form.id_usuario_fk ? parseInt(form.id_usuario_fk) : null,
-			enderecos: enderecos.map((end) => ({
+			enderecos: enderecosPreenchidos.map((end) => ({
 				logradouro: end.logradouro.trim(),
 				numero: end.numero.trim(),
 				complemento: end.complemento.trim() || null,
@@ -263,18 +303,14 @@ function ClientRegister() {
 				cep: end.cep.replace(/\D/g, ''),
 				enderecoprimario: end.endereco_primario
 			})),
-			contatos: [
-				...telefones.map((t) => ({
-					tipocontato: 'Telefone',
-					info_do_contato: t.info_do_contato.replace(/\D/g, ''),
-					contato_principal: t.contato_principal
-				})),
-				...emails.map((em) => ({
-					tipocontato: 'Email',
-					info_do_contato: em.info_do_contato.trim(),
-					contato_principal: em.contato_principal
-				}))
-			]
+			contatos: contatosPreenchidos.map((c) => ({
+				tipocontato: c.tipo_contato,
+				info_do_contato:
+					c.tipo_contato === 'Telefone'
+						? c.info_do_contato.replace(/\D/g, '')
+						: c.info_do_contato.trim(),
+				contato_principal: c.contato_principal
+			}))
 		};
 		try {
 			await createClifor(payload);
@@ -411,32 +447,28 @@ function ClientRegister() {
 							</div>
 							<div className="col-12 col-md-3">
 								<label className="form-label">
-									{isPF ? 'RG' : 'Inscrição Estadual'} <span className="text-danger">*</span>
+									{isPF ? 'RG' : 'Inscrição Estadual'}{' '}
+									<span className="text-muted fw-normal">(opcional)</span>
 								</label>
 								<input
-									className={`form-control ${erros.rg_inscricaoestadual ? 'is-invalid' : ''}`}
+									className="form-control"
 									name="rg_inscricaoestadual"
 									value={form.rg_inscricaoestadual}
 									onChange={handleChange}
 								/>
-								{erros.rg_inscricaoestadual && (
-									<div className="invalid-feedback">{erros.rg_inscricaoestadual}</div>
-								)}
 							</div>
 							<div className="col-12 col-md-3">
 								<label className="form-label">
-									{isPF ? 'Data de Nascimento' : 'Data de Fundação'} <span className="text-danger">*</span>
+									{isPF ? 'Data de Nascimento' : 'Data de Fundação'}{' '}
+									<span className="text-muted fw-normal">(opcional)</span>
 								</label>
 								<input
 									type="date"
-									className={`form-control ${erros.datanascimento ? 'is-invalid' : ''}`}
+									className="form-control"
 									name="datanascimento"
 									value={form.datanascimento}
 									onChange={handleChange}
 								/>
-								{erros.datanascimento && (
-									<div className="invalid-feedback">{erros.datanascimento}</div>
-								)}
 							</div>
 							<div className="col-12 col-md-5">
 								<label className="form-label">
@@ -460,12 +492,12 @@ function ClientRegister() {
 					</div>
 				</div>
 
-				{/* ── ENDEREÇOS ── */}
+				{/* ── ENDEREÇOS (nada obrigatório) ── */}
 				<div className="client-form-card">
 					<div className="client-form-card__header">
 						<span className="client-form-card__header-title">
 							<i className="bi bi-geo-alt me-2" style={{ color: 'var(--primary)' }} />
-							Endereços
+							Endereços <span className="text-muted fw-normal small">(opcional)</span>
 						</span>
 					</div>
 					<div className="client-form-card__body">
@@ -507,30 +539,20 @@ function ClientRegister() {
 								</div>
 								<div className="row g-2">
 									<div className="col-12 col-md-5">
-										<label className="form-label">
-											Logradouro <span className="text-danger">*</span>
-										</label>
+										<label className="form-label">Logradouro</label>
 										<input
-											className={`form-control ${erros[`end_logradouro_${i}`] ? 'is-invalid' : ''}`}
+											className="form-control"
 											value={end.logradouro}
 											onChange={(e) => atualizarEndereco(i, 'logradouro', e.target.value)}
 										/>
-										{erros[`end_logradouro_${i}`] && (
-											<div className="invalid-feedback">{erros[`end_logradouro_${i}`]}</div>
-										)}
 									</div>
 									<div className="col-6 col-md-2">
-										<label className="form-label">
-											Número <span className="text-danger">*</span>
-										</label>
+										<label className="form-label">Número</label>
 										<input
-											className={`form-control ${erros[`end_numero_${i}`] ? 'is-invalid' : ''}`}
+											className="form-control"
 											value={end.numero}
 											onChange={(e) => atualizarEndereco(i, 'numero', e.target.value)}
 										/>
-										{erros[`end_numero_${i}`] && (
-											<div className="invalid-feedback">{erros[`end_numero_${i}`]}</div>
-										)}
 									</div>
 									<div className="col-6 col-md-3">
 										<label className="form-label">Complemento</label>
@@ -541,51 +563,34 @@ function ClientRegister() {
 										/>
 									</div>
 									<div className="col-12 col-md-2">
-										<label className="form-label">
-											CEP <span className="text-danger">*</span>
-										</label>
+										<label className="form-label">CEP</label>
 										<input
-											className={`form-control ${erros[`end_cep_${i}`] ? 'is-invalid' : ''}`}
+											className="form-control"
 											value={end.cep}
 											onChange={(e) => atualizarEndereco(i, 'cep', formatarCEP(e.target.value))}
 											placeholder="00000-000"
 										/>
-										{erros[`end_cep_${i}`] && (
-											<div className="invalid-feedback">{erros[`end_cep_${i}`]}</div>
-										)}
 									</div>
 									<div className="col-12 col-md-4">
-										<label className="form-label">
-											Bairro <span className="text-danger">*</span>
-										</label>
+										<label className="form-label">Bairro</label>
 										<input
-											className={`form-control ${erros[`end_bairro_${i}`] ? 'is-invalid' : ''}`}
+											className="form-control"
 											value={end.bairro}
 											onChange={(e) => atualizarEndereco(i, 'bairro', e.target.value)}
 										/>
-										{erros[`end_bairro_${i}`] && (
-											<div className="invalid-feedback">{erros[`end_bairro_${i}`]}</div>
-										)}
 									</div>
 									<div className="col-12 col-md-4">
-										<label className="form-label">
-											Cidade <span className="text-danger">*</span>
-										</label>
+										<label className="form-label">Cidade</label>
 										<input
-											className={`form-control ${erros[`end_cidade_${i}`] ? 'is-invalid' : ''}`}
+											className="form-control"
 											value={end.cidade}
 											onChange={(e) => atualizarEndereco(i, 'cidade', e.target.value)}
 										/>
-										{erros[`end_cidade_${i}`] && (
-											<div className="invalid-feedback">{erros[`end_cidade_${i}`]}</div>
-										)}
 									</div>
 									<div className="col-6 col-md-2">
-										<label className="form-label">
-											UF <span className="text-danger">*</span>
-										</label>
+										<label className="form-label">UF</label>
 										<select
-											className={`form-select ${erros[`end_uf_${i}`] ? 'is-invalid' : ''}`}
+											className="form-select"
 											value={end.uf}
 											onChange={(e) => atualizarEndereco(i, 'uf', e.target.value)}
 										>
@@ -596,9 +601,6 @@ function ClientRegister() {
 												</option>
 											))}
 										</select>
-										{erros[`end_uf_${i}`] && (
-											<div className="invalid-feedback">{erros[`end_uf_${i}`]}</div>
-										)}
 									</div>
 								</div>
 							</div>
@@ -615,55 +617,60 @@ function ClientRegister() {
 					</div>
 				</div>
 
-				{/* ── TELEFONES ── */}
+				{/* ── CONTATO (telefones + emails unificados) ── */}
 				<div className="client-form-card">
 					<div className="client-form-card__header">
 						<span className="client-form-card__header-title">
-							<i className="bi bi-telephone me-2" style={{ color: 'var(--primary)' }} />
-							Telefones
+							<i className="bi bi-person-lines-fill me-2" style={{ color: 'var(--primary)' }} />
+							Contato <span className="text-muted fw-normal small">(opcional)</span>
 						</span>
 					</div>
 					<div className="client-form-card__body">
-						{telefones.map((tel, i) => (
+						<p className="small text-muted mb-3">
+							A estrela marca o contato principal — pode ser um telefone ou um email.
+						</p>
+						{contatos.map((c, i) => (
 							<div key={i} className="row g-2 align-items-center mb-3">
+								<div className="col-12 col-sm-auto">
+									<select
+										className="form-select"
+										style={{ minWidth: 130 }}
+										value={c.tipo_contato}
+										onChange={(e) => mudarTipoContato(i, e.target.value)}
+									>
+										<option value="Telefone">Telefone</option>
+										<option value="Email">Email</option>
+									</select>
+								</div>
 								<div className="col">
 									<input
-										className={`form-control ${erros[`tel_${i}`] ? 'is-invalid' : ''}`}
-										value={tel.info_do_contato}
-										onChange={(e) => {
-											const n = [...telefones];
-											n[i] = { ...n[i], info_do_contato: formatarTelefone(e.target.value) };
-											setTelefones(n);
-											setErros((p) => ({ ...p, [`tel_${i}`]: '' }));
-										}}
-										placeholder="(00) 00000-0000"
+										type={c.tipo_contato === 'Email' ? 'email' : 'text'}
+										className={`form-control ${erros[`contato_${i}`] ? 'is-invalid' : ''}`}
+										value={c.info_do_contato}
+										onChange={(e) => atualizarContato(i, e.target.value)}
+										placeholder={c.tipo_contato === 'Email' ? 'email@exemplo.com' : '(00) 00000-0000'}
 									/>
-									{erros[`tel_${i}`] && (
-										<div className="invalid-feedback d-block">{erros[`tel_${i}`]}</div>
+									{erros[`contato_${i}`] && (
+										<div className="invalid-feedback d-block">{erros[`contato_${i}`]}</div>
 									)}
 								</div>
 								<div className="col-auto">
 									<button
 										type="button"
-										className={`btn btn-sm ${tel.contato_principal ? 'btn-warning' : 'btn-outline-secondary'}`}
+										className={`btn btn-sm ${c.contato_principal ? 'btn-warning' : 'btn-outline-secondary'}`}
 										style={{ width: 38 }}
-										onClick={() => togglePrincipal(telefones, setTelefones, i)}
-										title="Marcar como principal"
+										onClick={() => toggleContatoPrincipal(i)}
+										title="Marcar como contato principal"
 									>
 										<i className="bi bi-star-fill" />
 									</button>
 								</div>
-								{telefones.length > 1 && (
+								{contatos.length > 1 && (
 									<div className="col-auto">
 										<button
 											type="button"
 											className="btn btn-sm btn-outline-danger"
-											onClick={() => {
-												const novos = telefones.filter((_, j) => j !== i);
-												if (novos.length > 0 && !novos.some((t) => t.contato_principal))
-													novos[0] = { ...novos[0], contato_principal: true };
-												setTelefones(novos);
-											}}
+											onClick={() => removerContato(i)}
 										>
 											<i className="bi bi-trash" />
 										</button>
@@ -671,89 +678,8 @@ function ClientRegister() {
 								)}
 							</div>
 						))}
-						<button
-							type="button"
-							className="client-form-btn-add"
-							onClick={() =>
-								setTelefones([
-									...telefones,
-									{ tipo_contato: 'Telefone', info_do_contato: '', contato_principal: false }
-								])
-							}
-						>
-							<i className="bi bi-plus-circle" /> Adicionar Telefone
-						</button>
-					</div>
-				</div>
-
-				{/* ── EMAILS ── */}
-				<div className="client-form-card">
-					<div className="client-form-card__header">
-						<span className="client-form-card__header-title">
-							<i className="bi bi-envelope me-2" style={{ color: 'var(--primary)' }} />
-							Emails
-						</span>
-					</div>
-					<div className="client-form-card__body">
-						{emails.map((em, i) => (
-							<div key={i} className="row g-2 align-items-center mb-3">
-								<div className="col">
-									<input
-										type="email"
-										className={`form-control ${erros[`email_${i}`] ? 'is-invalid' : ''}`}
-										value={em.info_do_contato}
-										onChange={(e) => {
-											const n = [...emails];
-											n[i] = { ...n[i], info_do_contato: e.target.value };
-											setEmails(n);
-											setErros((p) => ({ ...p, [`email_${i}`]: '' }));
-										}}
-										placeholder="email@exemplo.com"
-									/>
-									{erros[`email_${i}`] && (
-										<div className="invalid-feedback d-block">{erros[`email_${i}`]}</div>
-									)}
-								</div>
-								<div className="col-auto">
-									<button
-										type="button"
-										className={`btn btn-sm ${em.contato_principal ? 'btn-warning' : 'btn-outline-secondary'}`}
-										style={{ width: 38 }}
-										onClick={() => togglePrincipal(emails, setEmails, i)}
-										title="Marcar como principal"
-									>
-										<i className="bi bi-star-fill" />
-									</button>
-								</div>
-								{emails.length > 1 && (
-									<div className="col-auto">
-										<button
-											type="button"
-											className="btn btn-sm btn-outline-danger"
-											onClick={() => {
-												const novos = emails.filter((_, j) => j !== i);
-												if (novos.length > 0 && !novos.some((e) => e.contato_principal))
-													novos[0] = { ...novos[0], contato_principal: true };
-												setEmails(novos);
-											}}
-										>
-											<i className="bi bi-trash" />
-										</button>
-									</div>
-								)}
-							</div>
-						))}
-						<button
-							type="button"
-							className="client-form-btn-add"
-							onClick={() =>
-								setEmails([
-									...emails,
-									{ tipo_contato: 'Email', info_do_contato: '', contato_principal: false }
-								])
-							}
-						>
-							<i className="bi bi-plus-circle" /> Adicionar Email
+						<button type="button" className="client-form-btn-add" onClick={adicionarContato}>
+							<i className="bi bi-plus-circle" /> Adicionar Contato
 						</button>
 					</div>
 				</div>

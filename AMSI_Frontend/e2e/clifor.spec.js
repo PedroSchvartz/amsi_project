@@ -1,9 +1,10 @@
 /**
  * clifor.spec.js — CRUD de cliente/fornecedor
  *
- * Espelho de test_clifor.py. O cadastro pela UI preenche o formulário
- * COMPLETO (o ClientRegister valida CPF com dígitos verificadores,
- * endereço completo, telefone e email antes de submeter).
+ * Espelho de test_clifor.py. Só Tipo, Tipo de Pessoa, Nome e CPF/CNPJ são
+ * obrigatórios; RG, data, endereço e contato são opcionais. O teste ainda
+ * preenche endereço e contato (telefone + email no card unificado "Contato")
+ * para exercitar a UI.
  *
  * Limpeza: DELETE via API ao final de cada teste que cria dados.
  */
@@ -68,7 +69,7 @@ test.describe('Cliente/Fornecedor', () => {
 		await pageOperador.locator('input[name="rg_inscricaoestadual"]').fill('12.345.678-9');
 		await pageOperador.locator('input[name="datanascimento"]').fill('1990-01-01');
 
-		// ── Endereço (todos obrigatórios; CEP sem cadastro no ViaCEP é ignorado) ──
+		// ── Endereço (opcional; CEP sem cadastro no ViaCEP é ignorado) ──
 		const cardEndereco = pageOperador.locator('.client-form-card').filter({ hasText: 'Endereços' });
 		const inputsEnd = cardEndereco.locator('input');
 		await inputsEnd.nth(0).fill('Rua dos Testes');        // logradouro
@@ -78,10 +79,12 @@ test.describe('Cliente/Fornecedor', () => {
 		await inputsEnd.nth(5).fill('Santa Isabel');           // cidade
 		await cardEndereco.locator('select').selectOption('SP');
 
-		// ── Telefone e email ──
-		await pageOperador.getByPlaceholder('(00) 00000-0000').fill('(11) 99999-8888');
-		const cardEmail = pageOperador.locator('.client-form-card').filter({ hasText: 'Emails' });
-		await cardEmail.locator('input').first().fill('pw_clifor@playwright.amsi.com');
+		// ── Contato unificado: telefone (linha 1, tipo padrão) + email (linha 2) ──
+		const cardContato = pageOperador.locator('.client-form-card').filter({ hasText: 'Contato' });
+		await cardContato.getByPlaceholder('(00) 00000-0000').fill('(11) 99999-8888');
+		await cardContato.getByRole('button', { name: 'Adicionar Contato' }).click();
+		await cardContato.locator('select').nth(1).selectOption('Email');
+		await cardContato.getByPlaceholder('email@exemplo.com').fill('pw_clifor@playwright.amsi.com');
 
 		// ── Submete ──
 		await pageOperador.getByRole('button', { name: 'Cadastrar' }).click();

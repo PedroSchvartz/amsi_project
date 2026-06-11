@@ -48,9 +48,9 @@ class ClienteFornecedorCreate(BaseModel):
     id_usuario_fk: Optional[int] = None
     pessoafisica_juridica: bool
     cpf_cnpj: str
-    rg_inscricaoestadual: str
+    rg_inscricaoestadual: Optional[str] = None
     nome: str
-    datanascimento: date
+    datanascimento: Optional[date] = None
     tipo_clifor: TipoCliForEnum
     ativo: bool = True
     inadimplente: bool = False
@@ -81,9 +81,9 @@ class ClienteFornecedorResponse(BaseModel):
     id_usuario_fk: Optional[int] = None
     pessoafisica_juridica: bool
     cpf_cnpj: str
-    rg_inscricaoestadual: str
+    rg_inscricaoestadual: Optional[str] = None
     nome: str
-    datanascimento: date
+    datanascimento: Optional[date] = None
     tipo_clifor: TipoCliForEnum
     ativo: bool
     inadimplente: bool
