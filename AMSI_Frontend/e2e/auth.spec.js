@@ -1,81 +1,76 @@
 /**
  * auth.spec.js — Login, logout e proteção de rotas
  *
- * Espelho de test_auth.py: verifica o caminho feliz de login,
- * credenciais inválidas, logout e redirect para / sem sessão.
+ * Espelho de test_auth.py: caminho feliz de login pela tela,
+ * credenciais inválidas, redirect sem sessão e logout.
+ *
+ * Seletores reais do Login.jsx: labels "Email"/"Senha" (htmlFor),
+ * botão "Entrar", erro renderizado em <p class="login-erro">.
  */
 
-import { test, expect } from './fixtures.js';
-import { injetarSessao, BACKEND } from './fixtures.js';
+import { test, expect, USUARIOS } from './fixtures.js';
 
 // ─── Login (caminho feliz) ───────────────────────────────────────────────────
 
 test('login com credenciais válidas (admin) navega para /home', async ({ page }) => {
 	await page.goto('/');
-	await page.getByPlaceholder(/e-?mail/i).fill('opedroschvartz@gmail.com');
-	await page.getByPlaceholder(/senha/i).fill('opedro');
-	await page.getByRole('button', { name: /entrar/i }).click();
+	await page.getByLabel('Email').fill(USUARIOS.admin.email);
+	await page.getByLabel('Senha').fill(USUARIOS.admin.senha);
+	await page.getByRole('button', { name: 'Entrar' }).click();
 	await page.waitForURL('**/home');
 	expect(page.url()).toContain('/home');
 });
 
 test('login com credenciais válidas (consulta) navega para /home', async ({ page }) => {
 	await page.goto('/');
-	await page.getByPlaceholder(/e-?mail/i).fill('pytest_consulta@amsi.com');
-	await page.getByPlaceholder(/senha/i).fill('consultaTeste123');
-	await page.getByRole('button', { name: /entrar/i }).click();
+	await page.getByLabel('Email').fill(USUARIOS.consulta.email);
+	await page.getByLabel('Senha').fill(USUARIOS.consulta.senha);
+	await page.getByRole('button', { name: 'Entrar' }).click();
 	await page.waitForURL('**/home');
 	expect(page.url()).toContain('/home');
 });
 
 // ─── Login (credenciais inválidas) ───────────────────────────────────────────
 
-test('login com senha errada exibe mensagem de erro', async ({ page }) => {
+test('login com senha errada exibe mensagem de erro e não navega', async ({ page }) => {
 	await page.goto('/');
-	await page.getByPlaceholder(/e-?mail/i).fill('opedroschvartz@gmail.com');
-	await page.getByPlaceholder(/senha/i).fill('senha_errada_xyz');
-	await page.getByRole('button', { name: /entrar/i }).click();
-	// Qualquer mensagem de erro visível — toast ou texto inline
-	await expect(
-		page.locator('text=/inválid|incorret|não encontrad|erro/i').first()
-	).toBeVisible({ timeout: 5000 });
+	await page.getByLabel('Email').fill(USUARIOS.admin.email);
+	await page.getByLabel('Senha').fill('senha_errada_xyz');
+	await page.getByRole('button', { name: 'Entrar' }).click();
+	await expect(page.locator('.login-erro')).toBeVisible({ timeout: 5000 });
 	expect(page.url()).not.toContain('/home');
 });
 
 test('login com email inexistente exibe mensagem de erro', async ({ page }) => {
 	await page.goto('/');
-	await page.getByPlaceholder(/e-?mail/i).fill('nao_existe@amsi.com');
-	await page.getByPlaceholder(/senha/i).fill('qualquercoisa');
-	await page.getByRole('button', { name: /entrar/i }).click();
-	await expect(
-		page.locator('text=/inválid|incorret|não encontrad|erro/i').first()
-	).toBeVisible({ timeout: 5000 });
+	await page.getByLabel('Email').fill('nao_existe@amsi.com');
+	await page.getByLabel('Senha').fill('qualquercoisa');
+	await page.getByRole('button', { name: 'Entrar' }).click();
+	await expect(page.locator('.login-erro')).toBeVisible({ timeout: 5000 });
 });
 
 // ─── Proteção de rotas ────────────────────────────────────────────────────────
 
-test('acesso direto a /home sem sessão redireciona para /', async ({ page }) => {
+test('acesso direto a /home sem sessão volta para a tela de login', async ({ page }) => {
 	await page.goto('/home');
-	await expect(page).toHaveURL(/^\//); // URL raiz ou /?redirect=...
-	// Garante que não chegou na home
-	await expect(page.locator('text=/bem-vindo|home/i').first()).not.toBeVisible({ timeout: 2000 }).catch(() => {});
+	// PrivateRoute redireciona para /?redirect=/home — o form de login aparece
+	await expect(page.getByRole('button', { name: 'Entrar' })).toBeVisible({ timeout: 5000 });
+	expect(new URL(page.url()).pathname).toBe('/');
 });
 
-test('acesso a /usuarios sem sessão redireciona para /', async ({ page }) => {
+test('acesso direto a /usuarios sem sessão volta para a tela de login', async ({ page }) => {
 	await page.goto('/usuarios');
-	await expect(page).toHaveURL(/^\//);
+	await expect(page.getByRole('button', { name: 'Entrar' })).toBeVisible({ timeout: 5000 });
+	expect(new URL(page.url()).pathname).toBe('/');
 });
 
 // ─── Logout ──────────────────────────────────────────────────────────────────
 
-test('logout limpa sessão e retorna para /', async ({ pageAdmin }) => {
+test('logout pelo menu limpa a sessão e retorna para /', async ({ pageAdmin }) => {
 	await pageAdmin.goto('/home');
-	// Procura botão/link de logout no NavBar
-	const logoutBtn = pageAdmin.getByRole('button', { name: /sair|logout/i })
-		.or(pageAdmin.getByRole('link', { name: /sair|logout/i }));
-	await logoutBtn.click();
+	// Botão "Sair" do menu desktop (o mobile fica oculto no viewport padrão)
+	await pageAdmin.locator('.layout-menu-desktop__sair').click();
 	await pageAdmin.waitForURL('/');
-	// localStorage deve estar limpo
 	const token = await pageAdmin.evaluate(() => localStorage.getItem('token'));
 	expect(token).toBeNull();
 });

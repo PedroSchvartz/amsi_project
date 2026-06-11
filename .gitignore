@@ -43,3 +43,11 @@ docs/12_*.md
 
 # Prints de testes web (gerados automaticamente)
 docs/testes_web/prints/
+
+# Build do frontend
+AMSI_Frontend/dist/
+
+# Artefatos do Playwright — traces/screenshots capturam tokens JWT e senhas
+AMSI_Frontend/test-results/
+AMSI_Frontend/playwright-report/
+AMSI_Frontend/e2e/.e2e-state.json

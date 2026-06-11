@@ -1,47 +1,39 @@
 /**
- * dashboard.spec.js — Página de dashboard financeiro
+ * dashboard.spec.js — Dashboard financeiro
  *
- * Verifica que o dashboard carrega para os perfis com acesso (Consulta+)
- * e exibe os elementos visuais esperados.
+ * Verifica que o dashboard carrega para os 3 perfis e exibe os
+ * elementos reais do componente (seletor de períodos, link para clifor).
  */
 
 import { test, expect } from './fixtures.js';
 
 test.describe('Dashboard', () => {
-	test('admin vê o dashboard', async ({ pageAdmin }) => {
+	test('admin vê o dashboard com seletor de período', async ({ pageAdmin }) => {
 		await pageAdmin.goto('/dashboard');
-		// Deve ter algum elemento de resumo/gráfico (card de saldo, tabela, etc.)
-		await expect(
-			pageAdmin.locator('text=/saldo|lançamento|crédito|débito|período/i').first()
-		).toBeVisible({ timeout: 10000 });
+		await expect(pageAdmin.getByText('Último mês').first()).toBeVisible({ timeout: 10000 });
 	});
 
 	test('consulta vê o dashboard', async ({ pageConsulta }) => {
 		await pageConsulta.goto('/dashboard');
-		await expect(
-			pageConsulta.locator('text=/saldo|lançamento|crédito|débito|período/i').first()
-		).toBeVisible({ timeout: 10000 });
+		await expect(pageConsulta.getByText('Último mês').first()).toBeVisible({ timeout: 10000 });
 	});
 
 	test('operador vê o dashboard', async ({ pageOperador }) => {
 		await pageOperador.goto('/dashboard');
-		await expect(
-			pageOperador.locator('text=/saldo|lançamento|crédito|débito|período/i').first()
-		).toBeVisible({ timeout: 10000 });
+		await expect(pageOperador.getByText('Último mês').first()).toBeVisible({ timeout: 10000 });
 	});
 
-	test('dashboard tem seletor de período', async ({ pageConsulta }) => {
+	test('seletor oferece os períodos esperados', async ({ pageConsulta }) => {
 		await pageConsulta.goto('/dashboard');
-		// O componente tem PERIODOS com labels como "Último mês", "Últimos 6 meses", etc.
-		await expect(
-			pageConsulta.locator('text=/último mês|últimos 6|ano atual/i').first()
-		).toBeVisible({ timeout: 10000 });
+		await expect(pageConsulta.getByText('Último mês').first()).toBeVisible({ timeout: 10000 });
+		await expect(pageConsulta.getByText('Últimos 6 meses').first()).toBeVisible();
+		await expect(pageConsulta.getByText('Ano atual').first()).toBeVisible();
 	});
 
-	test('dashboard tem link ou acesso para lançamentos', async ({ pageConsulta }) => {
+	test('dashboard tem link para clientes/fornecedores', async ({ pageConsulta }) => {
 		await pageConsulta.goto('/dashboard');
-		const linkLancamentos = pageConsulta.getByRole('link', { name: /lançamentos|ver todos/i })
-			.or(pageConsulta.locator('a[href*="lancamentos"]').first());
-		await expect(linkLancamentos.first()).toBeVisible({ timeout: 10000 });
+		await expect(pageConsulta.getByText('Último mês').first()).toBeVisible({ timeout: 10000 });
+		// O componente usa <Link to="/cliente_fornecedor"> — pelo menos um link no conteúdo
+		await expect(pageConsulta.locator('a[href="/cliente_fornecedor"]').first()).toBeVisible();
 	});
 });

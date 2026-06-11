@@ -1,103 +1,103 @@
 /**
  * rbac.spec.js — Controle de acesso por perfil (RBAC)
  *
- * Espelho de test_permissoes.py: verifica que cada perfil acessa
- * exatamente o que deveria e é bloqueado no que não pode.
+ * Espelho de test_permissoes.py: cada perfil acessa exatamente o que deveria.
  *
- * PrivateRoute comportamento:
- *   - Sem auth         → redirect para /
- *   - adminOnly + não-admin → renderiza NotFoundPage
- *   - minPerfil insuficiente → renderiza NotFoundPage
+ * Asserções DETERMINÍSTICAS:
+ *   - Acesso concedido → marcador único da página é visível.
+ *   - Acesso negado    → PrivateRoute renderiza a NotFoundPage
+ *                        ("Página não encontrada") no lugar do conteúdo.
  */
 
-import { test, expect } from './fixtures.js';
+import { test, expect, esperaPaginaNaoEncontrada } from './fixtures.js';
+
+// Marcadores únicos de cada página (extraídos dos componentes reais)
+const MARCADOR = {
+	usuarios:      (p) => expect(p.getByRole('button', { name: 'Novo Usuário' })).toBeVisible({ timeout: 8000 }),
+	tipoConta:     (p) => expect(p.getByRole('heading', { name: 'Tipos de Conta' })).toBeVisible({ timeout: 8000 }),
+	dashboard:     (p) => expect(p.getByText('Último mês').first()).toBeVisible({ timeout: 8000 }),
+	lancamentos:   (p) => expect(p.getByRole('heading', { name: 'Lista de Lançamentos' })).toBeVisible({ timeout: 8000 }),
+	clifor:        (p) => expect(p.getByRole('heading', { name: 'Clientes / Fornecedores' })).toBeVisible({ timeout: 8000 }),
+	cliforNovo:    (p) => expect(p.getByRole('button', { name: 'Cadastrar' })).toBeVisible({ timeout: 8000 }),
+};
 
 // ─── Admin: acessa tudo ───────────────────────────────────────────────────────
 
 test('admin acessa /usuarios', async ({ pageAdmin }) => {
 	await pageAdmin.goto('/usuarios');
-	// A página deve carregar (não redirecionar para / e não mostrar 404)
-	await expect(pageAdmin).not.toHaveURL('/');
-	await expect(pageAdmin.locator('text=/404|não encontrad/i').first()).not.toBeVisible({ timeout: 2000 }).catch(() => {});
+	await MARCADOR.usuarios(pageAdmin);
 });
 
 test('admin acessa /tipo_conta', async ({ pageAdmin }) => {
 	await pageAdmin.goto('/tipo_conta');
-	await expect(pageAdmin).not.toHaveURL('/');
+	await MARCADOR.tipoConta(pageAdmin);
 });
 
 test('admin acessa /dashboard', async ({ pageAdmin }) => {
 	await pageAdmin.goto('/dashboard');
-	await expect(pageAdmin).not.toHaveURL('/');
+	await MARCADOR.dashboard(pageAdmin);
 });
 
 test('admin acessa /lancamentos', async ({ pageAdmin }) => {
 	await pageAdmin.goto('/lancamentos');
-	await expect(pageAdmin).not.toHaveURL('/');
+	await MARCADOR.lancamentos(pageAdmin);
 });
 
 test('admin acessa /cliente_fornecedor/novo', async ({ pageAdmin }) => {
 	await pageAdmin.goto('/cliente_fornecedor/novo');
-	await expect(pageAdmin).not.toHaveURL('/');
+	await MARCADOR.cliforNovo(pageAdmin);
 });
 
-// ─── Consulta: acessa leitura, bloqueado em admin e operador ─────────────────
+// ─── Consulta: leitura sim, admin/escrita não ────────────────────────────────
 
 test('consulta acessa /dashboard', async ({ pageConsulta }) => {
 	await pageConsulta.goto('/dashboard');
-	await expect(pageConsulta).not.toHaveURL('/');
+	await MARCADOR.dashboard(pageConsulta);
 });
 
 test('consulta acessa /lancamentos', async ({ pageConsulta }) => {
 	await pageConsulta.goto('/lancamentos');
-	await expect(pageConsulta).not.toHaveURL('/');
+	await MARCADOR.lancamentos(pageConsulta);
 });
 
 test('consulta acessa /cliente_fornecedor', async ({ pageConsulta }) => {
 	await pageConsulta.goto('/cliente_fornecedor');
-	await expect(pageConsulta).not.toHaveURL('/');
+	await MARCADOR.clifor(pageConsulta);
 });
 
-test('consulta NÃO acessa /usuarios (recebe NotFound)', async ({ pageConsulta }) => {
+test('consulta NÃO acessa /usuarios (NotFound)', async ({ pageConsulta }) => {
 	await pageConsulta.goto('/usuarios');
-	// PrivateRoute adminOnly → NotFoundPage (não redireciona, renderiza 404)
-	// Não deve ter chegado na tela de listagem de usuários
-	const listaDeUsuarios = pageConsulta.locator('text=/lista de usuários|gerenciar usuários/i').first();
-	await expect(listaDeUsuarios).not.toBeVisible({ timeout: 3000 }).catch(() => {});
+	await esperaPaginaNaoEncontrada(pageConsulta);
 });
 
-test('consulta NÃO acessa /tipo_conta (recebe NotFound)', async ({ pageConsulta }) => {
+test('consulta NÃO acessa /tipo_conta (NotFound)', async ({ pageConsulta }) => {
 	await pageConsulta.goto('/tipo_conta');
-	const listaTipo = pageConsulta.locator('text=/tipo de conta|tipo_conta/i').first();
-	await expect(listaTipo).not.toBeVisible({ timeout: 3000 }).catch(() => {});
+	await esperaPaginaNaoEncontrada(pageConsulta);
 });
 
-test('consulta NÃO acessa /cliente_fornecedor/novo', async ({ pageConsulta }) => {
+test('consulta NÃO acessa /cliente_fornecedor/novo (NotFound)', async ({ pageConsulta }) => {
 	await pageConsulta.goto('/cliente_fornecedor/novo');
-	const formCadastro = pageConsulta.locator('text=/cadastrar cliente|novo cliente/i').first();
-	await expect(formCadastro).not.toBeVisible({ timeout: 3000 }).catch(() => {});
+	await esperaPaginaNaoEncontrada(pageConsulta);
 });
 
-// ─── Operador: acessa leitura + escrita, bloqueado em admin ──────────────────
+// ─── Operador: leitura + escrita sim, admin não ──────────────────────────────
 
 test('operador acessa /dashboard', async ({ pageOperador }) => {
 	await pageOperador.goto('/dashboard');
-	await expect(pageOperador).not.toHaveURL('/');
+	await MARCADOR.dashboard(pageOperador);
 });
 
 test('operador acessa /cliente_fornecedor/novo', async ({ pageOperador }) => {
 	await pageOperador.goto('/cliente_fornecedor/novo');
-	await expect(pageOperador).not.toHaveURL('/');
+	await MARCADOR.cliforNovo(pageOperador);
 });
 
-test('operador NÃO acessa /usuarios (recebe NotFound)', async ({ pageOperador }) => {
+test('operador NÃO acessa /usuarios (NotFound)', async ({ pageOperador }) => {
 	await pageOperador.goto('/usuarios');
-	const listaDeUsuarios = pageOperador.locator('text=/lista de usuários|gerenciar usuários/i').first();
-	await expect(listaDeUsuarios).not.toBeVisible({ timeout: 3000 }).catch(() => {});
+	await esperaPaginaNaoEncontrada(pageOperador);
 });
 
-test('operador NÃO acessa /tipo_conta (recebe NotFound)', async ({ pageOperador }) => {
+test('operador NÃO acessa /tipo_conta (NotFound)', async ({ pageOperador }) => {
 	await pageOperador.goto('/tipo_conta');
-	const listaTipo = pageOperador.locator('text=/tipo de conta/i').first();
-	await expect(listaTipo).not.toBeVisible({ timeout: 3000 }).catch(() => {});
+	await esperaPaginaNaoEncontrada(pageOperador);
 });

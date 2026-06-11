@@ -99,7 +99,9 @@ if APP_ENV != "production":
 
 @app.get("/")
 def root():
-    return {"status": "online"}
+    # "ambiente" é usado pelo health-check de deploy e pelo gate da suíte E2E
+    # do frontend (que se recusa a rodar contra APP_ENV=production).
+    return {"status": "online", "ambiente": APP_ENV}
 
 
 def gerar_doc_ia(app, output_file="openapi_ai.yaml"):

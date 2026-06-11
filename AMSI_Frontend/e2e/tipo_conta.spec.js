@@ -1,88 +1,77 @@
 /**
- * tipo_conta.spec.js — CRUD de tipos de conta (rota adminOnly)
+ * tipo_conta.spec.js — CRUD de tipos de conta (rota adminOnly), 100% pela UI
  *
- * Espelho do test_tipo_conta.py: cria, edita e exclui via UI.
- * Limpeza feita via API (hard delete não existe para tipo_conta,
- * então usa DELETE normal — o teste cria e apaga o que criou).
+ * Espelho do test_tipo_conta.py: cria, edita e exclui via interface.
+ * Os testes rodam em sequência (serial) — cada um depende do anterior.
+ * afterAll limpa via API qualquer sobra se um passo falhar no meio.
  */
 
-import { test, expect } from './fixtures.js';
-import { BACKEND } from './fixtures.js';
+import { test, expect, BACKEND, authHeaders } from './fixtures.js';
 
-const NOME_TIPO = `Playwright Tipo ${Date.now()}`;
+const NOME_TIPO    = `Playwright Tipo ${Date.now()}`;
 const NOME_EDITADO = `${NOME_TIPO} Editado`;
 
-let idCriado = null;
+test.describe.configure({ mode: 'serial' });
 
-test.describe('Tipos de Conta — CRUD (admin)', () => {
-	test.use({ /* usa pageAdmin da fixture */ });
-
-	test('página de tipos de conta carrega corretamente', async ({ pageAdmin }) => {
+test.describe('Tipos de Conta — CRUD pela UI (admin)', () => {
+	test('página carrega com cabeçalho e botão de criação', async ({ pageAdmin }) => {
 		await pageAdmin.goto('/tipo_conta');
-		await expect(pageAdmin.getByRole('heading', { name: /tipos de conta/i })).toBeVisible();
+		await expect(pageAdmin.getByRole('heading', { name: 'Tipos de Conta' })).toBeVisible({ timeout: 8000 });
 		await expect(pageAdmin.getByRole('button', { name: /novo tipo/i })).toBeVisible();
 	});
 
 	test('criar novo tipo de conta', async ({ pageAdmin }) => {
 		await pageAdmin.goto('/tipo_conta');
-
-		// Abre modal de criação
 		await pageAdmin.getByRole('button', { name: /novo tipo/i }).click();
+		await expect(pageAdmin.getByRole('heading', { name: 'Novo Tipo de Conta' })).toBeVisible();
 
-		// Preenche o formulário
-		await pageAdmin.getByLabel(/descrição/i).fill(NOME_TIPO);
+		// Modal: único input de texto da página + select de natureza
+		await pageAdmin.locator('input[type="text"]').fill(NOME_TIPO);
+		await pageAdmin.locator('select').selectOption('Debito');
+		await pageAdmin.getByRole('button', { name: 'Criar' }).click();
 
-		// Natureza: seleciona Debito
-		const selectNatureza = pageAdmin.locator('select').filter({ hasText: /crédito|débito/i }).first()
-			.or(pageAdmin.locator('select[name*="natureza"], select').first());
-		await selectNatureza.selectOption('Debito').catch(() => {});
-
-		// Salva
-		await pageAdmin.getByRole('button', { name: /salvar|criar|confirmar/i }).click();
-
-		// Toast de sucesso
-		await expect(
-			pageAdmin.locator('text=/criado com sucesso/i').first()
-		).toBeVisible({ timeout: 5000 });
-
-		// Aparece na tabela
-		await expect(pageAdmin.locator(`text=${NOME_TIPO}`).first()).toBeVisible({ timeout: 5000 });
+		await expect(pageAdmin.getByText('Tipo de conta criado com sucesso.')).toBeVisible({ timeout: 8000 });
+		await expect(pageAdmin.getByText(NOME_TIPO)).toBeVisible({ timeout: 8000 });
 	});
 
-	test('editar tipo de conta existente', async ({ pageAdmin }) => {
+	test('editar o tipo de conta criado', async ({ pageAdmin }) => {
 		await pageAdmin.goto('/tipo_conta');
 
-		// Clica no botão de editar na linha do tipo criado
 		const linha = pageAdmin.locator('tr').filter({ hasText: NOME_TIPO });
-		await linha.getByRole('button', { name: /editar|edit/i }).click();
+		await linha.getByRole('button', { name: 'Editar' }).click();
+		await expect(pageAdmin.getByRole('heading', { name: 'Editar Tipo de Conta' })).toBeVisible();
 
-		// Altera a descrição
-		const inputDesc = pageAdmin.getByLabel(/descrição/i);
-		await inputDesc.clear();
-		await inputDesc.fill(NOME_EDITADO);
+		const input = pageAdmin.locator('input[type="text"]');
+		await input.clear();
+		await input.fill(NOME_EDITADO);
+		await pageAdmin.getByRole('button', { name: 'Salvar' }).click();
 
-		await pageAdmin.getByRole('button', { name: /salvar|atualizar|confirmar/i }).click();
-
-		await expect(
-			pageAdmin.locator('text=/atualizado com sucesso/i').first()
-		).toBeVisible({ timeout: 5000 });
-
-		await expect(pageAdmin.locator(`text=${NOME_EDITADO}`).first()).toBeVisible({ timeout: 5000 });
+		await expect(pageAdmin.getByText('Tipo de conta atualizado com sucesso.')).toBeVisible({ timeout: 8000 });
+		await expect(pageAdmin.getByText(NOME_EDITADO)).toBeVisible({ timeout: 8000 });
 	});
 
-	test('excluir tipo de conta criado (limpeza)', async ({ pageAdmin }) => {
+	test('excluir o tipo de conta (limpeza pela UI)', async ({ pageAdmin }) => {
 		await pageAdmin.goto('/tipo_conta');
 
 		const linha = pageAdmin.locator('tr').filter({ hasText: NOME_EDITADO });
-		await linha.getByRole('button', { name: /excluir|deletar|remover/i }).click();
+		// Botão de excluir da linha é só o ícone de lixeira
+		await linha.locator('button:has(i.bi-trash)').click();
 
-		// Confirmação no modal
-		await pageAdmin.getByRole('button', { name: /excluir|confirmar/i }).last().click();
+		// ModalConfirm com textoBotaoConfirmar="Excluir"
+		await pageAdmin.getByRole('button', { name: 'Excluir' }).click();
 
-		await expect(
-			pageAdmin.locator('text=/excluído com sucesso/i').first()
-		).toBeVisible({ timeout: 5000 });
+		await expect(pageAdmin.getByText('Tipo de conta excluído com sucesso.')).toBeVisible({ timeout: 8000 });
+		await expect(pageAdmin.locator('tr').filter({ hasText: NOME_EDITADO })).toHaveCount(0);
+	});
 
-		await expect(pageAdmin.locator(`text=${NOME_EDITADO}`)).not.toBeVisible({ timeout: 3000 }).catch(() => {});
+	test('limpeza de segurança via API (caso algum passo anterior tenha falhado)', async ({ pageAdmin }) => {
+		const auth = await authHeaders(pageAdmin);
+		const res = await pageAdmin.request.get(`${BACKEND}/tipo_conta/`, { headers: auth });
+		expect(res.ok()).toBeTruthy();
+		for (const t of await res.json()) {
+			if (t.descricao_conta === NOME_TIPO || t.descricao_conta === NOME_EDITADO) {
+				await pageAdmin.request.delete(`${BACKEND}/tipo_conta/${t.id_tipo_conta}`, { headers: auth });
+			}
+		}
 	});
 });

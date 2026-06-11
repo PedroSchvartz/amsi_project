@@ -1,32 +1,26 @@
 /**
  * usuarios.spec.js — CRUD de usuários (rota adminOnly)
  *
- * Espelho de test_usuarios.py: cria, edita e exclui usuário pela UI.
- * Limpeza: usa o endpoint /hard (cascade) para garantir estado limpo,
- * igual ao _limpar_usuario_demo do test_demo.py.
+ * Espelho de test_usuarios.py: cria pela UI, lista, exclui pela UI.
+ * Inclui o teste da regra de segurança "apenas Desenvolvedor cadastra
+ * Desenvolvedor" — exercitada com um admin comum criado via /demo/registro
+ * quando o backend está em modo demo.
  *
- * PRÉ-REQUISITO: bootstrap executado (admin existe).
+ * Limpeza: hard delete (cascade) via API — espelho do _limpar_usuario_demo.
  */
 
-import { test, expect } from './fixtures.js';
-import { BACKEND } from './fixtures.js';
+import { test, expect, BACKEND, authHeaders, injetarSessao } from './fixtures.js';
 
 const EMAIL_TESTE = `pw_e2e_${Date.now()}@playwright.amsi.com`;
 const NOME_TESTE  = 'Usuário Playwright E2E';
-const NOME_EDITADO = 'Usuário PW Editado';
 
 async function hardDeletePorEmail(page, email) {
-	const token = await page.evaluate(() => localStorage.getItem('token'));
-	const res = await page.request.get(`${BACKEND}/usuarios/?incluir_excluidos=True`, {
-		headers: { Authorization: `Bearer ${token}` },
-	});
+	const auth = await authHeaders(page);
+	const res = await page.request.get(`${BACKEND}/usuarios/?incluir_excluidos=True`, { headers: auth });
 	if (!res.ok()) return;
-	const lista = await res.json();
-	for (const u of lista) {
+	for (const u of await res.json()) {
 		if (u.email === email) {
-			await page.request.delete(`${BACKEND}/usuarios/${u.id_usuario}/hard`, {
-				headers: { Authorization: `Bearer ${token}` },
-			});
+			await page.request.delete(`${BACKEND}/usuarios/${u.id_usuario}/hard`, { headers: auth });
 		}
 	}
 }
@@ -36,45 +30,30 @@ test.describe('Usuários — CRUD (admin)', () => {
 		await hardDeletePorEmail(pageAdmin, EMAIL_TESTE);
 	});
 
-	test('página de usuários carrega a lista', async ({ pageAdmin }) => {
+	test('página de usuários lista o admin', async ({ pageAdmin }) => {
 		await pageAdmin.goto('/usuarios');
-		// Deve ter pelo menos o admin na lista
-		await expect(pageAdmin.locator('text=opedroschvartz@gmail.com').first()).toBeVisible({ timeout: 8000 });
+		await expect(pageAdmin.getByText('opedroschvartz@gmail.com').first()).toBeVisible({ timeout: 8000 });
 	});
 
 	test('cadastrar novo usuário pela UI', async ({ pageAdmin }) => {
 		await pageAdmin.goto('/usuarios');
+		await pageAdmin.getByRole('button', { name: 'Novo Usuário' }).click();
 
-		// Abre modal de cadastro
-		const btnNovo = pageAdmin.getByRole('button', { name: /novo usuário|cadastrar|novo/i }).first();
-		await btnNovo.click();
+		// Formulário do UserRegisterModal (inputs com atributo name)
+		await pageAdmin.locator('input[name="nome"]').fill(NOME_TESTE);
+		await pageAdmin.locator('input[name="email"]').fill(EMAIL_TESTE);
+		await pageAdmin.locator('select[name="cargo"]').selectOption('Associado');
+		await pageAdmin.locator('select[name="perfil_de_acesso"]').selectOption('Consulta');
+		await pageAdmin.getByRole('button', { name: 'Salvar' }).click();
 
-		// Preenche o formulário
-		await pageAdmin.getByLabel(/nome/i).fill(NOME_TESTE);
-		await pageAdmin.getByLabel(/e-?mail/i).fill(EMAIL_TESTE);
-
-		// Cargo (select)
-		const selectCargo = pageAdmin.locator('select').filter({ hasText: /associado|tesoureiro|presidente/i }).first()
-			.or(pageAdmin.locator('select[name*="cargo"], select').first());
-		await selectCargo.selectOption('Associado').catch(() => {});
-
-		// Perfil (select)
-		const selectPerfil = pageAdmin.locator('select').filter({ hasText: /consulta|operador|administrador/i }).first()
-			.or(pageAdmin.locator('select').nth(1));
-		await selectPerfil.selectOption('Consulta').catch(() => {});
-
-		// Submete
-		await pageAdmin.getByRole('button', { name: /cadastrar|salvar|criar/i }).click();
-
-		// Toast de sucesso
 		await expect(
-			pageAdmin.locator('text=/cadastrado com sucesso|criado com sucesso/i').first()
+			pageAdmin.getByText('Usuário cadastrado com sucesso!')
 		).toBeVisible({ timeout: 8000 });
 	});
 
-	test('usuário cadastrado aparece na lista após recarregar', async ({ pageAdmin }) => {
-		// Cria via API (mais rápido; a UI já foi testada acima)
-		const token = await pageAdmin.evaluate(() => localStorage.getItem('token'));
+	test('usuário criado aparece na lista', async ({ pageAdmin }) => {
+		// Cria via API (a UI de criação já foi exercitada no teste anterior)
+		const auth = await authHeaders(pageAdmin);
 		const res = await pageAdmin.request.post(`${BACKEND}/usuarios/`, {
 			data: {
 				nome: NOME_TESTE,
@@ -83,47 +62,85 @@ test.describe('Usuários — CRUD (admin)', () => {
 				perfil_de_acesso: 'Consulta',
 				notificacao: false,
 			},
-			headers: { Authorization: `Bearer ${token}` },
+			headers: auth,
 		});
 		expect(res.ok()).toBeTruthy();
 
 		await pageAdmin.goto('/usuarios');
-		await expect(pageAdmin.locator(`text=${EMAIL_TESTE}`).first()).toBeVisible({ timeout: 8000 });
+		await expect(pageAdmin.getByText(EMAIL_TESTE)).toBeVisible({ timeout: 8000 });
 	});
 
 	test('excluir (soft delete) usuário pela UI', async ({ pageAdmin }) => {
-		// Cria via API para não depender do teste anterior
-		const token = await pageAdmin.evaluate(() => localStorage.getItem('token'));
+		const auth = await authHeaders(pageAdmin);
 		await pageAdmin.request.post(`${BACKEND}/usuarios/`, {
 			data: { nome: NOME_TESTE, email: EMAIL_TESTE, cargo: 'Associado', perfil_de_acesso: 'Consulta', notificacao: false },
-			headers: { Authorization: `Bearer ${token}` },
+			headers: auth,
 		});
 
 		await pageAdmin.goto('/usuarios');
-		await pageAdmin.waitForTimeout(500);
-
 		const linha = pageAdmin.locator('tr').filter({ hasText: EMAIL_TESTE });
-		await linha.getByRole('button', { name: /excluir|deletar|remover/i }).click();
+		await linha.locator('button[title="Remover usuário"]').click();
 
-		// Confirmação no modal
-		await pageAdmin.getByRole('button', { name: /excluir|confirmar/i }).last().click();
+		// ModalConfirm: botão "Remover"
+		await pageAdmin.getByRole('button', { name: 'Remover' }).click();
 
 		await expect(
-			pageAdmin.locator('text=/removido com sucesso/i').first()
-		).toBeVisible({ timeout: 5000 });
+			pageAdmin.getByText('Usuário removido com sucesso.')
+		).toBeVisible({ timeout: 8000 });
+		await expect(pageAdmin.locator('tr').filter({ hasText: EMAIL_TESTE })).toHaveCount(0);
+	});
+});
+
+test.describe('Usuários — regra Desenvolvedor', () => {
+	const EMAIL_ADMIN_COMUM = `pw_admin_comum_${Date.now()}@playwright.amsi.com`;
+	const SENHA_ADMIN_COMUM = 'senhaPwTeste123';
+
+	test.afterEach(async ({ pageAdmin }) => {
+		await hardDeletePorEmail(pageAdmin, EMAIL_ADMIN_COMUM);
+		await hardDeletePorEmail(pageAdmin, EMAIL_TESTE);
 	});
 
-	test('não-desenvolvedor não pode cadastrar usuário Desenvolvedor', async ({ pageAdmin }) => {
-		const token = await pageAdmin.evaluate(() => localStorage.getItem('token'));
-		// Admin sem cargo Desenvolvedor → 403
-		const res = await pageAdmin.request.post(`${BACKEND}/usuarios/`, {
-			data: { nome: 'Dev Teste', email: EMAIL_TESTE, cargo: 'Desenvolvedor', perfil_de_acesso: 'Administrador', notificacao: false },
-			headers: { Authorization: `Bearer ${token}` },
+	test('admin sem cargo Desenvolvedor recebe 403 ao cadastrar Desenvolvedor', async ({ pageAdmin, page }) => {
+		// Só executável em modo demo: precisamos criar um admin "comum"
+		// (cargo Associado) com senha conhecida, e /demo/registro permite isso.
+		const status = await (await page.request.get(`${BACKEND}/demo/status`)).json();
+		test.skip(!status.demo_ativo, 'Requer APP_ENV=demo para criar admin comum com senha conhecida');
+
+		const reg = await page.request.post(`${BACKEND}/demo/registro`, {
+			data: {
+				nome: 'Admin Comum PW',
+				email: EMAIL_ADMIN_COMUM,
+				senha: SENHA_ADMIN_COMUM,
+				cargo: 'Associado',
+				perfil_de_acesso: 'Administrador',
+			},
 		});
-		// Pedro tem cargo Desenvolvedor, então este teste verifica que a rota existe
-		// e retorna sucesso (já que ele é dev) OU 403 (se não for dev)
-		// A afirmação principal: a rota foi atingida sem 404 (endpoint existe)
-		expect(res.status()).not.toBe(404);
-		expect(res.status()).not.toBe(500);
+		expect(reg.ok()).toBeTruthy();
+
+		// Autentica como o admin comum
+		const loginRes = await page.request.post(`${BACKEND}/auth/token`, {
+			data: { email: EMAIL_ADMIN_COMUM, senha: SENHA_ADMIN_COMUM },
+		});
+		expect(loginRes.ok()).toBeTruthy();
+		const { access_token } = await loginRes.json();
+
+		// Admin comum tenta cadastrar um Desenvolvedor → 403
+		const tentativa = await page.request.post(`${BACKEND}/usuarios/`, {
+			data: { nome: 'Dev PW', email: EMAIL_TESTE, cargo: 'Desenvolvedor', perfil_de_acesso: 'Administrador', notificacao: false },
+			headers: { Authorization: `Bearer ${access_token}` },
+		});
+		expect(tentativa.status()).toBe(403);
+
+		// O admin seed (cargo Desenvolvedor) PODE cadastrar Desenvolvedor.
+		// Re-login do seed: o login do admin comum não afeta a sessão dele,
+		// mas a fixture pageAdmin pode ter sido revogada por logins paralelos —
+		// renova por segurança.
+		await injetarSessao(pageAdmin, 'admin');
+		const authSeed = await authHeaders(pageAdmin);
+		const permitida = await pageAdmin.request.post(`${BACKEND}/usuarios/`, {
+			data: { nome: 'Dev PW', email: EMAIL_TESTE, cargo: 'Desenvolvedor', perfil_de_acesso: 'Administrador', notificacao: false },
+			headers: authSeed,
+		});
+		expect(permitida.status()).toBe(200);
 	});
 });
