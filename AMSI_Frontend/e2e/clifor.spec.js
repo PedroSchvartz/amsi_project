@@ -79,12 +79,12 @@ test.describe('Cliente/Fornecedor', () => {
 		await inputsEnd.nth(5).fill('Santa Isabel');           // cidade
 		await cardEndereco.locator('select').selectOption('SP');
 
-		// ── Contato unificado: telefone (linha 1, tipo padrão) + email (linha 2) ──
+		// ── Contato unificado: email (linha 1, tipo padrão) + telefone (linha 2) ──
 		const cardContato = pageOperador.locator('.client-form-card').filter({ hasText: 'Contato' });
-		await cardContato.getByPlaceholder('(00) 00000-0000').fill('(11) 99999-8888');
-		await cardContato.getByRole('button', { name: 'Adicionar Contato' }).click();
-		await cardContato.locator('select').nth(1).selectOption('Email');
 		await cardContato.getByPlaceholder('email@exemplo.com').fill('pw_clifor@playwright.amsi.com');
+		await cardContato.getByRole('button', { name: 'Adicionar Contato' }).click();
+		await cardContato.locator('select').nth(1).selectOption('Telefone');
+		await cardContato.getByPlaceholder('(00) 00000-0000').fill('(11) 99999-8888');
 
 		// ── Submete ──
 		await pageOperador.getByRole('button', { name: 'Cadastrar' }).click();

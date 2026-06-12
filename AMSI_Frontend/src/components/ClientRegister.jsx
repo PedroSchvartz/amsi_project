@@ -18,7 +18,7 @@ const ENDERECO_VAZIO = {
 	endereco_primario: true
 };
 
-const CONTATO_VAZIO = { tipo_contato: 'Telefone', info_do_contato: '', contato_principal: true };
+const CONTATO_VAZIO = { tipo_contato: 'Email', info_do_contato: '', contato_principal: true };
 
 const FORM_INICIAL = {
 	tipo_clifor: '',
@@ -199,7 +199,7 @@ function ClientRegister() {
 	const adicionarContato = () =>
 		setContatos((prev) => [
 			...prev,
-			{ tipo_contato: 'Telefone', info_do_contato: '', contato_principal: prev.length === 0 }
+			{ tipo_contato: 'Email', info_do_contato: '', contato_principal: prev.length === 0 }
 		]);
 
 	/* ── Endereços (nada obrigatório) ── */
