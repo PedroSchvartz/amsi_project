@@ -375,14 +375,14 @@
       tipo: string
       obrigatorio: true
     rg_inscricaoestadual:
-      tipo: string
-      obrigatorio: true
+      tipo: desconhecido
+      obrigatorio: false
     nome:
       tipo: string
       obrigatorio: true
     datanascimento:
-      tipo: string
-      obrigatorio: true
+      tipo: desconhecido
+      obrigatorio: false
     tipo_clifor:
       tipo: TipoCliForEnum
       obrigatorio: true
@@ -429,14 +429,14 @@
       tipo: string
       obrigatorio: true
     rg_inscricaoestadual:
-      tipo: string
-      obrigatorio: true
+      tipo: desconhecido
+      obrigatorio: false
     nome:
       tipo: string
       obrigatorio: true
     datanascimento:
-      tipo: string
-      obrigatorio: true
+      tipo: desconhecido
+      obrigatorio: false
     tipo_clifor:
       tipo: TipoCliForEnum
       obrigatorio: true
@@ -483,14 +483,14 @@
       tipo: string
       obrigatorio: true
     rg_inscricaoestadual:
-      tipo: string
-      obrigatorio: true
+      tipo: desconhecido
+      obrigatorio: false
     nome:
       tipo: string
       obrigatorio: true
     datanascimento:
-      tipo: string
-      obrigatorio: true
+      tipo: desconhecido
+      obrigatorio: false
     tipo_clifor:
       tipo: TipoCliForEnum
       obrigatorio: true
@@ -511,32 +511,20 @@
   respostas:
   - '200'
   - '422'
-- endpoint: GET /usuarios/{id_usuario}/exportar-dados
-  descricao: Exportar Dados LGPD
+- endpoint: DELETE /usuarios/{id_usuario}/clifor/desvincular
+  descricao: Desvincular Clifor Do Usuario
   parametros:
   - nome: id_usuario
     local: path
     obrigatorio: true
     tipo: integer
   request_body: null
-  response_200:
-    usuario:
-      tipo: object
-      obrigatorio: true
-    clifor:
-      tipo: object
-      obrigatorio: false
-    lancamentos:
-      tipo: array
-      obrigatorio: true
-    logins:
-      tipo: array
-      obrigatorio: true
+  response_200: null
   respostas:
   - '200'
   - '422'
-- endpoint: DELETE /usuarios/{id_usuario}/clifor/desvincular
-  descricao: Desvincular Clifor Do Usuario
+- endpoint: GET /usuarios/{id_usuario}/exportar-dados
+  descricao: Exportar Dados Usuario
   parametros:
   - nome: id_usuario
     local: path
@@ -889,14 +877,14 @@
       tipo: string
       obrigatorio: true
     rg_inscricaoestadual:
-      tipo: string
-      obrigatorio: true
+      tipo: desconhecido
+      obrigatorio: false
     nome:
       tipo: string
       obrigatorio: true
     datanascimento:
-      tipo: string
-      obrigatorio: true
+      tipo: desconhecido
+      obrigatorio: false
     tipo_clifor:
       tipo: TipoCliForEnum
       obrigatorio: true
@@ -931,14 +919,14 @@
       tipo: string
       obrigatorio: true
     rg_inscricaoestadual:
-      tipo: string
-      obrigatorio: true
+      tipo: desconhecido
+      obrigatorio: false
     nome:
       tipo: string
       obrigatorio: true
     datanascimento:
-      tipo: string
-      obrigatorio: true
+      tipo: desconhecido
+      obrigatorio: false
     tipo_clifor:
       tipo: TipoCliForEnum
       obrigatorio: true
@@ -970,14 +958,14 @@
       tipo: string
       obrigatorio: true
     rg_inscricaoestadual:
-      tipo: string
-      obrigatorio: true
+      tipo: desconhecido
+      obrigatorio: false
     nome:
       tipo: string
       obrigatorio: true
     datanascimento:
-      tipo: string
-      obrigatorio: true
+      tipo: desconhecido
+      obrigatorio: false
     tipo_clifor:
       tipo: TipoCliForEnum
       obrigatorio: true
@@ -1075,14 +1063,14 @@
       tipo: string
       obrigatorio: true
     rg_inscricaoestadual:
-      tipo: string
-      obrigatorio: true
+      tipo: desconhecido
+      obrigatorio: false
     nome:
       tipo: string
       obrigatorio: true
     datanascimento:
-      tipo: string
-      obrigatorio: true
+      tipo: desconhecido
+      obrigatorio: false
     tipo_clifor:
       tipo: TipoCliForEnum
       obrigatorio: true
@@ -1158,14 +1146,14 @@
       tipo: string
       obrigatorio: true
     rg_inscricaoestadual:
-      tipo: string
-      obrigatorio: true
+      tipo: desconhecido
+      obrigatorio: false
     nome:
       tipo: string
       obrigatorio: true
     datanascimento:
-      tipo: string
-      obrigatorio: true
+      tipo: desconhecido
+      obrigatorio: false
     tipo_clifor:
       tipo: TipoCliForEnum
       obrigatorio: true
@@ -2491,7 +2479,7 @@
     perfil_de_acesso:
       tipo: AcessoEnum
       obrigatorio: false
-      default: Administrador
+      default: Consulta
   response_200:
     id_usuario:
       tipo: integer
@@ -2528,6 +2516,90 @@
       obrigatorio: true
     primeiro_acesso:
       tipo: boolean
+      obrigatorio: true
+  respostas:
+  - '200'
+  - '422'
+- endpoint: GET /log-atividade/por-sessao/{id_login}
+  descricao: Listar Por Sessao
+  parametros:
+  - nome: id_login
+    local: path
+    obrigatorio: true
+    tipo: integer
+  request_body: null
+  response_200:
+    id_log:
+      tipo: integer
+      obrigatorio: true
+    id_login_fk:
+      tipo: desconhecido
+      obrigatorio: false
+    id_usuario_fk:
+      tipo: desconhecido
+      obrigatorio: false
+    timestamp:
+      tipo: string
+      obrigatorio: true
+    metodo:
+      tipo: string
+      obrigatorio: true
+    endpoint:
+      tipo: string
+      obrigatorio: true
+    entidade:
+      tipo: desconhecido
+      obrigatorio: false
+    id_entidade:
+      tipo: desconhecido
+      obrigatorio: false
+    descricao:
+      tipo: desconhecido
+      obrigatorio: false
+    status_code:
+      tipo: integer
+      obrigatorio: true
+  respostas:
+  - '200'
+  - '422'
+- endpoint: GET /log-atividade/por-usuario/{id_usuario}
+  descricao: Listar Por Usuario
+  parametros:
+  - nome: id_usuario
+    local: path
+    obrigatorio: true
+    tipo: integer
+  request_body: null
+  response_200:
+    id_log:
+      tipo: integer
+      obrigatorio: true
+    id_login_fk:
+      tipo: desconhecido
+      obrigatorio: false
+    id_usuario_fk:
+      tipo: desconhecido
+      obrigatorio: false
+    timestamp:
+      tipo: string
+      obrigatorio: true
+    metodo:
+      tipo: string
+      obrigatorio: true
+    endpoint:
+      tipo: string
+      obrigatorio: true
+    entidade:
+      tipo: desconhecido
+      obrigatorio: false
+    id_entidade:
+      tipo: desconhecido
+      obrigatorio: false
+    descricao:
+      tipo: desconhecido
+      obrigatorio: false
+    status_code:
+      tipo: integer
       obrigatorio: true
   respostas:
   - '200'
