@@ -51,3 +51,7 @@ AMSI_Frontend/dist/
 AMSI_Frontend/test-results/
 AMSI_Frontend/playwright-report/
 AMSI_Frontend/e2e/.e2e-state.json
+
+# Manifestos de lotes gerados pela ferramenta de dados de demonstração
+# (registram IDs criados para limpeza reversível; específicos de cada máquina/banco)
+backend/utils/.dados_demo/
