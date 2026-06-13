@@ -99,7 +99,9 @@ export const loginUser = async (email, senha) => {
 	const data = await response.json().catch(() => ({}));
 	if (!response.ok) {
 		const message = data?.detail?.[0]?.msg || data?.detail || 'Usuário ou Senha inválidos';
-		throw new Error(message);
+		const error = new Error(message);
+		error.status = response.status;
+		throw error;
 	}
 	return data;
 };

@@ -49,6 +49,31 @@ test('login com email inexistente exibe mensagem de erro', async ({ page }) => {
 	await expect(page.locator('.login-erro')).toBeVisible({ timeout: 5000 });
 });
 
+test('após 3 falhas de login no mesmo e-mail aparece a dica de senha', async ({ page }) => {
+	await page.goto('/');
+	await page.getByLabel('Email').fill('nao_existe_dica@amsi.com');
+	await page.getByLabel('Senha').fill('senha_errada');
+
+	const dica = page.getByText('Esqueceu sua senha? Confira seu e-mail!');
+	const entrar = page.getByRole('button', { name: 'Entrar' });
+
+	// Duas falhas (401): a dica ainda não aparece.
+	for (let i = 0; i < 2; i++) {
+		await Promise.all([
+			page.waitForResponse((r) => r.url().includes('/auth/token')),
+			entrar.click(),
+		]);
+	}
+	await expect(dica).toHaveCount(0);
+
+	// Terceira falha: a dica aparece.
+	await Promise.all([
+		page.waitForResponse((r) => r.url().includes('/auth/token')),
+		entrar.click(),
+	]);
+	await expect(dica).toBeVisible({ timeout: 5000 });
+});
+
 // ─── Proteção de rotas ────────────────────────────────────────────────────────
 
 test('acesso direto a /home sem sessão volta para a tela de login', async ({ page }) => {

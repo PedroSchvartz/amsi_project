@@ -230,6 +230,14 @@
   animation: shake 0.4s ease;
 }
 
+/* ── Dica gentil após 3 falhas de login (escopo 2.9) ── */
+.login-dica-senha {
+  margin-top: 12px;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
 /* ════════════════════════════════════════
    ANIMAÇÕES
    ════════════════════════════════════════ */

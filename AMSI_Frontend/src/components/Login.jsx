@@ -21,6 +21,9 @@ function Login() {
 	const [erro, setErro] = useState('');
 	const [tema, setTema] = useState('verde');
 	const [modoDemo, setModoDemo] = useState(false);
+	// Contador de falhas de credencial (401) por e-mail — controla a dica de senha esquecida
+	const [tentativas, setTentativas] = useState(0);
+	const [emailTentativas, setEmailTentativas] = useState('');
 
 	// Verifica se o backend está em modo demo para exibir o link de auto-registro
 	useEffect(() => {
@@ -78,6 +81,11 @@ function Login() {
 			}
 		} catch (err) {
 			setErro(err.message || 'Erro ao fazer login');
+			// Só falha de credencial (401) conta para a dica; 403 (bloqueado/suspenso) não incrementa.
+			if (err.status === 401) {
+				setTentativas((prev) => (email === emailTentativas ? prev + 1 : 1));
+				setEmailTentativas(email);
+			}
 		}
 	};
 
@@ -144,6 +152,12 @@ function Login() {
 							<button type="submit">Entrar</button>
 
 							{erro && <p className="login-erro">{erro}</p>}
+
+							{tentativas >= 3 && email.trim() !== '' && email === emailTentativas && (
+								<p className="login-dica-senha">
+									Esqueceu sua senha? Confira seu e-mail!
+								</p>
+							)}
 						</form>
 
 						{/* Link de auto-registro — visível apenas em modo demo */}
