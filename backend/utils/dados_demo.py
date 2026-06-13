@@ -40,6 +40,7 @@ import json
 import glob
 import random
 import argparse
+import unicodedata
 from decimal import Decimal
 from datetime import date, datetime, timedelta
 
@@ -199,21 +200,34 @@ def _admin(db: Session):
     ).first()
 
 
+def _norm(s: str) -> str:
+    """Folding p/ casar nomes ignorando acento e caixa: 'Energia Eletrica' ~ 'Energia Elétrica'."""
+    s = unicodedata.normalize("NFKD", s or "")
+    s = "".join(c for c in s if not unicodedata.combining(c))
+    return s.strip().casefold()
+
+
 def _garantir_tipos(db: Session, man):
-    """Upsert dos tipos padrão. Registra no manifesto apenas os criados agora."""
+    """Upsert dos tipos padrão, casando nomes existentes de forma acento/caixa-insensível
+    (reusa um 'Energia Elétrica' já cadastrado em vez de duplicar). Registra no manifesto
+    apenas os criados agora."""
+    por_norm = {}
+    for t in db.query(tipo_conta).all():
+        por_norm.setdefault(_norm(t.descricao_conta), t)  # mantém o primeiro encontrado
+
     resultado = {}
     for dados in TIPOS_CONTA:
-        existente = db.query(tipo_conta).filter(
-            tipo_conta.descricao_conta == dados["descricao_conta"]
-        ).first()
+        chave = dados["descricao_conta"]
+        existente = por_norm.get(_norm(chave))
         if existente:
-            resultado[dados["descricao_conta"]] = existente
+            resultado[chave] = existente
             continue
         novo = tipo_conta(**dados)
         db.add(novo)
         db.flush()
         man["ids"]["tipo_conta"].append(novo.id_tipo_conta)
-        resultado[dados["descricao_conta"]] = novo
+        por_norm[_norm(chave)] = novo  # evita duplicar dentro do próprio lote
+        resultado[chave] = novo
     return resultado
 
 
@@ -238,6 +252,10 @@ def _cep_br(fake):
 
 
 def gerar(args):
+    det_inad = getattr(args, "inadimplentes", None)
+    if det_inad is not None and not (0 <= det_inad <= args.clifors):
+        err(f"--inadimplentes {det_inad} inválido: use um valor entre 0 e --clifors ({args.clifors}).")
+        return
     if not _confirmar(f"GERAR ~{args.clifors} clifors e lançamentos de {args.meses} meses",
                       args.sim, args.producao):
         return
@@ -248,6 +266,7 @@ def gerar(args):
         "pf_ratio": args.pf_ratio,
         "meses": args.meses,
         "mix": args.mix,
+        "inadimplentes": det_inad,
     })
 
     db: Session = SessionLocal()
@@ -278,9 +297,18 @@ def gerar(args):
             return gerador()  # fallback improvável
 
         inf("\n=== Clientes / Fornecedores ===")
+        # Decide PF/PJ de antemão; no modo determinístico, garante PF suficientes
+        # (só clientes/PF podem ficar inadimplentes).
+        is_pf_list = [random.random() < args.pf_ratio for _ in range(args.clifors)]
+        if det_inad is not None:
+            faltam = det_inad - sum(1 for v in is_pf_list if v)
+            if faltam > 0:
+                idx_pj = [i for i, v in enumerate(is_pf_list) if not v]
+                random.shuffle(idx_pj)
+                for i in idx_pj[:faltam]:
+                    is_pf_list[i] = True
         clifors = []
-        for _ in range(args.clifors):
-            is_pf = random.random() < args.pf_ratio
+        for is_pf in is_pf_list:
             if is_pf:
                 nome = fake.name()
                 doc = doc_unico(fake.cpf)
@@ -344,10 +372,26 @@ def gerar(args):
 
         ok(f"  {len(clifors)} clifor(s) + endereços + contatos criados.")
 
+        # Modo determinístico: escolhe exatamente N clientes para inadimplência.
+        ids_inadimplentes = set()
+        if det_inad is not None:
+            clientes = [cf for cf, _pf, tcf in clifors if tcf == TipoCliForEnum.Cliente]
+            if det_inad > len(clientes):  # rede de segurança (não deve ocorrer)
+                err(f"--inadimplentes {det_inad} excede os clientes gerados ({len(clientes)}).")
+                db.rollback()
+                return
+            ids_inadimplentes = {cf.id_clifor for cf in random.sample(clientes, det_inad)}
+            inf(f"  Inadimplência determinística: {det_inad} cliente(s) marcado(s).")
+
         inf("\n=== Lançamentos ===")
         hoje = date.today()
         janela = max(args.meses * 30, 1)
         peso_pago, peso_aberto, peso_inad = args.mix
+        # No modo determinístico o peso de inadimplência é ignorado; o --mix passa
+        # a controlar só a razão pago:aberto dos lançamentos não-vencidos.
+        pa_total = peso_pago + peso_aberto
+        pesos_pa = ((peso_pago / pa_total, peso_aberto / pa_total) if pa_total > 0
+                    else (1.0, 0.0))
         tag = f"{TAG_PREFIX}:{man['lote_id']}"
         total_lanc = 0
 
@@ -359,11 +403,18 @@ def gerar(args):
             # não pago e não estornado. Inserimos via ORM (sem passar pela rota que
             # recalcula), então marcamos o flag aqui mesmo.
             cf_inadimplente = False
-            for _ in range(args.meses):
-                status = random.choices(
-                    ("pago", "aberto", "inadimplente"),
-                    weights=(peso_pago, peso_aberto, peso_inad),
-                )[0]
+            forcar_inad = cf.id_clifor in ids_inadimplentes  # só no modo determinístico
+            for i in range(args.meses):
+                if det_inad is not None:
+                    # Determinístico: o 1º lançamento do cliente escolhido é o crédito
+                    # vencido não pago; todo o resto (e os não-escolhidos) fica pago/aberto.
+                    status = "inadimplente" if (forcar_inad and i == 0) else \
+                        random.choices(("pago", "aberto"), weights=pesos_pa)[0]
+                else:
+                    status = random.choices(
+                        ("pago", "aberto", "inadimplente"),
+                        weights=(peso_pago, peso_aberto, peso_inad),
+                    )[0]
                 tp = random.choice(pool)
                 valor = Decimal(f"{random.uniform(50, 2000):.2f}")
 
@@ -409,8 +460,13 @@ def gerar(args):
                 cf.inadimplente = True
 
         db.commit()
-        ok(f"  {total_lanc} lançamento(s) criados (mix pago/aberto/inadimplente "
-           f"= {peso_pago:.2f}/{peso_aberto:.2f}/{peso_inad:.2f}).")
+        if det_inad is not None:
+            ok(f"  {total_lanc} lançamento(s) criados — {len(ids_inadimplentes)} cliente(s) "
+               f"inadimplente(s) (determinístico); demais pago/aberto "
+               f"= {pesos_pa[0]:.2f}/{pesos_pa[1]:.2f}.")
+        else:
+            ok(f"  {total_lanc} lançamento(s) criados (mix pago/aberto/inadimplente "
+               f"= {peso_pago:.2f}/{peso_aberto:.2f}/{peso_inad:.2f}).")
 
         caminho = _salvar_manifesto(man)
         print()
@@ -530,6 +586,9 @@ def main():
     g.add_argument("--meses", type=int, default=6, help="meses de lançamentos por clifor (padrão 6)")
     g.add_argument("--mix", type=_parse_mix, default="0.6,0.15,0.25",
                    help="pago,aberto,inadimplente (padrão 0.6,0.15,0.25)")
+    g.add_argument("--inadimplentes", type=int, default=None,
+                   help="nº EXATO de clientes inadimplentes (determinístico; ignora o peso "
+                        "de inadimplência do --mix). Só clientes/PF ficam inadimplentes.")
     g.add_argument("--sim", action="store_true", help="pula a confirmação interativa")
     g.add_argument("--producao", action="store_true", help="reconhece alvo de produção em modo automático")
     g.set_defaults(func=gerar)

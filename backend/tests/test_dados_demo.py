@@ -22,7 +22,7 @@ TABELAS = ("clientefornecedor", "endereco", "contato", "lancamento", "tipo_conta
 
 def _ns(**kw):
     """Namespace de args equivalente ao argparse, com --sim (sem confirmação)."""
-    base = dict(sim=True, producao=False, lote=None, tudo=False)
+    base = dict(sim=True, producao=False, lote=None, tudo=False, inadimplentes=None)
     base.update(kw)
     return argparse.Namespace(**base)
 
@@ -98,6 +98,31 @@ def test_inadimplencia_marcada_para_pf_com_credito_vencido(tmp_path, monkeypatch
     finally:
         db.close()
     assert flags and all(flags), "clifor PF com crédito vencido deve ficar inadimplente"
+
+    dd.limpar(_ns(lote=man["lote_id"]))
+    assert _counts() == antes
+
+
+def test_inadimplentes_count_deterministico(tmp_path, monkeypatch):
+    """--inadimplentes N marca EXATAMENTE N clientes, independente do sorteio."""
+    monkeypatch.setattr(dd, "MANIFEST_DIR", str(tmp_path / ".dados_demo"))
+
+    antes = _counts()
+    # 10 clientes (pf_ratio=1.0), 2 meses, exatamente 3 inadimplentes.
+    dd.gerar(_ns(clifors=10, pf_ratio=1.0, meses=2, mix=[0.7, 0.3, 0.0], inadimplentes=3))
+
+    man = dd._carregar(dd._arquivos_lote()[0])
+    ids = man["ids"]["clientefornecedor"]
+    assert len(ids) == 10
+
+    from models.cliente_fornecedor import ClienteFornecedor
+    db = SessionLocal()
+    try:
+        flags = [c.inadimplente for c in db.query(ClienteFornecedor)
+                 .filter(ClienteFornecedor.id_clifor.in_(ids)).all()]
+    finally:
+        db.close()
+    assert sum(1 for f in flags if f) == 3, "deve haver EXATAMENTE 3 inadimplentes"
 
     dd.limpar(_ns(lote=man["lote_id"]))
     assert _counts() == antes
