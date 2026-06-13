@@ -1,3 +1,5 @@
+import time
+
 import pytest
 from database import SessionLocal
 from models.token_ativo import TokenAtivo
@@ -49,6 +51,20 @@ def _logs_do_login(id_login: int) -> list:
         ]
     finally:
         db.close()
+
+
+def _esperar_logs(id_login: int, minimo: int, timeout: float = 5.0, intervalo: float = 0.05) -> list:
+    """O middleware grava o log em background (run_in_executor); espera ele aparecer.
+
+    Retorna assim que houver >= `minimo` logs (ou ao estourar o timeout), eliminando
+    a corrida entre o write em thread separada e a leitura imediata do teste.
+    """
+    limite = time.monotonic() + timeout
+    logs = _logs_do_login(id_login)
+    while len(logs) < minimo and time.monotonic() < limite:
+        time.sleep(intervalo)
+        logs = _logs_do_login(id_login)
+    return logs
 
 
 def _criar_usuario_operador_temp(client, headers_admin, email: str, senha: str = "SenhaLog@123"):
@@ -145,7 +161,7 @@ def test_middleware_captura_post_200(
     id_lanc = r.json()["id_lancamento"]
 
     try:
-        logs = _logs_do_login(id_login)
+        logs = _esperar_logs(id_login, logs_antes + 1)
         assert len(logs) == logs_antes + 1
 
         ultimo = logs[-1]
@@ -231,6 +247,7 @@ def test_log_por_sessao_retorna_acoes(
     id_lanc = r.json()["id_lancamento"]
 
     try:
+        _esperar_logs(id_login, 1)  # aguarda o log de background do POST commitar
         r_log = client.get(f"/log-atividade/por-sessao/{id_login}", headers=headers_admin)
         assert r_log.status_code == 200
         logs = r_log.json()
