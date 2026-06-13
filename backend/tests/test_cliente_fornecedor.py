@@ -70,7 +70,9 @@ def test_criar_clifor(client, headers_admin, usuario_base):
     assert r.status_code == 200
     data = r.json()
     assert data["enderecos"] == []
-    assert data["contatos"] == []
+    # Vínculo com usuário garante ao menos o e-mail do usuário entre os contatos.
+    assert len(data["contatos"]) == 1
+    assert data["contatos"][0]["tipocontato"] == "Email"
     client.delete(f"/cliente_fornecedor/{data['id_clifor']}", headers=headers_admin)
 
 
@@ -109,9 +111,12 @@ def test_criar_clifor_com_enderecos_e_contatos(client, headers_admin, usuario_ba
     assert len(data["enderecos"]) == 1
     assert data["enderecos"][0]["logradouro"] == "Rua Teste"
     assert data["enderecos"][0]["id_clifor_fk"] == data["id_clifor"]
-    assert len(data["contatos"]) == 1
-    assert data["contatos"][0]["tipocontato"] == "Telefone"
-    assert data["contatos"][0]["id_clifor_fk"] == data["id_clifor"]
+    # 1 telefone do payload + 1 e-mail do usuário vinculado (garantido pelo vínculo).
+    assert len(data["contatos"]) == 2
+    assert {c["tipocontato"] for c in data["contatos"]} == {"Telefone", "Email"}
+    telefone = next(c for c in data["contatos"] if c["tipocontato"] == "Telefone")
+    assert telefone["info_do_contato"] == "(11) 99999-9999"
+    assert telefone["id_clifor_fk"] == data["id_clifor"]
     client.delete(f"/cliente_fornecedor/{data['id_clifor']}", headers=headers_admin)
 
 

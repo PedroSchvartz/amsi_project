@@ -7,6 +7,7 @@ from schemas.usuario import UsuarioCreate, UsuarioUpdate, UsuarioResponse
 from utils.auth_utils import hash_senha
 from utils.email_sender import enviar_email
 from utils.config import FRONTEND_URL
+from utils.vinculo_clifor import garantir_email_no_clifor, sincronizar_email_clifor
 from auth.dependencies import get_current_user, exige_admin, exige_admin_desenvolvedor
 from typing import List
 import secrets
@@ -140,12 +141,17 @@ def atualizar_usuario(id_usuario: int, dados: UsuarioUpdate, db: Session = Depen
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
 
+    email_antigo = usuario.email
     dados_dict = dados.model_dump(exclude_unset=True)
     if "senha" in dados_dict:
         dados_dict["senha"] = hash_senha(dados_dict["senha"])
 
     for campo, valor in dados_dict.items():
         setattr(usuario, campo, valor)
+
+    # Vínculo: se o e-mail mudou, sincroniza o contato no clifor vinculado.
+    if usuario.email != email_antigo:
+        sincronizar_email_clifor(usuario, email_antigo, db)
 
     db.commit()
     db.refresh(usuario)
@@ -439,6 +445,8 @@ def associar_clifor_ao_usuario(
         raise HTTPException(status_code=409, detail="Este cliente/fornecedor já está vinculado a outro usuário")
 
     clifor.id_usuario_fk = id_usuario
+    # Vínculo: garante o e-mail do usuário entre os contatos do clifor.
+    garantir_email_no_clifor(clifor, usuario, db)
     db.commit()
     db.refresh(clifor)
     return clifor

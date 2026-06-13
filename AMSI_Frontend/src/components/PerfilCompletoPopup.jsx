@@ -151,9 +151,9 @@ function PerfilCompletoPopup({ usuario, onFechar }) {
 	const [carregando, setCarregando] = useState(true);
 	const [semClifor, setSemClifor] = useState(false);
 
-	// Associação com clifor só faz sentido para perfil Consulta (associados).
-	// Administrador e Operador são operadores internos — não têm vínculo com clifor.
-	const exibeClifor = usuario.perfil_de_acesso === 'Consulta';
+	// Qualquer perfil pode ser vinculado a um clifor; as ações de associar/desvincular
+	// ficam restritas a não-Consulta (ver guards !isConsulta() abaixo).
+	const exibeClifor = true;
 
 	const [busca, setBusca] = useState('');
 	const [sugestoes, setSugestoes] = useState([]);

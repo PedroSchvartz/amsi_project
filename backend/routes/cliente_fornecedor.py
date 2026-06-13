@@ -7,6 +7,7 @@ from models.endereco import Endereco
 from models.contato import Contato
 from models.lancamento import Lancamento
 from models.usuario import Usuario
+from utils.vinculo_clifor import garantir_email_no_clifor
 from schemas.cliente_fornecedor import (
     ClienteFornecedorCreate,
     ClienteFornecedorUpdate,
@@ -159,8 +160,10 @@ def buscar_clifor(id_clifor: int, db: Session = Depends(get_db), _=Depends(get_c
 
 @router.post("/", response_model=ClienteFornecedorResponse)
 def criar_clifor(dados: ClienteFornecedorCreate, db: Session = Depends(get_db), _=Depends(exige_operador_ou_admin)):
+    usuario_vinc = None
     if dados.id_usuario_fk:
-        if not db.query(Usuario).filter(Usuario.id_usuario == dados.id_usuario_fk).first():
+        usuario_vinc = db.query(Usuario).filter(Usuario.id_usuario == dados.id_usuario_fk).first()
+        if not usuario_vinc:
             raise HTTPException(status_code=404, detail="Usuário não encontrado")
 
     clifor_data = dados.model_dump(exclude={"enderecos", "contatos"})
@@ -176,6 +179,10 @@ def criar_clifor(dados: ClienteFornecedorCreate, db: Session = Depends(get_db), 
         for cont in dados.contatos:
             db.add(Contato(id_clifor_fk=clifor.id_clifor, **cont.model_dump()))
 
+    # Vínculo: garante o e-mail do usuário entre os contatos do clifor.
+    if usuario_vinc:
+        garantir_email_no_clifor(clifor, usuario_vinc, db)
+
     db.commit()
     db.refresh(clifor)
     return clifor
@@ -187,8 +194,10 @@ def atualizar_clifor(id_clifor: int, dados: ClienteFornecedorUpdate, db: Session
     if not clifor:
         raise HTTPException(status_code=404, detail="Cliente/Fornecedor não encontrado")
 
+    usuario_vinc = None
     if dados.id_usuario_fk:
-        if not db.query(Usuario).filter(Usuario.id_usuario == dados.id_usuario_fk).first():
+        usuario_vinc = db.query(Usuario).filter(Usuario.id_usuario == dados.id_usuario_fk).first()
+        if not usuario_vinc:
             raise HTTPException(status_code=404, detail="Usuário não encontrado")
 
     for campo, valor in dados.model_dump(exclude_unset=True, exclude={"enderecos", "contatos"}).items():
@@ -201,6 +210,10 @@ def atualizar_clifor(id_clifor: int, dados: ClienteFornecedorUpdate, db: Session
     if dados.contatos:
         for cont in dados.contatos:
             db.add(Contato(id_clifor_fk=clifor.id_clifor, **cont.model_dump()))
+
+    # Vínculo: garante o e-mail do usuário entre os contatos do clifor.
+    if usuario_vinc:
+        garantir_email_no_clifor(clifor, usuario_vinc, db)
 
     db.commit()
     db.refresh(clifor)

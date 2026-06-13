@@ -302,6 +302,157 @@ def test_desvincular_clifor_sem_vinculo(client, headers_admin):
     client.delete(f"/usuarios/{usuario['id_usuario']}", headers=headers_admin)
 
 
+# ─── Vínculo: clifor sempre carrega o e-mail do usuário ───────────────────────
+
+def _vinc_emails(clifor_json):
+    """E-mails (info_do_contato) presentes nos contatos do clifor."""
+    return [c["info_do_contato"] for c in clifor_json.get("contatos", [])
+            if c["tipocontato"] == "Email"]
+
+
+def _vinc_criar_usuario(client, headers_admin, email):
+    r = client.post("/usuarios/", json={
+        "nome": f"Vinc {email}", "email": email, "cargo": "Associado",
+        "perfil_de_acesso": "Consulta", "notificacao": False,
+    }, headers=headers_admin)
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def _vinc_criar_clifor(client, headers_admin, cpf, nome, contatos=None, id_usuario_fk=None):
+    payload = {
+        "pessoafisica_juridica": True, "cpf_cnpj": cpf,
+        "rg_inscricaoestadual": cpf.replace(".", "").replace("-", ""),
+        "nome": nome, "datanascimento": "1990-01-01", "tipo_clifor": "C",
+    }
+    if contatos is not None:
+        payload["contatos"] = contatos
+    if id_usuario_fk is not None:
+        payload["id_usuario_fk"] = id_usuario_fk
+    r = client.post("/cliente_fornecedor/", json=payload, headers=headers_admin)
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def _vinc_limpar(client, headers_admin, usuario, clifor=None):
+    if clifor:
+        client.delete(f"/cliente_fornecedor/{clifor['id_clifor']}", headers=headers_admin)
+    logins = client.get(f"/login/por-usuario/{usuario['id_usuario']}", headers=headers_admin)
+    if logins.is_success:
+        for login in logins.json():
+            client.delete(f"/login/{login['id_login']}", headers=headers_admin)
+    client.delete(f"/usuarios/{usuario['id_usuario']}", headers=headers_admin)
+
+
+def test_associar_garante_email_do_usuario(client, headers_admin):
+    """Associar um clifor sem e-mail adiciona o e-mail do usuário como contato."""
+    usuario = _vinc_criar_usuario(client, headers_admin, "pytest_vinc_add@amsi.com")
+    clifor = _vinc_criar_clifor(client, headers_admin, "444.444.444-44", "CliFor Sem Email")
+    r = client.post(
+        f"/usuarios/{usuario['id_usuario']}/clifor/{clifor['id_clifor']}/associar",
+        headers=headers_admin)
+    assert r.status_code == 200
+    assert "pytest_vinc_add@amsi.com" in _vinc_emails(r.json())
+    _vinc_limpar(client, headers_admin, usuario, clifor)
+
+
+def test_associar_nao_duplica_email(client, headers_admin):
+    """Se o clifor já tem o e-mail do usuário, associar não duplica."""
+    usuario = _vinc_criar_usuario(client, headers_admin, "pytest_vinc_nodup@amsi.com")
+    clifor = _vinc_criar_clifor(
+        client, headers_admin, "555.555.555-55", "CliFor Com Email",
+        contatos=[{"tipocontato": "Email", "info_do_contato": "pytest_vinc_nodup@amsi.com", "contato_principal": True}])
+    r = client.post(
+        f"/usuarios/{usuario['id_usuario']}/clifor/{clifor['id_clifor']}/associar",
+        headers=headers_admin)
+    assert r.status_code == 200
+    assert _vinc_emails(r.json()).count("pytest_vinc_nodup@amsi.com") == 1
+    _vinc_limpar(client, headers_admin, usuario, clifor)
+
+
+def test_associar_preserva_email_diferente(client, headers_admin):
+    """Clifor com e-mail diferente: associar adiciona o do usuário e mantém o outro."""
+    usuario = _vinc_criar_usuario(client, headers_admin, "pytest_vinc_user@amsi.com")
+    clifor = _vinc_criar_clifor(
+        client, headers_admin, "666.666.666-66", "CliFor Outro Email",
+        contatos=[{"tipocontato": "Email", "info_do_contato": "outro@exemplo.com", "contato_principal": True}])
+    r = client.post(
+        f"/usuarios/{usuario['id_usuario']}/clifor/{clifor['id_clifor']}/associar",
+        headers=headers_admin)
+    assert r.status_code == 200
+    emails = _vinc_emails(r.json())
+    assert "outro@exemplo.com" in emails
+    assert "pytest_vinc_user@amsi.com" in emails
+    _vinc_limpar(client, headers_admin, usuario, clifor)
+
+
+def test_criar_clifor_com_usuario_garante_email(client, headers_admin):
+    """Criar clifor com id_usuario_fk (sem contatos) garante o e-mail do usuário."""
+    usuario = _vinc_criar_usuario(client, headers_admin, "pytest_vinc_create@amsi.com")
+    clifor = _vinc_criar_clifor(
+        client, headers_admin, "777.777.777-77", "CliFor Criado Com Usuario",
+        id_usuario_fk=usuario["id_usuario"])
+    assert "pytest_vinc_create@amsi.com" in _vinc_emails(clifor)
+    _vinc_limpar(client, headers_admin, usuario, clifor)
+
+
+def test_trocar_email_usuario_sincroniza_clifor(client, headers_admin):
+    """Trocar o e-mail do usuário atualiza o contato de e-mail no clifor vinculado."""
+    usuario = _vinc_criar_usuario(client, headers_admin, "pytest_vinc_sync@amsi.com")
+    clifor = _vinc_criar_clifor(
+        client, headers_admin, "888.888.888-88", "CliFor Sync Email",
+        id_usuario_fk=usuario["id_usuario"])
+    assert "pytest_vinc_sync@amsi.com" in _vinc_emails(clifor)
+
+    r = client.put(f"/usuarios/{usuario['id_usuario']}",
+                   json={"email": "pytest_vinc_sync_novo@amsi.com"}, headers=headers_admin)
+    assert r.status_code == 200, r.text
+
+    r2 = client.get(f"/cliente_fornecedor/{clifor['id_clifor']}", headers=headers_admin)
+    emails = _vinc_emails(r2.json())
+    assert "pytest_vinc_sync_novo@amsi.com" in emails
+    assert "pytest_vinc_sync@amsi.com" not in emails
+    _vinc_limpar(client, headers_admin, usuario, clifor)
+
+
+def test_associar_email_case_insensitive(client, headers_admin):
+    """Match de e-mail ignora caixa: não duplica se diferir só em maiúsculas/minúsculas."""
+    usuario = _vinc_criar_usuario(client, headers_admin, "pytest_vinc_case@amsi.com")
+    clifor = _vinc_criar_clifor(
+        client, headers_admin, "999.999.999-99", "CliFor Email Maiusculo",
+        contatos=[{"tipocontato": "Email", "info_do_contato": "PYTEST_VINC_CASE@AMSI.COM", "contato_principal": True}])
+    r = client.post(
+        f"/usuarios/{usuario['id_usuario']}/clifor/{clifor['id_clifor']}/associar",
+        headers=headers_admin)
+    assert r.status_code == 200
+    emails = _vinc_emails(r.json())
+    assert len(emails) == 1, "não deve duplicar e-mail que difere só na caixa"
+    assert emails[0] == "PYTEST_VINC_CASE@AMSI.COM"  # preserva o original
+    _vinc_limpar(client, headers_admin, usuario, clifor)
+
+
+def test_trocar_email_usuario_sem_clifor_nao_quebra(client, headers_admin):
+    """Trocar o e-mail de um usuário sem clifor vinculado não deve dar erro (sync sai cedo)."""
+    usuario = _vinc_criar_usuario(client, headers_admin, "pytest_vinc_noclifor@amsi.com")
+    r = client.put(f"/usuarios/{usuario['id_usuario']}",
+                   json={"email": "pytest_vinc_noclifor_novo@amsi.com"}, headers=headers_admin)
+    assert r.status_code == 200, r.text
+    assert r.json()["email"] == "pytest_vinc_noclifor_novo@amsi.com"
+    _vinc_limpar(client, headers_admin, usuario)
+
+
+def test_atualizar_clifor_vincular_usuario_garante_email(client, headers_admin):
+    """Editar um clifor para vinculá-lo a um usuário (PUT) garante o e-mail do usuário."""
+    usuario = _vinc_criar_usuario(client, headers_admin, "pytest_vinc_edit@amsi.com")
+    clifor = _vinc_criar_clifor(client, headers_admin, "100.100.100-10", "CliFor Editar Vinculo")
+    # Clifor nasceu sem vínculo e sem e-mail; o PUT vincula o usuário.
+    r = client.put(f"/cliente_fornecedor/{clifor['id_clifor']}",
+                   json={"id_usuario_fk": usuario["id_usuario"]}, headers=headers_admin)
+    assert r.status_code == 200, r.text
+    assert "pytest_vinc_edit@amsi.com" in _vinc_emails(r.json())
+    _vinc_limpar(client, headers_admin, usuario, clifor)
+
+
 def test_criar_usuario_cargo_desenvolvedor(client, headers_admin):
     """Cargo Desenvolvedor deve ser aceito como válido."""
     r = client.post("/usuarios/", json={

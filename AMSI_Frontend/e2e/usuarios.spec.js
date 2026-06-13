@@ -144,3 +144,77 @@ test.describe('Usuários — regra Desenvolvedor', () => {
 		expect(permitida.status()).toBe(200);
 	});
 });
+
+test.describe('Usuários — vínculo com Cliente/Fornecedor (admin)', () => {
+	const EMAIL_VINC = `pw_vinc_${Date.now()}@playwright.amsi.com`;
+	const NOME_USUARIO_VINC = 'Usuário Vínculo PW';
+	const NOME_CLIFOR_VINC = `PW Clifor Vinculo ${Date.now()}`;
+	const CPF_VINC = '529.982.247-25'; // CPF que passa na validação de dígitos
+	let idCliforVinc = null;
+
+	test.afterEach(async ({ pageAdmin }) => {
+		const auth = await authHeaders(pageAdmin);
+		if (idCliforVinc) {
+			await pageAdmin.request.delete(`${BACKEND}/cliente_fornecedor/${idCliforVinc}`, { headers: auth });
+			idCliforVinc = null;
+		}
+		await hardDeletePorEmail(pageAdmin, EMAIL_VINC);
+	});
+
+	test('associar clifor pelo popup propaga o e-mail do usuário ao clifor', async ({ pageAdmin }) => {
+		const auth = await authHeaders(pageAdmin);
+
+		// Usuário (Consulta) e clifor livre (sem e-mail), criados via API.
+		const ru = await pageAdmin.request.post(`${BACKEND}/usuarios/`, {
+			data: { nome: NOME_USUARIO_VINC, email: EMAIL_VINC, cargo: 'Associado', perfil_de_acesso: 'Consulta', notificacao: false },
+			headers: auth,
+		});
+		expect(ru.ok()).toBeTruthy();
+
+		const rc = await pageAdmin.request.post(`${BACKEND}/cliente_fornecedor/`, {
+			data: {
+				pessoafisica_juridica: true, cpf_cnpj: CPF_VINC, rg_inscricaoestadual: '12.345.678-9',
+				nome: NOME_CLIFOR_VINC, datanascimento: '1990-01-01', tipo_clifor: 'C',
+			},
+			headers: auth,
+		});
+		expect(rc.ok()).toBeTruthy();
+		idCliforVinc = (await rc.json()).id_clifor;
+
+		// Abre o popup Perfil Completo do usuário e associa o clifor pela busca.
+		await pageAdmin.goto('/usuarios');
+		const linha = pageAdmin.locator('tr').filter({ hasText: EMAIL_VINC });
+		await linha.locator('button[title="Ver perfil completo"]').click();
+		await expect(pageAdmin.getByRole('heading', { name: /Perfil Completo/ })).toBeVisible({ timeout: 8000 });
+
+		await pageAdmin.getByPlaceholder('Buscar por nome...').fill(NOME_CLIFOR_VINC);
+		await pageAdmin.locator('strong', { hasText: NOME_CLIFOR_VINC }).click();
+		await pageAdmin.getByRole('button', { name: 'Confirmar' }).click();
+
+		// O clifor passa a aparecer como vinculado no popup.
+		await expect(pageAdmin.getByText('Cliente / Fornecedor Vinculado')).toBeVisible({ timeout: 8000 });
+
+		// Regra central: o clifor agora carrega o e-mail do usuário nos contatos (checado via API).
+		const verif = await pageAdmin.request.get(`${BACKEND}/cliente_fornecedor/${idCliforVinc}`, { headers: auth });
+		const data = await verif.json();
+		const emails = (data.contatos || []).filter((c) => c.tipocontato === 'Email').map((c) => c.info_do_contato);
+		expect(emails).toContain(EMAIL_VINC);
+	});
+
+	test('popup mostra a seção de clifor para usuário não-Consulta (Operador)', async ({ pageAdmin }) => {
+		const auth = await authHeaders(pageAdmin);
+		const ru = await pageAdmin.request.post(`${BACKEND}/usuarios/`, {
+			data: { nome: NOME_USUARIO_VINC, email: EMAIL_VINC, cargo: 'Associado', perfil_de_acesso: 'Operador', notificacao: false },
+			headers: auth,
+		});
+		expect(ru.ok()).toBeTruthy();
+
+		await pageAdmin.goto('/usuarios');
+		const linha = pageAdmin.locator('tr').filter({ hasText: EMAIL_VINC });
+		await linha.locator('button[title="Ver perfil completo"]').click();
+		await expect(pageAdmin.getByRole('heading', { name: /Perfil Completo/ })).toBeVisible({ timeout: 8000 });
+
+		// Antes a seção de clifor só aparecia para perfil Consulta; agora vale para qualquer perfil.
+		await expect(pageAdmin.getByText('Nenhum Cliente/Fornecedor vinculado.')).toBeVisible({ timeout: 8000 });
+	});
+});
