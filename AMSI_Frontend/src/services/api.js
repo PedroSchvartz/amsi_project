@@ -91,14 +91,32 @@ async function handleResponse(response, { noLogout = false } = {}) {
 // ======================
 
 export const loginUser = async (email, senha) => {
-	const response = await fetchComLoading(`${BASE_URL}/auth/token`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ email, senha })
-	});
+	let response;
+	try {
+		response = await fetchComLoading(`${BASE_URL}/auth/token`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ email, senha })
+		});
+	} catch {
+		// fetchComLoading lança em falha de rede (backend inacessível / banco adormecido).
+		// Não é credencial inválida — sinalizamos problema de conexão.
+		const error = new Error('Falha na conexão com o servidor. Tente novamente mais tarde.');
+		error.status = 0;
+		throw error;
+	}
 	const data = await response.json().catch(() => ({}));
 	if (!response.ok) {
-		const message = data?.detail?.[0]?.msg || data?.detail || 'Usuário ou Senha inválidos';
+		// 401 é a única hipótese de credencial inválida. 5xx indica falha do servidor/banco —
+		// não devemos sugerir que a senha está errada.
+		let message;
+		if (response.status === 401) {
+			message = data?.detail?.[0]?.msg || data?.detail || 'Usuário ou senha inválidos';
+		} else if (response.status >= 500) {
+			message = 'Falha na conexão com o banco de dados. Tente novamente mais tarde.';
+		} else {
+			message = data?.detail?.[0]?.msg || data?.detail || 'Não foi possível entrar. Tente novamente.';
+		}
 		const error = new Error(message);
 		error.status = response.status;
 		throw error;

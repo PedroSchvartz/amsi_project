@@ -91,7 +91,7 @@ function Login() {
 
 	useEffect(() => {
 		if (erro) {
-			const timer = setTimeout(() => setErro(''), 3000);
+			const timer = setTimeout(() => setErro(''), 60000);
 			return () => clearTimeout(timer);
 		}
 	}, [erro]);
