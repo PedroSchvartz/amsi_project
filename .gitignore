@@ -55,3 +55,8 @@ AMSI_Frontend/e2e/.e2e-state.json
 # Manifestos de lotes gerados pela ferramenta de dados de demonstração
 # (registram IDs criados para limpeza reversível; específicos de cada máquina/banco)
 backend/utils/.dados_demo/
+
+# Ferramenta local de dev: reseta a senha do admin com senha fixa em texto
+# (não deve ir para o repositório)
+backend/reset_senha_pedro.py
+backend/Resetar senha Pedro.bat
