@@ -17,7 +17,7 @@ const s = {
 		display: 'flex',
 		alignItems: 'center',
 		justifyContent: 'center',
-		zIndex: 9990
+		zIndex: 10001
 	},
 	box: {
 		background: 'var(--bg-card)',

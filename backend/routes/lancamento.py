@@ -6,11 +6,11 @@ from models.lancamento import Lancamento
 from models.usuario import Usuario
 from models.cliente_fornecedor import ClienteFornecedor
 from models.tipo_conta import tipo_conta
-from schemas.lancamento import LancamentoCreate, LancamentoUpdate, LancamentoEditAdmin, LancamentoResponse, LancamentoResumo, ResumoPorTipo
+from schemas.lancamento import LancamentoCreate, LancamentoMassaCreate, LancamentoMassaResponse, LancamentoUpdate, LancamentoEditAdmin, LancamentoResponse, LancamentoResumo, ResumoPorTipo
 from auth.dependencies import exige_admin, exige_operador_ou_admin, get_current_user
 from utils.inadimplencia import atualizar_inadimplente
 from typing import List, Optional
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 router = APIRouter(
@@ -199,6 +199,7 @@ def listar_lancamentos(
     estorno: Optional[bool] = None,
     valor_minimo: Optional[Decimal] = None,
     valor_maximo: Optional[Decimal] = None,
+    lote: Optional[int] = None,
     db: Session = Depends(get_db),
     _=Depends(get_current_user)
 ):
@@ -247,6 +248,8 @@ def listar_lancamentos(
         query = query.filter(Lancamento.valor >= valor_minimo)
     if valor_maximo is not None:
         query = query.filter(Lancamento.valor <= valor_maximo)
+    if lote is not None:
+        query = query.filter(Lancamento.lote == lote)
 
     query = query.order_by(Lancamento.data_vencimento, ClienteFornecedor.nome)
 
@@ -285,6 +288,15 @@ def listar_lancamentos_por_usuario(id_usuario: int, db: Session = Depends(get_db
     ).order_by(Lancamento.data_vencimento, ClienteFornecedor.nome).all()
 
 
+def _montar_lancamento(dados: dict) -> Lancamento:
+    """Monta a ORM Lancamento a partir de um dict — sem validar nem commitar.
+
+    Compartilhado entre a criação única e a criação em massa para que as duas rotas
+    não divirjam na construção do objeto.
+    """
+    return Lancamento(**dados)
+
+
 @router.post("/", response_model=LancamentoResponse)
 def criar_lancamento(dados: LancamentoCreate, db: Session = Depends(get_db), _=Depends(exige_operador_ou_admin)):
     if not db.query(Usuario).filter(Usuario.id_usuario == dados.id_usuario_fk_lancamento).first():
@@ -293,12 +305,65 @@ def criar_lancamento(dados: LancamentoCreate, db: Session = Depends(get_db), _=D
         raise HTTPException(status_code=404, detail="Cliente/Fornecedor não encontrado")
     if not db.query(tipo_conta).filter(tipo_conta.id_tipo_conta == dados.id_tipo_conta_fk).first():
         raise HTTPException(status_code=404, detail="Tipo de lançamento não encontrado")
-    lancamento = Lancamento(**dados.model_dump())
+    lancamento = _montar_lancamento(dados.model_dump())
     db.add(lancamento)
     db.commit()
     db.refresh(lancamento)
     atualizar_inadimplente(lancamento.id_clifor_relacionado_fk, db)
     return lancamento
+
+
+@router.post("/massa", response_model=LancamentoMassaResponse)
+def criar_lancamentos_massa(
+    dados: LancamentoMassaCreate,
+    db: Session = Depends(get_db),
+    _=Depends(exige_operador_ou_admin),
+):
+    if not db.query(Usuario).filter(Usuario.id_usuario == dados.id_usuario_fk_lancamento).first():
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    if not db.query(tipo_conta).filter(tipo_conta.id_tipo_conta == dados.id_tipo_conta_fk).first():
+        raise HTTPException(status_code=404, detail="Tipo de lançamento não encontrado")
+
+    ids = list(dict.fromkeys(dados.ids_clifor))   # dedup preservando ordem
+    if not ids:
+        raise HTTPException(status_code=422, detail="Selecione ao menos um cliente/fornecedor")
+
+    encontrados = {
+        r.id_clifor for r in
+        db.query(ClienteFornecedor.id_clifor).filter(ClienteFornecedor.id_clifor.in_(ids)).all()
+    }
+    faltantes = [i for i in ids if i not in encontrados]
+    if faltantes:
+        raise HTTPException(status_code=404, detail=f"Cliente/Fornecedor não encontrado: {faltantes}")
+
+    lote = int(datetime.utcnow().timestamp() * 1000)   # ms, igual ao exp_ms do token
+
+    novos = []
+    for id_clifor in ids:
+        l = _montar_lancamento({
+            "id_usuario_fk_lancamento": dados.id_usuario_fk_lancamento,
+            "id_clifor_relacionado_fk": id_clifor,
+            "id_tipo_conta_fk": dados.id_tipo_conta_fk,
+            "valor": dados.valor,
+            "data_vencimento": dados.data_vencimento,
+            "natureza_lancamento": dados.natureza_lancamento,
+            "observacao": dados.observacao,
+            "lote": lote,
+        })
+        db.add(l)
+        novos.append(l)
+
+    db.commit()                                  # atômico: 1 commit para todo o lote
+    for l in novos:
+        db.refresh(l)
+    for id_clifor in set(ids):
+        atualizar_inadimplente(id_clifor, db)
+
+    return LancamentoMassaResponse(
+        lote=lote,
+        total_criados=len(novos),
+        ids=[l.id_lancamento for l in novos],
+    )
 
 
 @router.put("/{id_lancamento}", response_model=LancamentoResponse)

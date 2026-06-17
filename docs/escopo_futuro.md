@@ -154,6 +154,8 @@ Cada ação do sistema deve ter seu próprio conjunto de três mensagens (pendin
 
 ### 2.9 Dica de senha esquecida após falhas repetidas no login
 
+> ✅ **Concluído** (commit `1c29a5c`) — contador por e-mail em `Login.jsx` (incrementa só em 401), dica `.login-dica-senha` após a 3ª falha e teste e2e em `auth.spec.js`.
+
 Após **3 tentativas consecutivas com falha** de login usando o mesmo e-mail, exibir abaixo do formulário uma mensagem sutil e gentil convidando o usuário a verificar o e-mail:
 
 > *"Esqueceu sua senha? Confira seu e-mail!"*
@@ -198,6 +200,8 @@ O sistema já possui um indicador visual quando a internet cai completamente. Co
 
 ### 2.7 Associar usuário a clifor — corrigir regra de exibição
 
+> ✅ **Concluído** (commit `4a0c243` — "visibilidade do popup por perfil") — `exibeClifor = true` em `PerfilCompletoPopup.jsx`: a seção de clifor aparece para qualquer perfil e não há mais gate por `perfil === 'Consulta'`. As ações de associar/desvincular seguem restritas a não-Consulta.
+
 A opção "Associar a cliente/fornecedor" no menu de Ações da página de usuários deve aparecer para **qualquer usuário sem clifor vinculado**, independentemente do perfil. Atualmente a condição no frontend restringe a opção apenas ao perfil `Consulta`, deixando usuários `Operador` ou `Admin` sem clifor sem a possibilidade de vinculação.
 
 **Comportamento esperado:**
@@ -233,6 +237,8 @@ A opção "Associar a cliente/fornecedor" no menu de Ações da página de usuá
 - Implementar limite por IP (ex: 10 tentativas/minuto) usando middleware ou Redis.
 
 ### 3.6 Consistência de rollback em fluxos de senha — falha de e-mail
+
+> ✅ **Concluído** — `resetar_senha` (`routes/usuario.py`) salva `senha_anterior`/`primeiro_acesso_anterior` e, se `enviar_email` falhar, restaura o estado, faz commit do rollback e retorna **502** ("a senha anterior continua válida").
 
 **Problema identificado:** os fluxos que envolvem troca de senha devem assumir que o envio de e-mail **pode falhar**, e nenhum deles deve deixar o sistema em estado inconsistente (senha trocada no banco, usuário sem receber a nova).
 
@@ -277,8 +283,21 @@ if not enviado:
 **Impacto no frontend (item 2.8):** com essa correção, o toast de erro de "Resetar senha" pode afirmar com segurança que *"a senha anterior continua ativa"*, o que deixa a mensagem de erro mais clara e tranquilizadora para o Admin.
 
 ### 3.5 Remoção do `@sveltejs/adapter-vercel` desnecessário
+
+> ✅ **Concluído** (2026-06-13) — removido via `npm uninstall @sveltejs/adapter-vercel` (−31 pacotes transitivos no lockfile); `npm run build` segue verde (o build é React/Vite e nunca importava o adapter).
+
 - Pacote foi adicionado durante troubleshooting de deploy e nunca utilizado (`svelte.config.js` ainda usa `adapter-auto`).
 - Remover de `package.json` para reduzir tamanho do bundle de instalação.
+
+### 3.7 Faxina do scaffolding SvelteKit restante
+
+> Continuação do **3.5**: o frontend foi criado a partir de um template SvelteKit e ainda carrega dependências e arquivos que o app React/Vite **não usa**.
+
+- **Dependências órfãs** em `package.json`: `@sveltejs/kit`, `@sveltejs/adapter-auto`, `@sveltejs/vite-plugin-svelte`, `svelte`, `svelte-check`, `eslint-plugin-svelte`, `prettier-plugin-svelte`.
+- **Scripts órfãos**: `prepare` (`svelte-kit sync`), `check` e `check:watch` (`svelte-check`).
+- **Arquivos órfãos**: `svelte.config.js` e os trechos de Svelte em `eslint.config.js` e `.prettierrc`.
+- **Por que separado do 3.5:** mexe nos scripts de `lint`/`format` e na config do ESLint/Prettier — exige rodar `npm run lint` e `npm run build` depois para garantir que nada quebrou. Risco maior que a remoção pontual do adapter, então merece tarefa própria.
+- **Ganho:** instalação mais enxuta e `package.json` honesto sobre o stack real (React + Vite).
 
 ---
 
@@ -366,6 +385,58 @@ Funcionalidade que permite criar múltiplos lançamentos de uma só vez a partir
 - Novo endpoint `POST /lancamento/massa` recebendo template + lista de `id_clifor`.
 - Usar `ThreadManager(tipo='io')` para criar os lançamentos em paralelo, respeitando o limite de conexões do banco.
 - Retornar relatório de resultado: quantos criados, quantos falharam e por quê.
+
+### 6.3 Lançamento em massa via modal-seletor de clifor (MVP da 6.1)
+
+Versão enxuta da [6.1](#61-criação-em-massa): em vez de uma tela dedicada com preview próprio, o popup `LancamentoModal` ([`components/LancamentoModal.jsx`](../AMSI_Frontend/src/components/LancamentoModal.jsx)) ganha um atalho para um **modal-seletor** que reaproveita a lista + filtros já existentes na guia de cliente/fornecedor. É o caminho de menor esforço para entregar criação em massa dentro do fluxo conhecido, sem precisar de um componente de combobox customizado.
+
+**Fluxo (UI):**
+1. No popup **"Novo Lançamento"**, na linha "Cliente / Fornecedor", um **botão verde** (estilo do "Salvar"), no canto direito da linha, alterna de lançamento único para seleção em massa.
+2. O botão abre um **novo modal "Lista de Clientes/Fornecedores"**:
+   - Abaixo do título, as **configurações de filtro** seguindo o mesmo padrão de filtro do resto da aplicação.
+   - Abaixo, a **lista de clifors** com as mesmas colunas/infos da guia de cliente/fornecedor, **exceto** "A Receber ℹ", "A Pagar ℹ" e "Ações" — e com um **checkbox por linha** para marcar/desmarcar.
+   - No rodapé do modal: **"Selecionar todos" + "Limpar"** (operando sobre o **filtro atual**), contador **"X de Y selecionados"**, e o botão **"Confirmar seleção"** — que **aplica a seleção e volta** ao "Novo Lançamento" (não cria nada).
+   - A seleção **persiste** ao reabrir o seletor; o clifor que já estava no `<select>` único vem **pré-marcado**.
+3. De volta ao "Novo Lançamento":
+   - **1 selecionado** → modo único, comportamento atual intacto (título "Novo Lançamento").
+   - **2+ selecionados** → título vira **"Novo Lançamento em Massa"**; o campo de clifor passa a exibir **"N clientes/fornecedores selecionados"** (read-only) e o botão verde vira **"editar seleção"** (reabre o seletor).
+   - Os demais campos (tipo de conta, valor, vencimento, natureza/reembolso, descrição) são preenchidos **uma vez** e aplicados a **todos**. A descrição fica **livre/limpa** (sem prefixo — a origem do lote é marcada pelo campo `lote`, abaixo).
+4. **Criação** acontece só no **SALVAR do "Novo Lançamento"** (único modal que gera lançamentos). No modo massa, o SALVAR abre uma **confirmação** com **contagem + valor total** (e a lista de nomes recolhível, para não estourar a tela). Modo único segue sem confirmação extra, como hoje.
+5. **Resultado** gera **um** toast de lote (integra com a 2.8) — "N lançamentos criados", clicável → detalhe com a lista —, nunca N toasts.
+
+**Backend — endpoint dedicado `POST /lancamento/massa`** (o `POST /lancamento/` de criação única permanece **intacto**, `response_model` de objeto único inalterado):
+- Guard `exige_operador_ou_admin` (Consulta lê a lista no seletor, mas **não** cria). O botão verde só aparece para Operador+.
+- Novo schema `LancamentoMassaCreate`: *template* compartilhado (`id_usuario_fk_lancamento`, `id_tipo_conta_fk`, `valor`, `data_vencimento`, `natureza_lancamento`, `observacao`, `estorno`) + **lista de `id_clifor`**.
+- **Valida tudo antes de inserir qualquer um:** usuário (1×), tipo de conta (1×) e o conjunto de clifors numa única query `IN`; se faltar algum, **404 com os ids faltantes antes de qualquer insert**.
+- Constrói os N lançamentos e faz **um único `commit`** → criação **atômica** (se um falha, nenhum é criado). `atualizar_inadimplente` **uma vez por clifor distinto**, após o commit.
+- Resposta = **relatório**: total criado + lista de ids (e o `lote` gerado); em falha, qual clifor causou + rollback total.
+- Extrair **helper interno compartilhado** entre `criar_lancamento` e `criar_lancamentos_massa` (montar/validar um lançamento **sem** `commit`) para as duas rotas não divergirem.
+- Segue os padrões já usados na app: **`log_atividade`** como as demais rotas de mutação, `HTTPException` no mesmo estilo, nomenclatura `snake_case`/sufixo `_fk`.
+
+**Campo `lote` (rastreabilidade do lote):**
+- Nova coluna em `models/lancamento.py`: **`lote BIGINT NULL`** (não `Integer` — um epoch em **ms** ~1,78 trilhão estoura o `INT` de 32 bits).
+- Gerado **uma vez** no `criar_lancamentos_massa`: `lote = int(datetime.utcnow().timestamp() * 1000)` (ms, igual ao `exp_ms` do token), aplicado a **todos** do lote. Criação única deixa **nulo**.
+- Semântica: **`lote` nulo = individual; preenchido = membro de um lote** (todos do mesmo lote compartilham o valor).
+- `schemas/lancamento.py`: `LancamentoResponse` **expõe `lote`** (sem isso o front não recebe o dado).
+- Migração idempotente no `bootstrap.py` (`ADD COLUMN lote BIGINT NULL`); **deploy** roda o `bootstrap` no Railway (sem Alembic — migração manual, ver [4.2](#42-bootstrap-como-comando-railway)).
+- **Frontend:** recebe o `lote`, faz `new Date(lote)` para o **dia** e mostra os **8 últimos dígitos** como id curto; o rótulo (dia + 8 dígitos, ex.: `Lote 14/06 #00123456`) aparece **inline na própria linha de status** do lançamento na [lista de lançamentos](../AMSI_Frontend/src/pages/ListaLancamentosPage.jsx) (sem quebrar linha, sem coluna nova).
+- **Filtro "por lote": evolução futura (não-MVP).**
+
+**Frontend — service e roteamento:**
+- Novo `createLancamentoMassa()` em [`services/api.js`](../AMSI_Frontend/src/services/api.js).
+- Roteamento por quantidade: **1** → `createLancamento` (`POST /lancamento/`, inalterado); **2+** → `createLancamentoMassa` (`POST /lancamento/massa`).
+- Modal-seletor no design system existente (`ll-`/CSS vars); o nesting de overlay já tem precedente no `LancamentoModal` (popup "+ Novo Tipo" em `zIndex: 9990`).
+
+**Testes (backend — `tests/test_lancamento.py`):**
+- Sucesso: N criados **compartilhando o mesmo `lote`**.
+- Rollback atômico quando um `id_clifor` é inválido → **nada** é criado.
+- 404 para usuário/tipo inválidos.
+- **Consulta → 403**; **Operador → 200**.
+- Criação única (`POST /lancamento/`) continua retornando **`lote` nulo**.
+
+**Sem teto** de tamanho de lote (decisão de produto — "Selecionar todos" pode criar para todo o cadastro).
+
+**Relação com a 6.1:** esta é a entrega mínima da criação em massa. A 6.1 completa (seleção por filtro avançado tipo "todos / inadimplentes", preview dedicado com totais, vencimento por regra de data-base) evolui **reaproveitando o mesmo `POST /lancamento/massa`** — o frontend resolve o filtro numa lista de `id_clifor` antes de enviar.
 
 ### 6.2 Lançamentos recorrentes
 
@@ -500,4 +571,4 @@ Resumo do que precisa ser corrigido (detalhe no doc 12):
 
 ---
 
-*Última atualização: 2026-06-11 (adicionada seção 10 — Correções de Segurança, a partir da auditoria; laudo completo em docs/12)*
+*Última atualização: 2026-06-14 (adicionado 6.3 — lançamento em massa via modal-seletor de clifor + campo `lote`; decisão de API: endpoint dedicado `POST /lancamento/massa`)*

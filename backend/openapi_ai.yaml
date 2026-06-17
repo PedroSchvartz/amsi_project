@@ -44,6 +44,53 @@
   respostas:
   - '200'
   - '422'
+- endpoint: POST /auth/esqueci-senha
+  descricao: Esqueci Senha
+  parametros: []
+  request_body:
+    email:
+      tipo: string
+      obrigatorio: true
+  response_200: null
+  respostas:
+  - '200'
+  - '422'
+- endpoint: POST /auth/definir-senha
+  descricao: Definir Senha
+  parametros: []
+  request_body:
+    token:
+      tipo: string
+      obrigatorio: true
+    senha_nova:
+      tipo: string
+      obrigatorio: true
+  response_200:
+    access_token:
+      tipo: string
+      obrigatorio: true
+    token_type:
+      tipo: string
+      obrigatorio: false
+      default: bearer
+    primeiro_acesso:
+      tipo: boolean
+      obrigatorio: false
+      default: false
+  respostas:
+  - '200'
+  - '422'
+- endpoint: POST /auth/validar-token-senha
+  descricao: Validar Token Senha
+  parametros: []
+  request_body:
+    token:
+      tipo: string
+      obrigatorio: true
+  response_200: null
+  respostas:
+  - '200'
+  - '422'
 - endpoint: GET /usuarios/
   descricao: Listar Usuarios
   parametros:
@@ -1784,6 +1831,10 @@
     local: query
     obrigatorio: false
     tipo: desconhecido
+  - nome: lote
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
   request_body: null
   response_200:
     id_lancamento:
@@ -1834,6 +1885,9 @@
     estorno:
       tipo: boolean
       obrigatorio: true
+    lote:
+      tipo: desconhecido
+      obrigatorio: false
     tem_comprovante:
       tipo: boolean
       obrigatorio: false
@@ -1930,6 +1984,9 @@
     estorno:
       tipo: boolean
       obrigatorio: true
+    lote:
+      tipo: desconhecido
+      obrigatorio: false
     tem_comprovante:
       tipo: boolean
       obrigatorio: false
@@ -2009,6 +2066,9 @@
     estorno:
       tipo: boolean
       obrigatorio: true
+    lote:
+      tipo: desconhecido
+      obrigatorio: false
     tem_comprovante:
       tipo: boolean
       obrigatorio: false
@@ -2109,6 +2169,9 @@
     estorno:
       tipo: boolean
       obrigatorio: true
+    lote:
+      tipo: desconhecido
+      obrigatorio: false
     tem_comprovante:
       tipo: boolean
       obrigatorio: false
@@ -2200,6 +2263,9 @@
     estorno:
       tipo: boolean
       obrigatorio: true
+    lote:
+      tipo: desconhecido
+      obrigatorio: false
     tem_comprovante:
       tipo: boolean
       obrigatorio: false
@@ -2279,6 +2345,9 @@
     estorno:
       tipo: boolean
       obrigatorio: true
+    lote:
+      tipo: desconhecido
+      obrigatorio: false
     tem_comprovante:
       tipo: boolean
       obrigatorio: false
@@ -2298,6 +2367,44 @@
     nome_usuario_lancamento:
       tipo: desconhecido
       obrigatorio: false
+  respostas:
+  - '200'
+  - '422'
+- endpoint: POST /lancamento/massa
+  descricao: Criar Lancamentos Massa
+  parametros: []
+  request_body:
+    id_usuario_fk_lancamento:
+      tipo: integer
+      obrigatorio: true
+    ids_clifor:
+      tipo: array
+      obrigatorio: true
+    id_tipo_conta_fk:
+      tipo: integer
+      obrigatorio: true
+    valor:
+      tipo: desconhecido
+      obrigatorio: true
+    data_vencimento:
+      tipo: string
+      obrigatorio: true
+    natureza_lancamento:
+      tipo: NaturezaEnum
+      obrigatorio: true
+    observacao:
+      tipo: desconhecido
+      obrigatorio: false
+  response_200:
+    lote:
+      tipo: integer
+      obrigatorio: true
+    total_criados:
+      tipo: integer
+      obrigatorio: true
+    ids:
+      tipo: array
+      obrigatorio: true
   respostas:
   - '200'
   - '422'
@@ -2394,6 +2501,9 @@
     estorno:
       tipo: boolean
       obrigatorio: true
+    lote:
+      tipo: desconhecido
+      obrigatorio: false
     tem_comprovante:
       tipo: boolean
       obrigatorio: false

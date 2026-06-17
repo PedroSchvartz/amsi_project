@@ -1,7 +1,9 @@
 ﻿import { useState, useEffect } from 'react';
 import LancamentoModal from '../components/LancamentoModal.jsx';
+import LoteLancamentosModal from '../components/LoteLancamentosModal.jsx';
 import { useSearchParams } from 'react-router-dom';
 import ModalConfirm from '../components/ModalConfirm.jsx';
+import PerfilCompletoPopup from '../components/PerfilCompletoPopup.jsx';
 import { useToast } from '../components/ToastStack.jsx';
 import '../styles/listaLancamentos.css';
 import {
@@ -13,7 +15,8 @@ import {
 	getTiposConta,
 	anexarComprovante,
 	baixarComprovante,
-	removerComprovante
+	removerComprovante,
+	getUser
 } from '../services/api';
 import { getUserFromToken, isAdmin, isConsulta, hasPerfilMinimo } from '../services/auth';
 
@@ -23,6 +26,15 @@ function rassurarCpfCnpj(doc) {
 	if (d.length === 11) return `***.***.${d.slice(6, 9)}-**`;
 	if (d.length === 14) return `**.${d.slice(2, 5)}.${d.slice(5, 8)}/****.${d.slice(12)}`;
 	return doc;
+}
+
+// Data de hoje no fuso local (YYYY-MM-DD). Não usar toISOString aqui: em UTC-3 à noite
+// ele já retorna o dia seguinte, o que pré-preencheria a data de pagamento errada.
+function hojeLocal() {
+	const d = new Date();
+	const mes = String(d.getMonth() + 1).padStart(2, '0');
+	const dia = String(d.getDate()).padStart(2, '0');
+	return `${d.getFullYear()}-${mes}-${dia}`;
 }
 
 const FILTROS_INICIAL = {
@@ -73,6 +85,12 @@ function ListaLancamentosPage() {
 	const [searchParams] = useSearchParams();
 	const [modalAberto, setModalAberto] = useState(false);
 	const [cpfVisivelLanc, setCpfVisivelLanc] = useState({});
+	const [loteModal, setLoteModal] = useState(null);
+	const [loteRefresh, setLoteRefresh] = useState(0); // bump → refaz o fetch do LoteLancamentosModal
+	// Empilhamento: o modal aberto por último fica por cima. `loteAcima` true quando o
+	// modal do lote foi aberto a partir de um modal de detalhe (chip de origem); false
+	// quando um modal de detalhe foi aberto a partir de uma linha do lote.
+	const [loteAcima, setLoteAcima] = useState(false);
 	const [lancamentos, setLancamentos] = useState([]);
 	const [clifors, setClifors] = useState([]);
 	const [tiposConta, setTiposConta] = useState([]);
@@ -90,6 +108,7 @@ function ListaLancamentosPage() {
 	const [formEditar, setFormEditar] = useState(EDITAR_INICIAL);
 	const [confirmarDeletar, setConfirmarDeletar] = useState(false);
 	const [modalVer, setModalVer] = useState(null);
+	const [perfilUsuario, setPerfilUsuario] = useState(null); // perfil do autor do lançamento (admin)
 
 	const usuario = getUserFromToken();
 	const admin = isAdmin();
@@ -187,6 +206,7 @@ function ListaLancamentosPage() {
 		setFormFechar({
 			...FECHAR_INICIAL,
 			id_usuario_fk_fechamento: usuario?.sub,
+			data_pagamento: hojeLocal(),
 			observacao_pagamento: l.observacao_pagamento || '',
 			valor_pago: l.valor_pago ? String(l.valor_pago).replace('.', ',') : String(l.valor).replace('.', ',')
 		});
@@ -258,6 +278,7 @@ function ListaLancamentosPage() {
 			setModalFechar(null);
 			setComprovante(null);
 			buscar();
+			setLoteRefresh((x) => x + 1);
 		} catch (err) {
 			if (err.message !== 'sessao-expirada')
 				mostrarToast(err.message || 'Erro ao fechar lançamento', 'erro');
@@ -268,6 +289,19 @@ function ListaLancamentosPage() {
 	const abrirModalVer = (l) => {
 		setModalVer(l);
 		setLancamentoSelecionado(l);
+	};
+
+	// ── Perfil do autor do lançamento (só admin) ────────────────────────────────
+	// O chip de origem nos modais de detalhe mostra "por {nome}"; clicar busca o
+	// usuário completo e abre o PerfilCompletoPopup por cima do modal atual.
+	const abrirPerfilUsuario = async (idUsuario) => {
+		if (!idUsuario) return;
+		try {
+			const u = await getUser(idUsuario);
+			setPerfilUsuario(u);
+		} catch (err) {
+			mostrarToast(err.message || 'Erro ao carregar perfil do usuário', 'erro');
+		}
 	};
 
 	// ── Modal editar (admin) ────────────────────────────────────────────────────
@@ -323,6 +357,7 @@ function ListaLancamentosPage() {
 			mostrarToast('Lançamento editado com sucesso.');
 			setModalEditar(null);
 			buscar();
+			setLoteRefresh((x) => x + 1);
 		} catch (err) {
 			if (err.message !== 'sessao-expirada')
 				mostrarToast(err.message || 'Erro ao editar lançamento', 'erro');
@@ -337,6 +372,7 @@ function ListaLancamentosPage() {
 			setConfirmarDeletar(false);
 			setModalEditar(null);
 			buscar();
+			setLoteRefresh((x) => x + 1);
 		} catch (err) {
 			if (err.message !== 'sessao-expirada')
 				mostrarToast(err.message || 'Erro ao excluir lançamento', 'erro');
@@ -361,6 +397,72 @@ function ListaLancamentosPage() {
 		const hoje = new Date().toISOString().split('T')[0];
 		if (l.data_vencimento < hoje) return <span className="badge badge-vencido">Vencido</span>;
 		return <span className="badge badge-aberto">Aberto</span>;
+	};
+
+	const loteLabel = (lote) => {
+		const d = new Date(lote); // ms → Date
+		const dia = String(d.getDate()).padStart(2, '0');
+		const mes = String(d.getMonth() + 1).padStart(2, '0');
+		return `Lote ${dia}/${mes} #${String(lote).slice(-8)}`; // ex.: "Lote 14/06 #00123456"
+	};
+
+	// Origem do lançamento — todos recebem sua marcação.
+	// (futuro 6.2: lançamentos recorrentes/automáticos retornam 'Automatizado')
+	const origemLabel = (l) => (l.lote != null ? 'Em Lote' : 'Manual');
+	const origemClasse = (l) => (l.lote != null ? 'badge-origem--lote' : 'badge-origem--manual');
+
+	// Chip de origem. Em lote: clicar abre o modal de lançamentos do lote.
+	// `detalhado` exibe o lote diretamente (modais de detalhe); na lista mostra só "Em Lote".
+	const origemChip = (l, detalhado = false) => {
+		if (!l) return null;
+		const temLote = l.lote != null;
+		const texto = temLote ? (detalhado ? loteLabel(l.lote) : origemLabel(l)) : 'Manual';
+		const chip = (
+			<span
+				className={`badge badge-origem ${origemClasse(l)}`}
+				style={temLote ? { cursor: 'pointer' } : {}}
+				title={temLote ? 'Ver lançamentos deste lote' : 'Lançamento avulso'}
+				onClick={
+					temLote
+						? (e) => {
+								e.stopPropagation();
+								setLoteAcima(true); // aberto a partir de um detalhe → lote por cima
+								setLoteModal(l.lote);
+							}
+						: undefined
+				}
+			>
+				{texto}
+			</span>
+		);
+		// Nos detalhes (modais), mostra ao lado quem criou o lançamento.
+		// Para admin, o nome é clicável e abre o perfil completo do usuário.
+		if (detalhado && l.nome_usuario_lancamento) {
+			const autor = admin ? (
+				<button
+					type="button"
+					className="badge-origem-autor badge-origem-autor--link"
+					title="Ver perfil do usuário"
+					onClick={(e) => {
+						e.stopPropagation();
+						abrirPerfilUsuario(l.id_usuario_fk_lancamento);
+					}}
+				>
+					por {l.nome_usuario_lancamento}
+				</button>
+			) : (
+				<span className="badge-origem-autor" title="Usuário que criou o lançamento">
+					por {l.nome_usuario_lancamento}
+				</span>
+			);
+			return (
+				<span className="badge-origem-wrap">
+					{chip}
+					{autor}
+				</span>
+			);
+		}
+		return chip;
 	};
 
 	return (
@@ -681,7 +783,10 @@ function ListaLancamentosPage() {
 											<td>{formatarData(l.data_pagamento)}</td>
 											<td>{formatarValor(l.valor)}</td>
 											<td>{formatarTotal(l)}</td>
-											<td>{statusLabel(l)}</td>
+											<td>
+												{statusLabel(l)}
+												{origemChip(l)}
+											</td>
 											<td>
 												<div className="ll-acoes">
 													{admin && (
@@ -732,7 +837,7 @@ function ListaLancamentosPage() {
 
 				{/* MODAL FECHAR */}
 				{modalFechar && (
-					<div className="ll-overlay" onClick={() => setModalFechar(null)}>
+					<div className="ll-overlay" style={{ zIndex: loteAcima ? 9998 : 10000 }} onClick={() => setModalFechar(null)}>
 						<div className="ll-modal ll-modal--duplo" onClick={(e) => e.stopPropagation()}>
 							<h3>Efetivar Lançamento</h3>
 
@@ -795,6 +900,10 @@ function ListaLancamentosPage() {
 													/>
 													Estorno
 												</label>
+											</div>
+											<div className="ll-field" style={{ flex: 'none' }}>
+												<label>Origem</label>
+												<div style={{ padding: '4px 0' }}>{origemChip(lancamentoSelecionado, true)}</div>
 											</div>
 										</div>
 										<div className="ll-field">
@@ -931,7 +1040,7 @@ function ListaLancamentosPage() {
 					/>
 				)}
 				{modalEditar && (
-					<div className="ll-overlay" onClick={() => setModalEditar(null)}>
+					<div className="ll-overlay" style={{ zIndex: loteAcima ? 9998 : 10000 }} onClick={() => setModalEditar(null)}>
 						<div className="ll-modal ll-modal--duplo" onClick={(e) => e.stopPropagation()}>
 							<h3>Editar Lançamento</h3>
 
@@ -997,6 +1106,10 @@ function ListaLancamentosPage() {
 													/>
 													Estorno
 												</label>
+											</div>
+											<div className="ll-field" style={{ flex: 'none' }}>
+												<label>Origem</label>
+												<div style={{ padding: '4px 0' }}>{origemChip(lancamentoSelecionado, true)}</div>
 											</div>
 										</div>
 										<div className="ll-field">
@@ -1142,7 +1255,7 @@ function ListaLancamentosPage() {
 							</div>
 							<div className="ll-field">
 								<label>Status</label>
-								<div style={{ padding: '4px 0' }}>{statusLabel(modalVer)}</div>
+								<div style={{ padding: '4px 0' }}>{statusLabel(modalVer)} {origemChip(modalVer, true)}</div>
 							</div>
 						</div>
 
@@ -1230,6 +1343,32 @@ function ListaLancamentosPage() {
 						handleAplicar({ preventDefault: () => {} });
 					}}
 				/>
+			)}
+
+			{loteModal != null && (
+				<LoteLancamentosModal
+					lote={loteModal}
+					tiposConta={tiposConta}
+					refreshSignal={loteRefresh}
+					zIndex={loteAcima ? 10000 : 9997}
+					onEditarUm={(l) => {
+						setLoteAcima(false); // aberto a partir de uma linha do lote → detalhe por cima
+						abrirModalEditar(l);
+					}}
+					onEfetivarUm={(l) => {
+						setLoteAcima(false);
+						abrirModalFechar(l);
+					}}
+					onFechar={() => {
+						setLoteAcima(false);
+						setLoteModal(null);
+					}}
+					onChanged={() => buscar()}
+				/>
+			)}
+
+			{perfilUsuario && (
+				<PerfilCompletoPopup usuario={perfilUsuario} onFechar={() => setPerfilUsuario(null)} />
 			)}
 		</>
 	);

@@ -499,6 +499,7 @@ export const getLancamentos = async (filtros = {}) => {
 	if (filtros.estorno != null) params.append('estorno', filtros.estorno);
 	if (filtros.valor_minimo != null) params.append('valor_minimo', filtros.valor_minimo);
 	if (filtros.valor_maximo != null) params.append('valor_maximo', filtros.valor_maximo);
+	if (filtros.lote != null) params.append('lote', filtros.lote);
 	const query = params.toString() ? `?${params.toString()}` : '';
 	const response = await fetchComLoading(`${BASE_URL}/lancamento/${query}`, {
 		method: 'GET',
@@ -563,6 +564,17 @@ export const getLancamentosPorUsuario = async (id_usuario) => {
 //         valor, data_vencimento, natureza_lancamento ("Debito"|"Credito"), observacao? }
 export const createLancamento = async (data) => {
 	const response = await fetchComLoading(`${BASE_URL}/lancamento/`, {
+		method: 'POST',
+		headers: authHeaders(),
+		body: JSON.stringify(data)
+	});
+	return handleResponse(response);
+};
+
+// body: { ids_clifor: [...], id_usuario_fk_lancamento, id_tipo_conta_fk,
+//         valor, data_vencimento, natureza_lancamento ("Debito"|"Credito"), observacao? }
+export const createLancamentoMassa = async (data) => {
+	const response = await fetchComLoading(`${BASE_URL}/lancamento/massa`, {
 		method: 'POST',
 		headers: authHeaders(),
 		body: JSON.stringify(data)

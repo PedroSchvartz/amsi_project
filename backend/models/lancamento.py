@@ -31,6 +31,7 @@ class Lancamento(Base):
     observacao_pagamento = Column(Text, nullable=True)
     natureza_lancamento = Column(SAEnum(NaturezaLancamentoEnum, name="natureza_enum", values_callable=lambda x: [e.value for e in x]), nullable=False)
     estorno = Column(Boolean, nullable=False, default=False)
+    lote = Column(BigInteger, nullable=True)
     comprovante = Column(LargeBinary, nullable=True)
     comprovante_nome = Column(String(255), nullable=True)
 

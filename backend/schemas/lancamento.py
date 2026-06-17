@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict, model_validator
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime, date
 from decimal import Decimal
 from enum import Enum
@@ -18,6 +18,27 @@ class LancamentoCreate(BaseModel):
     data_vencimento: date
     natureza_lancamento: NaturezaEnum
     observacao: Optional[str] = None
+
+
+class LancamentoMassaCreate(BaseModel):
+    """Template de um lançamento aplicado a vários clifors de uma vez.
+
+    Espelha os campos de LancamentoCreate (sem `estorno` — a natureza já vem com o
+    flip de reembolso aplicado pelo frontend), trocando o id_clifor único por uma lista.
+    """
+    id_usuario_fk_lancamento: int
+    ids_clifor: List[int]
+    id_tipo_conta_fk: int
+    valor: Decimal
+    data_vencimento: date
+    natureza_lancamento: NaturezaEnum
+    observacao: Optional[str] = None
+
+
+class LancamentoMassaResponse(BaseModel):
+    lote: int
+    total_criados: int
+    ids: List[int]
 
 
 class LancamentoUpdate(BaseModel):
@@ -63,6 +84,7 @@ class LancamentoResponse(BaseModel):
     observacao_pagamento: Optional[str] = None
     natureza_lancamento: NaturezaEnum
     estorno: bool
+    lote: Optional[int] = None
     tem_comprovante: bool = False
     comprovante_nome: Optional[str] = None
     nome_clifor: Optional[str] = None

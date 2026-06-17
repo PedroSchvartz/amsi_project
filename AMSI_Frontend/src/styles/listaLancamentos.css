@@ -242,7 +242,7 @@
 
 .ll-table th {
 	padding: 11px 12px;
-	text-align: left;
+	text-align: center;
 	font-weight: 600;
 	font-size: 0.72rem;
 	letter-spacing: 0.06em;
@@ -286,6 +286,7 @@
 	padding: 11px 12px;
 	border-bottom: 1px solid var(--border);
 	vertical-align: middle;
+	text-align: center;
 }
 
 .ll-table td:first-child {
@@ -325,28 +326,102 @@
 	white-space: nowrap;
 }
 
-.badge-aberto {
+/* Especificidade .badge.badge-* (0,2,0) p/ vencer o `.badge { color: var(--bs-badge-color) }`
+   do Bootstrap (0,1,0), que carrega depois no bundle e senão pinta o texto de branco. */
+.badge.badge-aberto {
 	background: #86efac;
 	color: #14532d;
 	border: 1px solid #22c55e;
 }
 
-.badge-pago {
+.badge.badge-pago {
 	background: #bfdbfe;
 	color: #1e3a8a;
 	border: 1px solid #60a5fa;
 }
 
-.badge-vencido {
+.badge.badge-vencido {
 	background: #fca5a5;
 	color: #7f1d1d;
 	border: 1px solid #ef4444;
 }
 
-.badge-estorno {
+.badge.badge-estorno {
 	background: #fde68a;
 	color: #78350f;
 	border: 1px solid #fbbf24;
+}
+
+/* Chip de origem do lançamento — inline após o status */
+.badge-origem {
+	margin-left: 6px;
+	font-size: 0.66rem;
+	letter-spacing: 0.02em;
+}
+
+/* Manual (avulso) — neutro e discreto, porém legível (cinza com contraste real) */
+.badge.badge-origem--manual {
+	background: #e5e7eb;
+	color: #374151;
+	border: 1px solid #9ca3af;
+}
+
+/* Autor do lançamento — exibido ao lado do chip de origem nos modais de detalhe */
+.badge-origem-wrap {
+	display: inline-flex;
+	align-items: center;
+}
+.badge-origem-autor {
+	margin-left: 8px;
+	font-size: 0.8rem;
+	color: var(--text-muted);
+}
+
+/* Autor clicável (admin) — vira link para o perfil completo do usuário */
+.badge-origem-autor--link {
+	background: none;
+	border: none;
+	padding: 0;
+	font-family: inherit;
+	color: var(--primary);
+	cursor: pointer;
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+.badge-origem-autor--link:hover {
+	color: var(--btn-hover);
+}
+
+/* Em Lote (criado em massa) — violeta suave */
+.badge.badge-origem--lote {
+	background: #ddd6fe;
+	color: #5b21b6;
+	border: 1px solid #c4b5fd;
+}
+
+/* Automatizado (recorrência, futuro) — azul suave */
+.badge.badge-origem--auto {
+	background: #bae6fd;
+	color: #075985;
+	border: 1px solid #7dd3fc;
+}
+
+[data-theme='corporativo'] .badge-origem--manual {
+	background: rgba(148, 163, 184, 0.20);
+	color: #cbd5e1;
+	border-color: rgba(148, 163, 184, 0.45);
+}
+
+[data-theme='corporativo'] .badge-origem--lote {
+	background: rgba(139, 92, 246, 0.22);
+	color: #c4b5fd;
+	border-color: rgba(139, 92, 246, 0.45);
+}
+
+[data-theme='corporativo'] .badge-origem--auto {
+	background: rgba(56, 189, 248, 0.22);
+	color: #7dd3fc;
+	border-color: rgba(56, 189, 248, 0.45);
 }
 
 /* Adaptação dos badges no tema corporativo (fundo escuro) */

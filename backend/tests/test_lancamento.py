@@ -1329,3 +1329,182 @@ def test_fechamento_sem_multa_e_juros_ficam_nulos(client, headers_admin, usuario
         assert data["juros"] is None
     finally:
         client.delete(f"/lancamento/{id_lanc}", headers=headers_admin)
+
+
+# ================================================
+# LANÇAMENTO EM MASSA (6.3)
+# ================================================
+
+def _criar_clifor_massa(client, headers_admin, usuario_base, cpf, nome):
+    """Cria um clifor extra para os testes de massa (cleanup é responsabilidade do teste)."""
+    r = client.post("/cliente_fornecedor/", json={
+        "id_usuario_fk": usuario_base["id_usuario"],
+        "pessoafisica_juridica": True,
+        "cpf_cnpj": cpf,
+        "rg_inscricaoestadual": "2222222",
+        "nome": nome,
+        "datanascimento": "1990-01-01",
+        "tipo_clifor": "A",
+        "ativo": True,
+        "inadimplente": False
+    }, headers=headers_admin)
+    assert r.status_code == 200, f"Falha ao criar clifor extra: {r.text}"
+    return r.json()
+
+
+def test_criar_massa_sucesso(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base):
+    """2+ ids_clifor válidos → 200; total correto; todos compartilham o mesmo lote."""
+    extra = _criar_clifor_massa(client, headers_admin, usuario_base, "222.222.222-22", "CliFor Massa Extra")
+    r = client.post("/lancamento/massa", json={
+        "id_usuario_fk_lancamento": usuario_base["id_usuario"],
+        "ids_clifor": [clifor_base["id_clifor"], extra["id_clifor"]],
+        "id_tipo_conta_fk": tipo_lancamento_base["id_tipo_conta"],
+        "valor": "150.00",
+        "data_vencimento": "2099-12-31",
+        "natureza_lancamento": "Debito"
+    }, headers=headers_admin)
+    assert r.status_code == 200, r.text
+    data = r.json()
+    try:
+        assert data["total_criados"] == 2
+        assert len(data["ids"]) == 2
+        assert data["lote"] is not None
+        # Todos os criados compartilham exatamente o mesmo lote
+        for id_l in data["ids"]:
+            g = client.get(f"/lancamento/{id_l}", headers=headers_admin)
+            assert g.status_code == 200
+            assert g.json()["lote"] == data["lote"]
+    finally:
+        for id_l in data.get("ids", []):
+            client.delete(f"/lancamento/{id_l}", headers=headers_admin)
+        client.delete(f"/cliente_fornecedor/{extra['id_clifor']}", headers=headers_admin)
+
+
+def test_massa_rollback_clifor_invalido(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base):
+    """Um id inexistente na lista → 404 e nenhum lançamento criado."""
+    antes = len(client.get("/lancamento/", headers=headers_admin).json())
+    r = client.post("/lancamento/massa", json={
+        "id_usuario_fk_lancamento": usuario_base["id_usuario"],
+        "ids_clifor": [clifor_base["id_clifor"], 999999],
+        "id_tipo_conta_fk": tipo_lancamento_base["id_tipo_conta"],
+        "valor": "100.00",
+        "data_vencimento": "2099-12-31",
+        "natureza_lancamento": "Debito"
+    }, headers=headers_admin)
+    assert r.status_code == 404
+    depois = len(client.get("/lancamento/", headers=headers_admin).json())
+    assert depois == antes, "Rollback falhou — algum lançamento foi criado apesar do clifor inválido"
+
+
+def test_massa_404_usuario(client, headers_admin, clifor_base, tipo_lancamento_base):
+    """Usuário inexistente → 404."""
+    r = client.post("/lancamento/massa", json={
+        "id_usuario_fk_lancamento": 999999,
+        "ids_clifor": [clifor_base["id_clifor"]],
+        "id_tipo_conta_fk": tipo_lancamento_base["id_tipo_conta"],
+        "valor": "100.00",
+        "data_vencimento": "2099-12-31",
+        "natureza_lancamento": "Debito"
+    }, headers=headers_admin)
+    assert r.status_code == 404
+
+
+def test_massa_404_tipo(client, headers_admin, usuario_base, clifor_base):
+    """Tipo de conta inexistente → 404."""
+    r = client.post("/lancamento/massa", json={
+        "id_usuario_fk_lancamento": usuario_base["id_usuario"],
+        "ids_clifor": [clifor_base["id_clifor"]],
+        "id_tipo_conta_fk": 999999,
+        "valor": "100.00",
+        "data_vencimento": "2099-12-31",
+        "natureza_lancamento": "Debito"
+    }, headers=headers_admin)
+    assert r.status_code == 404
+
+
+def test_massa_lista_vazia(client, headers_admin, usuario_base, tipo_lancamento_base):
+    """ids_clifor vazio → 422 (usuário e tipo válidos, mas nenhum destinatário)."""
+    r = client.post("/lancamento/massa", json={
+        "id_usuario_fk_lancamento": usuario_base["id_usuario"],
+        "ids_clifor": [],
+        "id_tipo_conta_fk": tipo_lancamento_base["id_tipo_conta"],
+        "valor": "100.00",
+        "data_vencimento": "2099-12-31",
+        "natureza_lancamento": "Debito"
+    }, headers=headers_admin)
+    assert r.status_code == 422
+
+
+def test_massa_consulta_403(client, headers_consulta, usuario_base, clifor_base, tipo_lancamento_base):
+    """Perfil Consulta não pode criar em massa → 403."""
+    r = client.post("/lancamento/massa", json={
+        "id_usuario_fk_lancamento": usuario_base["id_usuario"],
+        "ids_clifor": [clifor_base["id_clifor"]],
+        "id_tipo_conta_fk": tipo_lancamento_base["id_tipo_conta"],
+        "valor": "100.00",
+        "data_vencimento": "2099-12-31",
+        "natureza_lancamento": "Debito"
+    }, headers=headers_consulta)
+    assert r.status_code == 403
+
+
+def test_massa_operador_200(client, headers_admin, headers_operador, usuario_base, clifor_base, tipo_lancamento_base):
+    """Perfil Operador pode criar em massa → 200 (cleanup como Admin)."""
+    extra = _criar_clifor_massa(client, headers_admin, usuario_base, "333.333.333-33", "CliFor Massa Operador")
+    r = client.post("/lancamento/massa", json={
+        "id_usuario_fk_lancamento": usuario_base["id_usuario"],
+        "ids_clifor": [clifor_base["id_clifor"], extra["id_clifor"]],
+        "id_tipo_conta_fk": tipo_lancamento_base["id_tipo_conta"],
+        "valor": "120.00",
+        "data_vencimento": "2099-12-31",
+        "natureza_lancamento": "Debito"
+    }, headers=headers_operador)
+    data = r.json() if r.is_success else {}
+    try:
+        assert r.status_code == 200, r.text
+        assert data["total_criados"] == 2
+    finally:
+        for id_l in data.get("ids", []):
+            client.delete(f"/lancamento/{id_l}", headers=headers_admin)
+        client.delete(f"/cliente_fornecedor/{extra['id_clifor']}", headers=headers_admin)
+
+
+def test_single_continua_lote_nulo(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base):
+    """Criação única (POST /lancamento/) continua retornando lote nulo."""
+    r = client.post("/lancamento/", json={
+        "id_usuario_fk_lancamento": usuario_base["id_usuario"],
+        "id_clifor_relacionado_fk": clifor_base["id_clifor"],
+        "id_tipo_conta_fk": tipo_lancamento_base["id_tipo_conta"],
+        "valor": "100.00",
+        "data_vencimento": "2099-12-31",
+        "natureza_lancamento": "Debito"
+    }, headers=headers_admin)
+    assert r.status_code == 200
+    data = r.json()
+    assert data["lote"] is None
+    client.delete(f"/lancamento/{data['id_lancamento']}", headers=headers_admin)
+
+
+def test_filtro_por_lote(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base):
+    """GET /lancamento/?lote=X retorna exatamente os lançamentos daquele lote."""
+    extra = _criar_clifor_massa(client, headers_admin, usuario_base, "444.444.444-44", "CliFor Filtro Lote")
+    r = client.post("/lancamento/massa", json={
+        "id_usuario_fk_lancamento": usuario_base["id_usuario"],
+        "ids_clifor": [clifor_base["id_clifor"], extra["id_clifor"]],
+        "id_tipo_conta_fk": tipo_lancamento_base["id_tipo_conta"],
+        "valor": "70.00",
+        "data_vencimento": "2099-12-31",
+        "natureza_lancamento": "Debito"
+    }, headers=headers_admin)
+    assert r.status_code == 200, r.text
+    data = r.json()
+    try:
+        g = client.get(f"/lancamento/?lote={data['lote']}", headers=headers_admin)
+        assert g.status_code == 200
+        retornados = g.json()
+        assert sorted(l["id_lancamento"] for l in retornados) == sorted(data["ids"])
+        assert all(l["lote"] == data["lote"] for l in retornados)
+    finally:
+        for id_l in data.get("ids", []):
+            client.delete(f"/lancamento/{id_l}", headers=headers_admin)
+        client.delete(f"/cliente_fornecedor/{extra['id_clifor']}", headers=headers_admin)
