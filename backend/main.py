@@ -51,6 +51,17 @@ def _aplicar_migracoes():
                 ))
                 conn.commit()
 
+    # Migration: coluna 'lote' em lancamento (lançamento em massa).
+    # Antes vivia só no bootstrap.py (rodado à mão); precisa rodar no startup de
+    # TODO deploy, senão o SELECT do modelo Lancamento (que inclui 'lote') quebra
+    # em produção com UndefinedColumn.
+    if "lancamento" in insp.get_table_names():
+        cols = [c["name"] for c in insp.get_columns("lancamento")]
+        if "lote" not in cols:
+            with engine.connect() as conn:
+                conn.execute(text("ALTER TABLE lancamento ADD COLUMN lote BIGINT"))
+                conn.commit()
+
 
 _aplicar_migracoes()
 
