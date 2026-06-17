@@ -115,6 +115,8 @@ def garantir_admins_iniciais():
     db: Session = SessionLocal()
 
     _migrar_acesso_enum(db)
+    # A coluna 'lote' (lançamento em massa) agora é criada no startup de todo deploy
+    # por main._aplicar_migracoes() — fonte única de verdade pra migrações de schema.
 
     try:
         # ── Admins: apenas cria se não existir ──────────────────────────────
