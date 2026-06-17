@@ -37,8 +37,8 @@ if (!LOCALHOST_RE.test(BACKEND)) {
 // depender de senha hardcoded no repositório.
 export const USUARIOS = {
 	admin: {
-		email: process.env.AMSI_ADMIN_EMAIL || 'opedroschvartz@gmail.com',
-		senha: process.env.AMSI_ADMIN_SENHA || 'opedro',
+		email: process.env.AMSI_ADMIN_EMAIL || 'pytest_admin@amsi.com',
+		senha: process.env.AMSI_ADMIN_SENHA || 'adminTeste123',
 	},
 	consulta: {
 		email: process.env.CONSULTA_TESTE_EMAIL || 'pytest_consulta@amsi.com',

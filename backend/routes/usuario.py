@@ -6,25 +6,18 @@ from models.token_ativo import TokenAtivo
 from schemas.usuario import UsuarioCreate, UsuarioUpdate, UsuarioResponse
 from utils.auth_utils import hash_senha
 from utils.email_sender import enviar_email
-from utils.config import FRONTEND_URL
+from utils.senha_token import gerar_token_senha, _link_definir_senha, FINALIDADE_CADASTRO, FINALIDADE_RESET
 from utils.vinculo_clifor import garantir_email_no_clifor, sincronizar_email_clifor
 from auth.dependencies import get_current_user, exige_admin, exige_admin_desenvolvedor
 from typing import List
 import secrets
-import string
 import dns.resolver
-import urllib.parse
 from datetime import datetime
 
 router = APIRouter(
     prefix="/usuarios",
     tags=["Usuários"]
 )
-
-
-def _gerar_senha_provisoria(tamanho: int = 12) -> str:
-    caracteres = string.ascii_letters + string.digits + "!@$"  # # e % removidos — quebram URL
-    return "".join(secrets.choice(caracteres) for _ in range(tamanho))
 
 
 def _validar_dominio_email(email: str) -> bool:
@@ -73,20 +66,18 @@ def criar_usuario(dados: UsuarioCreate, db: Session = Depends(get_db), usuario_a
     ).first():
         raise HTTPException(status_code=409, detail="Email já cadastrado")
 
-    senha_provisoria = _gerar_senha_provisoria()
-
     dados_dict = dados.model_dump()
-    dados_dict["senha"] = hash_senha(senha_provisoria)
+    # Senha inutilizável: ninguém conhece o valor em claro, então nenhum login casa.
+    # O usuário define a senha real pelo link enviado por e-mail (token de uso único).
+    dados_dict["senha"] = hash_senha(secrets.token_urlsafe(32))
     dados_dict["primeiro_acesso"] = True
 
     usuario = Usuario(**dados_dict)
     db.add(usuario)
-    db.commit()
-    db.refresh(usuario)
+    db.flush()  # garante id_usuario sem commitar — rollback total se o e-mail falhar
 
-    # Enviar senha por email
-    _redirect = urllib.parse.quote(f"/trocar-senha?senha={senha_provisoria}")
-    _link_acesso = f"{FRONTEND_URL}?email={urllib.parse.quote(usuario.email)}&redirect={_redirect}"
+    token = gerar_token_senha(db, usuario, FINALIDADE_CADASTRO, ttl_horas=720)  # ~1 mês
+    _link_acesso = _link_definir_senha(token)
     corpo = f"""
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -99,20 +90,15 @@ def criar_usuario(dados: UsuarioCreate, db: Session = Depends(get_db), usuario_a
           <p style="margin:4px 0 0;font-size:0.72rem;color:rgba(255,255,255,0.6);letter-spacing:0.2em;text-transform:uppercase;">Associação de Moradores de Santa Isabel</p>
         </td></tr>
         <tr><td style="padding:36px 40px;">
-          <p style="font-size:1.3rem;font-weight:600;color:#1B4332;margin:0 0 8px;">Bem-vindo(a) a AMSI! 👋</p>
-          <p style="color:#6b7280;margin:0 0 20px;">Olá, <strong style="color:#2C2C2C;">{usuario.nome}</strong>! Sua conta foi criada com sucesso.</p>
-          <p style="color:#2C2C2C;margin:0 0 12px;">Sua senha provisória:</p>
-          <div style="background:#f4f1ec;border:1px solid #d1c9bf;border-radius:8px;padding:18px;text-align:center;margin:0 0 20px;">
-            <p style="margin:0 0 4px;font-size:0.7rem;color:#6b7280;letter-spacing:0.12em;text-transform:uppercase;">senha</p>
-            <p style="margin:0;font-size:1.5rem;font-weight:700;color:#1B4332;letter-spacing:0.2em;">{senha_provisoria}</p>
+          <p style="font-size:1.3rem;font-weight:600;color:#1B4332;margin:0 0 8px;">Bem-vindo(a) à AMSI! 👋</p>
+          <p style="color:#6b7280;margin:0 0 20px;">Olá, <strong style="color:#2C2C2C;">{usuario.nome}</strong>! Sua conta foi criada. Para acessar o sistema, defina sua senha clicando no botão abaixo.</p>
+          <div style="text-align:center;margin:0 0 20px;">
+            <a href="{_link_acesso}" style="display:inline-block;background:#1B4332;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-weight:600;font-size:0.95rem;letter-spacing:0.03em;">Definir minha senha →</a>
           </div>
           <div style="background:#fef9ec;border-left:4px solid #C9A84C;padding:12px 16px;border-radius:4px;margin:0 0 20px;">
-            <p style="margin:0;font-size:0.85rem;color:#92400e;">⚠️ Você será solicitado a trocar esta senha no primeiro login.</p>
+            <p style="margin:0;font-size:0.85rem;color:#92400e;">⚠️ Este link é pessoal e expira em 30 dias. Não o compartilhe com ninguém.</p>
           </div>
-          <div style="text-align:center;margin:0 0 20px;">
-            <a href="{_link_acesso}" style="display:inline-block;background:#1B4332;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-weight:600;font-size:0.95rem;letter-spacing:0.03em;">Acessar o sistema →</a>
-          </div>
-          <p style="font-size:0.78rem;color:#6b7280;margin:0 0 12px;">Ou acesse: <a href="{_link_acesso}" style="color:#1B4332;">{FRONTEND_URL}</a></p>
+          <p style="font-size:0.78rem;color:#6b7280;margin:0;word-break:break-all;">Se o botão não funcionar, copie e cole este endereço no navegador:<br><a href="{_link_acesso}" style="color:#1B4332;">{_link_acesso}</a></p>
         </td></tr>
         <tr><td style="padding:16px 40px;text-align:center;border-top:1px solid #d1c9bf;">
           <p style="margin:0;font-size:0.72rem;color:#a0a0a0;">© 2026 AMSI — Este é um email automático.</p>
@@ -123,15 +109,16 @@ def criar_usuario(dados: UsuarioCreate, db: Session = Depends(get_db), usuario_a
 </body>
 </html>
 """
-    enviado = enviar_email(usuario.email, "Sua senha de acesso — AMSI Project", corpo)
+    enviado = enviar_email(usuario.email, "Bem-vindo(a) à AMSI — defina sua senha", corpo)
     if not enviado:
-        db.delete(usuario)
-        db.commit()
+        db.rollback()  # desfaz usuário + token: nada é persistido
         raise HTTPException(
-            status_code=400,
-            detail="Não foi possível enviar o email para este endereço. Verifique se o email é válido."
+            status_code=502,
+            detail="Não foi possível enviar o e-mail para este endereço. Verifique se o e-mail é válido."
         )
 
+    db.commit()
+    db.refresh(usuario)
     return usuario
 
 
@@ -184,6 +171,7 @@ def deletar_usuario_hard(
     from models.login import Login
     from models.log_atividade import LogAtividade
     from models.cliente_fornecedor import ClienteFornecedor as _CliFor
+    from models.senha_token import SenhaToken
 
     if id_usuario == 1:
         raise HTTPException(status_code=403, detail="Não é permitido deletar o usuário raiz do sistema")
@@ -192,8 +180,9 @@ def deletar_usuario_hard(
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
 
-    # 1. Tokens ativos
+    # 1. Tokens ativos e tokens de definição de senha
     db.query(TokenAtivo).filter(TokenAtivo.id_usuario_fk == id_usuario).delete(synchronize_session=False)
+    db.query(SenhaToken).filter(SenhaToken.id_usuario_fk == id_usuario).delete(synchronize_session=False)
 
     # 2. Lançamentos — fechamento (nullable) → NULL; criação (NOT NULL) → reassign admin raiz
     db.query(Lancamento).filter(Lancamento.id_usuario_fk_fechamento == id_usuario)\
@@ -227,19 +216,13 @@ def restaurar_usuario(id_usuario: int, db: Session = Depends(get_db), _=Depends(
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuário não encontrado ou não está excluído")
 
-    # Gera nova senha — a anterior pode estar esquecida ou comprometida
-    senha_provisoria = _gerar_senha_provisoria()
-    senha_anterior = usuario.senha
-    primeiro_acesso_anterior = usuario.primeiro_acesso
-
+    # Reativa a conta. A senha antiga continua válida; ainda assim enviamos um link
+    # para o usuário definir uma nova senha (caso a tenha esquecido).
     usuario.exclusao = None
-    usuario.senha = hash_senha(senha_provisoria)
-    usuario.primeiro_acesso = True
-    db.commit()
-    db.refresh(usuario)
+    db.flush()
 
-    _redirect = urllib.parse.quote(f"/trocar-senha?senha={senha_provisoria}")
-    _link_acesso = f"{FRONTEND_URL}?email={urllib.parse.quote(usuario.email)}&redirect={_redirect}"
+    token = gerar_token_senha(db, usuario, FINALIDADE_RESET, ttl_horas=48)
+    _link_acesso = _link_definir_senha(token)
     corpo = f"""
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -253,19 +236,14 @@ def restaurar_usuario(id_usuario: int, db: Session = Depends(get_db), _=Depends(
         </td></tr>
         <tr><td style="padding:36px 40px;">
           <p style="font-size:1.3rem;font-weight:600;color:#1B4332;margin:0 0 8px;">Sua conta foi restaurada ✅</p>
-          <p style="color:#6b7280;margin:0 0 20px;">Olá, <strong style="color:#2C2C2C;">{usuario.nome}</strong>! Sua conta foi reativada por um administrador e já está disponível para acesso.</p>
-          <p style="color:#2C2C2C;margin:0 0 12px;">Sua nova senha provisória:</p>
-          <div style="background:#f4f1ec;border:1px solid #d1c9bf;border-radius:8px;padding:18px;text-align:center;margin:0 0 20px;">
-            <p style="margin:0 0 4px;font-size:0.7rem;color:#6b7280;letter-spacing:0.12em;text-transform:uppercase;">senha</p>
-            <p style="margin:0;font-size:1.5rem;font-weight:700;color:#1B4332;letter-spacing:0.2em;">{senha_provisoria}</p>
+          <p style="color:#6b7280;margin:0 0 20px;">Olá, <strong style="color:#2C2C2C;">{usuario.nome}</strong>! Sua conta foi reativada por um administrador. Para garantir o acesso, defina uma nova senha clicando no botão abaixo.</p>
+          <div style="text-align:center;margin:0 0 20px;">
+            <a href="{_link_acesso}" style="display:inline-block;background:#1B4332;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-weight:600;font-size:0.95rem;letter-spacing:0.03em;">Definir minha senha →</a>
           </div>
           <div style="background:#fef9ec;border-left:4px solid #C9A84C;padding:12px 16px;border-radius:4px;margin:0 0 20px;">
-            <p style="margin:0;font-size:0.85rem;color:#92400e;">⚠️ Você será solicitado a trocar esta senha no primeiro login.</p>
+            <p style="margin:0;font-size:0.85rem;color:#92400e;">⚠️ Este link expira em 48 horas.</p>
           </div>
-          <div style="text-align:center;margin:0 0 20px;">
-            <a href="{_link_acesso}" style="display:inline-block;background:#1B4332;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-weight:600;font-size:0.95rem;letter-spacing:0.03em;">Acessar o sistema →</a>
-          </div>
-          <p style="font-size:0.78rem;color:#6b7280;margin:0;">Ou acesse: <a href="{FRONTEND_URL}" style="color:#1B4332;">{FRONTEND_URL}</a></p>
+          <p style="font-size:0.78rem;color:#6b7280;margin:0;word-break:break-all;">Se o botão não funcionar, copie e cole este endereço no navegador:<br><a href="{_link_acesso}" style="color:#1B4332;">{_link_acesso}</a></p>
         </td></tr>
         <tr><td style="padding:16px 40px;text-align:center;border-top:1px solid #d1c9bf;">
           <p style="margin:0;font-size:0.72rem;color:#a0a0a0;">© 2026 AMSI — Este é um email automático.</p>
@@ -278,16 +256,14 @@ def restaurar_usuario(id_usuario: int, db: Session = Depends(get_db), _=Depends(
 """
     enviado = enviar_email(usuario.email, "Conta restaurada — AMSI Project", corpo)
     if not enviado:
-        # Rollback: o e-mail carrega a ÚNICA cópia da nova senha.
-        usuario.exclusao = datetime.now()
-        usuario.senha = senha_anterior
-        usuario.primeiro_acesso = primeiro_acesso_anterior
-        db.commit()
+        db.rollback()  # desfaz exclusao=None e o token → a conta continua excluída
         raise HTTPException(
             status_code=502,
             detail="Falha ao enviar o e-mail de restauração. A conta NÃO foi reativada.",
         )
 
+    db.commit()
+    db.refresh(usuario)
     return usuario
 
 
@@ -300,17 +276,11 @@ def resetar_senha(id_usuario: int, db: Session = Depends(get_db), _=Depends(exig
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
 
-    senha_anterior = usuario.senha
-    primeiro_acesso_anterior = usuario.primeiro_acesso
-
-    senha_provisoria = _gerar_senha_provisoria()
-    usuario.senha = hash_senha(senha_provisoria)
-    usuario.primeiro_acesso = True
-    db.query(TokenAtivo).filter(TokenAtivo.id_usuario_fk == id_usuario).delete()
-    db.commit()
-
-    _redirect = urllib.parse.quote(f"/trocar-senha?senha={senha_provisoria}")
-    _link_acesso = f"{FRONTEND_URL}?email={urllib.parse.quote(usuario.email)}&redirect={_redirect}"
+    # Reset administrativo: NÃO altera a senha aqui — o usuário define a nova pelo
+    # link enviado (token), sem trafegar senha em texto. Mas, por segurança, derruba
+    # as sessões ativas e força primeiro_acesso=True (aplicado abaixo, após o e-mail).
+    token = gerar_token_senha(db, usuario, FINALIDADE_RESET, ttl_horas=48)
+    _link_acesso = _link_definir_senha(token)
     corpo = f"""
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -324,19 +294,14 @@ def resetar_senha(id_usuario: int, db: Session = Depends(get_db), _=Depends(exig
         </td></tr>
         <tr><td style="padding:36px 40px;">
           <p style="font-size:1.3rem;font-weight:600;color:#1B4332;margin:0 0 8px;">Redefinição de senha 🔐</p>
-          <p style="color:#6b7280;margin:0 0 20px;">Olá, <strong style="color:#2C2C2C;">{usuario.nome}</strong>! Sua senha foi redefinida por um administrador.</p>
-          <p style="color:#2C2C2C;margin:0 0 12px;">Sua nova senha provisória:</p>
-          <div style="background:#f4f1ec;border:1px solid #d1c9bf;border-radius:8px;padding:18px;text-align:center;margin:0 0 20px;">
-            <p style="margin:0 0 4px;font-size:0.7rem;color:#6b7280;letter-spacing:0.12em;text-transform:uppercase;">nova senha</p>
-            <p style="margin:0;font-size:1.5rem;font-weight:700;color:#1B4332;letter-spacing:0.2em;">{senha_provisoria}</p>
+          <p style="color:#6b7280;margin:0 0 20px;">Olá, <strong style="color:#2C2C2C;">{usuario.nome}</strong>! Recebemos um pedido para redefinir a sua senha. Clique no botão abaixo para criar uma nova senha.</p>
+          <div style="text-align:center;margin:0 0 20px;">
+            <a href="{_link_acesso}" style="display:inline-block;background:#1B4332;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-weight:600;font-size:0.95rem;letter-spacing:0.03em;">Redefinir minha senha →</a>
           </div>
           <div style="background:#fef9ec;border-left:4px solid #C9A84C;padding:12px 16px;border-radius:4px;margin:0 0 20px;">
-            <p style="margin:0;font-size:0.85rem;color:#92400e;">⚠️ Você será solicitado a trocar esta senha no próximo login.</p>
+            <p style="margin:0;font-size:0.85rem;color:#92400e;">⚠️ Este link expira em 48 horas. Se você não solicitou, ignore este e-mail — sua senha atual continua valendo.</p>
           </div>
-          <div style="text-align:center;margin:0 0 20px;">
-            <a href="{_link_acesso}" style="display:inline-block;background:#1B4332;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-weight:600;font-size:0.95rem;letter-spacing:0.03em;">Acessar o sistema →</a>
-          </div>
-          <p style="font-size:0.78rem;color:#6b7280;margin:0 0 12px;">Ou acesse: <a href="{_link_acesso}" style="color:#1B4332;">{FRONTEND_URL}</a></p>
+          <p style="font-size:0.78rem;color:#6b7280;margin:0;word-break:break-all;">Se o botão não funcionar, copie e cole este endereço no navegador:<br><a href="{_link_acesso}" style="color:#1B4332;">{_link_acesso}</a></p>
         </td></tr>
         <tr><td style="padding:16px 40px;text-align:center;border-top:1px solid #d1c9bf;">
           <p style="margin:0;font-size:0.72rem;color:#a0a0a0;">© 2026 AMSI — Este é um email automático.</p>
@@ -349,17 +314,18 @@ def resetar_senha(id_usuario: int, db: Session = Depends(get_db), _=Depends(exig
 """
     enviado = enviar_email(usuario.email, "Redefinição de senha — AMSI Project", corpo)
     if not enviado:
-        # Rollback: o e-mail carrega a ÚNICA cópia da nova senha. Se não saiu,
-        # restauramos a senha anterior para não trancar o usuário para fora.
-        usuario.senha = senha_anterior
-        usuario.primeiro_acesso = primeiro_acesso_anterior
-        db.commit()
+        db.rollback()  # desfaz o token; a senha nunca foi tocada
         raise HTTPException(
             status_code=502,
-            detail="Falha ao enviar o e-mail de redefinição. A senha NÃO foi alterada — a senha anterior continua válida.",
+            detail="Falha ao enviar o e-mail de redefinição. Tente novamente.",
         )
 
-    return {"detail": "Senha redefinida e enviada por email"}
+    # E-mail enviado: derruba as sessões ativas e exige nova senha no próximo acesso.
+    usuario.primeiro_acesso = True
+    db.query(TokenAtivo).filter(TokenAtivo.id_usuario_fk == id_usuario).delete()
+
+    db.commit()
+    return {"detail": "Enviamos um link de redefinição de senha por e-mail."}
 
 # ─── Clifor vinculado ao usuário ──────────────────────────────────────────────
 

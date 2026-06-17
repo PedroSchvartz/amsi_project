@@ -24,8 +24,8 @@ const BACKEND = process.env.AMSI_BACKEND_URL || 'http://localhost:8000';
 const LOCALHOST_RE = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/;
 
 const ADMIN = {
-	email: process.env.AMSI_ADMIN_EMAIL || 'opedroschvartz@gmail.com',
-	senha: process.env.AMSI_ADMIN_SENHA || 'opedro',
+	email: process.env.AMSI_ADMIN_EMAIL || 'pytest_admin@amsi.com',
+	senha: process.env.AMSI_ADMIN_SENHA || 'adminTeste123',
 };
 const SEED_EMAILS = [
 	ADMIN.email,

@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 import logging
 
 from database import engine, Base
-from models import usuario, tipo_conta, cliente_fornecedor, endereco, contato, login, lancamento, token_ativo, log_atividade
+from models import usuario, tipo_conta, cliente_fornecedor, endereco, contato, login, lancamento, token_ativo, log_atividade, senha_token
 from routes import usuario as usuario_router
 from routes import login as login_router
 from routes import tipo_conta as tipo_lancamento_router
@@ -20,6 +20,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from utils.request_logger import RequestLoggerMiddleware, router as logs_router
 from utils.config import APP_ENV
 from utils.activity_log_middleware import ActivityLogMiddleware
+from utils.rate_limit import limiter
+from slowapi.errors import RateLimitExceeded
+from slowapi import _rate_limit_exceeded_handler
 
 Base.metadata.create_all(bind=engine)
 
@@ -61,6 +64,10 @@ app = FastAPI(
 )
 
 http_bearer = HTTPBearer(auto_error=False)
+
+# Rate limiting (slowapi) — limiter ativo só em produção; ver utils/rate_limit.py
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,

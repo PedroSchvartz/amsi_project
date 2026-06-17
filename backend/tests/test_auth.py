@@ -1,5 +1,7 @@
 import pytest
 
+from utils.config import ADMIN_TESTE_EMAIL, ADMIN_TESTE_SENHA
+
 
 # ================================================
 # HELPERS — usuário isolado com senha conhecida
@@ -72,8 +74,8 @@ def test_login_sucesso(client, headers_admin):
     # Resetar senha e obter a provisória via email não é viável no teste —
     # usamos o admin para verificar estrutura do response
     r2 = client.post("/auth/token", json={
-        "email": "opedroschvartz@gmail.com",
-        "senha": "opedro"
+        "email": ADMIN_TESTE_EMAIL,
+        "senha": ADMIN_TESTE_SENHA
     })
     assert r2.status_code == 200
     assert "access_token" in r2.json()
@@ -93,7 +95,7 @@ def test_login_sucesso(client, headers_admin):
 
 def test_login_senha_errada(client):
     r = client.post("/auth/token", json={
-        "email": "opedroschvartz@gmail.com",
+        "email": ADMIN_TESTE_EMAIL,
         "senha": "senhaErrada"
     })
     assert r.status_code == 401
@@ -136,8 +138,8 @@ def test_logout(client, headers_admin):
     # Então testamos o logout com o próprio admin numa chamada isolada
     # e imediatamente reautenticamos
     r_login = client.post("/auth/token", json={
-        "email": "opedroschvartz@gmail.com",
-        "senha": "opedro"
+        "email": ADMIN_TESTE_EMAIL,
+        "senha": ADMIN_TESTE_SENHA
     })
     token_temp = r_login.json()["access_token"]
     headers_temp = {"Authorization": f"Bearer {token_temp}"}
@@ -152,8 +154,8 @@ def test_logout(client, headers_admin):
 
     # Reautenticar admin para restaurar sessão
     r_re = client.post("/auth/token", json={
-        "email": "opedroschvartz@gmail.com",
-        "senha": "opedro"
+        "email": ADMIN_TESTE_EMAIL,
+        "senha": ADMIN_TESTE_SENHA
     })
     novo_token = r_re.json()["access_token"]
     headers_admin["Authorization"] = f"Bearer {novo_token}"

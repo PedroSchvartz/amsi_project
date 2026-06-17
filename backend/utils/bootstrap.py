@@ -14,6 +14,7 @@ from utils.email_sender import enviar_email
 from utils.config import FRONTEND_URL
 from utils.frequentes import configure_logging, colorir
 from utils.config import CONSULTA_TESTE_EMAIL, CONSULTA_TESTE_SENHA, OPERADOR_TESTE_EMAIL, OPERADOR_TESTE_SENHA
+from utils.config import ADMIN_TESTE_EMAIL, ADMIN_TESTE_SENHA
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -33,6 +34,13 @@ ADMINS_INICIAIS = [
 
 USUARIOS_TESTE = [
     # Upsert: se já existir, sobrescreve senha/flags para manter sincronia com o config.env.
+    {
+        "email":            ADMIN_TESTE_EMAIL,
+        "senha":            ADMIN_TESTE_SENHA,
+        "nome":             "Usuário Admin Teste",
+        "cargo":            CargoEnum.Desenvolvedor,
+        "perfil_de_acesso": AcessoEnum.Administrador,
+    },
     {
         "email":            CONSULTA_TESTE_EMAIL,
         "senha":            CONSULTA_TESTE_SENHA,

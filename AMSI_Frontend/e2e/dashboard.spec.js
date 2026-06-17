@@ -33,7 +33,9 @@ test.describe('Dashboard', () => {
 	test('dashboard tem link para clientes/fornecedores', async ({ pageConsulta }) => {
 		await pageConsulta.goto('/dashboard');
 		await expect(pageConsulta.getByText('Último mês').first()).toBeVisible({ timeout: 10000 });
-		// O componente usa <Link to="/cliente_fornecedor"> — pelo menos um link no conteúdo
-		await expect(pageConsulta.locator('a[href="/cliente_fornecedor"]').first()).toBeVisible();
+		// O componente usa <Link to="/cliente_fornecedor">. O href aparece em vários
+		// lugares (menu desktop + menu mobile, este oculto no desktop), então exigimos
+		// a primeira ocorrência VISÍVEL — senão o .first() casa o item mobile escondido.
+		await expect(pageConsulta.locator('a[href="/cliente_fornecedor"]:visible').first()).toBeVisible();
 	});
 });

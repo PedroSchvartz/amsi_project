@@ -56,3 +56,8 @@ CONSULTA_TESTE_SENHA = os.getenv("CONSULTA_TESTE_SENHA", "consultaTeste123")
 # Usuário de teste (operador) — criado pelo bootstrap para uso nos testes automatizados
 OPERADOR_TESTE_EMAIL = os.getenv("OPERADOR_TESTE_EMAIL", "pytest_operador@amsi.com")
 OPERADOR_TESTE_SENHA = os.getenv("OPERADOR_TESTE_SENHA", "operadorTeste123")
+
+# Usuário de teste (admin) — criado pelo bootstrap; é o admin usado nas fixtures do pytest.
+# Conta dedicada para não depender da senha da conta pessoal do desenvolvedor.
+ADMIN_TESTE_EMAIL = os.getenv("ADMIN_TESTE_EMAIL", "pytest_admin@amsi.com")
+ADMIN_TESTE_SENHA = os.getenv("ADMIN_TESTE_SENHA", "adminTeste123")

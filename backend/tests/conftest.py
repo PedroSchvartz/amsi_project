@@ -6,6 +6,27 @@ from main import app
 from database import SessionLocal
 
 
+# ================================================
+# STUB DE E-MAIL — evita chamadas reais ao Brevo
+# ================================================
+# Nenhum teste depende do envio real (nem do caminho 502 de falha): todos tratam
+# enviar_email como caixa-preta que retorna True. Patchar aqui, no import do
+# conftest (antes de qualquer fixture/teste), remove a dependência de rede — os
+# timeouts de 15s do api.brevo.com deixavam a suíte lenta e intermitentemente
+# vermelha. enviar_email é importado via `from ... import` em cada módulo, então
+# substituímos a referência em cada um que os testes exercitam.
+import routes.usuario as _routes_usuario
+import auth.router as _auth_router
+
+
+def _enviar_email_stub(*_args, **_kwargs):
+    return True
+
+
+_routes_usuario.enviar_email = _enviar_email_stub
+_auth_router.enviar_email = _enviar_email_stub
+
+
 TABELAS_MONITORADAS = [
     "usuario",
     "clientefornecedor",
@@ -58,11 +79,15 @@ def client():
 
 @pytest.fixture(scope="session")
 def token_admin(client):
+    from utils.config import ADMIN_TESTE_EMAIL, ADMIN_TESTE_SENHA
     r = client.post("/auth/token", json={
-        "email": "opedroschvartz@gmail.com",
-        "senha": "opedro"
+        "email": ADMIN_TESTE_EMAIL,
+        "senha": ADMIN_TESTE_SENHA
     })
-    assert r.status_code == 200, f"Falha ao autenticar admin: {r.text}"
+    assert r.status_code == 200, (
+        f"Falha ao autenticar admin de teste ({ADMIN_TESTE_EMAIL}): {r.text} — "
+        "execute: python -X utf8 utils/bootstrap.py"
+    )
     return r.json()["access_token"]
 
 
@@ -221,7 +246,8 @@ def db_snapshot(client, headers_admin, usuario_base, clifor_base, tipo_lancament
     snapshot_antes = contar_tabelas(db)
     db.close()
 
-    ADMIN_EMAIL = "opedroschvartz@gmail.com"
+    from utils.config import ADMIN_TESTE_EMAIL
+    ADMIN_EMAIL = ADMIN_TESTE_EMAIL
     todos_usuarios = client.get("/usuarios/", headers=headers_admin).json()
 
     admin = next((u for u in todos_usuarios if u["email"] == ADMIN_EMAIL), None)
