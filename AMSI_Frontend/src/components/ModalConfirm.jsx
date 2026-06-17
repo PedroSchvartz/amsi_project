@@ -6,7 +6,9 @@ const s = {
 		display: 'flex',
 		alignItems: 'center',
 		justifyContent: 'center',
-		zIndex: 9995
+		// Confirmação fica acima de qualquer modal do app (perfil 10001, lançamento até 10000)
+		// e abaixo do ToastStack (99999).
+		zIndex: 10002
 	},
 	box: {
 		background: 'var(--bg-card)',
