@@ -240,8 +240,33 @@ def headers_operador(token_operador):
 # SNAPSHOT DO BANCO
 # ================================================
 
+@pytest.fixture(scope="session")
+def _orfaos_de_teste(client, headers_admin):
+    """Captura os usuários pré-existentes e, no fim da suíte, faz HARD-delete dos
+    que foram criados durante os testes. O `DELETE /usuarios/{id}` comum é
+    soft-delete (`exclusao = now()`); sem esta limpeza o banco acumula usuários de
+    teste run após run (item 2 do `docs/planos/prioridade-maxima.md`). É dependência
+    do `db_snapshot`, então finaliza DEPOIS da checagem de "banco sujo" — não mascara
+    vazamentos de contagem. Só toca no que a própria sessão criou (não em dados
+    pré-existentes); o `/hard` cascata tokens/login/lançamentos/clifor/logs/senha_token.
+    """
+    from sqlalchemy import text
+
+    def _ids_usuarios():
+        db = SessionLocal()
+        try:
+            return {r[0] for r in db.execute(text("SELECT id_usuario FROM usuario")).all()}
+        finally:
+            db.close()
+
+    baseline = _ids_usuarios()
+    yield
+    for id_usuario in _ids_usuarios() - baseline:
+        client.delete(f"/usuarios/{id_usuario}/hard", headers=headers_admin)
+
+
 @pytest.fixture(scope="session", autouse=True)
-def db_snapshot(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base, consulta_session, operador_session):
+def db_snapshot(client, headers_admin, _orfaos_de_teste, usuario_base, clifor_base, tipo_lancamento_base, consulta_session, operador_session):
     db = SessionLocal()
     snapshot_antes = contar_tabelas(db)
     db.close()
