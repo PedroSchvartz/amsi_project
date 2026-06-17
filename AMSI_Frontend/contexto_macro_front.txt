@@ -27,8 +27,10 @@ Pedro (principal, deploy Vercel): https://github.com/PedroSchvartz/amsi_project
   ATENÇÃO — ARQUIVOS ÓRFÃOS
 --------------------------------------------------------------------------------
 
-A pasta AMSI_Frontend contém resquícios de scaffolding SvelteKit:
-  .svelte-kit/, svelte.config.js, static/ — ignorar completamente.
+A poluição do scaffold SvelteKit foi removida em 2026-06-16
+  (.svelte-kit/, svelte.config.js, deps @sveltejs/*, svelte, svelte-check).
+  Resta apenas static/robots.txt (convenção Svelte; o Vite usa public/) —
+  avaliar remoção.
 
 Componentes sem uso aparente: NavBar.jsx, News.jsx
 Páginas com rota removida: LancamentoPage.jsx, UserRegisterPage.jsx

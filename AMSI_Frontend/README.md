@@ -1,42 +1,34 @@
-# sv
+# AMSI — Frontend
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+Interface web do sistema de gestão financeira da Associação de Moradores de Santa
+Isabel. **React + Vite** (não é SvelteKit — veja a nota no fim).
 
-## Creating a project
+## Stack
 
-If you're seeing this, you've probably already done this step. Congrats!
+- React 19 + React Router DOM
+- Vite (build/dev) com `@vitejs/plugin-react`
+- Bootstrap / Bootstrap Icons, Recharts
+- Vitest (unit) + Playwright (e2e)
 
-```sh
-# create a new project
-npx sv create my-app
-```
-
-To recreate this project with the same configuration:
-
-```sh
-# recreate this project
-npx sv@0.15.1 create --template minimal --types ts --add prettier eslint --install npm ./
-```
-
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+## Scripts
 
 ```sh
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+npm run dev        # servidor de desenvolvimento (http://localhost:5173)
+npm run build      # build de produção em dist/
+npm run preview    # serve o build de produção
+npm run lint       # prettier --check + eslint
+npm run format     # prettier --write
+npm run test:unit  # testes unitários (vitest)
+npm run test:e2e   # testes e2e (playwright)
 ```
 
-## Building
+## Configuração
 
-To create a production version of your app:
+- `VITE_API_URL` — URL base do backend (ver `.env`). Em desenvolvimento aponta para
+  `http://localhost:8000`.
 
-```sh
-npm run build
-```
+## Nota histórica
 
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+O projeto foi inicializado a partir de um scaffold SvelteKit que nunca foi usado;
+todo o app é React. As dependências e configs do Svelte (`svelte`, `@sveltejs/*`,
+`svelte.config.js`, etc.) foram removidas em 2026-06-16.
