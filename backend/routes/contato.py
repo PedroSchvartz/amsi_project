@@ -4,7 +4,7 @@ from database import get_db
 from models.contato import Contato
 from models.cliente_fornecedor import ClienteFornecedor
 from schemas.contato import ContatoCreate, ContatoUpdate, ContatoResponse
-from auth.dependencies import get_current_user
+from auth.dependencies import get_current_user, exige_operador_ou_admin
 from typing import List
 
 router = APIRouter(
@@ -28,7 +28,7 @@ def listar_contatos_por_clifor(id_clifor: int, db: Session = Depends(get_db), _=
     return db.query(Contato).filter(Contato.id_clifor_fk == id_clifor).all()
 
 @router.post("/", response_model=ContatoResponse)
-def criar_contato(dados: ContatoCreate, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def criar_contato(dados: ContatoCreate, db: Session = Depends(get_db), _=Depends(exige_operador_ou_admin)):
     if not db.query(ClienteFornecedor).filter(ClienteFornecedor.id_clifor == dados.id_clifor_fk).first():
         raise HTTPException(status_code=404, detail="Cliente/Fornecedor não encontrado")
     contato = Contato(**dados.model_dump())
@@ -38,7 +38,7 @@ def criar_contato(dados: ContatoCreate, db: Session = Depends(get_db), _=Depends
     return contato
 
 @router.put("/{id_contato}", response_model=ContatoResponse)
-def atualizar_contato(id_contato: int, dados: ContatoUpdate, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def atualizar_contato(id_contato: int, dados: ContatoUpdate, db: Session = Depends(get_db), _=Depends(exige_operador_ou_admin)):
     contato = db.query(Contato).filter(Contato.id_contato == id_contato).first()
     if not contato:
         raise HTTPException(status_code=404, detail="Contato não encontrado")
@@ -49,7 +49,7 @@ def atualizar_contato(id_contato: int, dados: ContatoUpdate, db: Session = Depen
     return contato
 
 @router.delete("/{id_contato}")
-def deletar_contato(id_contato: int, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def deletar_contato(id_contato: int, db: Session = Depends(get_db), _=Depends(exige_operador_ou_admin)):
     contato = db.query(Contato).filter(Contato.id_contato == id_contato).first()
     if not contato:
         raise HTTPException(status_code=404, detail="Contato não encontrado")

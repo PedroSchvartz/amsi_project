@@ -109,3 +109,58 @@ def test_deletar_endereco_inexistente(client, headers_admin):
     """Endereço inexistente retorna 404."""
     r = client.delete("/endereco/999999", headers=headers_admin)
     assert r.status_code == 404
+
+
+# ── Escopo por perfil (RBAC) ────────────────────────────────────────────────
+# Escrita exige Operador+ (exige_operador_ou_admin), igual a lancamento/clifor;
+# leitura continua liberada a qualquer autenticado (inclui Consulta).
+
+def test_consulta_pode_listar_enderecos(client, headers_consulta):
+    """Leitura permanece liberada para Consulta."""
+    r = client.get("/endereco/", headers=headers_consulta)
+    assert r.status_code == 200
+
+
+def test_consulta_nao_cria_endereco(client, headers_consulta, clifor_base):
+    """Consulta (somente leitura) não pode criar endereço → 403."""
+    r = client.post("/endereco/", json={
+        "id_clifor_fk": clifor_base["id_clifor"],
+        "enderecoprimario": False,
+        "logradouro": "Rua Consulta",
+        "numero": "1",
+        "bairro": "Bairro",
+        "cidade": "Cidade",
+        "uf": "SP",
+        "cep": "00000-000"
+    }, headers=headers_consulta)
+    assert r.status_code == 403
+
+
+def test_consulta_nao_atualiza_endereco(client, headers_consulta, endereco):
+    """Consulta não pode atualizar endereço → 403."""
+    r = client.put(f"/endereco/{endereco['id_endereco']}",
+                   json={"logradouro": "Tentativa Consulta"},
+                   headers=headers_consulta)
+    assert r.status_code == 403
+
+
+def test_consulta_nao_deleta_endereco(client, headers_consulta, endereco):
+    """Consulta não pode deletar endereço → 403."""
+    r = client.delete(f"/endereco/{endereco['id_endereco']}", headers=headers_consulta)
+    assert r.status_code == 403
+
+
+def test_operador_cria_endereco(client, headers_operador, headers_admin, clifor_base):
+    """Operador pode criar endereço → 200 (a correção não deve restringir demais)."""
+    r = client.post("/endereco/", json={
+        "id_clifor_fk": clifor_base["id_clifor"],
+        "enderecoprimario": False,
+        "logradouro": "Rua Operador",
+        "numero": "10",
+        "bairro": "Bairro",
+        "cidade": "Cidade",
+        "uf": "SP",
+        "cep": "00000-000"
+    }, headers=headers_operador)
+    assert r.status_code == 200
+    client.delete(f"/endereco/{r.json()['id_endereco']}", headers=headers_admin)

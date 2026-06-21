@@ -4,7 +4,7 @@ from database import get_db
 from models.endereco import Endereco
 from models.cliente_fornecedor import ClienteFornecedor
 from schemas.endereco import EnderecoCreate, EnderecoUpdate, EnderecoResponse
-from auth.dependencies import get_current_user
+from auth.dependencies import get_current_user, exige_operador_ou_admin
 from typing import List
 
 router = APIRouter(
@@ -28,7 +28,7 @@ def listar_enderecos_por_clifor(id_clifor: int, db: Session = Depends(get_db), _
     return db.query(Endereco).filter(Endereco.id_clifor_fk == id_clifor).all()
 
 @router.post("/", response_model=EnderecoResponse)
-def criar_endereco(dados: EnderecoCreate, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def criar_endereco(dados: EnderecoCreate, db: Session = Depends(get_db), _=Depends(exige_operador_ou_admin)):
     if not db.query(ClienteFornecedor).filter(ClienteFornecedor.id_clifor == dados.id_clifor_fk).first():
         raise HTTPException(status_code=404, detail="Cliente/Fornecedor não encontrado")
     endereco = Endereco(**dados.model_dump())
@@ -38,7 +38,7 @@ def criar_endereco(dados: EnderecoCreate, db: Session = Depends(get_db), _=Depen
     return endereco
 
 @router.put("/{id_endereco}", response_model=EnderecoResponse)
-def atualizar_endereco(id_endereco: int, dados: EnderecoUpdate, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def atualizar_endereco(id_endereco: int, dados: EnderecoUpdate, db: Session = Depends(get_db), _=Depends(exige_operador_ou_admin)):
     endereco = db.query(Endereco).filter(Endereco.id_endereco == id_endereco).first()
     if not endereco:
         raise HTTPException(status_code=404, detail="Endereço não encontrado")
@@ -49,7 +49,7 @@ def atualizar_endereco(id_endereco: int, dados: EnderecoUpdate, db: Session = De
     return endereco
 
 @router.delete("/{id_endereco}")
-def deletar_endereco(id_endereco: int, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def deletar_endereco(id_endereco: int, db: Session = Depends(get_db), _=Depends(exige_operador_ou_admin)):
     endereco = db.query(Endereco).filter(Endereco.id_endereco == id_endereco).first()
     if not endereco:
         raise HTTPException(status_code=404, detail="Endereço não encontrado")
