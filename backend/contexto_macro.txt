@@ -14,8 +14,7 @@ PRAZO: MVP finalizado.
 Backend  : FastAPI (Python) + PostgreSQL 17.4
 Frontend : React.js + Vite (JSX) — Vercel
 Auth     : JWT próprio com bcrypt (implementado — ver fase_atual.txt)
-Ngrok    : domínio fixo bienvenu-meningitic-alejandra.ngrok-free.dev
-           token: 3ApIjjSxFJ4NceaIBdInO3CLpyY_4YafBnmdNCTdXRZ9esHdQ
+Ngrok    : domínio fixo + token em config.env (NGROK_DOMAIN, NGROK_TOKEN) — não versionado
 
 --------------------------------------------------------------------------------
   BANCO DE DADOS
@@ -23,7 +22,7 @@ Ngrok    : domínio fixo bienvenu-meningitic-alejandra.ngrok-free.dev
 
 Banco    : AMSI_Project
 Usuário  : postgres
-Senha    : 99181
+Senha    : em config.env (DB_PASSWORD) — não versionado
 Porta    : 5432
 OBS      : usa BIGINT GENERATED ALWAYS AS IDENTITY e ENUMs nativos do PostgreSQL
            Trigger trigger_inadimplente existe no banco E no backend (redundância intencional)
