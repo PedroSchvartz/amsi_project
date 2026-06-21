@@ -142,6 +142,44 @@ export const trocarSenha = async ({ senha_atual, nova_senha }) => {
 	return handleResponse(response, { noLogout: true });
 };
 
+// ─── Definição / recuperação de senha por token (rotas públicas, sem auth) ──────
+// O backend nunca trafega senha: envia por e-mail um link com token de uso único
+// (#token=). Estes três endpoints consomem esse fluxo. noLogout: true porque o
+// usuário ainda não tem sessão — um 401 eventual não deve limpar o localStorage.
+
+// Autoatendimento "esqueci a senha". Resposta SEMPRE neutra (não revela se o e-mail
+// existe). body: { email }
+export const esqueciSenha = async (email) => {
+	const response = await fetchComLoading(`${BASE_URL}/auth/esqueci-senha`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ email })
+	});
+	return handleResponse(response, { noLogout: true });
+};
+
+// Valida o token do link SEM consumir — permite saudar o usuário pelo nome e
+// detectar link expirado antes de ele digitar a senha. → { valido, nome }
+export const validarTokenSenha = async (token) => {
+	const response = await fetchComLoading(`${BASE_URL}/auth/validar-token-senha`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ token })
+	});
+	return handleResponse(response, { noLogout: true });
+};
+
+// Consome o token e grava a nova senha; o backend já devolve a sessão (auto-login).
+// → { access_token, token_type, primeiro_acesso }
+export const definirSenha = async ({ token, senha_nova }) => {
+	const response = await fetchComLoading(`${BASE_URL}/auth/definir-senha`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ token, senha_nova })
+	});
+	return handleResponse(response, { noLogout: true });
+};
+
 // ======================
 // 👤 USUÁRIOS
 // ======================

@@ -8,6 +8,7 @@ import ClientListPage from './pages/ClientListPage';
 import ClientEditPage from './pages/ClientEditPage';
 import ListaLancamentosPage from './pages/ListaLancamentosPage';
 import TrocarSenhaPage from './pages/TrocarSenhaPage';
+import DefinirSenhaPage from './pages/DefinirSenhaPage';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 
 import PrivateRoute from './components/PrivateRoute';
@@ -229,6 +230,8 @@ function App() {
 					{/* Páginas públicas */}
 					<Route path="/" element={<LoginPage />} />
 					<Route path="/demo-registro" element={<DemoRegistroPage />} />
+					{/* Definição de senha por token (link do e-mail) — sem sessão */}
+					<Route path="/definir-senha" element={<DefinirSenhaPage />} />
 
 					{/* Primeiro acesso — sem navbar */}
 					<Route

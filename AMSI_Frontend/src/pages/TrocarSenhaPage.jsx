@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { trocarSenha } from '../services/api';
 import { logout } from '../services/auth';
 import '../styles/login.css'; /* reutiliza o CSS do login — mesma estrutura visual */
@@ -13,10 +13,9 @@ import '../styles/login.css'; /* reutiliza o CSS do login — mesma estrutura vi
 
 function TrocarSenhaPage() {
 	const navigate = useNavigate();
-	const [searchParams] = useSearchParams();
 
 	const [form, setForm] = useState({
-		senha_atual: searchParams.get('senha') ?? '',
+		senha_atual: '',
 		nova_senha: '',
 		confirmar_senha: ''
 	});
