@@ -18,7 +18,7 @@ from auth.router import router as auth_router
 
 from fastapi.middleware.cors import CORSMiddleware
 from utils.request_logger import RequestLoggerMiddleware, router as logs_router
-from utils.config import APP_ENV
+from utils.config import APP_ENV, FRONTEND_URL
 from utils.activity_log_middleware import ActivityLogMiddleware
 from utils.rate_limit import limiter
 from slowapi.errors import RateLimitExceeded
@@ -80,9 +80,17 @@ http_bearer = HTTPBearer(auto_error=False)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+# CORS — origens explícitas (corrige o allow_origins=["*"] da auditoria #5; o par
+# "*" + allow_credentials=True é inválido pela spec e abre a API a qualquer site).
+# Produção: só o domínio do frontend (Vercel). Fora de produção: libera também o
+# dev server do Vite, para o fluxo local e a suíte E2E.
+_origens_cors = [FRONTEND_URL.rstrip("/")]
+if APP_ENV != "production":
+    _origens_cors += ["http://localhost:5173", "http://127.0.0.1:5173"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_origens_cors,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

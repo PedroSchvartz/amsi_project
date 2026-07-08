@@ -1,4 +1,5 @@
 import json
+import html
 import time
 import os
 import logging
@@ -61,7 +62,8 @@ def listar_logs():
 def logs_ui():
     entries = list(_request_log)
     import json as _json
-    entries_json = _json.dumps(entries, ensure_ascii=False)
+    # Neutraliza breakout de </script>: o parser HTML não enxerga "<", mas o JS o lê como "<"
+    entries_json = _json.dumps(entries, ensure_ascii=False).replace("<", "\\u003c")
 
     def status_class(code):
         if code < 300: return "ok"
@@ -81,25 +83,36 @@ def logs_ui():
         path = e["path"]
         if e.get("query"):
             path += f"?{e['query']}"
+        # Escapa TODO valor controlado pelo cliente (path+query, method, ip) — XSS armazenado.
+        # method aparece em atributo e classe, então escapa também aspas (quote=True).
+        method_attr = html.escape(e["method"], quote=True)
+        method_cls = html.escape(e["method"].lower(), quote=True)
+        method_txt = html.escape(e["method"])
+        path_txt = html.escape(path)
+        ip_txt = html.escape(e["ip"])
+        ts_txt = html.escape(str(e["timestamp"]))
+        status_txt = html.escape(str(e["status"]))
+        dur_txt = html.escape(str(e["duration_ms"]))
         err_row = ' class="error-row"' if e["status"] >= 400 else ""
         rows += f"""
-        <tr data-method="{e['method']}" data-status="{sc}"{err_row}>
-            <td class="ts">{e['timestamp']}</td>
-            <td class="method {e['method'].lower()}">{e['method']}</td>
-            <td class="path">{path}</td>
-            <td class="status {sc}">{e['status']}</td>
-            <td class="dur {dc}">{e['duration_ms']} ms</td>
-            <td class="ip">{e['ip']}</td>
+        <tr data-method="{method_attr}" data-status="{sc}"{err_row}>
+            <td class="ts">{ts_txt}</td>
+            <td class="method {method_cls}">{method_txt}</td>
+            <td class="path">{path_txt}</td>
+            <td class="status {sc}">{status_txt}</td>
+            <td class="dur {dc}">{dur_txt} ms</td>
+            <td class="ip">{ip_txt}</td>
         </tr>"""
 
     total = len(entries)
     ok = sum(1 for e in entries if e["status"] < 300)
     erros = sum(1 for e in entries if e["status"] >= 400)
 
-    # JSON embutido para exportação (escapado para JS)
-    json_data = json.dumps(entries, ensure_ascii=False, indent=2).replace('\\', '\\\\').replace('`', '\\`')
+    # JSON embutido para exportação (escapado para JS). O .replace("<", ...) neutraliza
+    # breakout de </script> dentro do template literal (JS lê "<" como "<").
+    json_data = json.dumps(entries, ensure_ascii=False, indent=2).replace('\\', '\\\\').replace('`', '\\`').replace("<", "\\u003c")
 
-    html = f"""<!DOCTYPE html>
+    pagina = f"""<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -559,4 +572,4 @@ def logs_ui():
 
 </body>
 </html>"""
-    return HTMLResponse(content=html)
+    return HTMLResponse(content=pagina)

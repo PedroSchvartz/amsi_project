@@ -114,4 +114,4 @@ def consumir_token_senha(db: Session, token_cru: str) -> Optional[Usuario]:
 
 def _link_definir_senha(token_cru: str) -> str:
     """Monta o link com o token no FRAGMENT (#token=), nunca na query string."""
-    return f"{FRONTEND_URL}/definir-senha#token={token_cru}"
+    return f"{FRONTEND_URL.rstrip('/')}/definir-senha#token={token_cru}"
