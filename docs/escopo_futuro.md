@@ -218,6 +218,12 @@ A opção "Associar a cliente/fornecedor" no menu de Ações da página de usuá
 ## 3. Melhorias Técnicas
 
 ### 3.1 Variáveis de ambiente do admin de teste via env var
+
+> ✅ **Concluído** — `utils/config.py` já define `ADMIN_TESTE_EMAIL`/`ADMIN_TESTE_SENHA`
+> (e os equivalentes `CONSULTA_TESTE_*`/`OPERADOR_TESTE_*`) via `os.getenv(...)`;
+> `tests/conftest.py` já usa essas constantes — não há mais `"opedro"` hardcoded
+> em nenhum arquivo de teste.
+
 - O `conftest.py` atualmente hardcoda `senha: "opedro"` para o admin.
 - Mover para `ADMIN_TESTE_EMAIL` e `ADMIN_TESTE_SENHA` em `config.py` (mesma convenção dos usuários de teste existentes).
 - Permite trocar a senha sem alterar código.
@@ -233,6 +239,12 @@ A opção "Associar a cliente/fornecedor" no menu de Ações da página de usuá
   - Notifica resultado via email ou Slack
 
 ### 3.4 Rate limiting nas rotas de autenticação
+
+> ✅ **Concluído** — `slowapi` já implementado em `utils/rate_limit.py` e
+> `auth/router.py`: `POST /auth/token` limitado a `10/minute` e
+> `/auth/esqueci-senha` a `5/minute`, habilitado apenas em produção
+> (`APP_ENV == "production"`).
+
 - `/auth/token` sem rate limit é vulnerável a brute force.
 - Implementar limite por IP (ex: 10 tentativas/minuto) usando middleware ou Redis.
 
@@ -289,7 +301,77 @@ if not enviado:
 - Pacote foi adicionado durante troubleshooting de deploy e nunca utilizado (`svelte.config.js` ainda usa `adapter-auto`).
 - Remover de `package.json` para reduzir tamanho do bundle de instalação.
 
+### 3.8 Corrigir N+1 query na listagem de lançamentos
+
+> Identificado revisando um vídeo curto sobre erros comuns de performance em apps "vibe-coded" (2026-07-09) e conferido contra o código real do projeto — não é hipotético, o bug existe hoje.
+
+**Problema:** `GET /lancamento/` ([`routes/lancamento.py`](../backend/routes/lancamento.py), listagem principal — a mais usada, alimenta a tela de lançamentos) faz `.join(ClienteFornecedor, ...)` só para filtrar, mas não dá `joinedload(Lancamento.cliente_fornecedor)`. O `model_validator` de `LancamentoResponse` ([`schemas/lancamento.py`](../backend/schemas/lancamento.py)) acessa `values.cliente_fornecedor.nome`/`.cpf_cnpj` na serialização — sem eager load, isso dispara uma query extra por linha retornada (N+1 clássico). O mesmo bug está em `GET /lancamento/por-usuario/{id}`.
+
+**Prova de que é acidental, não intencional:** `GET /lancamento/por-clifor/{id}` faz o `joinedload(Lancamento.cliente_fornecedor)` certo — só não foi replicado nos outros dois endpoints.
+
+**Sugestão de correção:**
+- Adicionar `joinedload(Lancamento.cliente_fornecedor)` nas options de `listar_lancamentos` e `listar_lancamentos_por_usuario`, igual já é feito em `listar_lancamentos_por_clifor`.
+- Fix pontual, sem mudança de contrato de API — pode entrar isolado, sem esperar os itens abaixo.
+- Vale considerar um teste que conte queries emitidas (ex.: listener de evento do SQLAlchemy) para pegar regressão desse tipo automaticamente, já que passou despercebido numa revisão manual.
+
+### 3.9 Paginação em `GET /lancamento/`
+
+> Mesma origem do 3.8 — vídeo sobre erros comuns de performance, conferido contra o código.
+
+**Problema:** mesmo com todos os filtros de data/valor/status disponíveis, o endpoint sempre termina em `query.all()` — sem `limit`/`offset`, sem teto. Conforme a tabela de lançamentos cresce, cada carregamento da tela busca a tabela inteira.
+
+**Relação com o plano 5.1:** a proposta de paginação (skip/limit + header `X-Total-Count`, teto de 1000) já está desenhada em [`multi-associacao-jwt-fundacao.md`](./planos/multi-associacao-jwt-fundacao.md) como parte da plataforma multi-associação. Este item é a versão restrita — só `/lancamento/`, sem esperar aquele projeto maior — mas convém adotar o mesmo padrão de contrato para não ter que migrar duas vezes.
+
+**Decisões ainda em aberto (backlog, não fechadas):**
+- Tamanho de página default e máximo.
+- Se o total vem num header (`X-Total-Count`) ou custa uma segunda query — impacto de custo a avaliar.
+- Se o frontend usa paginação numerada ou scroll infinito na tabela de lançamentos.
+- Se estende para `usuario`/`cliente_fornecedor` também ou fica só em lançamentos (a listagem que mais cresce).
+- Depende do 3.8 estar corrigido primeiro — paginar por cima do N+1 só limita o dano, não resolve a causa.
+
+### 3.10 Skeleton loaders no frontend
+
+> Mesma origem do 3.8/3.9 — vídeo sobre erros comuns de performance.
+
+**Problema:** hoje o frontend só tem um loading global (`services/loadingContext.jsx`) — um spinner/indicador único para qualquer requisição em andamento. Não há skeleton (placeholder de conteúdo) em nenhuma tela; durante o carregamento de listas o usuário vê tela vazia ou spinner central até a resposta completa chegar.
+
+**Decisões ainda em aberto (backlog, não fechadas):**
+- Prioridade de tela: lista de lançamentos primeiro (a mais pesada e a que ganha mais com 3.8+3.9), depois usuários/clifor.
+- Componente genérico reutilizável (`<Skeleton />` parametrizado por linhas/colunas) vs. um skeleton específico por tela.
+- Manter o spinner global só para transição entre rotas, reservando skeleton para dentro do conteúdo já montado (mistura os dois padrões, não substitui um pelo outro).
+- Menor prioridade que 3.8/3.9 — é polimento de UX percebida, não corrige uma query real rodando a mais.
+
+### 3.11 Cache de sessão no frontend — carregar uma vez, recarregar sob demanda
+
+> 📋 **Plano técnico detalhado e fechado (pronto para execução):** [`docs/planos/cache-sessao-frontend.md`](./planos/cache-sessao-frontend.md)
+
+Mesma origem do 3.8/3.9/3.10 — vídeo sobre erros comuns de performance (ponto "sem cache, nem no browser"). Diferente dos três anteriores, este item já tem todas as decisões de design fechadas e não é backlog aberto — é um plano pronto para ser puxado direto para implementação.
+
+**Resumo:** hoje toda tela de listagem (lançamentos, clientes/fornecedores, usuários, tipos de conta, dashboard) busca os dados no backend toda vez que é montada, mesmo revisitada segundos depois sem nada ter mudado. O plano introduz um cache de sessão em memória (`services/cache.js`, sem `sessionStorage`): a primeira visita a uma tela busca do banco normalmente; visitas seguintes na mesma sessão reaproveitam o cache; um botão "Recarregar" em cada tela força busca nova; mutações (criar/editar/excluir) invalidam o cache do recurso automaticamente; logout limpa tudo.
+
+### 3.12 N+1 (pior que o 3.8) e falta de paginação em `GET /cliente_fornecedor/`
+
+> Reportado pelo Pedro (2026-07-09): "tela de Clientes/Fornecedores demorando tanto para carregar". Diagnóstico feito na hora — causa raiz já identificada, fix ainda não aplicado (fica para quando este item for puxado).
+
+**Causa raiz:** `listar_clifors` ([`routes/cliente_fornecedor.py:29-60`](../backend/routes/cliente_fornecedor.py)) roda `db.query(ClienteFornecedor)...all()` sem eager load nenhum. `ClienteFornecedorResponse` ([`schemas/cliente_fornecedor.py:90-91`](../backend/schemas/cliente_fornecedor.py)) inclui `enderecos` e `contatos` — duas relações lazy-loaded (`models/cliente_fornecedor.py:30-31`). Sem `joinedload`/`selectinload`, cada clifor da lista dispara **2 queries extras** (uma para endereços, uma para contatos) na hora de serializar. É o mesmo padrão de bug do [3.8](#38-corrigir-n1-query-na-listagem-de-lançamentos), só que aqui são 2 relações em vez de 1 — até **2N+1 queries** numa única resposta.
+
+**Agravante:** `endereco.id_clifor_fk` e `contato.id_clifor_fk` ([`models/endereco.py:10`](../backend/models/endereco.py), [`models/contato.py:9`](../backend/models/contato.py)) não têm `index=True`. Postgres não indexa FK automaticamente — cada uma dessas N queries extras por lazy-load pode estar rodando sequential scan em vez de usar índice, o que piora conforme as tabelas crescem.
+
+**Também sem paginação:** mesmo padrão do [3.9](#39-paginação-em-get-lancamento) — `.all()` sem `limit`/`offset`.
+
+**Sugestão de correção (quando for puxado):**
+1. Adicionar `joinedload(ClienteFornecedor.enderecos)` e `joinedload(ClienteFornecedor.contatos)` (ou `selectinload` — com duas coleções 1:N por linha, `selectinload` costuma escalar melhor que `joinedload`, que faz produto cartesiano no SQL; vale medir os dois antes de decidir).
+2. Adicionar `index=True` nas duas colunas de FK (migração simples, sem quebra de compatibilidade).
+3. Paginação segue o mesmo racional do 3.9 — pode ser resolvido junto, no mesmo padrão de contrato (skip/limit + `X-Total-Count`), para não implementar dois formatos de paginação diferentes no backend.
+4. Medir antes/depois com `EXPLAIN ANALYZE` ou contagem de queries emitidas (mesma sugestão de teste do 3.8) para confirmar o ganho.
+
 ### 3.7 Faxina do scaffolding SvelteKit restante
+
+> ✅ **Concluído** — nenhuma dependência, script ou config Svelte remanescente
+> em `package.json`, `eslint.config.js`, `.prettierrc` ou `vite.config.js`;
+> `svelte.config.js` não existe mais. Único resquício físico é
+> `AMSI_Frontend/static/robots.txt` (convenção Svelte, inofensivo — Vite usa
+> `public/`).
 
 > Continuação do **3.5**: o frontend foi criado a partir de um template SvelteKit e ainda carrega dependências e arquivos que o app React/Vite **não usa**.
 
@@ -571,4 +653,4 @@ Resumo do que precisa ser corrigido (detalhe no doc 12):
 
 ---
 
-*Última atualização: 2026-06-14 (adicionado 6.3 — lançamento em massa via modal-seletor de clifor + campo `lote`; decisão de API: endpoint dedicado `POST /lancamento/massa`)*
+*Última atualização: 2026-07-09 (adicionado 3.8/3.9/3.10 — N+1 na listagem de lançamentos, paginação de `GET /lancamento/` e skeleton loaders; 3.11, plano fechado de cache de sessão no frontend; 3.12, N+1 + índice faltante em `GET /cliente_fornecedor/`, diagnosticado a partir do relato de lentidão na tela de Clientes/Fornecedores; e marcados 3.1/3.4/3.7 como concluídos após auditoria de código que confirmou implementação já existente)*

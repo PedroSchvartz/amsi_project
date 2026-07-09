@@ -1,6 +1,7 @@
 import pytest
 
 from utils.config import ADMIN_TESTE_EMAIL, ADMIN_TESTE_SENHA
+from utils.rate_limit import limiter
 
 
 # ================================================
@@ -280,5 +281,59 @@ def test_token_invalidado_apos_soft_delete(client, headers_admin):
 
     r = client.get("/cliente_fornecedor/")
     assert r.status_code == 401
+
+
+# ================================================
+# RATE LIMITING — item 3.4 do docs/escopo_futuro.md
+# ================================================
+# O limiter (utils/rate_limit.py) nasce DESLIGADO em dev/teste (enabled=False)
+# para não atrapalhar o restante da suíte, que faz muitos logins em sequência a
+# partir do mesmo IP. Aqui ligamos pontualmente para validar o 429 de verdade e
+# desligamos de novo em um finally — mesmo que o teste falhe — para não vazar
+# estado para os testes vizinhos que dependem do limiter desligado.
+
+def test_rate_limit_login(client):
+    """POST /auth/token aceita 10/minute por IP; a 11ª tentativa em diante deve
+    retornar 429. Usa credenciais inválidas de propósito: como o login falha
+    antes de qualquer escrita (ver auth/router.py), nenhum usuário ou registro
+    de login é criado — não suja o banco nem exige limpeza no db_snapshot."""
+    limiter.enabled = True
+    try:
+        respostas = [
+            client.post("/auth/token", json={
+                "email": "naoexiste_ratelimit@amsi.com",
+                "senha": "qualquer"
+            }).status_code
+            for _ in range(15)
+        ]
+    finally:
+        limiter.enabled = False
+
+    assert respostas[:10] == [401] * 10, f"Esperava 401 nas 10 primeiras tentativas: {respostas}"
+    assert all(codigo == 429 for codigo in respostas[10:]), (
+        f"Esperava 429 a partir da 11ª tentativa: {respostas}"
+    )
+
+
+def test_rate_limit_esqueci_senha(client):
+    """POST /auth/esqueci-senha aceita 5/minute por IP; a 6ª tentativa em diante
+    deve retornar 429. Usa email inexistente: a rota responde com a mensagem
+    neutra (_MENSAGEM_NEUTRA_ESQUECI) sem tocar o banco nem enviar e-mail, então
+    é seguro bater várias vezes em sequência."""
+    limiter.enabled = True
+    try:
+        respostas = [
+            client.post("/auth/esqueci-senha", json={
+                "email": "naoexiste_ratelimit_esqueci@amsi.com"
+            }).status_code
+            for _ in range(8)
+        ]
+    finally:
+        limiter.enabled = False
+
+    assert respostas[:5] == [200] * 5, f"Esperava 200 nas 5 primeiras tentativas: {respostas}"
+    assert all(codigo == 429 for codigo in respostas[5:]), (
+        f"Esperava 429 a partir da 6ª tentativa: {respostas}"
+    )
 
 
