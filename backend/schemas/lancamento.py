@@ -99,7 +99,7 @@ class LancamentoResponse(BaseModel):
     juros: Optional[Decimal] = None
     id_usuario_fk_efetivacao: Optional[int] = None
     data_efetivacao: Optional[datetime] = None
-    id_usuario_fk_fechamento: Optional[int] = None
+    id_usuario_fk_aprovacao: Optional[int] = None
     data_aprovacao: Optional[datetime] = None
     id_usuario_fk_edicao: Optional[int] = None
     data_edicao: Optional[datetime] = None
@@ -118,7 +118,7 @@ class LancamentoResponse(BaseModel):
     descricao_tipo_conta: Optional[str] = None
     nome_usuario_lancamento: Optional[str] = None
     nome_usuario_efetivacao: Optional[str] = None
-    nome_usuario_fechamento: Optional[str] = None
+    nome_usuario_aprovacao: Optional[str] = None
     nome_usuario_edicao: Optional[str] = None
 
     @model_validator(mode='before')
@@ -139,9 +139,9 @@ class LancamentoResponse(BaseModel):
             ue = getattr(values, 'usuario_efetivacao', None)
             if ue:
                 values.__dict__['nome_usuario_efetivacao'] = ue.nome
-            uf = getattr(values, 'usuario_fechamento', None)
-            if uf:
-                values.__dict__['nome_usuario_fechamento'] = uf.nome
+            ua = getattr(values, 'usuario_aprovacao', None)
+            if ua:
+                values.__dict__['nome_usuario_aprovacao'] = ua.nome
             ued = getattr(values, 'usuario_edicao', None)
             if ued:
                 values.__dict__['nome_usuario_edicao'] = ued.nome

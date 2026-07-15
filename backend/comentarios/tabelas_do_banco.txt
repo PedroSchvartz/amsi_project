@@ -145,9 +145,9 @@ CREATE TABLE Lancamento (
     id_Usuario_FK_Efetivacao BIGINT,          -- quem efetivou; vem do token, nunca do body
     data_efetivacao TIMESTAMP,                -- carimbo do servidor no ato da efetivacao
     -- Aprovacao (so Admin): tira de "Em analise" e leva a "Pago".
-    -- ATENCAO: o nome "Fechamento" e historico e mente um pouco -- esta coluna e o APROVADOR.
-    -- Nao foi renomeada para nao somar risco ao deploy que ja carrega o backfill.
-    id_Usuario_FK_Fechamento BIGINT,          -- quem aprovou; vem do token, nunca do body
+    -- Ex-id_Usuario_FK_Fechamento: renomeada porque "fechamento" mentia -- a coluna
+    -- sempre foi o aprovador. Ver a secao [RENOMEACAO] de migracao_em_analise.sql.
+    id_Usuario_FK_Aprovacao BIGINT,           -- quem aprovou; vem do token, nunca do body
     data_aprovacao TIMESTAMP,                 -- carimbo do servidor no ato da aprovacao
     -- Edicao (so Admin, via PATCH /lancamento/{id}/editar).
     -- Guarda so a ULTIMA edicao: uma nova sobrescreve a anterior. A linha do tempo da tela
@@ -168,7 +168,7 @@ CREATE TABLE Lancamento (
     FOREIGN KEY (id_CliFor_Relacionado_FK) REFERENCES ClienteFornecedor(id_CliFor),
     FOREIGN KEY (id_tipo_conta_FK) REFERENCES tipo_conta(id_tipo_conta),
     FOREIGN KEY (id_Usuario_FK_Efetivacao) REFERENCES Usuario(id_usuario),
-    FOREIGN KEY (id_Usuario_FK_Fechamento) REFERENCES Usuario(id_usuario),
+    FOREIGN KEY (id_Usuario_FK_Aprovacao) REFERENCES Usuario(id_usuario),
     FOREIGN KEY (id_Usuario_FK_Edicao) REFERENCES Usuario(id_usuario),
     -- Os dois CHECKs abaixo valem para uma base criada do zero por este script.
     -- NAO estao aplicados na base existente: a migracao de main._aplicar_migracoes()

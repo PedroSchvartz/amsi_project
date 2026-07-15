@@ -62,10 +62,33 @@ def _aplicar_migracoes():
                 conn.execute(text("ALTER TABLE lancamento ADD COLUMN lote BIGINT"))
                 conn.commit()
 
+    # Migration: id_usuario_fk_fechamento → id_usuario_fk_aprovacao.
+    # "Fechamento" era herança do fluxo antigo e mentia: a coluna sempre guardou quem
+    # aprovou. Nome que mente em coluna de auditoria custa mais caro que a renomeação.
+    #
+    # Roda ANTES das migrações abaixo de propósito: a do fluxo de aprovação lê esta
+    # coluna no backfill, então o nome novo precisa já estar valendo quando ela chegar.
+    #
+    # RENAME COLUMN preserva a FK, mas não o nome dela — daí o segundo ALTER. Os dois
+    # são guardados pela presença da coluna velha, então reentrar é no-op.
+    if "lancamento" in insp.get_table_names():
+        cols = [c["name"] for c in insp.get_columns("lancamento")]
+        if "id_usuario_fk_fechamento" in cols:
+            with engine.connect() as conn:
+                conn.execute(text(
+                    "ALTER TABLE lancamento "
+                    "RENAME COLUMN id_usuario_fk_fechamento TO id_usuario_fk_aprovacao"
+                ))
+                conn.execute(text(
+                    "ALTER TABLE lancamento "
+                    "RENAME CONSTRAINT lancamento_id_usuario_fk_fechamento_fkey "
+                    "TO lancamento_id_usuario_fk_aprovacao_fkey"
+                ))
+                conn.commit()
+
     # Migration: fluxo de aprovação (Aberto → Em análise → Pago).
     # data_efetivacao/id_usuario_fk_efetivacao = quem efetivou (Operador ou Admin);
-    # data_aprovacao = quando o Admin aprovou. id_usuario_fk_fechamento passa a
-    # significar APROVADOR (o nome é histórico).
+    # data_aprovacao/id_usuario_fk_aprovacao = quando e quem aprovou (Admin).
     #
     # Backfill: todo lançamento que já tinha data_pagamento estava "Pago" no fluxo
     # antigo, e precisa continuar Pago — sem isso ele voltaria a aparecer como
@@ -85,7 +108,7 @@ def _aplicar_migracoes():
                     "UPDATE lancamento "
                     "SET data_efetivacao = data_pagamento, "
                     "    data_aprovacao = data_pagamento, "
-                    "    id_usuario_fk_efetivacao = id_usuario_fk_fechamento "
+                    "    id_usuario_fk_efetivacao = id_usuario_fk_aprovacao "
                     "WHERE data_pagamento IS NOT NULL"
                 ))
                 conn.execute(text(

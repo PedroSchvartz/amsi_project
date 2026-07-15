@@ -1864,7 +1864,7 @@
     juros:
       tipo: desconhecido
       obrigatorio: false
-    id_usuario_fk_fechamento:
+    id_usuario_fk_aprovacao:
       tipo: desconhecido
       obrigatorio: false
     data_pagamento:
@@ -1963,7 +1963,7 @@
     juros:
       tipo: desconhecido
       obrigatorio: false
-    id_usuario_fk_fechamento:
+    id_usuario_fk_aprovacao:
       tipo: desconhecido
       obrigatorio: false
     data_pagamento:
@@ -2045,7 +2045,7 @@
     juros:
       tipo: desconhecido
       obrigatorio: false
-    id_usuario_fk_fechamento:
+    id_usuario_fk_aprovacao:
       tipo: desconhecido
       obrigatorio: false
     data_pagamento:
@@ -2099,7 +2099,7 @@
     obrigatorio: true
     tipo: integer
   request_body:
-    id_usuario_fk_fechamento:
+    id_usuario_fk_aprovacao:
       tipo: desconhecido
       obrigatorio: false
     data_pagamento:
@@ -2148,7 +2148,7 @@
     juros:
       tipo: desconhecido
       obrigatorio: false
-    id_usuario_fk_fechamento:
+    id_usuario_fk_aprovacao:
       tipo: desconhecido
       obrigatorio: false
     data_pagamento:
@@ -2242,7 +2242,7 @@
     juros:
       tipo: desconhecido
       obrigatorio: false
-    id_usuario_fk_fechamento:
+    id_usuario_fk_aprovacao:
       tipo: desconhecido
       obrigatorio: false
     data_pagamento:
@@ -2324,7 +2324,7 @@
     juros:
       tipo: desconhecido
       obrigatorio: false
-    id_usuario_fk_fechamento:
+    id_usuario_fk_aprovacao:
       tipo: desconhecido
       obrigatorio: false
     data_pagamento:
@@ -2480,7 +2480,7 @@
     juros:
       tipo: desconhecido
       obrigatorio: false
-    id_usuario_fk_fechamento:
+    id_usuario_fk_aprovacao:
       tipo: desconhecido
       obrigatorio: false
     data_pagamento:

@@ -151,7 +151,7 @@ def _lanc(db, **kwargs):
     if kwargs.get("data_pagamento") is not None:
         kwargs.setdefault("data_efetivacao", kwargs["data_pagamento"])
         kwargs.setdefault("data_aprovacao", kwargs["data_pagamento"])
-        kwargs.setdefault("id_usuario_fk_efetivacao", kwargs.get("id_usuario_fk_fechamento"))
+        kwargs.setdefault("id_usuario_fk_efetivacao", kwargs.get("id_usuario_fk_aprovacao"))
     l = Lancamento(**kwargs)
     db.add(l)
     db.flush()
@@ -211,7 +211,7 @@ def seed():
                    id_tipo_conta_fk=men.id_tipo_conta, valor=Decimal("100.00"),
                    data_vencimento=date(2026, m, 20), natureza_lancamento=CR,
                    data_pagamento=datetime(2026, m, 5), valor_pago=Decimal("100.00"),
-                   id_usuario_fk_fechamento=uid, observacao=SEED_TAG)
+                   id_usuario_fk_aprovacao=uid, observacao=SEED_TAG)
               for m in range(1, 7)],
 
             # Mensalidades Joao — jan a mai pagas, jun em aberto
@@ -219,7 +219,7 @@ def seed():
                    id_tipo_conta_fk=men.id_tipo_conta, valor=Decimal("100.00"),
                    data_vencimento=date(2026, m, 20), natureza_lancamento=CR,
                    data_pagamento=datetime(2026, m, 6), valor_pago=Decimal("100.00"),
-                   id_usuario_fk_fechamento=uid, observacao=SEED_TAG)
+                   id_usuario_fk_aprovacao=uid, observacao=SEED_TAG)
               for m in range(1, 6)],
             dict(id_usuario_fk_lancamento=uid, id_clifor_relacionado_fk=joao.id_clifor,
                  id_tipo_conta_fk=men.id_tipo_conta, valor=Decimal("100.00"),
@@ -238,12 +238,12 @@ def seed():
                  id_tipo_conta_fk=ene.id_tipo_conta, valor=Decimal("320.00"),
                  data_vencimento=date(2026, 4, 10), natureza_lancamento=DB,
                  data_pagamento=datetime(2026, 4, 9), valor_pago=Decimal("320.00"),
-                 id_usuario_fk_fechamento=uid, observacao=SEED_TAG),
+                 id_usuario_fk_aprovacao=uid, observacao=SEED_TAG),
             dict(id_usuario_fk_lancamento=uid, id_clifor_relacionado_fk=energisa.id_clifor,
                  id_tipo_conta_fk=ene.id_tipo_conta, valor=Decimal("298.50"),
                  data_vencimento=date(2026, 5, 10), natureza_lancamento=DB,
                  data_pagamento=datetime(2026, 5, 8), valor_pago=Decimal("298.50"),
-                 id_usuario_fk_fechamento=uid, observacao=SEED_TAG),
+                 id_usuario_fk_aprovacao=uid, observacao=SEED_TAG),
             dict(id_usuario_fk_lancamento=uid, id_clifor_relacionado_fk=energisa.id_clifor,
                  id_tipo_conta_fk=ene.id_tipo_conta, valor=Decimal("310.00"),
                  data_vencimento=date(2026, 6, 10), natureza_lancamento=DB,
@@ -254,7 +254,7 @@ def seed():
                  id_tipo_conta_fk=agu.id_tipo_conta, valor=Decimal("145.00"),
                  data_vencimento=date(2026, 5, 15), natureza_lancamento=DB,
                  data_pagamento=datetime(2026, 5, 14), valor_pago=Decimal("145.00"),
-                 id_usuario_fk_fechamento=uid, observacao=SEED_TAG),
+                 id_usuario_fk_aprovacao=uid, observacao=SEED_TAG),
             dict(id_usuario_fk_lancamento=uid, id_clifor_relacionado_fk=sabesp.id_clifor,
                  id_tipo_conta_fk=agu.id_tipo_conta, valor=Decimal("132.00"),
                  data_vencimento=date(2026, 6, 15), natureza_lancamento=DB,
@@ -266,7 +266,7 @@ def seed():
                  data_vencimento=date(2026, 3, 1), natureza_lancamento=DB,
                  data_pagamento=datetime(2026, 3, 10), valor_pago=Decimal("522.00"),
                  multa=Decimal("10.00"), juros=Decimal("12.00"),
-                 id_usuario_fk_fechamento=uid, observacao=SEED_TAG,
+                 id_usuario_fk_aprovacao=uid, observacao=SEED_TAG,
                  observacao_pagamento="Pago com atraso — boleto vencido"),
 
             # Patrocinio recebido
@@ -274,14 +274,14 @@ def seed():
                  id_tipo_conta_fk=pat.id_tipo_conta, valor=Decimal("1000.00"),
                  data_vencimento=date(2026, 1, 5), natureza_lancamento=CR,
                  data_pagamento=datetime(2026, 1, 5), valor_pago=Decimal("1000.00"),
-                 id_usuario_fk_fechamento=uid, observacao=SEED_TAG),
+                 id_usuario_fk_aprovacao=uid, observacao=SEED_TAG),
 
             # Reembolso credito (subtrai no dashboard)
             dict(id_usuario_fk_lancamento=uid, id_clifor_relacionado_fk=marcio.id_clifor,
                  id_tipo_conta_fk=men.id_tipo_conta, valor=Decimal("50.00"),
                  data_vencimento=date(2026, 2, 20), natureza_lancamento=CR,
                  estorno=True, data_pagamento=datetime(2026, 2, 20), valor_pago=Decimal("50.00"),
-                 id_usuario_fk_fechamento=uid, observacao=SEED_TAG,
+                 id_usuario_fk_aprovacao=uid, observacao=SEED_TAG,
                  observacao_pagamento="Reembolso de mensalidade paga em duplicidade"),
 
             # Reembolso debito (soma no dashboard)
@@ -289,7 +289,7 @@ def seed():
                  id_tipo_conta_fk=ene.id_tipo_conta, valor=Decimal("50.00"),
                  data_vencimento=date(2026, 3, 10), natureza_lancamento=DB,
                  estorno=True, data_pagamento=datetime(2026, 3, 10), valor_pago=Decimal("50.00"),
-                 id_usuario_fk_fechamento=uid, observacao=SEED_TAG,
+                 id_usuario_fk_aprovacao=uid, observacao=SEED_TAG,
                  observacao_pagamento="Credito concedido pela Energisa"),
         ]
 

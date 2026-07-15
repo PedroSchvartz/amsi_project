@@ -21,7 +21,7 @@ import {
 	removerComprovante,
 	getUser
 } from '../services/api';
-import { getUserFromToken, isAdmin, isConsulta, hasPerfilMinimo } from '../services/auth';
+import { isAdmin, isConsulta, hasPerfilMinimo } from '../services/auth';
 
 function rassurarCpfCnpj(doc) {
 	if (!doc) return '—';
@@ -116,7 +116,6 @@ function ListaLancamentosPage() {
 	const [timelineModal, setTimelineModal] = useState(null); // lançamento cujo histórico está aberto
 	const [perfilUsuario, setPerfilUsuario] = useState(null); // usuário aberto a partir da linha do tempo
 
-	const usuario = getUserFromToken();
 	const admin = isAdmin();
 
 	useEffect(() => {
@@ -212,7 +211,6 @@ function ListaLancamentosPage() {
 		setLancamentoSelecionado(l);
 		setFormFechar({
 			...FECHAR_INICIAL,
-			id_usuario_fk_fechamento: usuario?.sub,
 			data_pagamento: hojeLocal(),
 			observacao_pagamento: l.observacao_pagamento || '',
 			valor_pago: l.valor_pago ? String(l.valor_pago).replace('.', ',') : String(l.valor).replace('.', ',')
@@ -1316,7 +1314,7 @@ function ListaLancamentosPage() {
 									<label>Aprovado por</label>
 									<div style={{ padding: '6px 10px', background: 'var(--input-bg)', borderRadius: 6, fontSize: '0.875rem' }}>
 										{modalVer.data_aprovacao
-											? `${modalVer.nome_usuario_fechamento || '—'} · ${formatarCarimbo(modalVer.data_aprovacao)}`
+											? `${modalVer.nome_usuario_aprovacao || '—'} · ${formatarCarimbo(modalVer.data_aprovacao)}`
 											: 'Aguardando aprovação'}
 									</div>
 								</div>

@@ -215,7 +215,7 @@ def listar_lancamentos(
     ).options(
         joinedload(Lancamento.usuario_lancamento),
         joinedload(Lancamento.usuario_efetivacao),
-        joinedload(Lancamento.usuario_fechamento),
+        joinedload(Lancamento.usuario_aprovacao),
         joinedload(Lancamento.usuario_edicao),
         joinedload(Lancamento.tipo_conta_rel)
     )
@@ -286,7 +286,7 @@ def listar_lancamentos_por_clifor(id_clifor: int, db: Session = Depends(get_db),
         joinedload(Lancamento.cliente_fornecedor),
         joinedload(Lancamento.usuario_lancamento),
         joinedload(Lancamento.usuario_efetivacao),
-        joinedload(Lancamento.usuario_fechamento),
+        joinedload(Lancamento.usuario_aprovacao),
         joinedload(Lancamento.usuario_edicao),
         joinedload(Lancamento.tipo_conta_rel)
     ).order_by(Lancamento.data_vencimento).all()
@@ -302,7 +302,7 @@ def listar_lancamentos_por_usuario(id_usuario: int, db: Session = Depends(get_db
     ).options(
         joinedload(Lancamento.usuario_lancamento),
         joinedload(Lancamento.usuario_efetivacao),
-        joinedload(Lancamento.usuario_fechamento),
+        joinedload(Lancamento.usuario_aprovacao),
         joinedload(Lancamento.usuario_edicao),
         joinedload(Lancamento.tipo_conta_rel)
     ).order_by(Lancamento.data_vencimento, ClienteFornecedor.nome).all()
@@ -421,7 +421,7 @@ def efetivar_lancamento(
     lancamento.id_usuario_fk_efetivacao = current_user.id_usuario
     if current_user.perfil_de_acesso == AcessoEnum.Administrador:
         lancamento.data_aprovacao = agora
-        lancamento.id_usuario_fk_fechamento = current_user.id_usuario
+        lancamento.id_usuario_fk_aprovacao = current_user.id_usuario
 
     db.commit()
     db.refresh(lancamento)
@@ -449,7 +449,7 @@ def aprovar_lancamento(
         raise HTTPException(status_code=409, detail="Lançamento já aprovado")
 
     lancamento.data_aprovacao = datetime.utcnow()
-    lancamento.id_usuario_fk_fechamento = admin.id_usuario
+    lancamento.id_usuario_fk_aprovacao = admin.id_usuario
 
     db.commit()
     db.refresh(lancamento)

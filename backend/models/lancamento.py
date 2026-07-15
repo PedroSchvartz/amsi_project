@@ -43,8 +43,7 @@ class Lancamento(Base):
     id_usuario_fk_efetivacao = Column(BigInteger, ForeignKey("usuario.id_usuario"), nullable=True)
     data_efetivacao = Column(TIMESTAMP, nullable=True)
     # Aprovação (só Admin) — tira de "Em análise" e leva a "Pago".
-    # O nome "fechamento" é histórico e mente: esta coluna é o APROVADOR.
-    id_usuario_fk_fechamento = Column(BigInteger, ForeignKey("usuario.id_usuario"), nullable=True)
+    id_usuario_fk_aprovacao = Column(BigInteger, ForeignKey("usuario.id_usuario"), nullable=True)
     data_aprovacao = Column(TIMESTAMP, nullable=True)
     # Edição (só Admin) — guarda apenas a ÚLTIMA: uma nova sobrescreve a anterior.
     # A linha do tempo mostra quem editou e quando, nunca o que mudou.
@@ -64,7 +63,7 @@ class Lancamento(Base):
 
     usuario_lancamento = relationship("Usuario", foreign_keys=[id_usuario_fk_lancamento], backref="lancamentos_criados")
     usuario_efetivacao = relationship("Usuario", foreign_keys=[id_usuario_fk_efetivacao], backref="lancamentos_efetivados")
-    usuario_fechamento = relationship("Usuario", foreign_keys=[id_usuario_fk_fechamento], backref="lancamentos_aprovados")
+    usuario_aprovacao = relationship("Usuario", foreign_keys=[id_usuario_fk_aprovacao], backref="lancamentos_aprovados")
     usuario_edicao = relationship("Usuario", foreign_keys=[id_usuario_fk_edicao], backref="lancamentos_editados")
     cliente_fornecedor = relationship("ClienteFornecedor", backref="lancamentos")
     tipo_conta_rel = relationship("tipo_conta", backref="lancamentos")

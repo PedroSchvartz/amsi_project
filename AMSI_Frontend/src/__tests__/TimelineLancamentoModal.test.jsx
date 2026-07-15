@@ -25,7 +25,7 @@ describe('ordem da linha do tempo', () => {
 		const l = {
 			data_lancamento: '2026-06-17T18:33:02', nome_usuario_lancamento: 'Pedro',
 			data_efetivacao: '2026-06-17T00:00:00', nome_usuario_efetivacao: 'Pedro',
-			data_aprovacao: '2026-06-17T00:00:00', nome_usuario_fechamento: 'Pedro',
+			data_aprovacao: '2026-06-17T00:00:00', nome_usuario_aprovacao: 'Pedro',
 		};
 		expect(ordem(l)).toEqual(['Lançado', 'Efetivado', 'Aprovado']);
 		expect(ultimaInteracao(l).acao).toBe('Aprovado');
@@ -87,7 +87,7 @@ describe('render do modal', () => {
 		data_efetivacao: '2026-06-17T14:00:00',
 		nome_usuario_efetivacao: 'Maria Operadora',
 		data_aprovacao: '2026-06-17T15:00:00',
-		nome_usuario_fechamento: 'Pedro Admin',
+		nome_usuario_aprovacao: 'Pedro Admin',
 	};
 
 	it('lista os eventos com quem fez, na ordem, e não diz o que mudou', () => {

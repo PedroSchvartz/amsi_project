@@ -224,4 +224,7 @@ SELECT COUNT(*) FROM Lancamento
 - **Notificação ao admin** (Telegram/e-mail) quando algo entra em análise. Já existem `telegram_id` e a flag `Notificacao` no `Usuario`. Merece fase própria — sem isso a fila depende do admin lembrar de olhar o filtro.
 - **Card no dashboard** com contagem/total em análise (acrescentaria campos ao `LancamentoResumo`).
 - **Rejeição com motivo.** Admin só aprova; desfazer é pelo `PATCH /editar`.
-- **Renomear `id_usuario_fk_fechamento`.** O nome mente um pouco ("fechamento" = aprovação), mas renomear em produção adiciona risco ao mesmo deploy que já tem um backfill delicado. Fica documentado no `tabelas_do_banco.txt`.
+- ~~**Renomear `id_usuario_fk_fechamento`.** O nome mente um pouco ("fechamento" = aprovação), mas renomear em produção adiciona risco ao mesmo deploy que já tem um backfill delicado. Fica documentado no `tabelas_do_banco.txt`.~~
+  **Revertido — a renomeação foi feita.** Documentar que o nome mente não impede ninguém de ler `fechamento` e entender "fechamento": o comentário só existe para quem abre o `tabelas_do_banco.txt`, e a tela mostra a coluna como "Aprovado por". Coluna de auditoria com nome que mente custa mais caro do que um `RENAME COLUMN` — que, sendo só catálogo, nem reescreve a tabela. Hoje é `id_usuario_fk_aprovacao`.
+
+  As demais linhas deste plano ficam como estavam: são o registro do que foi decidido na época, não a descrição do código de hoje.

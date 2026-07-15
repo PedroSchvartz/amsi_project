@@ -4,7 +4,7 @@
 const EVENTOS = [
 	{ acao: 'Lançado', ordem: 0, icone: 'bi-plus-circle', campoData: 'data_lancamento', campoNome: 'nome_usuario_lancamento', campoId: 'id_usuario_fk_lancamento' },
 	{ acao: 'Efetivado', ordem: 1, icone: 'bi-hourglass-split', campoData: 'data_efetivacao', campoNome: 'nome_usuario_efetivacao', campoId: 'id_usuario_fk_efetivacao' },
-	{ acao: 'Aprovado', ordem: 2, icone: 'bi-check-circle', campoData: 'data_aprovacao', campoNome: 'nome_usuario_fechamento', campoId: 'id_usuario_fk_fechamento' },
+	{ acao: 'Aprovado', ordem: 2, icone: 'bi-check-circle', campoData: 'data_aprovacao', campoNome: 'nome_usuario_aprovacao', campoId: 'id_usuario_fk_aprovacao' },
 	{ acao: 'Editado', ordem: 3, icone: 'bi-pencil', campoData: 'data_edicao', campoNome: 'nome_usuario_edicao', campoId: 'id_usuario_fk_edicao' },
 ];
 

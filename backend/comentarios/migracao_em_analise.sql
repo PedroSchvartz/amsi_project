@@ -12,6 +12,21 @@
 
 
 -- ----------------------------------------------------------------------------
+-- [RENOMEACAO] id_Usuario_FK_Fechamento -> id_Usuario_FK_Aprovacao.
+-- Tambem ja roda sozinha no startup, ANTES da FASE 1 (que le esta coluna no
+-- backfill). Reproduzida aqui so como referencia -- nao rode a mao.
+--
+-- RENAME COLUMN preserva a FK, mas o nome dela continuaria dizendo "fechamento";
+-- por isso o segundo ALTER.
+-- ----------------------------------------------------------------------------
+-- ALTER TABLE Lancamento
+--     RENAME COLUMN id_Usuario_FK_Fechamento TO id_Usuario_FK_Aprovacao;
+-- ALTER TABLE Lancamento
+--     RENAME CONSTRAINT lancamento_id_usuario_fk_fechamento_fkey
+--                    TO lancamento_id_usuario_fk_aprovacao_fkey;
+
+
+-- ----------------------------------------------------------------------------
 -- [VERIFICACAO] Rodar depois do deploy do backend. Esperado: 0 em todas as linhas.
 --
 -- Se `pago_sem_efetivacao` > 0, o backfill nao rodou e esses lancamentos aparecem
@@ -30,7 +45,7 @@
 -- UPDATE Lancamento
 --    SET data_efetivacao = data_pagamento,
 --        data_aprovacao  = data_pagamento,
---        id_Usuario_FK_Efetivacao = id_Usuario_FK_Fechamento
+--        id_Usuario_FK_Efetivacao = id_Usuario_FK_Aprovacao
 --  WHERE data_pagamento IS NOT NULL AND data_efetivacao IS NULL;
 
 
@@ -51,11 +66,11 @@
 -- [OPCIONAL 2] Amarra aprovacao <-> aprovador. So aplique se esta contagem der 0:
 --
 -- SELECT COUNT(*) FROM Lancamento
---  WHERE data_aprovacao IS NOT NULL AND id_Usuario_FK_Fechamento IS NULL;
+--  WHERE data_aprovacao IS NOT NULL AND id_Usuario_FK_Aprovacao IS NULL;
 --
--- Pode haver linha antiga paga sem fechador (seed.py, dados_demo.py, ou admin que
+-- Pode haver linha antiga paga sem aprovador (seed.py, dados_demo.py, ou admin que
 -- setou data_pagamento pelo PATCH /editar). Se houver, NAO amarre -- o ALTER quebra.
 -- ----------------------------------------------------------------------------
 -- ALTER TABLE Lancamento
 --     ADD CONSTRAINT ck_lancamento_aprovacao_exige_aprovador
---         CHECK ((data_aprovacao IS NULL) = (id_Usuario_FK_Fechamento IS NULL));
+--         CHECK ((data_aprovacao IS NULL) = (id_Usuario_FK_Aprovacao IS NULL));

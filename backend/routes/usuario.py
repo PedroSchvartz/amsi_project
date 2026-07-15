@@ -184,9 +184,9 @@ def deletar_usuario_hard(
     db.query(TokenAtivo).filter(TokenAtivo.id_usuario_fk == id_usuario).delete(synchronize_session=False)
     db.query(SenhaToken).filter(SenhaToken.id_usuario_fk == id_usuario).delete(synchronize_session=False)
 
-    # 2. Lançamentos — fechamento (nullable) → NULL; criação (NOT NULL) → reassign admin raiz
-    db.query(Lancamento).filter(Lancamento.id_usuario_fk_fechamento == id_usuario)\
-        .update({"id_usuario_fk_fechamento": None}, synchronize_session=False)
+    # 2. Lançamentos — aprovação (nullable) → NULL; criação (NOT NULL) → reassign admin raiz
+    db.query(Lancamento).filter(Lancamento.id_usuario_fk_aprovacao == id_usuario)\
+        .update({"id_usuario_fk_aprovacao": None}, synchronize_session=False)
     db.query(Lancamento).filter(Lancamento.id_usuario_fk_lancamento == id_usuario)\
         .update({"id_usuario_fk_lancamento": 1}, synchronize_session=False)
 

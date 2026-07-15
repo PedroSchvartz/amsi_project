@@ -452,7 +452,7 @@ def gerar(args):
                         campos["data_aprovacao"] = ts_pago
                         campos["valor_pago"] = valor_pago
                         campos["id_usuario_fk_efetivacao"] = uid
-                        campos["id_usuario_fk_fechamento"] = uid
+                        campos["id_usuario_fk_aprovacao"] = uid
                     elif natureza == NaturezaLancamentoEnum.Credito:
                         # inadimplente: crédito vencido e sem pagamento
                         cf_inadimplente = True

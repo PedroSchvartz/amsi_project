@@ -1201,7 +1201,7 @@ def test_atores_vem_do_token_e_ignoram_o_body(client, headers_admin, usuario_bas
     id_l = r.json()["id_lancamento"]
 
     r_put = client.put(f"/lancamento/{id_l}", json={
-        "id_usuario_fk_fechamento": 999999,
+        "id_usuario_fk_aprovacao": 999999,
         "id_usuario_fk_efetivacao": 999999,
         "data_pagamento": "2099-12-31T00:00:00",
         "valor_pago": "10.00",
@@ -1210,7 +1210,7 @@ def test_atores_vem_do_token_e_ignoram_o_body(client, headers_admin, usuario_bas
     assert r_put.status_code == 200
     data = r_put.json()
     assert data["id_usuario_fk_efetivacao"] != 999999
-    assert data["id_usuario_fk_fechamento"] != 999999
+    assert data["id_usuario_fk_aprovacao"] != 999999
 
     client.delete(f"/lancamento/{id_l}", headers=headers_admin)
 
@@ -1664,7 +1664,7 @@ def test_operador_efetiva_vai_para_em_analise(client, headers_admin, headers_ope
     assert data["data_efetivacao"] is not None
     assert data["id_usuario_fk_efetivacao"] is not None
     assert data["data_aprovacao"] is None
-    assert data["id_usuario_fk_fechamento"] is None
+    assert data["id_usuario_fk_aprovacao"] is None
 
     client.delete(f"/lancamento/{id_l}", headers=headers_admin)
 
@@ -1731,7 +1731,7 @@ def test_admin_efetiva_vai_direto_para_pago(client, headers_admin, usuario_base,
     assert data["situacao"] == "Pago"
     assert data["data_efetivacao"] is not None
     assert data["data_aprovacao"] is not None
-    assert data["id_usuario_fk_efetivacao"] == data["id_usuario_fk_fechamento"]
+    assert data["id_usuario_fk_efetivacao"] == data["id_usuario_fk_aprovacao"]
 
     client.delete(f"/lancamento/{id_l}", headers=headers_admin)
 
@@ -1888,10 +1888,10 @@ def test_nome_dos_atores_no_response(client, headers_admin, headers_operador, us
         "valor_pago": "120.00",
     }, headers=headers_operador)
     assert r.json()["nome_usuario_efetivacao"] is not None
-    assert r.json()["nome_usuario_fechamento"] is None
+    assert r.json()["nome_usuario_aprovacao"] is None
 
     r = client.post(f"/lancamento/{id_l}/aprovar", headers=headers_admin)
-    assert r.json()["nome_usuario_fechamento"] is not None
+    assert r.json()["nome_usuario_aprovacao"] is not None
 
     client.delete(f"/lancamento/{id_l}", headers=headers_admin)
 

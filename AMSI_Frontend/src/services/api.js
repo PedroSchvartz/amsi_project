@@ -620,8 +620,8 @@ export const createLancamentoMassa = async (data) => {
 	return handleResponse(response);
 };
 
-// body: { id_usuario_fk_fechamento?, data_pagamento?, valor_pago?,
-//         multa?, juros?, observacao?, estorno? }
+// Efetivação (Aberto → Em análise). Quem efetivou sai do token — o corpo não manda ator.
+// body: { data_pagamento?, valor_pago?, multa?, juros?, observacao_pagamento?, estorno? }
 export const fecharLancamento = async (id_lancamento, data) => {
 	const response = await fetchComLoading(`${BASE_URL}/lancamento/${id_lancamento}`, {
 		method: 'PUT',

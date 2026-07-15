@@ -134,7 +134,6 @@ test.describe('Lançamentos', () => {
 			data: {
 				data_pagamento: new Date().toISOString(),
 				valor_pago: 211.37,
-				id_usuario_fk_fechamento: idDoToken(await getToken(pageAdmin)),
 			},
 			headers: auth,
 		});
