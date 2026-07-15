@@ -50,10 +50,12 @@ def listar_clifors(
     if pessoafisica_juridica is not None:
         query = query.filter(ClienteFornecedor.pessoafisica_juridica == pessoafisica_juridica)
     if apenas_pendentes:
+        # Pendente = dinheiro que ainda não entrou. Em análise conta como pendente:
+        # foi efetivado, mas só a aprovação do admin realiza o valor.
         query = query.filter(
             exists().where(
                 (Lancamento.id_clifor_relacionado_fk == ClienteFornecedor.id_clifor) &
-                (Lancamento.data_pagamento == None)
+                (Lancamento.data_aprovacao == None)
             )
         )
 
@@ -85,7 +87,7 @@ def saldos_clifors(db: Session = Depends(get_db), _=Depends(get_current_user)):
                 0
             ).label("total_a_pagar"),
         )
-        .outerjoin(Lancamento, (Lancamento.id_clifor_relacionado_fk == ClienteFornecedor.id_clifor) & (Lancamento.data_pagamento == None))
+        .outerjoin(Lancamento, (Lancamento.id_clifor_relacionado_fk == ClienteFornecedor.id_clifor) & (Lancamento.data_aprovacao == None))
         .group_by(ClienteFornecedor.id_clifor)
         .all()
     )
@@ -103,37 +105,37 @@ def resumo_clifor(id_clifor: int, db: Session = Depends(get_db), _=Depends(get_c
     total_a_receber = db.query(func.coalesce(func.sum(Lancamento.valor), 0)).filter(
         Lancamento.id_clifor_relacionado_fk == id_clifor,
         Lancamento.natureza_lancamento == "Credito",
-        Lancamento.data_pagamento == None
+        Lancamento.data_aprovacao == None
     ).scalar()
 
     total_a_pagar = db.query(func.coalesce(func.sum(Lancamento.valor), 0)).filter(
         Lancamento.id_clifor_relacionado_fk == id_clifor,
         Lancamento.natureza_lancamento == "Debito",
-        Lancamento.data_pagamento == None
+        Lancamento.data_aprovacao == None
     ).scalar()
 
     total_vencido_a_receber = db.query(func.coalesce(func.sum(Lancamento.valor), 0)).filter(
         Lancamento.id_clifor_relacionado_fk == id_clifor,
         Lancamento.natureza_lancamento == "Credito",
-        Lancamento.data_pagamento == None,
+        Lancamento.data_aprovacao == None,
         Lancamento.data_vencimento < hoje
     ).scalar()
 
     total_vencido_a_pagar = db.query(func.coalesce(func.sum(Lancamento.valor), 0)).filter(
         Lancamento.id_clifor_relacionado_fk == id_clifor,
         Lancamento.natureza_lancamento == "Debito",
-        Lancamento.data_pagamento == None,
+        Lancamento.data_aprovacao == None,
         Lancamento.data_vencimento < hoje
     ).scalar()
 
     quantidade_abertos = db.query(func.count(Lancamento.id_lancamento)).filter(
         Lancamento.id_clifor_relacionado_fk == id_clifor,
-        Lancamento.data_pagamento == None
+        Lancamento.data_aprovacao == None
     ).scalar()
 
     quantidade_vencidos = db.query(func.count(Lancamento.id_lancamento)).filter(
         Lancamento.id_clifor_relacionado_fk == id_clifor,
-        Lancamento.data_pagamento == None,
+        Lancamento.data_aprovacao == None,
         Lancamento.data_vencimento < hoje
     ).scalar()
 

@@ -142,6 +142,16 @@ def _upsert_clifor(db, dados, id_admin):
 
 
 def _lanc(db, **kwargs):
+    """Cria um lançamento do seed.
+
+    Quem tem data_pagamento no seed representa um lançamento já quitado, então
+    nasce efetivado E aprovado — senão o backend o leria como Aberto (o estado vem
+    de data_efetivacao, não de data_pagamento) e o dashboard do seed viria zerado.
+    """
+    if kwargs.get("data_pagamento") is not None:
+        kwargs.setdefault("data_efetivacao", kwargs["data_pagamento"])
+        kwargs.setdefault("data_aprovacao", kwargs["data_pagamento"])
+        kwargs.setdefault("id_usuario_fk_efetivacao", kwargs.get("id_usuario_fk_fechamento"))
     l = Lancamento(**kwargs)
     db.add(l)
     db.flush()

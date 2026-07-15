@@ -35,7 +35,9 @@ Estes arquivos mandam mais que este resumo:
 - **ENUMs sem acento**: `Debito`/`Credito` (natureza); `C`/`F`/`A` (tipo_clifor).
   Models usam `values_callable`.
 - Identificador do usuário é o **EMAIL** (campo `login` foi removido).
-- `LancamentoCreate` **não** aceita estorno — setar via `PUT` depois de criar.
+- `LancamentoCreate` **não** aceita estorno — setar via `PATCH /lancamento/{id}/editar`
+  (só Admin) depois de criar. O `PUT` é a transição de efetivação (Aberto → Em análise),
+  exige `data_pagamento` e 409 em quem já foi efetivado — não serve para editar estorno.
 - Reaproveite os helpers de `utils/frequentes.py` (boolput, configure_logging, etc.).
 - Códigos de erro: 404 não-encontrado · 400 dado inválido · 401 não-autenticado ·
   403 sem permissão · 409 conflito · 500 deixe o FastAPI tratar. Nunca 200 com erro no body.

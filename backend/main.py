@@ -62,6 +62,83 @@ def _aplicar_migracoes():
                 conn.execute(text("ALTER TABLE lancamento ADD COLUMN lote BIGINT"))
                 conn.commit()
 
+    # Migration: fluxo de aprovação (Aberto → Em análise → Pago).
+    # data_efetivacao/id_usuario_fk_efetivacao = quem efetivou (Operador ou Admin);
+    # data_aprovacao = quando o Admin aprovou. id_usuario_fk_fechamento passa a
+    # significar APROVADOR (o nome é histórico).
+    #
+    # Backfill: todo lançamento que já tinha data_pagamento estava "Pago" no fluxo
+    # antigo, e precisa continuar Pago — sem isso ele voltaria a aparecer como
+    # Aberto e sumiria dos totais de dinheiro realizado.
+    if "lancamento" in insp.get_table_names():
+        cols = [c["name"] for c in insp.get_columns("lancamento")]
+        if "data_efetivacao" not in cols:
+            with engine.connect() as conn:
+                conn.execute(text(
+                    "ALTER TABLE lancamento "
+                    "ADD COLUMN data_efetivacao TIMESTAMP, "
+                    "ADD COLUMN data_aprovacao TIMESTAMP, "
+                    "ADD COLUMN id_usuario_fk_efetivacao BIGINT "
+                    "REFERENCES usuario(id_usuario)"
+                ))
+                conn.execute(text(
+                    "UPDATE lancamento "
+                    "SET data_efetivacao = data_pagamento, "
+                    "    data_aprovacao = data_pagamento, "
+                    "    id_usuario_fk_efetivacao = id_usuario_fk_fechamento "
+                    "WHERE data_pagamento IS NOT NULL"
+                ))
+                conn.execute(text(
+                    "CREATE INDEX IF NOT EXISTS idx_lancamento_em_analise "
+                    "ON lancamento(data_efetivacao, data_aprovacao)"
+                ))
+                conn.commit()
+
+    # Migration: carimbo da última edição (PATCH /lancamento/{id}/editar).
+    # Sem backfill de propósito: não há como saber quem editou no passado, e chutar o
+    # autor do lançamento inventaria uma prova de auditoria. Fica NULL, e a linha do
+    # tempo simplesmente não mostra o evento nos lançamentos antigos.
+    if "lancamento" in insp.get_table_names():
+        cols = [c["name"] for c in insp.get_columns("lancamento")]
+        if "data_edicao" not in cols:
+            with engine.connect() as conn:
+                conn.execute(text(
+                    "ALTER TABLE lancamento "
+                    "ADD COLUMN data_edicao TIMESTAMP, "
+                    "ADD COLUMN id_usuario_fk_edicao BIGINT "
+                    "REFERENCES usuario(id_usuario)"
+                ))
+                conn.commit()
+
+    # Migration: normaliza data_lancamento para UTC.
+    # O default era now() — hora LOCAL do Postgres, que roda em America/Sao_Paulo —
+    # enquanto data_efetivacao/aprovacao/edicao sempre vieram de datetime.utcnow().
+    # Os dois relógios conviviam sem se falar; a linha do tempo da tela ordena os
+    # quatro juntos e escancarou a diferença de 3h.
+    #
+    # O guard é o PRÓPRIO default, não a existência de uma coluna: este UPDATE não é
+    # idempotente (rodar duas vezes deslocaria +6h), e trocar o default é justamente
+    # o que marca a base como já normalizada.
+    #
+    # AT TIME ZONE em vez de "+ 3 hours": deixa o tz database resolver, então linhas
+    # anteriores a 2019 (quando o Brasil ainda tinha horário de verão) convertem certo.
+    if "lancamento" in insp.get_table_names():
+        with engine.connect() as conn:
+            default_atual = conn.execute(text(
+                "SELECT column_default FROM information_schema.columns "
+                "WHERE table_name = 'lancamento' AND column_name = 'data_lancamento'"
+            )).scalar()
+            if default_atual and "utc" not in default_atual.lower():
+                conn.execute(text(
+                    "UPDATE lancamento SET data_lancamento = "
+                    "data_lancamento AT TIME ZONE 'America/Sao_Paulo' AT TIME ZONE 'UTC'"
+                ))
+                conn.execute(text(
+                    "ALTER TABLE lancamento ALTER COLUMN data_lancamento "
+                    "SET DEFAULT timezone('utc', now())"
+                ))
+                conn.commit()
+
 
 _aplicar_migracoes()
 

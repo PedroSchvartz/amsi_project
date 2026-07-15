@@ -138,7 +138,6 @@ def test_fechar_lancamento_proibido_consulta(client, headers_consulta, headers_a
     id_lanc = r_criar.json()["id_lancamento"]
     try:
         r = client.put(f"/lancamento/{id_lanc}", json={
-            "id_usuario_fk_fechamento": usuario_base["id_usuario"],
             "data_pagamento": datetime.now().isoformat(),
             "valor_pago": "10.00"
         }, headers=headers_consulta)
@@ -225,8 +224,8 @@ def test_login_usuario_excluido(client, headers_admin, consulta_session):
 
 
 # ================================================
-# PERFIL OPERADOR — pode criar/fechar lançamentos e clifors
-# mas NÃO pode excluir lançamentos, criar usuários ou editar tipo de conta
+# PERFIL OPERADOR — pode criar/efetivar lançamentos e clifors
+# mas NÃO pode aprovar, excluir lançamentos, criar usuários ou editar tipo de conta
 # ================================================
 
 def test_criar_usuario_proibido_operador(client, headers_operador, operador_session):
@@ -275,8 +274,8 @@ def test_deletar_lancamento_proibido_operador(client, headers_admin, headers_ope
         client.delete(f"/lancamento/{id_lanc}", headers=headers_admin)
 
 
-def test_fechar_lancamento_permitido_operador(client, headers_operador, headers_admin, operador_session, usuario_base, clifor_base, tipo_lancamento_base):
-    """PUT /lancamento/{id} por Operador retorna 200."""
+def test_efetivar_lancamento_permitido_operador(client, headers_operador, headers_admin, operador_session, usuario_base, clifor_base, tipo_lancamento_base):
+    """PUT /lancamento/{id} por Operador retorna 200 e para em Em análise."""
     from datetime import datetime
     if not operador_session["disponivel"]:
         pytest.skip(operador_session["motivo"])
@@ -292,11 +291,12 @@ def test_fechar_lancamento_permitido_operador(client, headers_operador, headers_
     id_lanc = r_criar.json()["id_lancamento"]
     try:
         r = client.put(f"/lancamento/{id_lanc}", json={
-            "id_usuario_fk_fechamento": operador_session["id_usuario"],
             "data_pagamento": datetime.now().isoformat(),
             "valor_pago": "15.00"
         }, headers=headers_operador)
         assert r.status_code == 200
+        # Operador efetiva, mas não aprova: para "Em análise".
+        assert r.json()["situacao"] == "Em análise"
     finally:
         client.delete(f"/lancamento/{id_lanc}", headers=headers_admin)
 

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { getLancamentos, fecharLancamento, editarLancamento, deleteLancamento } from '../services/api';
-import { isAdmin, hasPerfilMinimo, getUserFromToken } from '../services/auth';
+import { getLancamentos, fecharLancamento, aprovarLancamento, editarLancamento, deleteLancamento } from '../services/api';
+import SituacaoBadge from './SituacaoBadge.jsx';
+import { isAdmin, hasPerfilMinimo } from '../services/auth';
 import { useToast } from './ToastStack.jsx';
 import '../styles/clientList.css';
 import '../styles/listaLancamentos.css';
@@ -31,13 +32,7 @@ function formatarValor(v) {
 	return parseFloat(v).toFixed(2).replace('.', ',');
 }
 
-function statusBadge(l) {
-	if (l.estorno) return <span className="badge badge-estorno">Estorno</span>;
-	if (l.data_pagamento) return <span className="badge badge-pago">Pago</span>;
-	const hoje = new Date().toISOString().split('T')[0];
-	if (l.data_vencimento < hoje) return <span className="badge badge-vencido">Vencido</span>;
-	return <span className="badge badge-aberto">Aberto</span>;
-}
+const statusBadge = (l) => <SituacaoBadge situacao={l.situacao} />;
 
 const EFETIVAR_INICIAL = { data_pagamento: '', multa: '', juros: '', observacao_pagamento: '' };
 const EDITAR_INICIAL = { id_tipo_conta_fk: '', valor: '', data_vencimento: '', observacao: '' };
@@ -55,7 +50,6 @@ function LoteLancamentosModal({ lote, tiposConta = [], refreshSignal, zIndex = 9
 	const { mostrarToast } = useToast();
 	const admin = isAdmin();
 	const podeEfetivar = hasPerfilMinimo('Operador');
-	const usuario = getUserFromToken();
 
 	const [lancamentos, setLancamentos] = useState([]);
 	const [loading, setLoading] = useState(true);
@@ -137,7 +131,6 @@ function LoteLancamentosModal({ lote, tiposConta = [], refreshSignal, zIndex = 9
 			return;
 		}
 		const base = {
-			id_usuario_fk_fechamento: usuario?.sub,
 			data_pagamento: formEfetivar.data_pagamento,
 			multa: num(formEfetivar.multa),
 			juros: num(formEfetivar.juros),
@@ -146,8 +139,11 @@ function LoteLancamentosModal({ lote, tiposConta = [], refreshSignal, zIndex = 9
 		await executar((id) => {
 			const l = lancamentos.find((x) => x.id_lancamento === id);
 			return fecharLancamento(id, { ...base, valor_pago: parseFloat(l.valor_pago ?? l.valor) });
-		}, 'lançamento(s) efetivado(s)');
+		}, admin ? 'lançamento(s) efetivado(s)' : 'lançamento(s) enviado(s) para análise');
 	};
+
+	// Aprovação em massa: reaproveita o mesmo loop, um POST /aprovar por lançamento.
+	const confirmarAprovar = () => executar((id) => aprovarLancamento(id), 'lançamento(s) aprovado(s)');
 
 	const confirmarEditar = async () => {
 		const payload = {};
@@ -160,6 +156,15 @@ function LoteLancamentosModal({ lote, tiposConta = [], refreshSignal, zIndex = 9
 			return;
 		}
 		await executar((id) => editarLancamento(id, payload), 'lançamento(s) editado(s)');
+	};
+
+	// Rótulo e handler de cada ação em massa, para o botão de confirmação não virar
+	// um ternário de quatro níveis.
+	const ACOES = {
+		efetivar: { rotulo: admin ? 'Efetivar' : 'Enviar para análise', confirmar: confirmarEfetivar },
+		aprovar: { rotulo: 'Aprovar', confirmar: confirmarAprovar },
+		editar: { rotulo: 'Editar', confirmar: confirmarEditar },
+		excluir: { rotulo: 'Excluir', confirmar: confirmarExcluir },
 	};
 
 	const n = marcados.size;
@@ -235,14 +240,24 @@ function LoteLancamentosModal({ lote, tiposConta = [], refreshSignal, zIndex = 9
 															<i className="bi bi-eye" />
 														</button>
 													)}
-													{!l.data_pagamento && !l.estorno && podeEfetivar && (
+													{!l.data_efetivacao && !l.estorno && podeEfetivar && (
 														<button
 															type="button"
 															className="ll-btn-acao fechar"
-															title="Efetivar este lançamento"
+															title={admin ? 'Efetivar este lançamento' : 'Efetivar e enviar para análise'}
 															onClick={() => onEfetivarUm?.(l)}
 														>
 															<i className="bi bi-journal-check" />
+														</button>
+													)}
+													{admin && l.data_efetivacao && !l.data_aprovacao && !l.estorno && (
+														<button
+															type="button"
+															className="ll-btn-acao aprovar"
+															title="Aprovar este lançamento"
+															onClick={() => acaoUm(l, 'aprovar')}
+														>
+															<i className="bi bi-check2-circle" />
 														</button>
 													)}
 													{admin && (
@@ -370,6 +385,15 @@ function LoteLancamentosModal({ lote, tiposConta = [], refreshSignal, zIndex = 9
 						</div>
 					)}
 
+					{acao === 'aprovar' && (
+						<div style={{ marginTop: 16, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+							<p style={{ margin: 0 }}>
+								Aprovar {n} lançamento(s) selecionado(s)? Os valores passam a contar no caixa.
+								Quem não estiver em análise será ignorado.
+							</p>
+						</div>
+					)}
+
 					{acao === 'excluir' && (
 						<div style={{ marginTop: 16, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
 							<p style={{ color: '#dc2626', fontWeight: 600, margin: 0 }}>
@@ -415,7 +439,12 @@ function LoteLancamentosModal({ lote, tiposConta = [], refreshSignal, zIndex = 9
 							<div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
 								{podeEfetivar && (
 									<button type="button" className="save" disabled={n === 0} onClick={() => abrirAcao('efetivar')}>
-										Efetivar
+										{admin ? 'Efetivar' : 'Enviar para análise'}
+									</button>
+								)}
+								{admin && (
+									<button type="button" className="save" disabled={n === 0} onClick={() => abrirAcao('aprovar')}>
+										Aprovar
 									</button>
 								)}
 								{admin && (
@@ -446,15 +475,9 @@ function LoteLancamentosModal({ lote, tiposConta = [], refreshSignal, zIndex = 9
 								className="save"
 								style={acao === 'excluir' ? { background: '#dc2626' } : {}}
 								disabled={processando}
-								onClick={acao === 'excluir' ? confirmarExcluir : acao === 'efetivar' ? confirmarEfetivar : confirmarEditar}
+								onClick={ACOES[acao].confirmar}
 							>
-								{processando
-									? 'Processando...'
-									: acao === 'excluir'
-										? `Excluir ${n}`
-										: acao === 'efetivar'
-											? `Efetivar ${n}`
-											: `Editar ${n}`}
+								{processando ? 'Processando...' : `${ACOES[acao].rotulo} ${n}`}
 							</button>
 						</div>
 					)}

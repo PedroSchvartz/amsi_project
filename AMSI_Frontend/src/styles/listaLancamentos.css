@@ -329,27 +329,35 @@
 /* Especificidade .badge.badge-* (0,2,0) p/ vencer o `.badge { color: var(--bs-badge-color) }`
    do Bootstrap (0,1,0), que carrega depois no bundle e senão pinta o texto de branco. */
 .badge.badge-aberto {
-	background: #86efac;
-	color: #14532d;
-	border: 1px solid #22c55e;
+	background: var(--badge-aberto-bg);
+	color: var(--badge-aberto-fg);
+	border: 1px solid var(--badge-aberto-border);
 }
 
 .badge.badge-pago {
-	background: #bfdbfe;
-	color: #1e3a8a;
-	border: 1px solid #60a5fa;
+	background: var(--badge-pago-bg);
+	color: var(--badge-pago-fg);
+	border: 1px solid var(--badge-pago-border);
+}
+
+/* Efetivado, aguardando aprovação do admin. Roxo para não colidir com
+   aberto (verde), pago (azul), vencido (vermelho) nem estorno (âmbar). */
+.badge.badge-analise {
+	background: var(--badge-analise-bg);
+	color: var(--badge-analise-fg);
+	border: 1px solid var(--badge-analise-border);
 }
 
 .badge.badge-vencido {
-	background: #fca5a5;
-	color: #7f1d1d;
-	border: 1px solid #ef4444;
+	background: var(--badge-vencido-bg);
+	color: var(--badge-vencido-fg);
+	border: 1px solid var(--badge-vencido-border);
 }
 
 .badge.badge-estorno {
-	background: #fde68a;
-	color: #78350f;
-	border: 1px solid #fbbf24;
+	background: var(--badge-estorno-bg);
+	color: var(--badge-estorno-fg);
+	border: 1px solid var(--badge-estorno-border);
 }
 
 /* Chip de origem do lançamento — inline após o status */
@@ -366,30 +374,121 @@
 	border: 1px solid #9ca3af;
 }
 
-/* Autor do lançamento — exibido ao lado do chip de origem nos modais de detalhe */
-.badge-origem-wrap {
+/* ── Última interação — quem mexeu por último e quando; abre o histórico ── */
+.ll-ultima-interacao {
 	display: inline-flex;
-	align-items: center;
-}
-.badge-origem-autor {
-	margin-left: 8px;
+	align-items: baseline;
+	gap: 6px;
+	background: none;
+	border: none;
+	padding: 4px 0;
+	font-family: inherit;
 	font-size: 0.8rem;
+	text-align: left;
 	color: var(--text-muted);
+	cursor: pointer;
 }
 
-/* Autor clicável (admin) — vira link para o perfil completo do usuário */
-.badge-origem-autor--link {
+.ll-ultima-interacao-acao {
+	font-weight: 600;
+	color: var(--primary);
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
+.ll-ultima-interacao:hover .ll-ultima-interacao-acao {
+	color: var(--btn-hover);
+}
+
+/* ── Linha do tempo do lançamento ── */
+.ll-timeline {
+	list-style: none;
+	margin: 0 0 20px;
+	padding: 0;
+}
+
+.ll-timeline-item {
+	display: flex;
+	gap: 12px;
+	position: relative;
+	padding-bottom: 18px;
+}
+
+/* Fio que liga os marcadores; o último evento não puxa fio para lugar nenhum */
+.ll-timeline-item:not(:last-child)::before {
+	content: '';
+	position: absolute;
+	left: 11px;
+	top: 24px;
+	bottom: 0;
+	width: 2px;
+	background: var(--border);
+}
+
+.ll-timeline-item:last-child {
+	padding-bottom: 0;
+}
+
+.ll-timeline-marcador {
+	flex: none;
+	width: 24px;
+	height: 24px;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--accent);
+	border: 1px solid var(--border);
+	color: var(--primary);
+	font-size: 0.75rem;
+	z-index: 1;
+}
+
+/* O evento mais recente é o que responde "quem mexeu por último" — ganha destaque */
+.ll-timeline-item:last-child .ll-timeline-marcador {
+	background: var(--primary);
+	border-color: var(--primary);
+	color: var(--bg-card);
+}
+
+.ll-timeline-conteudo {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding-top: 2px;
+}
+
+.ll-timeline-acao {
+	font-size: 0.875rem;
+	font-weight: 600;
+	color: var(--text);
+}
+
+.ll-timeline-nome {
+	font-size: 0.8rem;
+	color: var(--text);
+}
+
+/* Nome clicável (só admin) — abre o perfil completo por cima do histórico. */
+.ll-timeline-nome--link {
 	background: none;
 	border: none;
 	padding: 0;
 	font-family: inherit;
+	text-align: left;
 	color: var(--primary);
 	cursor: pointer;
 	text-decoration: underline;
 	text-underline-offset: 2px;
 }
-.badge-origem-autor--link:hover {
+
+.ll-timeline-nome--link:hover {
 	color: var(--btn-hover);
+}
+
+.ll-timeline-data {
+	font-size: 0.75rem;
+	color: var(--text-muted);
 }
 
 /* Em Lote (criado em massa) — violeta suave */
@@ -425,29 +524,8 @@
 }
 
 /* Adaptação dos badges no tema corporativo (fundo escuro) */
-[data-theme='corporativo'] .badge-aberto {
-	background: rgba(34, 197, 94, 0.22);
-	color: #86efac;
-	border-color: rgba(34, 197, 94, 0.45);
-}
-
-[data-theme='corporativo'] .badge-pago {
-	background: rgba(56, 189, 248, 0.22);
-	color: #7dd3fc;
-	border-color: rgba(56, 189, 248, 0.45);
-}
-
-[data-theme='corporativo'] .badge-vencido {
-	background: rgba(239, 68, 68, 0.22);
-	color: #fca5a5;
-	border-color: rgba(239, 68, 68, 0.45);
-}
-
-[data-theme='corporativo'] .badge-estorno {
-	background: rgba(250, 204, 21, 0.18);
-	color: #fde68a;
-	border-color: rgba(250, 204, 21, 0.40);
-}
+/* Os badges de situação não têm override aqui: as cores dos dois temas vivem em
+   theme.css, nas vars --badge-*-bg/fg/border. */
 
 /* ════════════════════════════════════════
    BOTÕES DE AÇÃO NA TABELA
@@ -489,6 +567,17 @@
 	background: rgba(34, 197, 94, 0.22);
 }
 
+/* Aprovar (admin): mesmo roxo do badge "Em análise", que é o que ele resolve. */
+.ll-btn-acao.aprovar {
+	background: rgba(167, 139, 250, 0.12);
+	color: #6d28d9;
+	border: 1px solid rgba(167, 139, 250, 0.2);
+}
+
+.ll-btn-acao.aprovar:hover {
+	background: rgba(167, 139, 250, 0.22);
+}
+
 .ll-btn-acao.deletar {
 	background: rgba(239, 68, 68, 0.1);
 	color: #b91c1c;
@@ -502,6 +591,11 @@
 [data-theme='corporativo'] .ll-btn-acao.fechar {
 	background: rgba(34, 197, 94, 0.15);
 	color: #4ade80;
+}
+
+[data-theme='corporativo'] .ll-btn-acao.aprovar {
+	background: rgba(167, 139, 250, 0.15);
+	color: #c4b5fd;
 }
 
 [data-theme='corporativo'] .ll-btn-acao.deletar {

@@ -77,7 +77,6 @@ def test_buscar_lancamento_inexistente(client, headers_admin):
 
 def test_fechar_lancamento(client, headers_admin, lancamento, usuario_base):
     r = client.put(f"/lancamento/{lancamento['id_lancamento']}", json={
-        "id_usuario_fk_fechamento": usuario_base["id_usuario"],
         "valor_pago": "250.00",
         "data_pagamento": "2026-04-21T00:00:00"
     }, headers=headers_admin)
@@ -124,7 +123,7 @@ def test_filtro_apenas_abertos(client, headers_admin, lancamento):
     r = client.get("/lancamento/?apenas_abertos=true", headers=headers_admin)
     assert r.status_code == 200
     data = r.json()
-    assert all(l["data_pagamento"] is None for l in data)
+    assert all(l["data_efetivacao"] is None for l in data)
     assert any(l["id_lancamento"] == lancamento["id_lancamento"] for l in data)
 
 
@@ -140,7 +139,6 @@ def test_filtro_apenas_abertos_exclui_fechados(client, headers_admin, usuario_ba
     }, headers=headers_admin)
     id_lanc = r.json()["id_lancamento"]
     client.put(f"/lancamento/{id_lanc}", json={
-        "id_usuario_fk_fechamento": usuario_base["id_usuario"],
         "valor_pago": "88.00",
         "data_pagamento": "2026-04-30T00:00:00"
     }, headers=headers_admin)
@@ -156,7 +154,7 @@ def test_filtro_apenas_vencidos(client, headers_admin, lancamento_vencido):
     r = client.get("/lancamento/?apenas_vencidos=true", headers=headers_admin)
     assert r.status_code == 200
     data = r.json()
-    assert all(l["data_pagamento"] is None for l in data)
+    assert all(l["data_efetivacao"] is None for l in data)
     assert any(l["id_lancamento"] == lancamento_vencido["id_lancamento"] for l in data)
 
 
@@ -302,7 +300,6 @@ def test_resumo_realizado_com_periodo(client, headers_admin, lancamento, usuario
     hoje = date.today().isoformat()
     # Fechar o lancamento
     client.put(f"/lancamento/{lancamento['id_lancamento']}", json={
-        "id_usuario_fk_fechamento": usuario_base["id_usuario"],
         "data_pagamento": datetime.now().isoformat(),
         "valor_pago": "250.00"
     }, headers=headers_admin)
@@ -317,7 +314,6 @@ def test_resumo_realizado_fora_periodo(client, headers_admin, lancamento, usuari
     from datetime import datetime
     # Fechar o lancamento
     client.put(f"/lancamento/{lancamento['id_lancamento']}", json={
-        "id_usuario_fk_fechamento": usuario_base["id_usuario"],
         "data_pagamento": datetime.now().isoformat(),
         "valor_pago": "250.00"
     }, headers=headers_admin)
@@ -335,7 +331,6 @@ def test_resumo_saldo_total_independe_periodo(client, headers_admin, lancamento,
     from datetime import datetime, date
     hoje = date.today().isoformat()
     client.put(f"/lancamento/{lancamento['id_lancamento']}", json={
-        "id_usuario_fk_fechamento": usuario_base["id_usuario"],
         "data_pagamento": datetime.now().isoformat(),
         "valor_pago": "250.00"
     }, headers=headers_admin)
@@ -378,7 +373,6 @@ def test_resumo_por_tipo_sem_token(client):
 def test_resumo_por_tipo_campos(client, headers_admin, lancamento, usuario_base):
     from datetime import datetime
     client.put(f"/lancamento/{lancamento['id_lancamento']}", json={
-        "id_usuario_fk_fechamento": usuario_base["id_usuario"],
         "data_pagamento": datetime.now().isoformat(),
         "valor_pago": "250.00"
     }, headers=headers_admin)
@@ -398,7 +392,6 @@ def test_resumo_por_tipo_campos(client, headers_admin, lancamento, usuario_base)
 def test_resumo_por_tipo_filtro_natureza(client, headers_admin, lancamento, usuario_base):
     from datetime import datetime
     client.put(f"/lancamento/{lancamento['id_lancamento']}", json={
-        "id_usuario_fk_fechamento": usuario_base["id_usuario"],
         "data_pagamento": datetime.now().isoformat(),
         "valor_pago": "250.00"
     }, headers=headers_admin)
@@ -413,7 +406,6 @@ def test_resumo_por_tipo_valor_pago_null(client, headers_admin, lancamento, usua
     """Lançamento quitado sem valor_pago deve usar valor no total."""
     # Fechar sem valor_pago explícito
     client.put(f"/lancamento/{lancamento['id_lancamento']}", json={
-        "id_usuario_fk_fechamento": usuario_base["id_usuario"],
         "data_pagamento": "2026-05-01T00:00:00"
     }, headers=headers_admin)
 
@@ -427,7 +419,6 @@ def test_resumo_por_tipo_valor_pago_null(client, headers_admin, lancamento, usua
     from datetime import datetime, date
     hoje = date.today().isoformat()
     client.put(f"/lancamento/{lancamento['id_lancamento']}", json={
-        "id_usuario_fk_fechamento": usuario_base["id_usuario"],
         "data_pagamento": datetime.now().isoformat(),
         "valor_pago": "250.00"
     }, headers=headers_admin)
@@ -543,30 +534,35 @@ def test_tem_comprovante_false_apos_remocao(client, headers_admin, lancamento):
     assert r.json()["tem_comprovante"] is False
 
 def test_filtro_apenas_quitados(client, headers_admin, lancamento, usuario_base):
-    """Filtro apenas_quitados retorna só lançamentos com data_pagamento."""
+    """Filtro apenas_quitados retorna só lançamentos aprovados."""
     from datetime import datetime
-    # Fechar o lancamento para ter um quitado
-    client.put(f"/lancamento/{lancamento['id_lancamento']}/fechar", json={
-        "id_usuario_fk_fechamento": usuario_base["id_usuario"],
+    # Admin efetivando vai direto a Pago.
+    r_put = client.put(f"/lancamento/{lancamento['id_lancamento']}", json={
         "data_pagamento": datetime.now().isoformat(),
         "valor_pago": "50.00"
     }, headers=headers_admin)
+    assert r_put.status_code == 200
 
     r = client.get("/lancamento/", params={"apenas_quitados": True}, headers=headers_admin)
     assert r.status_code == 200
     data = r.json()
-    assert all(l["data_pagamento"] is not None for l in data)
+    assert all(l["data_aprovacao"] is not None for l in data)
+    assert any(l["id_lancamento"] == lancamento["id_lancamento"] for l in data)
 
 
 def test_filtro_apenas_vencidos(client, headers_admin, lancamento_vencido):
-    """Filtro apenas_vencidos retorna só lançamentos vencidos e não pagos."""
+    """Filtro apenas_vencidos retorna só vencidos ainda não efetivados.
+
+    Exclui os "Em análise" de propósito: o filtro tem que bater com o badge,
+    e um lançamento em análise mostra "Em análise", não "Vencido".
+    """
     r = client.get("/lancamento/", params={"apenas_vencidos": True}, headers=headers_admin)
     assert r.status_code == 200
     data = r.json()
     from datetime import date
     hoje = date.today().isoformat()
     assert all(
-        l["data_pagamento"] is None and l["data_vencimento"] < hoje
+        l["data_efetivacao"] is None and l["data_vencimento"] < hoje
         for l in data
     )
 
@@ -574,9 +570,7 @@ def test_filtro_apenas_vencidos(client, headers_admin, lancamento_vencido):
 def test_filtro_quitados_e_vencidos_independentes(client, headers_admin, lancamento, lancamento_vencido, usuario_base):
     """Os filtros quitados e vencidos são independentes — não se excluem."""
     from datetime import datetime
-    # Fechar lancamento para ter um quitado
-    client.put(f"/lancamento/{lancamento['id_lancamento']}/fechar", json={
-        "id_usuario_fk_fechamento": usuario_base["id_usuario"],
+    client.put(f"/lancamento/{lancamento['id_lancamento']}", json={
         "data_pagamento": datetime.now().isoformat(),
         "valor_pago": "50.00"
     }, headers=headers_admin)
@@ -633,7 +627,6 @@ def test_resumo_saldo_total_apenas_debitos(client, headers_admin, lancamento, us
     """Saldo total com apenas débitos quitados deve ser negativo."""
     from datetime import datetime
     client.put(f"/lancamento/{lancamento['id_lancamento']}", json={
-        "id_usuario_fk_fechamento": usuario_base["id_usuario"],
         "data_pagamento": datetime.now().isoformat(),
         "valor_pago": "250.00"
     }, headers=headers_admin)
@@ -667,8 +660,7 @@ def test_resumo_reembolso_nao_entra_em_recebido_nem_pago(client, headers_admin, 
 
     try:
         client.put(f"/lancamento/{id_estorno}", json={
-            "id_usuario_fk_fechamento": usuario_base["id_usuario"],
-            "data_pagamento": datetime.now().isoformat(),
+                "data_pagamento": datetime.now().isoformat(),
             "valor_pago": "50.00",
             "estorno": True
         }, headers=headers_admin)
@@ -702,7 +694,6 @@ def test_resumo_por_tipo_valor_exato(client, headers_admin, lancamento, usuario_
     from datetime import datetime, date
     hoje = date.today().isoformat()
     client.put(f"/lancamento/{lancamento['id_lancamento']}", json={
-        "id_usuario_fk_fechamento": usuario_base["id_usuario"],
         "data_pagamento": datetime.now().isoformat(),
         "valor_pago": "250.00"
     }, headers=headers_admin)
@@ -722,7 +713,6 @@ def test_resumo_por_tipo_ordenacao_decrescente(client, headers_admin, lancamento
 
     # Fechar lancamento principal (250)
     client.put(f"/lancamento/{lancamento['id_lancamento']}", json={
-        "id_usuario_fk_fechamento": usuario_base["id_usuario"],
         "data_pagamento": datetime.now().isoformat(),
         "valor_pago": "250.00"
     }, headers=headers_admin)
@@ -745,7 +735,6 @@ def test_resumo_por_tipo_ordenacao_decrescente(client, headers_admin, lancamento
     id_lanc2 = r_lanc.json()["id_lancamento"]
 
     client.put(f"/lancamento/{id_lanc2}", json={
-        "id_usuario_fk_fechamento": usuario_base["id_usuario"],
         "data_pagamento": datetime.now().isoformat(),
         "valor_pago": "10.00"
     }, headers=headers_admin)
@@ -776,7 +765,6 @@ def test_resumo_por_tipo_estorno_excluido(client, headers_admin, usuario_base, c
     id_estorno = r.json()["id_lancamento"]
 
     client.put(f"/lancamento/{id_estorno}", json={
-        "id_usuario_fk_fechamento": usuario_base["id_usuario"],
         "data_pagamento": datetime.now().isoformat(),
         "valor_pago": "99.00",
         "estorno": True
@@ -815,7 +803,6 @@ def test_filtro_quitados_e_natureza(client, headers_admin, lancamento, usuario_b
     """Combinação de apenas_quitados + natureza."""
     from datetime import datetime
     client.put(f"/lancamento/{lancamento['id_lancamento']}", json={
-        "id_usuario_fk_fechamento": usuario_base["id_usuario"],
         "data_pagamento": datetime.now().isoformat(),
         "valor_pago": "250.00"
     }, headers=headers_admin)
@@ -915,7 +902,11 @@ def test_criar_lancamento_tipo_conta_inexistente(client, headers_admin, usuario_
 
 
 def test_fechar_lancamento_ja_fechado(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base):
-    """Fechar lançamento já fechado deve sobrescrever os dados."""
+    """Efetivar um lançamento já efetivado é 409 — não sobrescreve.
+
+    Antes o PUT sobrescrevia sem olhar o estado, o que deixava um Operador
+    alterar valor_pago de um lançamento já aprovado (furava o portão do admin).
+    """
     from datetime import datetime, date
     hoje = date.today().isoformat()
 
@@ -930,18 +921,19 @@ def test_fechar_lancamento_ja_fechado(client, headers_admin, usuario_base, clifo
     id_lanc = r.json()["id_lancamento"]
 
     client.put(f"/lancamento/{id_lanc}", json={
-        "id_usuario_fk_fechamento": usuario_base["id_usuario"],
         "data_pagamento": datetime.now().isoformat(),
         "valor_pago": "100.00"
     }, headers=headers_admin)
 
     r2 = client.put(f"/lancamento/{id_lanc}", json={
-        "id_usuario_fk_fechamento": usuario_base["id_usuario"],
         "data_pagamento": datetime.now().isoformat(),
         "valor_pago": "90.00"
     }, headers=headers_admin)
-    assert r2.status_code == 200
-    assert float(r2.json()["valor_pago"]) == 90.00
+    assert r2.status_code == 409
+
+    # O valor original continua intacto.
+    atual = client.get(f"/lancamento/{id_lanc}", headers=headers_admin).json()
+    assert float(atual["valor_pago"]) == 100.00
 
     client.delete(f"/lancamento/{id_lanc}", headers=headers_admin)
 
@@ -983,7 +975,6 @@ def test_quitar_lancamento_remove_inadimplencia(client, headers_admin, usuario_b
     id_lanc = r.json()["id_lancamento"]
 
     client.put(f"/lancamento/{id_lanc}", json={
-        "id_usuario_fk_fechamento": usuario_base["id_usuario"],
         "data_pagamento": datetime.now().isoformat(),
         "valor_pago": "100.00"
     }, headers=headers_admin)
@@ -1055,7 +1046,6 @@ def test_dois_lancamentos_vencidos_inadimplente_so_remove_ao_quitar_ambos(client
 
     # Quitar apenas o primeiro
     client.put(f"/lancamento/{id1}", json={
-        "id_usuario_fk_fechamento": usuario_base["id_usuario"],
         "data_pagamento": datetime.now().isoformat(),
         "valor_pago": "100.00"
     }, headers=headers_admin)
@@ -1065,7 +1055,6 @@ def test_dois_lancamentos_vencidos_inadimplente_so_remove_ao_quitar_ambos(client
 
     # Quitar o segundo
     client.put(f"/lancamento/{id2}", json={
-        "id_usuario_fk_fechamento": usuario_base["id_usuario"],
         "data_pagamento": datetime.now().isoformat(),
         "valor_pago": "200.00"
     }, headers=headers_admin)
@@ -1108,10 +1097,13 @@ def test_estorno_vencido_nao_marca_inadimplente(client, headers_admin, usuario_b
     }, headers=headers_admin)
     id_lanc = r.json()["id_lancamento"]
 
-    # Setar estorno via PUT sem quitar
-    client.put(f"/lancamento/{id_lanc}", json={
+    # Estorno é só do admin, pelo PATCH /editar: o PUT virou a transição de efetivação
+    # (Aberto → Em análise) e exige data_pagamento, então não serve para marcar estorno
+    # num lançamento que continua em aberto.
+    r = client.patch(f"/lancamento/{id_lanc}/editar", json={
         "estorno": True
     }, headers=headers_admin)
+    assert r.status_code == 200
 
     clifor = client.get(f"/cliente_fornecedor/{clifor_base['id_clifor']}", headers=headers_admin).json()
     assert clifor["inadimplente"] is False
@@ -1192,8 +1184,11 @@ def test_criar_lancamento_usuario_inexistente(client, headers_admin, clifor_base
     assert r.status_code == 404
 
 
-def test_fechar_lancamento_usuario_fechamento_inexistente(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base):
-    """Usuário de fechamento inexistente retorna 404 sem alterar o lançamento."""
+def test_atores_vem_do_token_e_ignoram_o_body(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base):
+    """Quem efetivou/aprovou sai do token, não do corpo da requisição.
+
+    Antes o fechador vinha do body — a trilha de auditoria era forjável.
+    """
     r = client.post("/lancamento/", json={
         "id_usuario_fk_lancamento": usuario_base["id_usuario"],
         "id_clifor_relacionado_fk": clifor_base["id_clifor"],
@@ -1207,11 +1202,15 @@ def test_fechar_lancamento_usuario_fechamento_inexistente(client, headers_admin,
 
     r_put = client.put(f"/lancamento/{id_l}", json={
         "id_usuario_fk_fechamento": 999999,
+        "id_usuario_fk_efetivacao": 999999,
         "data_pagamento": "2099-12-31T00:00:00",
         "valor_pago": "10.00",
         "estorno": False
     }, headers=headers_admin)
-    assert r_put.status_code == 404
+    assert r_put.status_code == 200
+    data = r_put.json()
+    assert data["id_usuario_fk_efetivacao"] != 999999
+    assert data["id_usuario_fk_fechamento"] != 999999
 
     client.delete(f"/lancamento/{id_l}", headers=headers_admin)
 
@@ -1286,8 +1285,7 @@ def test_fechamento_com_multa_e_juros(client, headers_admin, usuario_base, clifo
 
     try:
         r_fechar = client.put(f"/lancamento/{id_lanc}", json={
-            "id_usuario_fk_fechamento": usuario_base["id_usuario"],
-            "data_pagamento": datetime.now().isoformat(),
+                "data_pagamento": datetime.now().isoformat(),
             "valor_pago": "100.00",
             "multa": "10.00",
             "juros": "5.50"
@@ -1319,8 +1317,7 @@ def test_fechamento_sem_multa_e_juros_ficam_nulos(client, headers_admin, usuario
 
     try:
         r_fechar = client.put(f"/lancamento/{id_lanc}", json={
-            "id_usuario_fk_fechamento": usuario_base["id_usuario"],
-            "data_pagamento": datetime.now().isoformat(),
+                "data_pagamento": datetime.now().isoformat(),
             "valor_pago": "50.00"
         }, headers=headers_admin)
         assert r_fechar.status_code == 200
@@ -1508,3 +1505,507 @@ def test_filtro_por_lote(client, headers_admin, usuario_base, clifor_base, tipo_
         for id_l in data.get("ids", []):
             client.delete(f"/lancamento/{id_l}", headers=headers_admin)
         client.delete(f"/cliente_fornecedor/{extra['id_clifor']}", headers=headers_admin)
+
+
+# ================================================
+# ENDPOINTS DEDICADOS — por-clifor / por-usuario
+# (os testes de filtro acima exercitam ?id_clifor= na listagem; aqui são as rotas
+#  dedicadas GET /por-clifor/{id} e /por-usuario/{id}, que exigem Operador+.)
+# ================================================
+
+def test_listar_por_clifor_retorna_do_clifor(client, headers_admin, lancamento, clifor_base):
+    """GET /lancamento/por-clifor/{id} retorna só os lançamentos daquele clifor."""
+    r = client.get(f"/lancamento/por-clifor/{clifor_base['id_clifor']}", headers=headers_admin)
+    assert r.status_code == 200
+    data = r.json()
+    assert all(l["id_clifor_relacionado_fk"] == clifor_base["id_clifor"] for l in data)
+    assert any(l["id_lancamento"] == lancamento["id_lancamento"] for l in data)
+
+
+def test_listar_por_clifor_sem_token(client, clifor_base):
+    r = client.get(f"/lancamento/por-clifor/{clifor_base['id_clifor']}")
+    assert r.status_code == 401
+
+
+def test_listar_por_clifor_consulta_403(client, headers_consulta, clifor_base):
+    """Endpoint exige Operador+ (exige_operador_ou_admin); Consulta → 403."""
+    r = client.get(f"/lancamento/por-clifor/{clifor_base['id_clifor']}", headers=headers_consulta)
+    assert r.status_code == 403
+
+
+def test_listar_por_clifor_operador_200(client, headers_operador, clifor_base):
+    r = client.get(f"/lancamento/por-clifor/{clifor_base['id_clifor']}", headers=headers_operador)
+    assert r.status_code == 200
+
+
+def test_listar_por_usuario_retorna_do_usuario(client, headers_admin, lancamento, usuario_base):
+    """GET /lancamento/por-usuario/{id} retorna só os lançamentos criados por aquele usuário."""
+    r = client.get(f"/lancamento/por-usuario/{usuario_base['id_usuario']}", headers=headers_admin)
+    assert r.status_code == 200
+    data = r.json()
+    assert all(l["id_usuario_fk_lancamento"] == usuario_base["id_usuario"] for l in data)
+    assert any(l["id_lancamento"] == lancamento["id_lancamento"] for l in data)
+
+
+def test_listar_por_usuario_sem_token(client, usuario_base):
+    r = client.get(f"/lancamento/por-usuario/{usuario_base['id_usuario']}")
+    assert r.status_code == 401
+
+
+def test_listar_por_usuario_consulta_403(client, headers_consulta, usuario_base):
+    """Endpoint exige Operador+; Consulta → 403."""
+    r = client.get(f"/lancamento/por-usuario/{usuario_base['id_usuario']}", headers=headers_consulta)
+    assert r.status_code == 403
+
+
+def test_listar_por_usuario_operador_200(client, headers_operador, usuario_base):
+    r = client.get(f"/lancamento/por-usuario/{usuario_base['id_usuario']}", headers=headers_operador)
+    assert r.status_code == 200
+
+
+# ================================================
+# EDIÇÃO ADMIN — PATCH /{id}/editar (exige_admin)
+# ================================================
+
+def test_editar_admin_altera_campos(client, headers_admin, lancamento):
+    """Admin edita valor e observação via PATCH /{id}/editar."""
+    r = client.patch(f"/lancamento/{lancamento['id_lancamento']}/editar", json={
+        "valor": "999.99",
+        "observacao": "editado pelo admin"
+    }, headers=headers_admin)
+    assert r.status_code == 200
+    data = r.json()
+    assert float(data["valor"]) == 999.99
+    assert data["observacao"] == "editado pelo admin"
+
+
+def test_editar_admin_altera_natureza(client, headers_admin, lancamento):
+    """Admin pode trocar a natureza do lançamento."""
+    r = client.patch(f"/lancamento/{lancamento['id_lancamento']}/editar", json={
+        "natureza_lancamento": "Credito"
+    }, headers=headers_admin)
+    assert r.status_code == 200
+    assert r.json()["natureza_lancamento"] == "Credito"
+
+
+def test_editar_admin_inexistente_404(client, headers_admin):
+    r = client.patch("/lancamento/999999/editar", json={"valor": "1.00"}, headers=headers_admin)
+    assert r.status_code == 404
+
+
+def test_editar_admin_clifor_invalido_404(client, headers_admin, lancamento):
+    """Trocar para um clifor inexistente → 404."""
+    r = client.patch(f"/lancamento/{lancamento['id_lancamento']}/editar", json={
+        "id_clifor_relacionado_fk": 999999
+    }, headers=headers_admin)
+    assert r.status_code == 404
+
+
+def test_editar_admin_tipo_invalido_404(client, headers_admin, lancamento):
+    """Trocar para um tipo de conta inexistente → 404."""
+    r = client.patch(f"/lancamento/{lancamento['id_lancamento']}/editar", json={
+        "id_tipo_conta_fk": 999999
+    }, headers=headers_admin)
+    assert r.status_code == 404
+
+
+def test_editar_admin_sem_token(client, lancamento):
+    r = client.patch(f"/lancamento/{lancamento['id_lancamento']}/editar", json={"valor": "1.00"})
+    assert r.status_code == 401
+
+
+def test_editar_admin_operador_403(client, headers_operador, lancamento):
+    """Edição completa é restrita a Admin; Operador → 403."""
+    r = client.patch(f"/lancamento/{lancamento['id_lancamento']}/editar", json={
+        "valor": "1.00"
+    }, headers=headers_operador)
+    assert r.status_code == 403
+
+
+def test_editar_admin_consulta_403(client, headers_consulta, lancamento):
+    """Consulta → 403 na edição admin."""
+    r = client.patch(f"/lancamento/{lancamento['id_lancamento']}/editar", json={
+        "valor": "1.00"
+    }, headers=headers_consulta)
+    assert r.status_code == 403
+
+
+# ================================================
+# FLUXO DE APROVAÇÃO — EM ANÁLISE
+# ================================================
+
+def _abrir(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base,
+           valor="120.00", natureza="Credito", vencimento="2099-12-31"):
+    """Cria um lançamento em Aberto e devolve o id."""
+    r = client.post("/lancamento/", json={
+        "id_usuario_fk_lancamento": usuario_base["id_usuario"],
+        "id_clifor_relacionado_fk": clifor_base["id_clifor"],
+        "id_tipo_conta_fk": tipo_lancamento_base["id_tipo_conta"],
+        "valor": valor,
+        "data_vencimento": vencimento,
+        "natureza_lancamento": natureza,
+    }, headers=headers_admin)
+    assert r.status_code == 200
+    return r.json()["id_lancamento"]
+
+
+def test_operador_efetiva_vai_para_em_analise(client, headers_admin, headers_operador, usuario_base, clifor_base, tipo_lancamento_base):
+    """Operador efetiva → Em análise, com efetivador gravado e sem aprovação."""
+    from datetime import datetime
+    id_l = _abrir(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base)
+
+    r = client.put(f"/lancamento/{id_l}", json={
+        "data_pagamento": datetime.now().isoformat(),
+        "valor_pago": "120.00",
+    }, headers=headers_operador)
+    assert r.status_code == 200
+    data = r.json()
+    assert data["situacao"] == "Em análise"
+    assert data["data_efetivacao"] is not None
+    assert data["id_usuario_fk_efetivacao"] is not None
+    assert data["data_aprovacao"] is None
+    assert data["id_usuario_fk_fechamento"] is None
+
+    client.delete(f"/lancamento/{id_l}", headers=headers_admin)
+
+
+def test_em_analise_nao_conta_como_dinheiro(client, headers_admin, headers_operador, usuario_base, clifor_base, tipo_lancamento_base):
+    """Em análise não entra no resumo — só a aprovação realiza o dinheiro."""
+    from datetime import datetime, date
+    hoje = date.today().isoformat()
+    id_l = _abrir(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base, valor="777.00")
+
+    antes = client.get(f"/lancamento/resumo?data_pagamento_de={hoje}&data_pagamento_ate={hoje}", headers=headers_admin).json()
+
+    client.put(f"/lancamento/{id_l}", json={
+        "data_pagamento": datetime.now().isoformat(),
+        "valor_pago": "777.00",
+    }, headers=headers_operador)
+
+    durante = client.get(f"/lancamento/resumo?data_pagamento_de={hoje}&data_pagamento_ate={hoje}", headers=headers_admin).json()
+    assert float(durante["total_recebido"]) == float(antes["total_recebido"])
+
+    r = client.post(f"/lancamento/{id_l}/aprovar", headers=headers_admin)
+    assert r.status_code == 200
+    assert r.json()["situacao"] == "Pago"
+
+    depois = client.get(f"/lancamento/resumo?data_pagamento_de={hoje}&data_pagamento_ate={hoje}", headers=headers_admin).json()
+    assert float(depois["total_recebido"]) == float(antes["total_recebido"]) + 777.00
+
+    client.delete(f"/lancamento/{id_l}", headers=headers_admin)
+
+
+def test_filtro_apenas_em_analise(client, headers_admin, headers_operador, usuario_base, clifor_base, tipo_lancamento_base):
+    """A fila do admin: apenas_em_analise traz o efetivado e não o aberto."""
+    from datetime import datetime
+    id_analise = _abrir(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base)
+    id_aberto = _abrir(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base)
+
+    client.put(f"/lancamento/{id_analise}", json={
+        "data_pagamento": datetime.now().isoformat(),
+        "valor_pago": "120.00",
+    }, headers=headers_operador)
+
+    r = client.get("/lancamento/", params={"apenas_em_analise": True}, headers=headers_admin)
+    assert r.status_code == 200
+    ids = {l["id_lancamento"] for l in r.json()}
+    assert id_analise in ids
+    assert id_aberto not in ids
+    assert all(l["situacao"] == "Em análise" for l in r.json())
+
+    client.delete(f"/lancamento/{id_analise}", headers=headers_admin)
+    client.delete(f"/lancamento/{id_aberto}", headers=headers_admin)
+
+
+def test_admin_efetiva_vai_direto_para_pago(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base):
+    """Admin efetivando acumula os dois papéis num golpe só."""
+    from datetime import datetime
+    id_l = _abrir(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base)
+
+    r = client.put(f"/lancamento/{id_l}", json={
+        "data_pagamento": datetime.now().isoformat(),
+        "valor_pago": "120.00",
+    }, headers=headers_admin)
+    assert r.status_code == 200
+    data = r.json()
+    assert data["situacao"] == "Pago"
+    assert data["data_efetivacao"] is not None
+    assert data["data_aprovacao"] is not None
+    assert data["id_usuario_fk_efetivacao"] == data["id_usuario_fk_fechamento"]
+
+    client.delete(f"/lancamento/{id_l}", headers=headers_admin)
+
+
+def test_efetivar_sem_data_pagamento_422(client, headers_admin, headers_operador, usuario_base, clifor_base, tipo_lancamento_base):
+    """Não dá para efetivar sem dizer quando foi pago."""
+    id_l = _abrir(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base)
+
+    r = client.put(f"/lancamento/{id_l}", json={"valor_pago": "120.00"}, headers=headers_operador)
+    assert r.status_code == 422
+
+    client.delete(f"/lancamento/{id_l}", headers=headers_admin)
+
+
+def test_operador_nao_pode_aprovar(client, headers_admin, headers_operador, usuario_base, clifor_base, tipo_lancamento_base):
+    """O portão: quem efetiva não aprova."""
+    from datetime import datetime
+    id_l = _abrir(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base)
+    client.put(f"/lancamento/{id_l}", json={
+        "data_pagamento": datetime.now().isoformat(),
+        "valor_pago": "120.00",
+    }, headers=headers_operador)
+
+    r = client.post(f"/lancamento/{id_l}/aprovar", headers=headers_operador)
+    assert r.status_code == 403
+
+    client.delete(f"/lancamento/{id_l}", headers=headers_admin)
+
+
+def test_consulta_nao_pode_aprovar(client, headers_admin, headers_consulta, headers_operador, usuario_base, clifor_base, tipo_lancamento_base):
+    from datetime import datetime
+    id_l = _abrir(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base)
+    client.put(f"/lancamento/{id_l}", json={
+        "data_pagamento": datetime.now().isoformat(),
+        "valor_pago": "120.00",
+    }, headers=headers_operador)
+
+    r = client.post(f"/lancamento/{id_l}/aprovar", headers=headers_consulta)
+    assert r.status_code == 403
+
+    client.delete(f"/lancamento/{id_l}", headers=headers_admin)
+
+
+def test_aprovar_sem_token(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base):
+    id_l = _abrir(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base)
+    r = client.post(f"/lancamento/{id_l}/aprovar")
+    assert r.status_code == 401
+    client.delete(f"/lancamento/{id_l}", headers=headers_admin)
+
+
+def test_aprovar_lancamento_aberto_409(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base):
+    """Não se aprova o que ninguém efetivou."""
+    id_l = _abrir(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base)
+    r = client.post(f"/lancamento/{id_l}/aprovar", headers=headers_admin)
+    assert r.status_code == 409
+    client.delete(f"/lancamento/{id_l}", headers=headers_admin)
+
+
+def test_aprovar_duas_vezes_409(client, headers_admin, headers_operador, usuario_base, clifor_base, tipo_lancamento_base):
+    from datetime import datetime
+    id_l = _abrir(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base)
+    client.put(f"/lancamento/{id_l}", json={
+        "data_pagamento": datetime.now().isoformat(),
+        "valor_pago": "120.00",
+    }, headers=headers_operador)
+
+    assert client.post(f"/lancamento/{id_l}/aprovar", headers=headers_admin).status_code == 200
+    assert client.post(f"/lancamento/{id_l}/aprovar", headers=headers_admin).status_code == 409
+
+    client.delete(f"/lancamento/{id_l}", headers=headers_admin)
+
+
+def test_aprovar_lancamento_inexistente_404(client, headers_admin):
+    r = client.post("/lancamento/999999/aprovar", headers=headers_admin)
+    assert r.status_code == 404
+
+
+def test_inadimplencia_so_limpa_ao_aprovar(client, headers_admin, headers_operador, usuario_base, clifor_base, tipo_lancamento_base):
+    """Efetivar não tira a inadimplência — só a aprovação realiza o dinheiro."""
+    from datetime import datetime
+    id_l = _abrir(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base,
+                  valor="100.00", natureza="Credito", vencimento="2020-01-01")
+
+    clifor = client.get(f"/cliente_fornecedor/{clifor_base['id_clifor']}", headers=headers_admin).json()
+    assert clifor["inadimplente"] is True
+
+    client.put(f"/lancamento/{id_l}", json={
+        "data_pagamento": datetime.now().isoformat(),
+        "valor_pago": "100.00",
+    }, headers=headers_operador)
+
+    clifor = client.get(f"/cliente_fornecedor/{clifor_base['id_clifor']}", headers=headers_admin).json()
+    assert clifor["inadimplente"] is True, "efetivar nao pode limpar a inadimplencia"
+
+    client.post(f"/lancamento/{id_l}/aprovar", headers=headers_admin)
+
+    clifor = client.get(f"/cliente_fornecedor/{clifor_base['id_clifor']}", headers=headers_admin).json()
+    assert clifor["inadimplente"] is False
+
+    client.delete(f"/lancamento/{id_l}", headers=headers_admin)
+
+
+def test_situacao_em_analise_vence_vencido(client, headers_admin, headers_operador, usuario_base, clifor_base, tipo_lancamento_base):
+    """Vencido + efetivado dá Em análise: já foi pago, não é mais vencido."""
+    from datetime import datetime
+    id_l = _abrir(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base,
+                  valor="100.00", natureza="Debito", vencimento="2020-01-01")
+
+    r = client.put(f"/lancamento/{id_l}", json={
+        "data_pagamento": datetime.now().isoformat(),
+        "valor_pago": "100.00",
+    }, headers=headers_operador)
+    assert r.json()["situacao"] == "Em análise"
+
+    client.delete(f"/lancamento/{id_l}", headers=headers_admin)
+
+
+def test_situacao_estorno_vence_tudo(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base):
+    from datetime import datetime
+    id_l = _abrir(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base)
+    client.put(f"/lancamento/{id_l}", json={
+        "data_pagamento": datetime.now().isoformat(),
+        "valor_pago": "120.00",
+    }, headers=headers_admin)
+
+    r = client.patch(f"/lancamento/{id_l}/editar", json={"estorno": True}, headers=headers_admin)
+    assert r.status_code == 200
+    assert r.json()["situacao"] == "Estorno"
+
+    client.delete(f"/lancamento/{id_l}", headers=headers_admin)
+
+
+def test_situacao_aberto_e_vencido(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base):
+    id_aberto = _abrir(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base, vencimento="2099-12-31")
+    id_venc = _abrir(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base,
+                     natureza="Debito", vencimento="2020-01-01")
+
+    r1 = client.get(f"/lancamento/{id_aberto}", headers=headers_admin).json()
+    r2 = client.get(f"/lancamento/{id_venc}", headers=headers_admin).json()
+    assert r1["situacao"] == "Aberto"
+    assert r2["situacao"] == "Vencido"
+
+    client.delete(f"/lancamento/{id_aberto}", headers=headers_admin)
+    client.delete(f"/lancamento/{id_venc}", headers=headers_admin)
+
+
+def test_nome_dos_atores_no_response(client, headers_admin, headers_operador, usuario_base, clifor_base, tipo_lancamento_base):
+    """A tela de detalhes mostra Efetivado por / Aprovado por."""
+    from datetime import datetime
+    id_l = _abrir(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base)
+
+    r = client.put(f"/lancamento/{id_l}", json={
+        "data_pagamento": datetime.now().isoformat(),
+        "valor_pago": "120.00",
+    }, headers=headers_operador)
+    assert r.json()["nome_usuario_efetivacao"] is not None
+    assert r.json()["nome_usuario_fechamento"] is None
+
+    r = client.post(f"/lancamento/{id_l}/aprovar", headers=headers_admin)
+    assert r.json()["nome_usuario_fechamento"] is not None
+
+    client.delete(f"/lancamento/{id_l}", headers=headers_admin)
+
+
+# ================================================
+# CARIMBO DA EDIÇÃO — quem editou e quando
+# ================================================
+
+def test_editar_carimba_autor_e_data(client, headers_admin, lancamento):
+    """PATCH /editar registra quem editou e quando — a linha do tempo depende disto."""
+    antes = client.get(f"/lancamento/{lancamento['id_lancamento']}", headers=headers_admin).json()
+    assert antes["data_edicao"] is None
+    assert antes["id_usuario_fk_edicao"] is None
+
+    r = client.patch(f"/lancamento/{lancamento['id_lancamento']}/editar", json={
+        "observacao": "primeira edição"
+    }, headers=headers_admin)
+    assert r.status_code == 200
+    data = r.json()
+    assert data["data_edicao"] is not None
+    assert data["id_usuario_fk_edicao"] is not None
+    assert data["nome_usuario_edicao"] is not None
+
+
+def test_editar_carimbo_vem_do_token_nao_do_corpo(client, headers_admin, lancamento):
+    """O corpo não opina sobre quem editou: os campos são ignorados pelo schema.
+
+    Sem isto o registro de autoria não provaria nada — bastaria mentir no payload.
+    """
+    r = client.patch(f"/lancamento/{lancamento['id_lancamento']}/editar", json={
+        "observacao": "x",
+        "id_usuario_fk_edicao": 999999,
+        "data_edicao": "2001-01-01T00:00:00",
+    }, headers=headers_admin)
+    assert r.status_code == 200
+    data = r.json()
+    assert data["id_usuario_fk_edicao"] != 999999
+    assert not data["data_edicao"].startswith("2001")
+
+
+def test_editar_duas_vezes_sobrescreve_a_anterior(client, headers_admin, lancamento):
+    """Guarda só a última edição: a linha do tempo tem um slot de 'Editado', não N."""
+    r1 = client.patch(f"/lancamento/{lancamento['id_lancamento']}/editar", json={
+        "observacao": "primeira"
+    }, headers=headers_admin)
+    primeira = r1.json()["data_edicao"]
+
+    r2 = client.patch(f"/lancamento/{lancamento['id_lancamento']}/editar", json={
+        "observacao": "segunda"
+    }, headers=headers_admin)
+    segunda = r2.json()["data_edicao"]
+
+    assert segunda >= primeira
+    atual = client.get(f"/lancamento/{lancamento['id_lancamento']}", headers=headers_admin).json()
+    assert atual["data_edicao"] == segunda
+    assert atual["observacao"] == "segunda"
+
+
+def test_editar_nao_aceita_carimbos_do_fluxo(client, headers_admin, usuario_base,
+                                              clifor_base, tipo_lancamento_base):
+    """PATCH não desfaz efetivação/aprovação: os carimbos saíram do schema.
+
+    Aceitá-los deixaria o admin apagar um evento da linha do tempo em silêncio.
+    Aprovação é definitiva — não há desfazer.
+    """
+    id_lanc = _abrir(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base)
+    client.put(f"/lancamento/{id_lanc}", json={
+        "data_pagamento": "2026-01-10T00:00:00", "valor_pago": "120.00"
+    }, headers=headers_admin)
+
+    antes = client.get(f"/lancamento/{id_lanc}", headers=headers_admin).json()
+    assert antes["situacao"] == "Pago"
+
+    client.patch(f"/lancamento/{id_lanc}/editar", json={
+        "data_efetivacao": None,
+        "data_aprovacao": None,
+    }, headers=headers_admin)
+
+    depois = client.get(f"/lancamento/{id_lanc}", headers=headers_admin).json()
+    assert depois["situacao"] == "Pago", "o PATCH desfez a aprovação — o portão do admin furou"
+    assert depois["data_aprovacao"] == antes["data_aprovacao"]
+    assert depois["data_efetivacao"] == antes["data_efetivacao"]
+
+    client.delete(f"/lancamento/{id_lanc}", headers=headers_admin)
+
+
+def test_editar_efetivado_sem_data_pagamento_400(client, headers_admin, usuario_base,
+                                                  clifor_base, tipo_lancamento_base):
+    """data_pagamento continua editável — zerá-la num efetivado quebraria o par."""
+    id_lanc = _abrir(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base)
+    client.put(f"/lancamento/{id_lanc}", json={
+        "data_pagamento": "2026-01-10T00:00:00", "valor_pago": "120.00"
+    }, headers=headers_admin)
+
+    r = client.patch(f"/lancamento/{id_lanc}/editar", json={
+        "data_pagamento": None
+    }, headers=headers_admin)
+    assert r.status_code == 400
+
+    client.delete(f"/lancamento/{id_lanc}", headers=headers_admin)
+
+
+def test_data_lancamento_e_utc(client, headers_admin, lancamento):
+    """data_lancamento é carimbado em UTC, igual aos outros três.
+
+    O Postgres roda em America/Sao_Paulo; um server_default de now() puro devolveria
+    hora local e a linha do tempo misturaria dois relógios com 3h de diferença.
+    """
+    from datetime import datetime
+
+    data = client.get(f"/lancamento/{lancamento['id_lancamento']}", headers=headers_admin).json()
+    carimbo = datetime.fromisoformat(data["data_lancamento"])
+    diff = abs((datetime.utcnow() - carimbo).total_seconds())
+    assert diff < 300, (
+        f"data_lancamento está {diff / 3600:.1f}h longe do utcnow() — "
+        "provavelmente voltou a ser gravado em hora local"
+    )

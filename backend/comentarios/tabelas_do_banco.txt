@@ -3,8 +3,12 @@
 -- TIPOS ENUM
 -- ================================================
 
-CREATE TYPE cargo_enum AS ENUM ('Diretor','Tesoureiro','Secretário','Conselheiro','Associado','Desenvolvedor');
-CREATE TYPE acesso_enum AS ENUM ('Administrador','Consulta');
+-- ATENCAO: nao existe migracao de ALTER TYPE em main._aplicar_migracoes(). Os valores
+-- 'Presidente' e 'Operador' foram acrescentados a mao nas bases existentes; este script
+-- ja os cria para uma base do zero. Ao acrescentar valor a um enum, lembre das DUAS
+-- pontas: o model (models/usuario.py) e o banco.
+CREATE TYPE cargo_enum AS ENUM ('Presidente','Diretor','Tesoureiro','Secretário','Conselheiro','Associado','Desenvolvedor');
+CREATE TYPE acesso_enum AS ENUM ('Administrador','Operador','Consulta');
 CREATE TYPE natureza_enum AS ENUM ('Debito','Credito');
 CREATE TYPE tipo_clifor_enum AS ENUM ('C','F','A');
 
@@ -27,6 +31,9 @@ CREATE TABLE Usuario (
     Qtd_suspensao INT DEFAULT 0,
     Bloqueado BOOLEAN NOT NULL DEFAULT FALSE,
     Exclusao TIMESTAMP DEFAULT NULL,
+    -- Nao mapeada em nenhum model e sem uso no codigo (sobrou da integracao com o
+    -- Telegram; TELEGRAM_BOT_TOKEN ainda existe no config.env). Mantida porque a
+    -- coluna existe nas bases atuais -- se for dropar, dropar aqui e no banco.
     telegram_id VARCHAR(255) DEFAULT NULL,
     primeiro_acesso BOOLEAN NOT NULL DEFAULT TRUE,
     PRIMARY KEY (id_usuario)
@@ -112,30 +119,69 @@ CREATE INDEX idx_id_Login ON Login(Data_Login);
 CREATE INDEX idx_id_usuario_FK ON Login(id_usuario_FK);
 
 
+-- Fluxo de estados (derivado, NAO existe coluna de status):
+--   Aberto     = data_efetivacao IS NULL
+--   Em analise = data_efetivacao IS NOT NULL AND data_aprovacao IS NULL
+--   Pago       = data_aprovacao IS NOT NULL
+-- Quem manda no estado e data_efetivacao (carimbo do servidor), NAO data_pagamento:
+-- data_pagamento e digitada no formulario e pode ser retroativa, entao um admin
+-- editando a data de pagamento mudaria o estado do lancamento sem querer.
+-- Dinheiro so entra no caixa (resumo/dashboard) e inadimplencia so limpa na APROVACAO.
 CREATE TABLE Lancamento (
     id_lancamento BIGINT GENERATED ALWAYS AS IDENTITY,
     id_Usuario_FK_Lancamento BIGINT NOT NULL,
     id_CliFor_Relacionado_FK BIGINT NOT NULL,
     id_tipo_conta_FK BIGINT NOT NULL,
-    Data_lancamento TIMESTAMP NOT NULL DEFAULT NOW(),
+    -- UTC, igual aos carimbos de efetivacao/aprovacao/edicao (que vem do Python).
+    -- NOW() puro devolveria a hora LOCAL do Postgres (o banco roda em America/Sao_Paulo),
+    -- e a linha do tempo da tela, que ordena os quatro juntos, misturaria dois relogios.
+    -- Quem converte para o fuso do usuario e o frontend.
+    Data_lancamento TIMESTAMP NOT NULL DEFAULT timezone('utc', now()),
     Valor DECIMAL(15,2) NOT NULL,
     Data_vencimento DATE NOT NULL,
     Multa DECIMAL(15,2),
     Juros DECIMAL(15,2),
-    id_Usuario_FK_Fechamento BIGINT,
-    data_pagamento TIMESTAMP,
+    -- Efetivacao (Operador ou Admin): manda o lancamento para "Em analise".
+    id_Usuario_FK_Efetivacao BIGINT,          -- quem efetivou; vem do token, nunca do body
+    data_efetivacao TIMESTAMP,                -- carimbo do servidor no ato da efetivacao
+    -- Aprovacao (so Admin): tira de "Em analise" e leva a "Pago".
+    -- ATENCAO: o nome "Fechamento" e historico e mente um pouco -- esta coluna e o APROVADOR.
+    -- Nao foi renomeada para nao somar risco ao deploy que ja carrega o backfill.
+    id_Usuario_FK_Fechamento BIGINT,          -- quem aprovou; vem do token, nunca do body
+    data_aprovacao TIMESTAMP,                 -- carimbo do servidor no ato da aprovacao
+    -- Edicao (so Admin, via PATCH /lancamento/{id}/editar).
+    -- Guarda so a ULTIMA edicao: uma nova sobrescreve a anterior. A linha do tempo da tela
+    -- mostra QUEM editou e QUANDO, nunca o que mudou -- por isso um par de colunas basta.
+    id_Usuario_FK_Edicao BIGINT,              -- quem editou; vem do token, nunca do body
+    data_edicao TIMESTAMP,                    -- carimbo do servidor no ato da edicao
+    data_pagamento TIMESTAMP,                 -- data ECONOMICA do pagamento (digitada, pode ser retroativa)
     Valor_Pago DECIMAL(15,2),
     Observacao TEXT,
     Observacao_Pagamento TEXT,
     Natureza_Lancamento natureza_enum NOT NULL,
     Estorno BOOLEAN NOT NULL DEFAULT FALSE,
+    Lote BIGINT DEFAULT NULL,
     Comprovante BYTEA DEFAULT NULL,
     Comprovante_nome VARCHAR(255) DEFAULT NULL,
     PRIMARY KEY (id_lancamento),
     FOREIGN KEY (id_Usuario_FK_Lancamento) REFERENCES Usuario(id_usuario),
     FOREIGN KEY (id_CliFor_Relacionado_FK) REFERENCES ClienteFornecedor(id_CliFor),
     FOREIGN KEY (id_tipo_conta_FK) REFERENCES tipo_conta(id_tipo_conta),
-    FOREIGN KEY (id_Usuario_FK_Fechamento) REFERENCES Usuario(id_usuario)
+    FOREIGN KEY (id_Usuario_FK_Efetivacao) REFERENCES Usuario(id_usuario),
+    FOREIGN KEY (id_Usuario_FK_Fechamento) REFERENCES Usuario(id_usuario),
+    FOREIGN KEY (id_Usuario_FK_Edicao) REFERENCES Usuario(id_usuario),
+    -- Os dois CHECKs abaixo valem para uma base criada do zero por este script.
+    -- NAO estao aplicados na base existente: a migracao de main._aplicar_migracoes()
+    -- so faz o ALTER (um CHECK que estoura no startup derruba o deploy inteiro).
+    -- Quem garante estas invariantes hoje e o backend; para aplica-las no banco,
+    -- ver a secao [OPCIONAL] de comentarios/migracao_em_analise.sql.
+    --
+    -- Nao se aprova o que nao foi efetivado.
+    CONSTRAINT ck_lancamento_aprovacao_exige_efetivacao
+        CHECK (data_aprovacao IS NULL OR data_efetivacao IS NOT NULL),
+    -- Nao se efetiva sem informar a data de pagamento.
+    CONSTRAINT ck_lancamento_efetivacao_exige_pagamento
+        CHECK (data_efetivacao IS NULL OR data_pagamento IS NOT NULL)
 );
 
 -- Lancamento
@@ -146,6 +192,8 @@ CREATE INDEX idx_lancamento_clifor ON Lancamento(id_CliFor_Relacionado_FK);
 CREATE INDEX idx_lancamento_data_pagamento ON Lancamento(data_pagamento);
 CREATE INDEX idx_lancamento_natureza ON Lancamento(Natureza_Lancamento);
 CREATE INDEX idx_lancamento_tipo_conta ON Lancamento(id_tipo_conta_fk);
+-- Fila de aprovacao do admin (apenas_em_analise) e filtro apenas_abertos.
+CREATE INDEX idx_lancamento_em_analise ON Lancamento(data_efetivacao, data_aprovacao);
 
 
 -- Registro de Tokens idx_token_ativo_usuario
@@ -235,3 +283,28 @@ CREATE TABLE log_atividade (
 CREATE INDEX idx_log_atividade_login   ON log_atividade(id_login_fk);
 CREATE INDEX idx_log_atividade_usuario ON log_atividade(id_usuario_fk);
 CREATE INDEX idx_log_atividade_ts      ON log_atividade(timestamp);
+
+
+
+-- ================================================
+-- SENHA_TOKEN — token de uso unico para definir senha
+-- (cadastro, reset e "esqueci a senha")
+-- ================================================
+-- Guardamos apenas o SHA-256 do token, nunca o valor em claro: um dump do banco
+-- nao rende tokens utilizaveis. O token cru viaja so no fragment da URL (#token=),
+-- e trocado pelo corpo do POST e consumido uma unica vez (usado_em).
+
+CREATE TABLE senha_token (
+    id            BIGINT GENERATED ALWAYS AS IDENTITY,
+    id_usuario_fk BIGINT NOT NULL,
+    token_hash    VARCHAR(64) NOT NULL UNIQUE,   -- SHA-256 em hex
+    finalidade    VARCHAR(20) NOT NULL,          -- "cadastro" | "reset"
+    criado_em     TIMESTAMP NOT NULL DEFAULT NOW(),
+    expira_em     TIMESTAMP NOT NULL,
+    usado_em      TIMESTAMP DEFAULT NULL,        -- NULL = ainda nao consumido
+    PRIMARY KEY (id),
+    FOREIGN KEY (id_usuario_fk) REFERENCES usuario(id_usuario) ON DELETE CASCADE
+);
+
+-- Lookup do token na validacao: e o unico caminho de leitura da tabela.
+CREATE INDEX idx_senha_token_hash ON senha_token(token_hash);

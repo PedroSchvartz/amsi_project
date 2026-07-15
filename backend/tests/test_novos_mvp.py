@@ -267,7 +267,6 @@ def test_resumo_reembolso_debito_soma(client, headers_admin, usuario_base, clifo
 
     try:
         client.put(f"/lancamento/{id_lancamento}", json={
-            "id_usuario_fk_fechamento": usuario_base["id_usuario"],
             "data_pagamento": datetime.now().isoformat(),
             "valor_pago": "80.00",
             "estorno": True
@@ -309,8 +308,7 @@ def test_resumo_reembolso_regra_exemplo_spec(client, headers_admin, usuario_base
             id_l = r.json()["id_lancamento"]
             ids.append(id_l)
             client.put(f"/lancamento/{id_l}", json={
-                "id_usuario_fk_fechamento": usuario_base["id_usuario"],
-                "data_pagamento": datetime.now().isoformat(),
+                    "data_pagamento": datetime.now().isoformat(),
                 "valor_pago": "100.00",
                 "estorno": True
             }, headers=headers_admin)
@@ -329,8 +327,7 @@ def test_resumo_reembolso_regra_exemplo_spec(client, headers_admin, usuario_base
             id_l = r.json()["id_lancamento"]
             ids.append(id_l)
             client.put(f"/lancamento/{id_l}", json={
-                "id_usuario_fk_fechamento": usuario_base["id_usuario"],
-                "data_pagamento": datetime.now().isoformat(),
+                    "data_pagamento": datetime.now().isoformat(),
                 "valor_pago": "50.00",
                 "estorno": True
             }, headers=headers_admin)

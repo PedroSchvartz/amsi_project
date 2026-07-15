@@ -39,6 +39,29 @@
 
   /* Login branding — textos sobre fundo --primary (verde escuro = fundo escuro) */
   --branding-text-corporativo: #0c4a6e; /* usado apenas no tema corporativo */
+
+  /* Badges de situação do lançamento (Aberto → Em análise → Pago; + Vencido/Estorno).
+     Trio bg/fg/border por situação: o tema escolhe as cores, o CSS do badge só
+     as consome — antes cada badge era declarado duas vezes, uma por tema. */
+  --badge-aberto-bg:      #86efac;
+  --badge-aberto-fg:      #14532d;
+  --badge-aberto-border:  #22c55e;
+
+  --badge-analise-bg:     #ddd6fe;
+  --badge-analise-fg:     #4c1d95;
+  --badge-analise-border: #a78bfa;
+
+  --badge-pago-bg:        #bfdbfe;
+  --badge-pago-fg:        #1e3a8a;
+  --badge-pago-border:    #60a5fa;
+
+  --badge-vencido-bg:     #fca5a5;
+  --badge-vencido-fg:     #7f1d1d;
+  --badge-vencido-border: #ef4444;
+
+  --badge-estorno-bg:     #fde68a;
+  --badge-estorno-fg:     #78350f;
+  --badge-estorno-border: #fbbf24;
 }
 
 /* ════════════════════════════════════════
@@ -76,6 +99,29 @@
   /* Login branding — textos sobre fundo --primary (#38BDF8 = fundo claro) */
   /* O fundo claro exige texto escuro para contraste */
   --branding-text-corporativo: #0c4a6e;
+
+  /* Badges de situação — no dark o padrão inverte: fundo translúcido da cor,
+     texto no tom claro dela. Pago vira azul-céu (o #60a5fa do tema verde
+     brigaria com o --primary daqui). */
+  --badge-aberto-bg:      rgba(34, 197, 94, 0.22);
+  --badge-aberto-fg:      #86efac;
+  --badge-aberto-border:  rgba(34, 197, 94, 0.45);
+
+  --badge-analise-bg:     rgba(167, 139, 250, 0.22);
+  --badge-analise-fg:     #c4b5fd;
+  --badge-analise-border: rgba(167, 139, 250, 0.45);
+
+  --badge-pago-bg:        rgba(56, 189, 248, 0.22);
+  --badge-pago-fg:        #7dd3fc;
+  --badge-pago-border:    rgba(56, 189, 248, 0.45);
+
+  --badge-vencido-bg:     rgba(239, 68, 68, 0.22);
+  --badge-vencido-fg:     #fca5a5;
+  --badge-vencido-border: rgba(239, 68, 68, 0.45);
+
+  --badge-estorno-bg:     rgba(250, 204, 21, 0.18);
+  --badge-estorno-fg:     #fde68a;
+  --badge-estorno-border: rgba(250, 204, 21, 0.40);
 }
 
 /* ════════════════════════════════════════

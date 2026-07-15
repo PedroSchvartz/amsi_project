@@ -35,6 +35,9 @@ vi.mock('../components/ToastStack.jsx', () => ({
 
 const LOTE = 1718700000000; // epoch ms qualquer
 
+// Espelham o que a API devolve hoje: `situacao` vem derivada do backend, e quem
+// comanda o estado é data_efetivacao/data_aprovacao — não data_pagamento, que é só
+// a data econômica e pode ser retroativa.
 const ABERTO = {
 	id_lancamento: 101,
 	nome_clifor: 'Cliente Aberto',
@@ -42,6 +45,9 @@ const ABERTO = {
 	data_vencimento: '2099-12-31', // futuro → status "Aberto"
 	valor: 100.5,
 	data_pagamento: null,
+	data_efetivacao: null,
+	data_aprovacao: null,
+	situacao: 'Aberto',
 	estorno: false,
 	lote: LOTE,
 };
@@ -53,6 +59,9 @@ const PAGO = {
 	valor: 80,
 	valor_pago: 80,
 	data_pagamento: '2026-06-10',
+	data_efetivacao: '2026-06-10T12:00:00',
+	data_aprovacao: '2026-06-10T12:00:00',
+	situacao: 'Pago',
 	estorno: false,
 	lote: LOTE,
 };
@@ -87,15 +96,20 @@ describe('LoteLancamentosModal — RBAC de ações', () => {
 		expect(screen.getAllByTitle('Ver detalhes').length).toBe(2);
 		expect(screen.queryByTitle('Editar este lançamento')).not.toBeInTheDocument();
 		expect(screen.queryByTitle('Excluir este lançamento')).not.toBeInTheDocument();
+		// Os dois títulos: o de admin e o de operador. Checar só um passaria à toa,
+		// porque o título depende do perfil de quem está vendo.
 		expect(screen.queryByTitle('Efetivar este lançamento')).not.toBeInTheDocument();
+		expect(screen.queryByTitle('Efetivar e enviar para análise')).not.toBeInTheDocument();
 	});
 
 	it('Operador vê efetivar (só nos abertos) e não vê editar/excluir', async () => {
 		auth.hasPerfilMinimo.mockReturnValue(true); // Operador
 		render(<LoteLancamentosModal lote={LOTE} onFechar={() => {}} />);
 		await screen.findByText('Cliente Aberto');
-		// Só a linha "ABERTO" (sem data_pagamento e sem estorno) ganha o botão de efetivar
-		expect(screen.getAllByTitle('Efetivar este lançamento').length).toBe(1);
+		// Só a linha "ABERTO" (sem data_efetivacao e sem estorno) ganha o botão de efetivar.
+		// Para o Operador o título diz para onde a ação leva: o lançamento para em análise,
+		// não em Pago — só o admin fecha o ciclo.
+		expect(screen.getAllByTitle('Efetivar e enviar para análise').length).toBe(1);
 		expect(screen.queryByTitle('Editar este lançamento')).not.toBeInTheDocument();
 		expect(screen.queryByTitle('Excluir este lançamento')).not.toBeInTheDocument();
 	});
@@ -128,7 +142,7 @@ describe('LoteLancamentosModal — callbacks', () => {
 		const onEfetivarUm = vi.fn();
 		render(<LoteLancamentosModal lote={LOTE} onEfetivarUm={onEfetivarUm} onFechar={() => {}} />);
 		await screen.findByText('Cliente Aberto');
-		fireEvent.click(screen.getByTitle('Efetivar este lançamento'));
+		fireEvent.click(screen.getByTitle('Efetivar e enviar para análise'));
 		expect(onEfetivarUm).toHaveBeenCalledTimes(1);
 		expect(onEfetivarUm.mock.calls[0][0].id_lancamento).toBe(ABERTO.id_lancamento);
 	});

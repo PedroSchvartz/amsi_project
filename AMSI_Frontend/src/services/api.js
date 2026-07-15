@@ -631,6 +631,15 @@ export const fecharLancamento = async (id_lancamento, data) => {
 	return handleResponse(response);
 };
 
+// Em análise → Pago. Só administrador; o aprovador sai do token no backend.
+export const aprovarLancamento = async (id_lancamento) => {
+	const response = await fetchComLoading(`${BASE_URL}/lancamento/${id_lancamento}/aprovar`, {
+		method: 'POST',
+		headers: authHeaders()
+	});
+	return handleResponse(response);
+};
+
 export const deleteLancamento = async (id_lancamento) => {
 	const response = await fetchComLoading(`${BASE_URL}/lancamento/${id_lancamento}`, {
 		method: 'DELETE',

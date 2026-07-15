@@ -443,8 +443,15 @@ def gerar(args):
                             campos["multa"] = multa
                             campos["juros"] = juros
                             valor_pago = valor + multa + juros
-                        campos["data_pagamento"] = datetime.combine(pago_em, datetime.min.time())
+                        # Nasce efetivado E aprovado: "pago" aqui significa quitado de
+                        # verdade. Sem os carimbos do fluxo o backend leria como Aberto
+                        # (o estado vem de data_efetivacao) e o demo viria sem caixa.
+                        ts_pago = datetime.combine(pago_em, datetime.min.time())
+                        campos["data_pagamento"] = ts_pago
+                        campos["data_efetivacao"] = ts_pago
+                        campos["data_aprovacao"] = ts_pago
                         campos["valor_pago"] = valor_pago
+                        campos["id_usuario_fk_efetivacao"] = uid
                         campos["id_usuario_fk_fechamento"] = uid
                     elif natureza == NaturezaLancamentoEnum.Credito:
                         # inadimplente: crédito vencido e sem pagamento

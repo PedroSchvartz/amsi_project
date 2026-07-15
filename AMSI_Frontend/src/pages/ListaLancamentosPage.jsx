@@ -4,11 +4,14 @@ import LoteLancamentosModal from '../components/LoteLancamentosModal.jsx';
 import { useSearchParams } from 'react-router-dom';
 import ModalConfirm from '../components/ModalConfirm.jsx';
 import PerfilCompletoPopup from '../components/PerfilCompletoPopup.jsx';
+import SituacaoBadge from '../components/SituacaoBadge.jsx';
+import TimelineLancamentoModal, { ultimaInteracao, formatarCarimbo } from '../components/TimelineLancamentoModal.jsx';
 import { useToast } from '../components/ToastStack.jsx';
 import '../styles/listaLancamentos.css';
 import {
 	getLancamentos,
 	fecharLancamento,
+	aprovarLancamento,
 	editarLancamento,
 	deleteLancamento,
 	getClifors,
@@ -43,6 +46,7 @@ const FILTROS_INICIAL = {
 	natureza: '',
 	apenas_abertos: '',
 	apenas_vencidos: '',
+	apenas_em_analise: '',
 	apenas_quitados: '',
 	apenas_com_comprovante: '',
 	apenas_sem_comprovante: '',
@@ -103,12 +107,14 @@ function ListaLancamentosPage() {
 	const [comprovante, setComprovante] = useState(null);
 	const [lancamentoSelecionado, setLancamentoSelecionado] = useState(null);
 	const [confirmarRemoverComprovante, setConfirmarRemoverComprovante] = useState(false);
+	const [modalAprovar, setModalAprovar] = useState(null);
 
 	const [modalEditar, setModalEditar] = useState(null);
 	const [formEditar, setFormEditar] = useState(EDITAR_INICIAL);
 	const [confirmarDeletar, setConfirmarDeletar] = useState(false);
 	const [modalVer, setModalVer] = useState(null);
-	const [perfilUsuario, setPerfilUsuario] = useState(null); // perfil do autor do lançamento (admin)
+	const [timelineModal, setTimelineModal] = useState(null); // lançamento cujo histórico está aberto
+	const [perfilUsuario, setPerfilUsuario] = useState(null); // usuário aberto a partir da linha do tempo
 
 	const usuario = getUserFromToken();
 	const admin = isAdmin();
@@ -143,6 +149,7 @@ function ListaLancamentosPage() {
 			if (f.natureza) params.natureza = f.natureza;
 			if (f.apenas_abertos !== '') params.apenas_abertos = f.apenas_abertos === 'true';
 			if (f.apenas_vencidos !== '') params.apenas_vencidos = f.apenas_vencidos === 'true';
+			if (f.apenas_em_analise !== '') params.apenas_em_analise = f.apenas_em_analise === 'true';
 			if (f.apenas_quitados !== '') params.apenas_quitados = f.apenas_quitados === 'true';
 			if (f.apenas_com_comprovante !== '')
 				params.apenas_com_comprovante = f.apenas_com_comprovante === 'true';
@@ -257,7 +264,6 @@ function ListaLancamentosPage() {
 		}
 		try {
 			const payload = {
-				id_usuario_fk_fechamento: usuario?.sub,
 				data_pagamento: formFechar.data_pagamento || null,
 				valor_pago: formFechar.valor_pago ? parseFloat(formFechar.valor_pago.replace(',', '.')) : null,
 				multa: formFechar.multa ? parseFloat(formFechar.multa.replace(',', '.')) : null,
@@ -271,17 +277,34 @@ function ListaLancamentosPage() {
 				try {
 					await anexarComprovante(id, comprovante);
 				} catch {
-					mostrarToast('Lançamento fechado, mas falha ao anexar comprovante.', 'aviso');
+					mostrarToast('Lançamento efetivado, mas falha ao anexar comprovante.', 'aviso');
 				}
 			}
-			mostrarToast('Lançamento fechado com sucesso.');
+			// Admin efetiva direto para Pago; operador manda para análise.
+			mostrarToast(admin
+				? 'Lançamento efetivado com sucesso.'
+				: 'Lançamento enviado para análise. Aguarde a aprovação de um administrador.');
 			setModalFechar(null);
 			setComprovante(null);
 			buscar();
 			setLoteRefresh((x) => x + 1);
 		} catch (err) {
 			if (err.message !== 'sessao-expirada')
-				mostrarToast(err.message || 'Erro ao fechar lançamento', 'erro');
+				mostrarToast(err.message || 'Erro ao efetivar lançamento', 'erro');
+		}
+	};
+
+	// ── Aprovação: Em análise → Pago (só admin) ────────────────────────────────
+	const handleAprovar = async () => {
+		try {
+			await aprovarLancamento(modalAprovar.id_lancamento);
+			mostrarToast('Lançamento aprovado com sucesso.');
+			setModalAprovar(null);
+			buscar();
+			setLoteRefresh((x) => x + 1);
+		} catch (err) {
+			if (err.message !== 'sessao-expirada')
+				mostrarToast(err.message || 'Erro ao aprovar lançamento', 'erro');
 		}
 	};
 
@@ -289,19 +312,6 @@ function ListaLancamentosPage() {
 	const abrirModalVer = (l) => {
 		setModalVer(l);
 		setLancamentoSelecionado(l);
-	};
-
-	// ── Perfil do autor do lançamento (só admin) ────────────────────────────────
-	// O chip de origem nos modais de detalhe mostra "por {nome}"; clicar busca o
-	// usuário completo e abre o PerfilCompletoPopup por cima do modal atual.
-	const abrirPerfilUsuario = async (idUsuario) => {
-		if (!idUsuario) return;
-		try {
-			const u = await getUser(idUsuario);
-			setPerfilUsuario(u);
-		} catch (err) {
-			mostrarToast(err.message || 'Erro ao carregar perfil do usuário', 'erro');
-		}
 	};
 
 	// ── Modal editar (admin) ────────────────────────────────────────────────────
@@ -391,13 +401,7 @@ function ListaLancamentosPage() {
 		return parseFloat(v).toFixed(2).replace('.', ',');
 	};
 
-	const statusLabel = (l) => {
-		if (l.estorno) return <span className="badge badge-estorno">Estorno</span>;
-		if (l.data_pagamento) return <span className="badge badge-pago">Pago</span>;
-		const hoje = new Date().toISOString().split('T')[0];
-		if (l.data_vencimento < hoje) return <span className="badge badge-vencido">Vencido</span>;
-		return <span className="badge badge-aberto">Aberto</span>;
-	};
+	const statusLabel = (l) => <SituacaoBadge situacao={l.situacao} />;
 
 	const loteLabel = (lote) => {
 		const d = new Date(lote); // ms → Date
@@ -435,34 +439,42 @@ function ListaLancamentosPage() {
 				{texto}
 			</span>
 		);
-		// Nos detalhes (modais), mostra ao lado quem criou o lançamento.
-		// Para admin, o nome é clicável e abre o perfil completo do usuário.
-		if (detalhado && l.nome_usuario_lancamento) {
-			const autor = admin ? (
-				<button
-					type="button"
-					className="badge-origem-autor badge-origem-autor--link"
-					title="Ver perfil do usuário"
-					onClick={(e) => {
-						e.stopPropagation();
-						abrirPerfilUsuario(l.id_usuario_fk_lancamento);
-					}}
-				>
-					por {l.nome_usuario_lancamento}
-				</button>
-			) : (
-				<span className="badge-origem-autor" title="Usuário que criou o lançamento">
-					por {l.nome_usuario_lancamento}
-				</span>
-			);
-			return (
-				<span className="badge-origem-wrap">
-					{chip}
-					{autor}
-				</span>
-			);
-		}
 		return chip;
+	};
+
+	// Perfil de um ator da linha do tempo (só admin) — abre por cima do histórico.
+	const abrirPerfilUsuario = async (idUsuario) => {
+		if (!idUsuario) return;
+		try {
+			const u = await getUser(idUsuario);
+			setPerfilUsuario(u);
+		} catch (err) {
+			mostrarToast(err.message || 'Erro ao carregar perfil do usuário', 'erro');
+		}
+	};
+
+	// Quem mexeu por último e quando — clicar abre a linha do tempo completa.
+	// Substitui o "por {autor}" que ficava no chip de origem: aquele respondia
+	// sempre "quem criou", que raramente é quem fez a última coisa.
+	const ultimaInteracaoChip = (l) => {
+		const evento = ultimaInteracao(l);
+		if (!evento) return null;
+		return (
+			<button
+				type="button"
+				className="ll-ultima-interacao"
+				title="Ver histórico do lançamento"
+				onClick={(e) => {
+					e.stopPropagation();
+					setTimelineModal(l);
+				}}
+			>
+				<span className="ll-ultima-interacao-acao">{evento.acao}</span>
+				<span>
+					por {evento.nome} · {formatarCarimbo(evento.data)}
+				</span>
+			</button>
+		);
 	};
 
 	return (
@@ -618,6 +630,16 @@ function ListaLancamentosPage() {
 									<label>
 										<input
 											type="checkbox"
+											checked={filtros.apenas_em_analise === 'true'}
+											onChange={(e) =>
+												setFiltros({ ...filtros, apenas_em_analise: e.target.checked ? 'true' : '' })
+											}
+										/>
+										Em análise
+									</label>
+									<label>
+										<input
+											type="checkbox"
 											checked={filtros.apenas_quitados === 'true'}
 											onChange={(e) =>
 												setFiltros({ ...filtros, apenas_quitados: e.target.checked ? 'true' : '' })
@@ -749,7 +771,7 @@ function ListaLancamentosPage() {
 									<th data-tooltip="Data em que o pagamento foi efetivado">Pagamento</th>
 									<th data-tooltip="Valor original registrado no lançamento">Vl. Lançamento</th>
 									<th data-tooltip="Total efetivamente pago: valor pago + multa + juros">Vl. Pagamento</th>
-									<th data-tooltip="Situação do lançamento: Pago, Em aberto ou Vencido">Status</th>
+									<th data-tooltip="Situação do lançamento: Pago, Em análise, Em aberto ou Vencido">Status</th>
 									<th data-tooltip="Ações disponíveis: editar, comprovante, efetivar">Ações</th>
 								</tr>
 							</thead>
@@ -816,13 +838,22 @@ function ListaLancamentosPage() {
 															<i className="bi bi-file-earmark-pdf"></i>
 														</button>
 													)}
-													{!l.data_pagamento && !l.estorno && hasPerfilMinimo('Operador') && (
+													{!l.data_efetivacao && !l.estorno && hasPerfilMinimo('Operador') && (
 														<button
 															className="ll-btn-acao fechar"
 															onClick={() => abrirModalFechar(l)}
-															title="Efetivar lançamento"
+															title={admin ? 'Efetivar lançamento' : 'Efetivar e enviar para análise'}
 														>
 															<i className="bi bi-journal-check"></i>
+														</button>
+													)}
+													{admin && l.data_efetivacao && !l.data_aprovacao && !l.estorno && (
+														<button
+															className="ll-btn-acao aprovar"
+															onClick={() => setModalAprovar(l)}
+															title="Aprovar lançamento (admin)"
+														>
+															<i className="bi bi-check2-circle"></i>
 														</button>
 													)}
 												</div>
@@ -882,11 +913,23 @@ function ListaLancamentosPage() {
 													{formatarData(lancamentoSelecionado?.data_vencimento)}
 												</div>
 											</div>
-											<div className="ll-field">
+											<div className="ll-field" style={{ flex: 'none' }}>
 												<label>Status</label>
 												<div style={{ padding: '4px 0' }}>
 													{statusLabel(lancamentoSelecionado)}
 												</div>
+											</div>
+										</div>
+										<div className="ll-row">
+											<div className="ll-field">
+												<label>Última interação</label>
+												<div>{ultimaInteracaoChip(lancamentoSelecionado)}</div>
+											</div>
+										</div>
+										<div className="ll-row">
+											<div className="ll-field" style={{ flex: 'none' }}>
+												<label>Origem</label>
+												<div style={{ padding: '4px 0' }}>{origemChip(lancamentoSelecionado, true)}</div>
 											</div>
 											<div className="ll-field" style={{ flex: 'none' }}>
 												<label style={{ visibility: 'hidden' }}>_</label>
@@ -900,10 +943,6 @@ function ListaLancamentosPage() {
 													/>
 													Estorno
 												</label>
-											</div>
-											<div className="ll-field" style={{ flex: 'none' }}>
-												<label>Origem</label>
-												<div style={{ padding: '4px 0' }}>{origemChip(lancamentoSelecionado, true)}</div>
 											</div>
 										</div>
 										<div className="ll-field">
@@ -1088,11 +1127,21 @@ function ListaLancamentosPage() {
 											</div>
 										</div>
 										<div className="ll-row">
-											<div className="ll-field">
+											<div className="ll-field" style={{ flex: 'none' }}>
 												<label>Status</label>
 												<div style={{ padding: '4px 0' }}>
 													{statusLabel(lancamentoSelecionado)}
 												</div>
+											</div>
+											<div className="ll-field">
+												<label>Última interação</label>
+												<div>{ultimaInteracaoChip(lancamentoSelecionado)}</div>
+											</div>
+										</div>
+										<div className="ll-row">
+											<div className="ll-field" style={{ flex: 'none' }}>
+												<label>Origem</label>
+												<div style={{ padding: '4px 0' }}>{origemChip(lancamentoSelecionado, true)}</div>
 											</div>
 											<div className="ll-field" style={{ flex: 'none' }}>
 												<label style={{ visibility: 'hidden' }}>_</label>
@@ -1106,10 +1155,6 @@ function ListaLancamentosPage() {
 													/>
 													Estorno
 												</label>
-											</div>
-											<div className="ll-field" style={{ flex: 'none' }}>
-												<label>Origem</label>
-												<div style={{ padding: '4px 0' }}>{origemChip(lancamentoSelecionado, true)}</div>
 											</div>
 										</div>
 										<div className="ll-field">
@@ -1259,6 +1304,25 @@ function ListaLancamentosPage() {
 							</div>
 						</div>
 
+						{modalVer.data_efetivacao && (
+							<div className="ll-row">
+								<div className="ll-field">
+									<label>Efetivado por</label>
+									<div style={{ padding: '6px 10px', background: 'var(--input-bg)', borderRadius: 6, fontSize: '0.875rem' }}>
+										{modalVer.nome_usuario_efetivacao || '—'} · {formatarCarimbo(modalVer.data_efetivacao)}
+									</div>
+								</div>
+								<div className="ll-field">
+									<label>Aprovado por</label>
+									<div style={{ padding: '6px 10px', background: 'var(--input-bg)', borderRadius: 6, fontSize: '0.875rem' }}>
+										{modalVer.data_aprovacao
+											? `${modalVer.nome_usuario_fechamento || '—'} · ${formatarCarimbo(modalVer.data_aprovacao)}`
+											: 'Aguardando aprovação'}
+									</div>
+								</div>
+							</div>
+						)}
+
 						{modalVer.data_pagamento && (
 							<>
 								<div className="ll-row">
@@ -1336,6 +1400,17 @@ function ListaLancamentosPage() {
 				/>
 			)}
 
+			{modalAprovar && (
+				<ModalConfirm
+					titulo="Aprovar lançamento"
+					mensagem={`Aprovar o lançamento de ${nomeClifor(modalAprovar)} no valor de ${formatarValor(modalAprovar.valor_pago ?? modalAprovar.valor)}? O valor passa a contar no caixa.`}
+					textoBotaoConfirmar="Aprovar"
+					textoBotaoCancelar="Cancelar"
+					onConfirmar={handleAprovar}
+					onCancelar={() => setModalAprovar(null)}
+				/>
+			)}
+
 			{modalAberto && (
 				<LancamentoModal
 					onFechar={() => {
@@ -1364,6 +1439,14 @@ function ListaLancamentosPage() {
 						setLoteModal(null);
 					}}
 					onChanged={() => buscar()}
+				/>
+			)}
+
+			{timelineModal && (
+				<TimelineLancamentoModal
+					lancamento={timelineModal}
+					onFechar={() => setTimelineModal(null)}
+					onAbrirPerfil={admin ? abrirPerfilUsuario : null}
 				/>
 			)}
 

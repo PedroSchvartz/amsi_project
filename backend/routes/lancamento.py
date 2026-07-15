@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from database import get_db
 from models.lancamento import Lancamento
-from models.usuario import Usuario
+from models.usuario import Usuario, AcessoEnum
 from models.cliente_fornecedor import ClienteFornecedor
 from models.tipo_conta import tipo_conta
 from schemas.lancamento import LancamentoCreate, LancamentoMassaCreate, LancamentoMassaResponse, LancamentoUpdate, LancamentoEditAdmin, LancamentoResponse, LancamentoResumo, ResumoPorTipo
@@ -42,7 +42,11 @@ def resumo_lancamentos(
         return q
 
     def q_periodo():
-        q = q_base().filter(Lancamento.data_pagamento != None)
+        # Dinheiro realizado: só o APROVADO conta. O que está Em análise ainda não é caixa.
+        # O recorte do período continua sobre data_pagamento (a data econômica): um pagamento
+        # feito em 5/jun e aprovado em 7/jun tem que contar em 5/jun, senão a fila de
+        # aprovação distorce o mês de competência.
+        q = q_base().filter(Lancamento.data_aprovacao != None)
         if data_pagamento_de is not None:
             q = q.filter(func.date(Lancamento.data_pagamento) >= data_pagamento_de)
         if data_pagamento_ate is not None:
@@ -81,8 +85,9 @@ def resumo_lancamentos(
     # Saldo do período (não mais "desde sempre" — conforme spec item 5)
     saldo_total = total_recebido - total_pago
 
-    # Pendentes (abertos)
-    q_abertos   = q_base().filter(Lancamento.data_pagamento == None, Lancamento.estorno == False)
+    # Pendentes: dinheiro que ainda não entrou. Em análise entra aqui — foi efetivado,
+    # mas até o admin aprovar continua sendo "a receber/a pagar".
+    q_abertos   = q_base().filter(Lancamento.data_aprovacao == None, Lancamento.estorno == False)
     q_a_receber = q_abertos.filter(Lancamento.natureza_lancamento == "Credito")
     q_a_pagar   = q_abertos.filter(Lancamento.natureza_lancamento == "Debito")
 
@@ -156,7 +161,7 @@ def resumo_por_tipo(
             func.count(Lancamento.id_lancamento).label("quantidade")
         )
         .join(Lancamento, Lancamento.id_tipo_conta_fk == tipo_conta.id_tipo_conta)
-        .filter(Lancamento.data_pagamento != None, Lancamento.estorno == False)
+        .filter(Lancamento.data_aprovacao != None, Lancamento.estorno == False)   # dinheiro: só aprovado
     )
     if data_pagamento_de is not None:
         q = q.filter(func.date(Lancamento.data_pagamento) >= data_pagamento_de)
@@ -187,6 +192,7 @@ def listar_lancamentos(
     natureza: Optional[str] = None,
     apenas_abertos: Optional[bool] = None,
     apenas_vencidos: Optional[bool] = None,
+    apenas_em_analise: Optional[bool] = None,
     apenas_quitados: Optional[bool] = None,
     apenas_com_comprovante: Optional[bool] = None,
     apenas_sem_comprovante: Optional[bool] = None,
@@ -208,6 +214,9 @@ def listar_lancamentos(
         Lancamento.id_clifor_relacionado_fk == ClienteFornecedor.id_clifor
     ).options(
         joinedload(Lancamento.usuario_lancamento),
+        joinedload(Lancamento.usuario_efetivacao),
+        joinedload(Lancamento.usuario_fechamento),
+        joinedload(Lancamento.usuario_edicao),
         joinedload(Lancamento.tipo_conta_rel)
     )
 
@@ -217,15 +226,20 @@ def listar_lancamentos(
         query = query.filter(Lancamento.id_tipo_conta_fk == id_tipo_conta)
     if natureza is not None:
         query = query.filter(Lancamento.natureza_lancamento == natureza)
+    # Estes filtros são de ESTADO (o que o usuário vê na tela), não de dinheiro:
+    # olham data_efetivacao para casar exatamente com o badge da listagem.
     if apenas_abertos:
-        query = query.filter(Lancamento.data_pagamento == None)
+        query = query.filter(Lancamento.data_efetivacao == None)
     if apenas_vencidos:
+        # Em análise não é vencido: alguém já pagou, não se cobra de novo.
         query = query.filter(
-            Lancamento.data_pagamento == None,
+            Lancamento.data_efetivacao == None,
             Lancamento.data_vencimento < date.today()
         )
+    if apenas_em_analise:
+        query = query.filter(Lancamento.data_efetivacao != None, Lancamento.data_aprovacao == None)
     if apenas_quitados:
-        query = query.filter(Lancamento.data_pagamento != None)
+        query = query.filter(Lancamento.data_aprovacao != None)
     if apenas_com_comprovante:
         query = query.filter(Lancamento.comprovante != None)
     if apenas_sem_comprovante:
@@ -271,6 +285,9 @@ def listar_lancamentos_por_clifor(id_clifor: int, db: Session = Depends(get_db),
     ).options(
         joinedload(Lancamento.cliente_fornecedor),
         joinedload(Lancamento.usuario_lancamento),
+        joinedload(Lancamento.usuario_efetivacao),
+        joinedload(Lancamento.usuario_fechamento),
+        joinedload(Lancamento.usuario_edicao),
         joinedload(Lancamento.tipo_conta_rel)
     ).order_by(Lancamento.data_vencimento).all()
 
@@ -284,6 +301,9 @@ def listar_lancamentos_por_usuario(id_usuario: int, db: Session = Depends(get_db
         Lancamento.id_clifor_relacionado_fk == ClienteFornecedor.id_clifor
     ).options(
         joinedload(Lancamento.usuario_lancamento),
+        joinedload(Lancamento.usuario_efetivacao),
+        joinedload(Lancamento.usuario_fechamento),
+        joinedload(Lancamento.usuario_edicao),
         joinedload(Lancamento.tipo_conta_rel)
     ).order_by(Lancamento.data_vencimento, ClienteFornecedor.nome).all()
 
@@ -367,17 +387,70 @@ def criar_lancamentos_massa(
 
 
 @router.put("/{id_lancamento}", response_model=LancamentoResponse)
-def fechar_lancamento(id_lancamento: int, dados: LancamentoUpdate, db: Session = Depends(get_db), _=Depends(exige_operador_ou_admin)):
+def efetivar_lancamento(
+    id_lancamento: int,
+    dados: LancamentoUpdate,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(exige_operador_ou_admin)
+):
+    """Efetiva um lançamento: Aberto → Em análise.
+
+    É uma TRANSIÇÃO, não um update solto — daí o 409 em cima de quem já foi efetivado.
+    Sem essa checagem o portão seria contornável: bastaria ao Operador dar um segundo PUT
+    depois da aprovação para trocar valor_pago sem passar por análise nenhuma.
+    Correção depois de efetivado é com o admin, pelo PATCH /editar.
+
+    Admin vai direto para Pago: ele aprovaria em seguida de qualquer jeito, então acumula
+    os dois papéis na mesma operação.
+    """
     lancamento = db.query(Lancamento).filter(Lancamento.id_lancamento == id_lancamento).first()
     if not lancamento:
         raise HTTPException(status_code=404, detail="Lançamento não encontrado")
-    if 'data_pagamento' in dados.model_fields_set and dados.data_pagamento is None:
-        raise HTTPException(status_code=422, detail="data_pagamento é obrigatório para fechar um lançamento")
-    if dados.id_usuario_fk_fechamento:
-        if not db.query(Usuario).filter(Usuario.id_usuario == dados.id_usuario_fk_fechamento).first():
-            raise HTTPException(status_code=404, detail="Usuário de fechamento não encontrado")
+    if lancamento.data_efetivacao is not None:
+        raise HTTPException(status_code=409, detail="Lançamento já efetivado")
+    if not dados.data_pagamento:
+        raise HTTPException(status_code=422, detail="data_pagamento é obrigatório para efetivar um lançamento")
+
     for campo, valor in dados.model_dump(exclude_unset=True).items():
         setattr(lancamento, campo, valor)
+
+    # Atores e carimbos saem do token — o corpo não opina. É o que faz o registro de
+    # quem mandou para análise valer alguma coisa.
+    agora = datetime.utcnow()
+    lancamento.data_efetivacao = agora
+    lancamento.id_usuario_fk_efetivacao = current_user.id_usuario
+    if current_user.perfil_de_acesso == AcessoEnum.Administrador:
+        lancamento.data_aprovacao = agora
+        lancamento.id_usuario_fk_fechamento = current_user.id_usuario
+
+    db.commit()
+    db.refresh(lancamento)
+    atualizar_inadimplente(lancamento.id_clifor_relacionado_fk, db)
+    return lancamento
+
+
+@router.post("/{id_lancamento}/aprovar", response_model=LancamentoResponse)
+def aprovar_lancamento(
+    id_lancamento: int,
+    db: Session = Depends(get_db),
+    admin: Usuario = Depends(exige_admin)
+):
+    """Aprova um lançamento: Em análise → Pago. Só administrador.
+
+    É a aprovação que faz o dinheiro entrar no caixa e limpa a inadimplência —
+    até aqui, o lançamento efetivado não conta em resumo, dashboard nem saldo.
+    """
+    lancamento = db.query(Lancamento).filter(Lancamento.id_lancamento == id_lancamento).first()
+    if not lancamento:
+        raise HTTPException(status_code=404, detail="Lançamento não encontrado")
+    if lancamento.data_efetivacao is None:
+        raise HTTPException(status_code=409, detail="Lançamento não está em análise: efetive antes de aprovar")
+    if lancamento.data_aprovacao is not None:
+        raise HTTPException(status_code=409, detail="Lançamento já aprovado")
+
+    lancamento.data_aprovacao = datetime.utcnow()
+    lancamento.id_usuario_fk_fechamento = admin.id_usuario
+
     db.commit()
     db.refresh(lancamento)
     atualizar_inadimplente(lancamento.id_clifor_relacionado_fk, db)
@@ -403,6 +476,19 @@ def editar_lancamento_admin(
             raise HTTPException(status_code=404, detail="Tipo de conta não encontrado")
     for campo, valor in dados.model_dump(exclude_unset=True).items():
         setattr(lancamento, campo, valor)
+
+    # Invariante do fluxo, conferida sobre o objeto já mesclado: como é um PATCH parcial,
+    # o payload sozinho não diz o estado final. data_efetivacao não é editável, mas
+    # data_pagamento é — e zerá-la num lançamento já efetivado quebraria o par.
+    # Espelha o CHECK do banco; sem isto o erro viria como 500 do Postgres.
+    if lancamento.data_efetivacao is not None and lancamento.data_pagamento is None:
+        raise HTTPException(status_code=400, detail="Lançamento efetivado exige data_pagamento")
+
+    # Carimbo da edição — do token, nunca do corpo. Sobrescreve a edição anterior:
+    # a linha do tempo guarda só a última.
+    lancamento.data_edicao = datetime.utcnow()
+    lancamento.id_usuario_fk_edicao = admin.id_usuario
+
     db.commit()
     db.refresh(lancamento)
     atualizar_inadimplente(lancamento.id_clifor_relacionado_fk, db)
