@@ -218,6 +218,37 @@ function ListaLancamentosPage() {
 		setComprovante(null);
 	};
 
+	const aprovando = !!modalAprovar;
+
+	const fecharModalEfetivacao = () => {
+		setModalFechar(null);
+		setModalAprovar(null);
+	};
+
+	// Vitrine, não formulário: no modo aprovar os campos da efetivação só mostram.
+	const travado = aprovando
+		? { disabled: true, style: { background: 'var(--input-bg)', opacity: 0.7 } }
+		: {};
+
+	// Aprovar reusa a modal de Efetivar em vez de ter a sua: o admin aprova o que foi
+	// efetivado, então o que ele precisa ver é exatamente o que a efetivação gravou.
+	// Vem tudo travado porque POST /aprovar não aceita corpo — campo editável aqui seria
+	// mentira, o valor digitado sumiria em silêncio. Quem edita é a modal de Editar.
+	const abrirModalAprovar = (l) => {
+		setModalAprovar(l.id_lancamento);
+		setLancamentoSelecionado(l);
+		setFormFechar({
+			...FECHAR_INICIAL,
+			data_pagamento: l.data_pagamento ? l.data_pagamento.split('T')[0] : '',
+			valor_pago: l.valor_pago ? String(l.valor_pago).replace('.', ',') : '',
+			multa: l.multa ? String(l.multa).replace('.', ',') : '',
+			juros: l.juros ? String(l.juros).replace('.', ',') : '',
+			observacao_pagamento: l.observacao_pagamento || '',
+			estorno: l.estorno || false
+		});
+		setComprovante(null);
+	};
+
 	const handleRemoverComprovante = async () => {
 		try {
 			await removerComprovante(lancamentoSelecionado.id_lancamento);
@@ -293,9 +324,10 @@ function ListaLancamentosPage() {
 	};
 
 	// ── Aprovação: Em análise → Pago (só admin) ────────────────────────────────
-	const handleAprovar = async () => {
+	const handleAprovar = async (e) => {
+		e.preventDefault();
 		try {
-			await aprovarLancamento(modalAprovar.id_lancamento);
+			await aprovarLancamento(modalAprovar);
 			mostrarToast('Lançamento aprovado com sucesso.');
 			setModalAprovar(null);
 			buscar();
@@ -451,6 +483,17 @@ function ListaLancamentosPage() {
 		}
 	};
 
+	// Cor do pill da ação: cada uma reusa o badge da situação que ela PRODUZ — lançar
+	// abre, efetivar manda para análise, aprovar paga. Não é coincidência de paleta, é
+	// a mesma informação, então mudar a cor de uma situação deve mudar a da ação junto.
+	// Editar não muda situação nenhuma, e por isso é o único neutro.
+	const CLASSE_ACAO = {
+		'Lançado': 'badge-aberto',
+		'Efetivado': 'badge-analise',
+		'Aprovado': 'badge-pago',
+		'Editado': 'badge-editado',
+	};
+
 	// Quem mexeu por último e quando — clicar abre a linha do tempo completa.
 	// Substitui o "por {autor}" que ficava no chip de origem: aquele respondia
 	// sempre "quem criou", que raramente é quem fez a última coisa.
@@ -467,8 +510,8 @@ function ListaLancamentosPage() {
 					setTimelineModal(l);
 				}}
 			>
-				<span className="ll-ultima-interacao-acao">{evento.acao}</span>
-				<span>
+				<span className={`badge ${CLASSE_ACAO[evento.acao] || 'badge-editado'}`}>{evento.acao}</span>
+				<span className="ll-ultima-interacao-detalhe">
 					por {evento.nome} · {formatarCarimbo(evento.data)}
 				</span>
 			</button>
@@ -848,7 +891,7 @@ function ListaLancamentosPage() {
 													{admin && l.data_efetivacao && !l.data_aprovacao && !l.estorno && (
 														<button
 															className="ll-btn-acao aprovar"
-															onClick={() => setModalAprovar(l)}
+															onClick={() => abrirModalAprovar(l)}
 															title="Aprovar lançamento (admin)"
 														>
 															<i className="bi bi-check2-circle"></i>
@@ -864,13 +907,13 @@ function ListaLancamentosPage() {
 					</div>
 				</div>
 
-				{/* MODAL FECHAR */}
-				{modalFechar && (
-					<div className="ll-overlay" style={{ zIndex: loteAcima ? 9998 : 10000 }} onClick={() => setModalFechar(null)}>
+				{/* MODAL FECHAR — serve Efetivar e Aprovar; ver abrirModalAprovar. */}
+				{(modalFechar || modalAprovar) && (
+					<div className="ll-overlay" style={{ zIndex: loteAcima ? 9998 : 10000 }} onClick={fecharModalEfetivacao}>
 						<div className="ll-modal ll-modal--duplo" onClick={(e) => e.stopPropagation()}>
-							<h3>Efetivar Lançamento</h3>
+							<h3>{aprovando ? 'Aprovar Lançamento' : 'Efetivar Lançamento'}</h3>
 
-							<form onSubmit={handleConfirmarFechar}>
+							<form onSubmit={aprovando ? handleAprovar : handleConfirmarFechar}>
 								<div className="ll-efetiva-layout">
 									{/* coluna esquerda — informações do lançamento */}
 									<div className="ll-efetiva-col">
@@ -884,45 +927,45 @@ function ListaLancamentosPage() {
 												{nomeClifor(lancamentoSelecionado)}
 											</div>
 										</div>
-										<div className="ll-field">
-											<label>Tipo de Conta</label>
-											<div style={{ padding: '6px 10px', background: 'var(--input-bg)', borderRadius: 6, fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-												{nomeTipo(lancamentoSelecionado)}
-											</div>
-										</div>
+										{/* Mesmo pareamento do modal de Editar: os dois mostram os mesmos dados. */}
 										<div className="ll-row">
+											<div className="ll-field">
+												<label>Tipo de Conta</label>
+												<div style={{ padding: '6px 10px', background: 'var(--input-bg)', borderRadius: 6, fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+													{nomeTipo(lancamentoSelecionado)}
+												</div>
+											</div>
 											<div className="ll-field">
 												<label>Natureza</label>
 												<div style={{ padding: '6px 10px', background: 'var(--input-bg)', borderRadius: 6, fontSize: '0.875rem', color: 'var(--text-muted)' }}>
 													{lancamentoSelecionado?.natureza_lancamento}
 												</div>
 											</div>
+										</div>
+										<div className="ll-row">
 											<div className="ll-field">
 												<label>Vl. Lançamento</label>
 												<div style={{ padding: '6px 10px', background: 'var(--input-bg)', borderRadius: 6, fontSize: '0.875rem', color: 'var(--text-muted)' }}>
 													{formatarValor(lancamentoSelecionado?.valor)}
 												</div>
 											</div>
-										</div>
-										<div className="ll-row">
 											<div className="ll-field">
 												<label>Data de Vencimento</label>
 												<div style={{ padding: '6px 10px', background: 'var(--input-bg)', borderRadius: 6, fontSize: '0.875rem', color: 'var(--text-muted)' }}>
 													{formatarData(lancamentoSelecionado?.data_vencimento)}
 												</div>
 											</div>
-											<div className="ll-field" style={{ flex: 'none' }}>
-												<label>Status</label>
-												<div style={{ padding: '4px 0' }}>
-													{statusLabel(lancamentoSelecionado)}
-												</div>
+										</div>
+										<div className="ll-field">
+											<label>Observação do Lançamento</label>
+											<div style={{ padding: '6px 10px', background: 'var(--input-bg)', borderRadius: 6, fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+												{lancamentoSelecionado?.observacao || '—'}
 											</div>
 										</div>
-										<div className="ll-row">
-											<div className="ll-field">
-												<label>Última interação</label>
-												<div>{ultimaInteracaoChip(lancamentoSelecionado)}</div>
-											</div>
+										{/* Linha inteira: é a largura que faz o "por {nome} · {data}" caber sem quebrar. */}
+										<div className="ll-field">
+											<label>Última interação</label>
+											<div>{ultimaInteracaoChip(lancamentoSelecionado)}</div>
 										</div>
 										<div className="ll-row">
 											<div className="ll-field" style={{ flex: 'none' }}>
@@ -943,12 +986,6 @@ function ListaLancamentosPage() {
 												</label>
 											</div>
 										</div>
-										<div className="ll-field">
-											<label>Observação do Lançamento</label>
-											<div style={{ padding: '6px 10px', background: 'var(--input-bg)', borderRadius: 6, fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-												{lancamentoSelecionado?.observacao || '—'}
-											</div>
-										</div>
 									</div>
 
 									{/* divisor vertical */}
@@ -959,6 +996,7 @@ function ListaLancamentosPage() {
 										<div className="ll-col-titulo">
 											<i className="bi bi-pencil-square" />
 											Efetivação
+											<span className="ll-col-titulo-status">{statusLabel(lancamentoSelecionado)}</span>
 										</div>
 										<div className="ll-field">
 											<label>Data de Pagamento</label>
@@ -967,6 +1005,7 @@ function ListaLancamentosPage() {
 												name="data_pagamento"
 												value={formFechar.data_pagamento}
 												onChange={handleFecharChange}
+												{...travado}
 											/>
 										</div>
 										<div className="ll-field">
@@ -978,16 +1017,17 @@ function ListaLancamentosPage() {
 												onChange={handleFecharChange}
 												readOnly={!!lancamentoSelecionado?.valor_pago}
 												style={lancamentoSelecionado?.valor_pago ? { background: 'var(--input-bg)', opacity: 0.7 } : {}}
+												{...travado}
 											/>
 										</div>
 										<div className="ll-row">
 											<div className="ll-field">
 												<label>Multa</label>
-												<input type="text" name="multa" value={formFechar.multa} onChange={handleFecharChange} />
+												<input type="text" name="multa" value={formFechar.multa} onChange={handleFecharChange} {...travado} />
 											</div>
 											<div className="ll-field">
 												<label>Juros</label>
-												<input type="text" name="juros" value={formFechar.juros} onChange={handleFecharChange} />
+												<input type="text" name="juros" value={formFechar.juros} onChange={handleFecharChange} {...travado} />
 											</div>
 										</div>
 
@@ -1002,7 +1042,7 @@ function ListaLancamentosPage() {
 
 										<div className="ll-field">
 											<label>Observação do Pagamento</label>
-											<textarea name="observacao_pagamento" value={formFechar.observacao_pagamento} onChange={handleFecharChange} rows="2" />
+											<textarea name="observacao_pagamento" value={formFechar.observacao_pagamento} onChange={handleFecharChange} rows="2" {...travado} />
 										</div>
 
 										{lancamentoSelecionado?.tem_comprovante && (
@@ -1013,14 +1053,17 @@ function ListaLancamentosPage() {
 														<i className="bi bi-file-earmark-pdf" style={{ marginRight: 6 }}></i>
 														{lancamentoSelecionado.comprovante_nome || 'comprovante.pdf'}
 													</span>
-													<button type="button" onClick={() => setConfirmarRemoverComprovante(true)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #ef4444', background: 'transparent', color: '#ef4444', cursor: 'pointer', fontSize: 12 }}>
-														Remover
-													</button>
+													{/* Aprovar não mexe no lançamento: ver o comprovante faz parte, apagar não. */}
+													{!aprovando && (
+														<button type="button" onClick={() => setConfirmarRemoverComprovante(true)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #ef4444', background: 'transparent', color: '#ef4444', cursor: 'pointer', fontSize: 12 }}>
+															Remover
+														</button>
+													)}
 												</div>
 											</div>
 										)}
 
-										{!lancamentoSelecionado?.tem_comprovante && (
+										{!aprovando && !lancamentoSelecionado?.tem_comprovante && (
 											<div className="ll-field">
 												<label>
 													Comprovante de Pagamento (PDF){' '}
@@ -1051,12 +1094,12 @@ function ListaLancamentosPage() {
 									<button
 										type="button"
 										className="ll-btn-limpar"
-										onClick={() => setModalFechar(null)}
+										onClick={fecharModalEfetivacao}
 									>
 										Cancelar
 									</button>
 									<button type="submit" className="ll-btn-filtrar">
-										Confirmar
+										{aprovando ? 'Aprovar' : 'Confirmar'}
 									</button>
 								</div>
 							</form>
@@ -1124,17 +1167,14 @@ function ListaLancamentosPage() {
 												<input type="date" name="data_vencimento" value={formEditar.data_vencimento} onChange={handleEditarChange} />
 											</div>
 										</div>
-										<div className="ll-row">
-											<div className="ll-field" style={{ flex: 'none' }}>
-												<label>Status</label>
-												<div style={{ padding: '4px 0' }}>
-													{statusLabel(lancamentoSelecionado)}
-												</div>
-											</div>
-											<div className="ll-field">
-												<label>Última interação</label>
-												<div>{ultimaInteracaoChip(lancamentoSelecionado)}</div>
-											</div>
+										<div className="ll-field">
+											<label>Observação do Lançamento</label>
+											<textarea name="observacao" value={formEditar.observacao} onChange={handleEditarChange} rows="2" />
+										</div>
+										{/* Linha inteira: é a largura que faz o "por {nome} · {data}" caber sem quebrar. */}
+										<div className="ll-field">
+											<label>Última interação</label>
+											<div>{ultimaInteracaoChip(lancamentoSelecionado)}</div>
 										</div>
 										<div className="ll-row">
 											<div className="ll-field" style={{ flex: 'none' }}>
@@ -1155,10 +1195,6 @@ function ListaLancamentosPage() {
 												</label>
 											</div>
 										</div>
-										<div className="ll-field">
-											<label>Observação do Lançamento</label>
-											<textarea name="observacao" value={formEditar.observacao} onChange={handleEditarChange} rows="2" />
-										</div>
 									</div>
 
 									{/* divisor vertical */}
@@ -1169,6 +1205,7 @@ function ListaLancamentosPage() {
 										<div className="ll-col-titulo">
 											<i className="bi bi-pencil-square" />
 											Efetivação
+											<span className="ll-col-titulo-status">{statusLabel(lancamentoSelecionado)}</span>
 										</div>
 										<div className="ll-field">
 											<label>Data de Pagamento</label>
@@ -1395,17 +1432,6 @@ function ListaLancamentosPage() {
 					onConfirmar={handleRemoverComprovante}
 					onCancelar={() => setConfirmarRemoverComprovante(false)}
 					variante="perigo"
-				/>
-			)}
-
-			{modalAprovar && (
-				<ModalConfirm
-					titulo="Aprovar lançamento"
-					mensagem={`Aprovar o lançamento de ${nomeClifor(modalAprovar)} no valor de ${formatarValor(modalAprovar.valor_pago ?? modalAprovar.valor)}? O valor passa a contar no caixa.`}
-					textoBotaoConfirmar="Aprovar"
-					textoBotaoCancelar="Cancelar"
-					onConfirmar={handleAprovar}
-					onCancelar={() => setModalAprovar(null)}
 				/>
 			)}
 

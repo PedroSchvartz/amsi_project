@@ -282,6 +282,15 @@
 	opacity: 1;
 }
 
+/* Perto da borda direita o tooltip abre para a ESQUERDA. Não é só estética: o ::after é
+   absoluto dentro do .ll-table-wrapper, que tem overflow-x auto — e absoluto conta para a
+   área rolável mesmo com opacity 0. Com left:0 os tooltips das últimas colunas passavam da
+   tabela e criavam ~235px de rolagem horizontal fantasma, sem nada para ver lá. */
+.ll-table th[data-tooltip]:nth-last-child(-n + 3)::after {
+	left: auto;
+	right: 0;
+}
+
 .ll-table td {
 	padding: 11px 12px;
 	border-bottom: 1px solid var(--border);
@@ -375,9 +384,12 @@
 }
 
 /* ── Última interação — quem mexeu por último e quando; abre o histórico ── */
+/* A ação é um pill (cor = a situação que ela produz, ver CLASSE_ACAO); o "por {nome} ·
+   {data}" fica ao lado, em texto. `nowrap` porque o campo ocupa a linha inteira da
+   coluna justamente para caber assim — quebrar em duas linhas era o que se queria evitar. */
 .ll-ultima-interacao {
 	display: inline-flex;
-	align-items: baseline;
+	align-items: center;
 	gap: 6px;
 	background: none;
 	border: none;
@@ -387,17 +399,32 @@
 	text-align: left;
 	color: var(--text-muted);
 	cursor: pointer;
+	max-width: 100%;
 }
 
-.ll-ultima-interacao-acao {
-	font-weight: 600;
-	color: var(--primary);
-	text-decoration: underline;
-	text-underline-offset: 2px;
+/* O pill é a única affordance de clique; sem isto nada indica que o botão abre algo. */
+.ll-ultima-interacao:hover .badge {
+	filter: brightness(0.95);
 }
 
-.ll-ultima-interacao:hover .ll-ultima-interacao-acao {
-	color: var(--btn-hover);
+.ll-ultima-interacao-detalhe {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* Ação que não muda a situação do lançamento — neutra, montada nas vars de superfície
+   para não precisar de um trio de cores próprio em cada tema. */
+.badge.badge-editado {
+	background: var(--input-bg);
+	color: var(--text-muted);
+	border: 1px solid var(--border);
+}
+
+/* Pill de situação no título da coluna da direita ("Efetivação"): encostado à borda
+   direita do modal, na mesma altura do título. */
+.ll-col-titulo-status {
+	margin-left: auto;
 }
 
 /* ── Linha do tempo do lançamento ── */
