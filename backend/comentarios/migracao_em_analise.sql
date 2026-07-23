@@ -1,6 +1,6 @@
 -- ============================================================================
 -- Migracao: portao de aprovacao do lancamento -- estado "Em analise"
--- Plano: docs/planos/fluxo-aprovacao-lancamento.md
+-- Feature ja entregue (commits ae280c1..9b3cc38); plano de origem removido apos o merge.
 --
 -- A FASE 1 (ALTER + backfill + indice) ja roda SOZINHA, em main._aplicar_migracoes(),
 -- no startup de todo deploy -- mesmo caminho da coluna `lote`. Nao rode nada a mao

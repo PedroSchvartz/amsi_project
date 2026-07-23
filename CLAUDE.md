@@ -19,10 +19,11 @@ Estes arquivos mandam mais que este resumo:
 - `backend/contexto_macro.txt` — estrutura e padrões de desenvolvimento do backend.
 - `AMSI_Frontend/contexto_macro_front.txt` — estrutura, temas e contrato com a API.
 - `openapi_ai.yaml` (raiz) — contrato da API.
-- `backend/comentarios/fase_atual.txt` / `AMSI_Frontend/fase_atual_front.txt` — estado e pendências.
+- `docs/planos/demandas-novas.md` — backlog de features novas (ainda não existem no site).
+- `docs/planos/dividas-tecnicas.md` — evolução do que já roda (perf, testes, deploy, hardening).
 
-> ⚠️ As seções de **"fase atual" / "pendências"** desatualizam rápido, e alguns detalhes
-> **se contradizem entre arquivos** (ID do admin, existência da trigger de inadimplência,
+> ⚠️ Seções de **"estado atual" / "pendências"** dentro dos `contexto_macro*` desatualizam
+> rápido e às vezes **se contradizem** (ID do admin, existência da trigger de inadimplência,
 > contagem de testes). Não trate esses números/estados como verdade — leia o **código** e o
 > **`tabelas_do_banco.txt`** para o estado real.
 

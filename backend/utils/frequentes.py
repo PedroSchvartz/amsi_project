@@ -1057,16 +1057,16 @@ if __name__ == "__main__":
     # ======================================================================
 
     os_termos_procurados=[
-        'https://amsi-project-chzs.vercel.app/',
+        'usuario',
     ]
 
 
     lista = buscar_em_arquivos(
     termos_procurados=os_termos_procurados,
-    # base_dir="C:\C:\Codigos\AMSI_Project_Desenvolvimento\\backend",
-    extensoes=['.py','.env'],
+    base_dir="C:\C:\Codigos\AMSI_Project_Desenvolvimento",
+    extensoes=['.txt'],
     max_workers=10,
-    sensivel=True,
+    sensivel=False,
     update_interval=0.5,
     exibir=2,   # ou 0,1, 2, 3 conforme quiser
     Salva=False  # ou False

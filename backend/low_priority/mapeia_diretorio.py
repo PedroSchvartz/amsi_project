@@ -46,4 +46,4 @@ def mapeia_diretorio(raiz: str = ".", ignorar: list = None, nivel_max: int = Non
     _mapear(raiz)
     return "\n".join(linhas)
 
-print(mapeia_diretorio("."))
+print(mapeia_diretorio(raiz=r"C:\Codigos\claud_develop\tools\sobe"))

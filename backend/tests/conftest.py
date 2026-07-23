@@ -245,7 +245,7 @@ def _orfaos_de_teste(client, headers_admin):
     """Captura os usuários pré-existentes e, no fim da suíte, faz HARD-delete dos
     que foram criados durante os testes. O `DELETE /usuarios/{id}` comum é
     soft-delete (`exclusao = now()`); sem esta limpeza o banco acumula usuários de
-    teste run após run (item 2 do `docs/planos/prioridade-maxima.md`). É dependência
+    teste run após run. É dependência
     do `db_snapshot`, então finaliza DEPOIS da checagem de "banco sujo" — não mascara
     vazamentos de contagem. Só toca no que a própria sessão criou (não em dados
     pré-existentes); o `/hard` cascata tokens/login/lançamentos/clifor/logs/senha_token.

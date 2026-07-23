@@ -284,7 +284,7 @@ def test_token_invalidado_apos_soft_delete(client, headers_admin):
 
 
 # ================================================
-# RATE LIMITING — item 3.4 do docs/escopo_futuro.md
+# RATE LIMITING (hardening de auth já implementado)
 # ================================================
 # O limiter (utils/rate_limit.py) nasce DESLIGADO em dev/teste (enabled=False)
 # para não atrapalhar o restante da suíte, que faz muitos logins em sequência a

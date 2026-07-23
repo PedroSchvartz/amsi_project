@@ -125,7 +125,7 @@ ModalConfirm (components/ModalConfirm.jsx):
 --------------------------------------------------------------------------------
 
 Fonte da verdade da API: openapi_ai.yaml (raiz do projeto)
-Admin permanente: opedroschvartz@gmail.com, id=5 — nunca deletar
+Admin permanente: opedroschvartz@gmail.com — nunca deletar (ID atribuído pelo banco)
 
 Fluxo de autenticação:
   1. POST /auth/token → { access_token, primeiro_acesso }
@@ -151,7 +151,7 @@ ENUMs:
   cargo: Diretor / Tesoureiro / Secretário / Conselheiro / Associado / Desenvolvedor
 
 Banco:
-  - Inadimplência gerenciada pelo backend (utils/inadimplencia.py) — sem trigger
+  - Inadimplência: utils/inadimplencia.py + trigger trigger_inadimplente no banco (redundância intencional)
   - lancamento.comprovante BYTEA + lancamento.comprovante_nome VARCHAR(255)
   - LancamentoCreate NÃO aceita estorno — setar via PUT após criar
 
@@ -173,7 +173,7 @@ Banco:
 Enviar na ordem:
   1. meu_perfil_de_trabalho_verde.txt
   2. contexto_macro_front.txt (este arquivo)
-  3. fase_atual_front.txt
+  3. docs/planos/demandas-novas.md + dividas-tecnicas.md (backlog aberto)
   4. App.jsx + services/api.js + services/auth.js
   5. Componente/page específico do que for trabalhar
   + Árvore do projeto (mapeia_diretorio.py)

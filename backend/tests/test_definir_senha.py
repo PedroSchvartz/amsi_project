@@ -1,7 +1,6 @@
 """Testes do fluxo de definição de senha por token de uso único.
 
-Cobre o que estava SEM teste automatizado (lacuna registrada no item 3, ação 3 de
-`docs/planos/prioridade-maxima.md`): os endpoints públicos `/auth/validar-token-senha`,
+Cobre o que estava SEM teste automatizado: os endpoints públicos `/auth/validar-token-senha`,
 `/auth/definir-senha` e `/auth/esqueci-senha`, mais o caminho real de geração do link
 no cadastro (`POST /usuarios/`).
 

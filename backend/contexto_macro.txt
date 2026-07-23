@@ -13,7 +13,7 @@ PRAZO: MVP finalizado.
 
 Backend  : FastAPI (Python) + PostgreSQL 17.4
 Frontend : React.js + Vite (JSX) — Vercel
-Auth     : JWT próprio com bcrypt (implementado — ver fase_atual.txt)
+Auth     : JWT próprio com bcrypt (implementado)
 Ngrok    : domínio fixo + token em config.env (NGROK_DOMAIN, NGROK_TOKEN) — não versionado
 
 --------------------------------------------------------------------------------
@@ -26,7 +26,7 @@ Senha    : em config.env (DB_PASSWORD) — não versionado
 Porta    : 5432
 OBS      : usa BIGINT GENERATED ALWAYS AS IDENTITY e ENUMs nativos do PostgreSQL
            Trigger trigger_inadimplente existe no banco E no backend (redundância intencional)
-           Banco recriado em 11/05/2026 — admin ID=1
+           Admin permanente: opedroschvartz@gmail.com — nunca deletar (ID atribuído pelo banco)
 
 --------------------------------------------------------------------------------
   ESTRUTURA DO PROJETO
@@ -39,7 +39,6 @@ backend/
 │   ├── dependencies.py      — get_current_user, exige_admin
 │   └── router.py            — POST /auth/token, /auth/logout, /auth/trocar-senha
 ├── comentarios/
-│   ├── fase_atual.txt       — estado atual, o que falta, regras de negócio
 │   ├── tabelas_do_banco.txt — SQL de criação do banco (fonte da verdade)
 │   ├── projeto_auth.txt
 │   ├── projeto_notificador.txt
@@ -50,7 +49,7 @@ backend/
 ├── schemas/                 — Pydantic: Create, Update, Response
 ├── tests/
 │   ├── conftest.py          — snapshot banco antes/depois; limpa lançamentos antes de deletar usuario_base
-│   └── test_*.py            — 162 testes passando
+│   └── test_*.py            — bateria pytest (não confiar na contagem; ver o código)
 ├── utils/
 │   ├── auth_utils.py        — hash_senha, verificar_senha, criar_token_acesso
 │   ├── bootstrap.py         — seed de admin
@@ -86,7 +85,7 @@ backend/
 Enviar na ordem:
   1. meu_perfil_de_trabalho_verde.txt
   2. contexto_macro.txt     (este arquivo)
-  3. fase_atual.txt
+  3. docs/planos/dividas-tecnicas.md + demandas-novas.md (backlog aberto)
   4. tabelas_do_banco.txt
   5. main.py e database.py
   6. Models, schemas, routes específicos do que for trabalhar
@@ -175,7 +174,7 @@ Checklist:
   3. Atualizar model (models/)
   4. Atualizar schemas/ (Create, Update e Response conforme necessário)
   5. Testar com a bateria ou manualmente no Swagger
-  6. Atualizar fase_atual.txt se for pendência resolvida
+  6. Atualizar o backlog (docs/planos/dividas-tecnicas.md ou demandas-novas.md) ao resolver/criar um item
 
 ## LÓGICA DE NEGÓCIO — INADIMPLÊNCIA
 
