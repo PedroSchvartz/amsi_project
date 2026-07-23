@@ -522,6 +522,8 @@ export const getLancamentos = async (filtros = {}) => {
 	if (filtros.natureza) params.append('natureza', filtros.natureza);
 	if (filtros.apenas_abertos != null) params.append('apenas_abertos', filtros.apenas_abertos);
 	if (filtros.apenas_vencidos != null) params.append('apenas_vencidos', filtros.apenas_vencidos);
+	if (filtros.apenas_em_analise != null)
+		params.append('apenas_em_analise', filtros.apenas_em_analise);
 	if (filtros.apenas_quitados != null) params.append('apenas_quitados', filtros.apenas_quitados);
 	if (filtros.apenas_com_comprovante != null)
 		params.append('apenas_com_comprovante', filtros.apenas_com_comprovante);
