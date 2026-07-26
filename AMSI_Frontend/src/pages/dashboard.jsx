@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
 	getLancamentosResumo,
@@ -237,8 +237,9 @@ function Dashboard() {
 	const [porTipoDespesa, setPorTipoDespesa] = useState([]);
 	const [porTipoReceita, setPorTipoReceita] = useState([]);
 	const [inadimplentes, setInadimplentes] = useState([]);
-	const [carregando, setCarregando] = useState(true);
+	const [carregando, setCarregando] = useState(false);
 	const [erro, setErro] = useState('');
+	const [populado, setPopulado] = useState(false); // true após a 1ª busca
 
 	// Últimos params efetivamente carregados — usados pelo Discriminar
 	const [filtrosAplicados, setFiltrosAplicados] = useState(() => {
@@ -268,6 +269,7 @@ function Dashboard() {
 			setPorTipoDespesa(despesas.slice(0, 5));
 			setPorTipoReceita(receitas.slice(0, 5));
 			setInadimplentes(clifors);
+			setPopulado(true);
 		} catch (err) {
 			if (err.message !== 'sessao-expirada')
 				setErro(err.message || 'Erro ao carregar dados do dashboard.');
@@ -276,17 +278,7 @@ function Dashboard() {
 		}
 	}, []);
 
-	// Carrega apenas na montagem, com o período padrão (Últimos 6 meses)
-	useEffect(() => {
-		const p = PERIODOS[1];
-		const de = p.de();
-		const ate = p.ate();
-		const params = {};
-		if (de) params.data_pagamento_de = de;
-		if (ate) params.data_pagamento_ate = ate;
-		setFiltrosAplicados(params);
-		carregarDados(params);
-	}, [carregarDados]);
+	// Não busca ao abrir: o usuário dispara a carga no botão "Pesquisar".
 
 	const computarParams = () => {
 		if (rascunhoDe || rascunhoAte)
@@ -328,6 +320,11 @@ function Dashboard() {
 		setPendente(false);
 		setPeriodoAplicado(periodoSelecionado); // null se datas customizadas
 	};
+
+	// O botão sempre diz "Pesquisar"; ganha o aviso de pendência quando o período foi
+	// mexido sem reaplicar (a mesma dica que já existia).
+	const botaoPendente = populado && pendente;
+	const rotuloAplicar = botaoPendente ? '⚠ Pesquisar' : 'Pesquisar';
 
 	const discriminar = (infoKey) => {
 		const cfg = KPI_FILTROS[infoKey];
@@ -406,10 +403,10 @@ function Dashboard() {
 					/>
 					<button
 						onClick={aplicar}
-						className={`dash-periodo__btn${pendente ? ' dash-periodo__btn--pendente' : ' dash-periodo__btn--ativo'}`}
+						className={`dash-periodo__btn${botaoPendente ? ' dash-periodo__btn--pendente' : ' dash-periodo__btn--ativo'}`}
 						title="Aplicar filtros"
 					>
-						{pendente ? '⚠ Aplicar' : 'Aplicar'}
+						{rotuloAplicar}
 					</button>
 				</div>
 			</div>

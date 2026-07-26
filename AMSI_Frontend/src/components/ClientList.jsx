@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getClifors, getSaldosClifors, deleteClifor } from '../services/api.js';
 import { useToast } from './ToastStack.jsx';
@@ -25,7 +25,8 @@ function ClientList() {
 
 	const [clifors, setClifors] = useState([]);
 	const [saldos, setSaldos] = useState({});
-	const [loading, setLoading] = useState(true);
+	const [loading, setLoading] = useState(false);
+	const [populado, setPopulado] = useState(false); // true após a 1ª busca
 	const [cpfVisivel, setCpfVisivel] = useState({});
 	const [confirmarDeletar, setConfirmarDeletar] = useState(null);
 	const [cliforDetalhe, setCliforDetalhe] = useState(null);
@@ -34,9 +35,7 @@ function ClientList() {
 	const [filtroTipo, setFiltroTipo] = useState('');
 	const [filtroStatus, setFiltroStatus] = useState('');
 
-	useEffect(() => {
-		carregar();
-	}, []);
+	// Não busca ao abrir: o usuário dispara a carga no botão "Pesquisar".
 
 	const carregar = async () => {
 		try {
@@ -50,6 +49,7 @@ function ClientList() {
 					total_a_pagar: s.total_a_pagar
 				};
 			setSaldos(mapa);
+			setPopulado(true);
 		} catch (err) {
 			mostrarToast(err.message || 'Erro ao carregar clientes/fornecedores', 'erro');
 		} finally {
@@ -103,11 +103,22 @@ function ClientList() {
 
 			<div className="cl-header">
 				<h2 className="cl-title">Clientes / Fornecedores</h2>
-				{!consulta && (
-					<button className="cl-btn-novo" onClick={() => navigate('/cliente_fornecedor/novo')}>
-						+ Novo
+				<div style={{ display: 'flex', gap: 8 }}>
+					<button
+						className="cl-btn-editar"
+						onClick={carregar}
+						disabled={loading}
+						title="Pesquisar"
+					>
+						<i className="bi bi-search" />
+						{loading ? ' Pesquisando...' : ' Pesquisar'}
 					</button>
-				)}
+					{!consulta && (
+						<button className="cl-btn-novo" onClick={() => navigate('/cliente_fornecedor/novo')}>
+							+ Novo
+						</button>
+					)}
+				</div>
 			</div>
 
 			<div className="cl-filtros">
@@ -142,6 +153,8 @@ function ClientList() {
 
 			{loading ? (
 				<p className="cl-loading">Carregando...</p>
+			) : !populado ? (
+				<p className="cl-vazio">Clique em "Pesquisar" para buscar os clientes/fornecedores.</p>
 			) : cliforsFiltrados.length === 0 ? (
 				<p className="cl-vazio">Nenhum cliente/fornecedor encontrado.</p>
 			) : (

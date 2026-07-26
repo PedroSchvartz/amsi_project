@@ -100,6 +100,7 @@ function ListaLancamentosPage() {
 	const [tiposConta, setTiposConta] = useState([]);
 	const [filtros, setFiltros] = useState(FILTROS_INICIAL);
 	const [filtrosAplicados, setFiltrosAplicados] = useState(FILTROS_INICIAL);
+	const [populado, setPopulado] = useState(false); // true após a 1ª busca — só troca a mensagem de vazio
 	const { mostrarToast } = useToast();
 
 	const [modalFechar, setModalFechar] = useState(null);
@@ -120,6 +121,9 @@ function ListaLancamentosPage() {
 
 	useEffect(() => {
 		carregarAuxiliares();
+		// Não busca ao abrir: o usuário dispara a busca no botão "Pesquisar". Exceção: quando
+		// vem do drill-down do Dashboard, os filtros chegam prontos e a intenção do clique é
+		// justamente ver os itens — então aí sim carrega sozinho.
 		if (searchParams.has('origemDashboard')) {
 			const f = { ...FILTROS_INICIAL };
 			for (const [key, val] of searchParams.entries()) {
@@ -127,8 +131,6 @@ function ListaLancamentosPage() {
 			}
 			setFiltros(f);
 			buscar(f);
-		} else {
-			buscar();
 		}
 	}, []);
 
@@ -166,6 +168,7 @@ function ListaLancamentosPage() {
 			const data = await getLancamentos(params);
 			setLancamentos(data);
 			setFiltrosAplicados(f);
+			setPopulado(true);
 		} catch (err) {
 			if (err.message !== 'sessao-expirada')
 				mostrarToast(err.message || 'Erro ao buscar lançamentos', 'erro');
@@ -189,6 +192,11 @@ function ListaLancamentosPage() {
 	};
 
 	const filtrosPendentes = JSON.stringify(filtros) !== JSON.stringify(filtrosAplicados);
+
+	// O botão sempre diz "Pesquisar"; quando já houve uma busca e o usuário mexeu num
+	// filtro sem reaplicar, ganha o aviso de pendência (a mesma dica que já existia).
+	const buscarPendente = populado && filtrosPendentes;
+	const rotuloBuscar = buscarPendente ? '⚠ Pesquisar ⚠' : 'Pesquisar';
 
 	// ── Helpers de nome com fallback local ─────────────────────────────────────
 	const nomeClifor = (l) =>
@@ -789,9 +797,9 @@ function ListaLancamentosPage() {
 							</button>
 							<button
 								type="submit"
-								className={`ll-btn-filtrar${filtrosPendentes ? ' ll-btn-filtrar--pendente' : ''}`}
+								className={`ll-btn-filtrar${buscarPendente ? ' ll-btn-filtrar--pendente' : ''}`}
 							>
-								{filtrosPendentes ? '⚠ Aplicar Filtros ⚠' : 'Aplicar Filtros'}
+								{rotuloBuscar}
 							</button>
 						</div>
 					</form>
@@ -820,7 +828,9 @@ function ListaLancamentosPage() {
 								{lancamentos.length === 0 ? (
 									<tr>
 										<td colSpan="10" className="ll-empty">
-											Nenhum lançamento encontrado
+											{populado
+												? 'Nenhum lançamento encontrado'
+												: 'Clique em "Pesquisar" para buscar os lançamentos.'}
 										</td>
 									</tr>
 								) : (
