@@ -1,0 +1,443 @@
+/*
+ * Escopado sob .mda (o wrapper de MarkdownSessionExplorer).
+ *
+ * Adaptado para o AMSI: as variáveis internas do snippet apontam para os tokens de
+ * tema do app (theme.css), então o componente acompanha sozinho o tema verde padrão
+ * e o corporativo — sem bloco data-theme="dark" próprio. Regra do projeto: nada de
+ * cor hardcoded. Exceção deliberada: os blocos de código ficam sempre escuros (é o
+ * design do snippet, casa com o tema atom-one-dark do highlight.js).
+ *
+ * --text e --border NÃO são redefinidos de propósito: herdam os tokens do app de
+ * mesmo nome (evita referência cíclica var(--text: var(--text))).
+ */
+
+.mda {
+  --text-h: var(--text);
+  --text-dim: var(--text-muted);
+  --bg: var(--input-bg);
+  --bg-raised: var(--bg-card);
+  --code-bg: #1f2028;
+  --code-text: #d9dbe3;
+  --accent: var(--primary);
+  --accent-bg: color-mix(in srgb, var(--primary) 10%, transparent);
+  --mda-shadow: var(--shadow) 0 1px 2px, var(--shadow) 0 10px 24px -8px;
+
+  --sans: var(--font-body);
+  --serif: var(--font-display);
+  --mono: ui-monospace, Consolas, 'Cascadia Code', monospace;
+
+  color: var(--text);
+  font: 16px/1.55 var(--sans);
+}
+
+.mda,
+.mda * {
+  box-sizing: border-box;
+}
+
+.mda__toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.mda-settings__trigger {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  font-size: 16px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* Accordion (lista de sessões) */
+
+.mda .accordion__filter {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  color: var(--text-h);
+  font: inherit;
+  margin-bottom: 16px;
+}
+
+.mda .accordion__filter:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.mda .accordion__list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mda .session {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-raised);
+  overflow: hidden;
+  box-shadow: var(--mda-shadow);
+}
+
+.mda .session__header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+.mda .session__chevron {
+  flex-shrink: 0;
+  color: var(--text-dim);
+  transition: transform 0.15s ease;
+}
+
+.mda .session--open .session__chevron {
+  transform: rotate(180deg);
+  color: var(--accent);
+}
+
+.mda .session__heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mda .session__title {
+  font-weight: 600;
+  color: var(--text-h);
+  font-size: 15px;
+}
+
+.mda .session__path {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mda .session__snippet {
+  font-size: 12.5px;
+  color: var(--text-dim);
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mda .session__body {
+  border-top: 1px solid var(--border);
+  padding: 20px 24px 28px;
+  animation: mda-reveal 0.15s ease;
+}
+
+@keyframes mda-reveal {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.mda .accordion__empty {
+  text-align: center;
+  color: var(--text-dim);
+  padding: 32px 0;
+}
+
+.mda .accordion__folder-header {
+  margin: 18px 0 -2px;
+  padding: 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.mda .accordion__folder-header:first-child {
+  margin-top: 0;
+}
+
+/* Tipografia de leitura do markdown renderizado */
+
+.mda .md-content {
+  font: 17px/1.7 var(--serif);
+  color: var(--text);
+}
+
+.mda .md-content h1,
+.mda .md-content h2,
+.mda .md-content h3,
+.mda .md-content h4 {
+  font-family: var(--sans);
+  color: var(--text-h);
+  line-height: 1.3;
+  margin: 1.4em 0 0.5em;
+}
+
+.mda .md-content h1:first-child,
+.mda .md-content h2:first-child {
+  margin-top: 0;
+}
+
+.mda .md-content h1 {
+  font-size: 1.6em;
+}
+.mda .md-content h2 {
+  font-size: 1.3em;
+}
+.mda .md-content h3 {
+  font-size: 1.1em;
+}
+
+.mda .md-content p {
+  margin: 0 0 1em;
+}
+
+.mda .md-content ul,
+.mda .md-content ol {
+  margin: 0 0 1em;
+  padding-left: 1.4em;
+}
+
+.mda .md-content li {
+  margin: 0.3em 0;
+}
+
+.mda .md-content a {
+  color: var(--accent);
+}
+
+.mda .md-content blockquote {
+  margin: 0 0 1em;
+  padding: 0.2em 1em;
+  border-left: 3px solid var(--accent);
+  background: var(--accent-bg);
+  color: var(--text);
+}
+
+.mda .md-content hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 2em 0;
+}
+
+.mda .md-content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0 0 1em;
+  font-family: var(--sans);
+  font-size: 0.9em;
+}
+
+.mda .md-content th,
+.mda .md-content td {
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  text-align: left;
+}
+
+.mda .md-content th {
+  background: var(--accent-bg);
+  color: var(--text-h);
+}
+
+.mda .md-content code {
+  font-family: var(--mono);
+  font-size: 0.85em;
+  background: var(--accent-bg);
+  border-radius: 4px;
+  padding: 0.15em 0.4em;
+}
+
+.mda .md-content pre {
+  background: var(--code-bg);
+  color: var(--code-text);
+  border-radius: 8px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  margin: 0 0 1em;
+}
+
+.mda .md-content pre code {
+  background: none;
+  padding: 0;
+  font-size: 0.85em;
+  color: inherit;
+}
+
+.mda .md-content img {
+  max-width: 100%;
+  border-radius: 6px;
+}
+
+/* Outline por heading (colapso de #, ##, ...) */
+
+.mda .outline__toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.mda .outline__toolbar button {
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.mda .outline__toolbar button:hover {
+  border-color: var(--accent);
+  color: var(--text-h);
+}
+
+.mda .outline-section {
+  margin: 0.6em 0;
+  padding-left: 14px;
+  border-left: 2px solid var(--border);
+}
+
+.mda .outline-section--l1 {
+  border-left-color: transparent;
+  padding-left: 0;
+}
+
+.mda .outline-section__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  margin: 0 0 2px -8px;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  font-family: var(--sans);
+}
+
+.mda .outline-section__header:hover {
+  background: var(--accent-bg);
+}
+
+.mda .outline-section__header--flash {
+  animation: mda-outline-flash 1.6s ease;
+}
+
+@keyframes mda-outline-flash {
+  0%,
+  100% {
+    background: transparent;
+  }
+  15% {
+    background: var(--accent-bg);
+  }
+}
+
+.mda .outline-section__chevron {
+  flex-shrink: 0;
+  color: var(--text-dim);
+}
+
+.mda .outline-section--l1 > .outline-section__header .outline-section__title {
+  font-size: 1.25em;
+  font-weight: 700;
+  color: var(--text-h);
+}
+
+.mda .outline-section--l2 > .outline-section__header .outline-section__title {
+  font-size: 1.1em;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.mda .outline-section__title {
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.mda .outline-section__body {
+  padding-left: 22px;
+}
+
+/* Painel de configurações (⚙) */
+
+.mda .settings {
+  position: relative;
+}
+
+.mda .settings__panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  width: 240px;
+  max-height: 70vh;
+  overflow-y: auto;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--mda-shadow);
+  padding: 12px;
+  z-index: 20;
+}
+
+.mda .settings__section + .settings__section {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.mda .settings__title {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.mda .settings__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.mda .settings__row--reverse {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border);
+}
+
+.mda .settings__hint {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text-dim);
+}

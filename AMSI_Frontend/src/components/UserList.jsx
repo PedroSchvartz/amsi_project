@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getUsers, deleteUser, resetarSenhaUsuario, restaurarUsuario } from '../services/api';
 import UserRegisterModal from './UserRegisterModal.jsx';
 import UserEditModal from './UserEditModal.jsx';
 import PerfilCompletoPopup from './PerfilCompletoPopup.jsx';
 import ModalConfirm from './ModalConfirm.jsx';
 import { useToast } from './ToastStack.jsx';
-import { getUserFromToken } from '../services/auth';
+import { getUserFromToken, isAdmin } from '../services/auth';
 import '../styles/userList.css';
 
 function UserList() {
@@ -18,6 +19,7 @@ function UserList() {
 	const [perfilCompleto, setPerfilCompleto] = useState(null);
 	const [mostrarExcluidos, setMostrarExcluidos] = useState(false);
 	const { mostrarToast } = useToast();
+	const navigate = useNavigate();
 	const meuId = parseInt(getUserFromToken()?.sub);
 
 	useEffect(() => {
@@ -82,6 +84,16 @@ function UserList() {
 						<i className={`bi ${mostrarExcluidos ? 'bi-eye-slash' : 'bi-eye'}`} />
 						{mostrarExcluidos ? ' Ocultar excluídos' : ' Mostrar excluídos'}
 					</button>
+					{isAdmin() && (
+						<button
+							className="btn-acao-editar"
+							onClick={() => navigate('/backlog')}
+							style={{ padding: '8px 18px', fontSize: '0.875rem' }}
+							title="Backlog e anotações (.md)"
+						>
+							<i className="bi bi-journal-text" /> Backlog
+						</button>
+					)}
 					<button
 						className="btn-acao-editar"
 						onClick={() => setModalCadastro(true)}

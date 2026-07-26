@@ -1,0 +1,39 @@
+.backlog-page {
+	max-width: 1000px;
+	margin: 0 auto;
+	padding: 8px 0 40px;
+}
+
+.backlog-page__head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 16px;
+	margin-bottom: 24px;
+}
+
+.backlog-page__title {
+	font-family: var(--font-display);
+	color: var(--text);
+	margin: 0;
+}
+
+.backlog-page__subtitle {
+	margin: 4px 0 0;
+	font-size: 0.875rem;
+	color: var(--text-muted);
+}
+
+.backlog-page__subtitle code {
+	font-size: 0.85em;
+	background: var(--input-bg);
+	border: 1px solid var(--border);
+	border-radius: 4px;
+	padding: 0.05em 0.35em;
+}
+
+.backlog-page__empty {
+	text-align: center;
+	color: var(--text-muted);
+	padding: 40px 0;
+}

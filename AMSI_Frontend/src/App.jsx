@@ -21,6 +21,7 @@ import Dashboard from './pages/dashboard';
 import TipoContaPage from './pages/TipoContaPage';
 import NotFoundPage from './pages/NotFoundPage';
 import DemoRegistroPage from './pages/DemoRegistroPage';
+import BacklogPage from './pages/BacklogPage';
 
 /* ════════════════════════════════════════
    SPINNER GLOBAL DE CARREGAMENTO
@@ -267,6 +268,15 @@ function App() {
 							element={
 								<PrivateRoute adminOnly>
 									<UserListPage />
+								</PrivateRoute>
+							}
+						/>
+
+						<Route
+							path="/backlog"
+							element={
+								<PrivateRoute adminOnly>
+									<BacklogPage />
 								</PrivateRoute>
 							}
 						/>

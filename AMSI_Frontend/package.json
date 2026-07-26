@@ -39,9 +39,17 @@
 	"dependencies": {
 		"bootstrap": "^5.3.3",
 		"bootstrap-icons": "^1.13.1",
+		"highlight.js": "^11.11.1",
+		"mdast-util-to-string": "^4.0.0",
 		"react": "^19.2.5",
 		"react-dom": "^19.2.5",
+		"react-markdown": "^10.1.0",
 		"react-router-dom": "^7.14.2",
-		"recharts": "^2.12.7"
+		"recharts": "^2.12.7",
+		"rehype-highlight": "^7.0.2",
+		"remark-gfm": "^4.0.1",
+		"remark-parse": "^11.0.0",
+		"remark-stringify": "^11.0.0",
+		"unified": "^11.0.5"
 	}
 }
