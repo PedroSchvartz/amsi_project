@@ -205,13 +205,16 @@ def atualizar_clifor(id_clifor: int, dados: ClienteFornecedorUpdate, db: Session
     for campo, valor in dados.model_dump(exclude_unset=True, exclude={"enderecos", "contatos"}).items():
         setattr(clifor, campo, valor)
 
-    if dados.enderecos:
-        for end in dados.enderecos:
-            db.add(Endereco(id_clifor_fk=clifor.id_clifor, **end.model_dump()))
+    # Substitui, não acumula: quando a lista vem no payload ela é a verdade, então a
+    # coleção inteira é trocada. Com cascade delete-orphan, reatribuir apaga os antigos
+    # e insere os novos — antes o update só dava INSERT e duplicava tudo a cada save.
+    # `is not None` distingue "não enviado" (mantém) de "lista vazia" (zera de propósito);
+    # a reatribuição já deixa clifor.enderecos/contatos com o estado novo p/ o garantir_email.
+    if dados.enderecos is not None:
+        clifor.enderecos = [Endereco(**end.model_dump()) for end in dados.enderecos]
 
-    if dados.contatos:
-        for cont in dados.contatos:
-            db.add(Contato(id_clifor_fk=clifor.id_clifor, **cont.model_dump()))
+    if dados.contatos is not None:
+        clifor.contatos = [Contato(**cont.model_dump()) for cont in dados.contatos]
 
     # Vínculo: garante o e-mail do usuário entre os contatos do clifor.
     if usuario_vinc:

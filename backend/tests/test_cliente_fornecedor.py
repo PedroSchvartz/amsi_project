@@ -189,7 +189,9 @@ def test_atualizar_clifor_adiciona_contato(client, headers_admin, clifor):
     assert any(c["tipocontato"] == "Email" for c in data["contatos"])
 
 
-def test_atualizar_clifor_nao_remove_enderecos_existentes(client, headers_admin, usuario_base):
+def test_atualizar_clifor_substitui_enderecos_sem_duplicar(client, headers_admin, usuario_base):
+    # A lista de endereços no PUT é a verdade completa: substitui a coleção, não acumula.
+    # (Regressão: o update antigo só dava INSERT e duplicava tudo a cada save do formulário.)
     r = client.post("/cliente_fornecedor/", json={
         "pessoafisica_juridica": True,
         "cpf_cnpj": "888.888.888-88",
@@ -212,23 +214,38 @@ def test_atualizar_clifor_nao_remove_enderecos_existentes(client, headers_admin,
     data = r.json()
     id_clifor = data["id_clifor"]
 
+    novo_endereco = {
+        "logradouro": "Rua Adicional",
+        "numero": "2",
+        "bairro": "Bairro Adicional",
+        "cidade": "Cidade Adicional",
+        "uf": "RJ",
+        "cep": "20001-000"
+    }
+
     r2 = client.put(f"/cliente_fornecedor/{id_clifor}", json={
-        "enderecos": [
-            {
-                "logradouro": "Rua Adicional",
-                "numero": "2",
-                "bairro": "Bairro Adicional",
-                "cidade": "Cidade Adicional",
-                "uf": "RJ",
-                "cep": "20001-000"
-            }
-        ]
+        "enderecos": [novo_endereco]
     }, headers=headers_admin)
     assert r2.status_code == 200
     data2 = r2.json()
-    assert len(data2["enderecos"]) == 2
-    assert any(e["logradouro"] == "Rua Original" for e in data2["enderecos"])
-    assert any(e["logradouro"] == "Rua Adicional" for e in data2["enderecos"])
+    # Substituiu: sobra só o enviado, o antigo saiu.
+    assert len(data2["enderecos"]) == 1
+    assert data2["enderecos"][0]["logradouro"] == "Rua Adicional"
+    assert all(e["logradouro"] != "Rua Original" for e in data2["enderecos"])
+
+    # Reenviar a mesma lista (como o formulário faz a cada save) não pode duplicar.
+    r3 = client.put(f"/cliente_fornecedor/{id_clifor}", json={
+        "enderecos": [novo_endereco]
+    }, headers=headers_admin)
+    assert r3.status_code == 200
+    assert len(r3.json()["enderecos"]) == 1
+
+    # Sem a chave "enderecos" no payload, a coleção é preservada (update parcial).
+    r4 = client.put(f"/cliente_fornecedor/{id_clifor}", json={
+        "nome": "CliFor Persistencia Renomeado"
+    }, headers=headers_admin)
+    assert r4.status_code == 200
+    assert len(r4.json()["enderecos"]) == 1
 
     client.delete(f"/cliente_fornecedor/{id_clifor}", headers=headers_admin)
 
