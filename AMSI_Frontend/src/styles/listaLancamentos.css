@@ -518,11 +518,11 @@
 	color: var(--text-muted);
 }
 
-/* Em Lote (criado em massa) — violeta suave */
+/* Em Lote (criado em massa) — laranja suave */
 .badge.badge-origem--lote {
-	background: #ddd6fe;
-	color: #5b21b6;
-	border: 1px solid #c4b5fd;
+	background: #fed7aa;
+	color: #9a3412;
+	border: 1px solid #fdba74;
 }
 
 /* Automatizado (recorrência, futuro) — azul suave */
@@ -539,9 +539,9 @@
 }
 
 [data-theme='corporativo'] .badge-origem--lote {
-	background: rgba(139, 92, 246, 0.22);
-	color: #c4b5fd;
-	border-color: rgba(139, 92, 246, 0.45);
+	background: rgba(249, 115, 22, 0.22);
+	color: #fdba74;
+	border-color: rgba(249, 115, 22, 0.45);
 }
 
 [data-theme='corporativo'] .badge-origem--auto {
