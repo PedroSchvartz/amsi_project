@@ -12,3 +12,4 @@ cryptography
 requests
 slowapi
 Faker
+openpyxl

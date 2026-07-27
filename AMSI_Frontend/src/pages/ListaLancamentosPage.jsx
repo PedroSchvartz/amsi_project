@@ -7,6 +7,9 @@ import PerfilCompletoPopup from '../components/PerfilCompletoPopup.jsx';
 import SituacaoBadge from '../components/SituacaoBadge.jsx';
 import TimelineLancamentoModal, { ultimaInteracao, formatarCarimbo } from '../components/TimelineLancamentoModal.jsx';
 import { useToast } from '../components/ToastStack.jsx';
+import ExportarLancamentosModal from '../components/ExportarLancamentosModal.jsx';
+import { useExportacao } from '../services/exportacaoContext.jsx';
+import { getCache, setCache } from '../services/cache';
 import '../styles/listaLancamentos.css';
 import {
 	getLancamentos,
@@ -60,6 +63,34 @@ const FILTROS_INICIAL = {
 	valor_minimo: '',
 	valor_maximo: ''
 };
+
+// Converte o estado cru do formulário (strings, '' = vazio, vírgula decimal) no objeto
+// de parâmetros da API — só chaves preenchidas e já tipadas. Usado pela busca e pela
+// exportação, para as duas enviarem exatamente os mesmos filtros.
+function filtrosParaParams(f) {
+	const params = {};
+	if (f.id_clifor) params.id_clifor = parseInt(f.id_clifor);
+	if (f.id_tipo_conta) params.id_tipo_conta = parseInt(f.id_tipo_conta);
+	if (f.natureza) params.natureza = f.natureza;
+	if (f.apenas_abertos !== '') params.apenas_abertos = f.apenas_abertos === 'true';
+	if (f.apenas_vencidos !== '') params.apenas_vencidos = f.apenas_vencidos === 'true';
+	if (f.apenas_em_analise !== '') params.apenas_em_analise = f.apenas_em_analise === 'true';
+	if (f.apenas_quitados !== '') params.apenas_quitados = f.apenas_quitados === 'true';
+	if (f.apenas_com_comprovante !== '')
+		params.apenas_com_comprovante = f.apenas_com_comprovante === 'true';
+	if (f.apenas_sem_comprovante !== '')
+		params.apenas_sem_comprovante = f.apenas_sem_comprovante === 'true';
+	if (f.data_vencimento_de) params.data_vencimento_de = f.data_vencimento_de;
+	if (f.data_vencimento_ate) params.data_vencimento_ate = f.data_vencimento_ate;
+	if (f.data_lancamento_de) params.data_lancamento_de = f.data_lancamento_de;
+	if (f.data_lancamento_ate) params.data_lancamento_ate = f.data_lancamento_ate;
+	if (f.data_pagamento_de) params.data_pagamento_de = f.data_pagamento_de;
+	if (f.data_pagamento_ate) params.data_pagamento_ate = f.data_pagamento_ate;
+	if (f.estorno !== '') params.estorno = f.estorno === 'true';
+	if (f.valor_minimo) params.valor_minimo = parseFloat(f.valor_minimo.replace(',', '.'));
+	if (f.valor_maximo) params.valor_maximo = parseFloat(f.valor_maximo.replace(',', '.'));
+	return params;
+}
 
 const FECHAR_INICIAL = {
 	data_pagamento: '',
@@ -116,14 +147,15 @@ function ListaLancamentosPage() {
 	const [modalVer, setModalVer] = useState(null);
 	const [timelineModal, setTimelineModal] = useState(null); // lançamento cujo histórico está aberto
 	const [perfilUsuario, setPerfilUsuario] = useState(null); // usuário aberto a partir da linha do tempo
+	const [modalExportar, setModalExportar] = useState(false);
+	const { iniciar: iniciarExportacao } = useExportacao();
 
 	const admin = isAdmin();
 
 	useEffect(() => {
 		carregarAuxiliares();
-		// Não busca ao abrir: o usuário dispara a busca no botão "Pesquisar". Exceção: quando
-		// vem do drill-down do Dashboard, os filtros chegam prontos e a intenção do clique é
-		// justamente ver os itens — então aí sim carrega sozinho.
+		// Drill-down do Dashboard: filtros chegam prontos e a intenção do clique é ver os
+		// itens — busca sozinho (e sobrescreve o cache).
 		if (searchParams.has('origemDashboard')) {
 			const f = { ...FILTROS_INICIAL };
 			for (const [key, val] of searchParams.entries()) {
@@ -131,6 +163,17 @@ function ListaLancamentosPage() {
 			}
 			setFiltros(f);
 			buscar(f);
+			return;
+		}
+		// Fora do drill-down: não busca ao abrir. Se já houve uma pesquisa nesta sessão,
+		// reidrata o resultado do cache (persiste a navegação); senão fica vazio aguardando
+		// o botão "Pesquisar". Ver 3.13.
+		const cache = getCache('lancamentos');
+		if (cache) {
+			setLancamentos(cache.lancamentos);
+			setFiltros(cache.filtros);
+			setFiltrosAplicados(cache.filtros);
+			setPopulado(true);
 		}
 	}, []);
 
@@ -144,31 +187,11 @@ function ListaLancamentosPage() {
 
 	const buscar = async (f = filtros) => {
 		try {
-			const params = {};
-			if (f.id_clifor) params.id_clifor = parseInt(f.id_clifor);
-			if (f.id_tipo_conta) params.id_tipo_conta = parseInt(f.id_tipo_conta);
-			if (f.natureza) params.natureza = f.natureza;
-			if (f.apenas_abertos !== '') params.apenas_abertos = f.apenas_abertos === 'true';
-			if (f.apenas_vencidos !== '') params.apenas_vencidos = f.apenas_vencidos === 'true';
-			if (f.apenas_em_analise !== '') params.apenas_em_analise = f.apenas_em_analise === 'true';
-			if (f.apenas_quitados !== '') params.apenas_quitados = f.apenas_quitados === 'true';
-			if (f.apenas_com_comprovante !== '')
-				params.apenas_com_comprovante = f.apenas_com_comprovante === 'true';
-			if (f.apenas_sem_comprovante !== '')
-				params.apenas_sem_comprovante = f.apenas_sem_comprovante === 'true';
-			if (f.data_vencimento_de) params.data_vencimento_de = f.data_vencimento_de;
-			if (f.data_vencimento_ate) params.data_vencimento_ate = f.data_vencimento_ate;
-			if (f.data_lancamento_de) params.data_lancamento_de = f.data_lancamento_de;
-			if (f.data_lancamento_ate) params.data_lancamento_ate = f.data_lancamento_ate;
-			if (f.data_pagamento_de) params.data_pagamento_de = f.data_pagamento_de;
-			if (f.data_pagamento_ate) params.data_pagamento_ate = f.data_pagamento_ate;
-			if (f.estorno !== '') params.estorno = f.estorno === 'true';
-			if (f.valor_minimo) params.valor_minimo = parseFloat(f.valor_minimo.replace(',', '.'));
-			if (f.valor_maximo) params.valor_maximo = parseFloat(f.valor_maximo.replace(',', '.'));
-			const data = await getLancamentos(params);
+			const data = await getLancamentos(filtrosParaParams(f));
 			setLancamentos(data);
 			setFiltrosAplicados(f);
 			setPopulado(true);
+			setCache('lancamentos', { lancamentos: data, filtros: f });
 		} catch (err) {
 			if (err.message !== 'sessao-expirada')
 				mostrarToast(err.message || 'Erro ao buscar lançamentos', 'erro');
@@ -189,6 +212,13 @@ function ListaLancamentosPage() {
 	const handleLimpar = () => {
 		setFiltros(FILTROS_INICIAL);
 		buscar(FILTROS_INICIAL);
+	};
+
+	// Inicia a exportação (nova pesquisa no banco com os filtros já aplicados) e abre a
+	// modal de acompanhamento. A entrega padrão é download automático — trocável na modal.
+	const handleExportar = async () => {
+		const ok = await iniciarExportacao(filtrosParaParams(filtrosAplicados), 'download-auto');
+		if (ok) setModalExportar(true);
 	};
 
 	const filtrosPendentes = JSON.stringify(filtros) !== JSON.stringify(filtrosAplicados);
@@ -807,8 +837,32 @@ function ListaLancamentosPage() {
 
 				{/* TABELA */}
 				<div className="ll-card">
-					<h4>TRANSAÇÕES ({lancamentos.length})</h4>
-					<div className="ll-table-wrapper">
+					<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+						<h4 style={{ margin: 0 }}>TRANSAÇÕES ({lancamentos.length})</h4>
+						<button
+							type="button"
+							onClick={handleExportar}
+							disabled={lancamentos.length === 0}
+							title={lancamentos.length === 0 ? 'Pesquise lançamentos para exportar' : 'Exportar o resultado em .xlsx'}
+							style={{
+								padding: '7px 16px',
+								borderRadius: 8,
+								border: 'none',
+								background: lancamentos.length === 0 ? 'var(--border)' : 'var(--primary)',
+								color: '#fff',
+								fontWeight: 600,
+								fontSize: '0.82rem',
+								cursor: lancamentos.length === 0 ? 'not-allowed' : 'pointer',
+								display: 'flex',
+								alignItems: 'center',
+								gap: 6
+							}}
+						>
+							<i className="bi bi-file-earmark-spreadsheet" />
+							Exportar .xlsx
+						</button>
+					</div>
+					<div className="ll-table-wrapper" style={{ marginTop: 12 }}>
 						<table className="ll-table">
 							<thead>
 								<tr>
@@ -1487,6 +1541,8 @@ function ListaLancamentosPage() {
 			{perfilUsuario && (
 				<PerfilCompletoPopup usuario={perfilUsuario} onFechar={() => setPerfilUsuario(null)} />
 			)}
+
+			{modalExportar && <ExportarLancamentosModal onFechar={() => setModalExportar(false)} />}
 		</>
 	);
 }

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Response
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
-from database import get_db
+from database import get_db, SessionLocal
 from models.lancamento import Lancamento
 from models.usuario import Usuario, AcessoEnum
 from models.cliente_fornecedor import ClienteFornecedor
@@ -9,9 +9,20 @@ from models.tipo_conta import tipo_conta
 from schemas.lancamento import LancamentoCreate, LancamentoMassaCreate, LancamentoMassaResponse, LancamentoUpdate, LancamentoEditAdmin, LancamentoResponse, LancamentoResumo, ResumoPorTipo
 from auth.dependencies import exige_admin, exige_operador_ou_admin, get_current_user
 from utils.inadimplencia import atualizar_inadimplente
+from utils.email_sender import enviar_email
+from utils import export_jobs
+from utils.config import FRONTEND_URL
 from typing import List, Optional
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
+import io
+import re
+import base64
+import logging
+import zipfile
+import threading
+from openpyxl import Workbook
+from openpyxl.styles import Font
 
 router = APIRouter(
     prefix="/lancamento",
@@ -185,8 +196,8 @@ def resumo_por_tipo(
     ]
 
 
-@router.get("/", response_model=List[LancamentoResponse])
-def listar_lancamentos(
+def _query_lancamentos_filtrada(
+    db: Session,
     id_clifor: Optional[int] = None,
     id_tipo_conta: Optional[int] = None,
     natureza: Optional[str] = None,
@@ -206,13 +217,14 @@ def listar_lancamentos(
     valor_minimo: Optional[Decimal] = None,
     valor_maximo: Optional[Decimal] = None,
     lote: Optional[int] = None,
-    db: Session = Depends(get_db),
-    _=Depends(get_current_user)
 ):
+    """Monta a query filtrada da listagem. Compartilhada entre GET / (JSON) e a
+    exportação em .xlsx — assim os dois nunca divergem nos filtros aplicados."""
     query = db.query(Lancamento).join(
         ClienteFornecedor,
         Lancamento.id_clifor_relacionado_fk == ClienteFornecedor.id_clifor
     ).options(
+        joinedload(Lancamento.cliente_fornecedor),
         joinedload(Lancamento.usuario_lancamento),
         joinedload(Lancamento.usuario_efetivacao),
         joinedload(Lancamento.usuario_aprovacao),
@@ -265,9 +277,395 @@ def listar_lancamentos(
     if lote is not None:
         query = query.filter(Lancamento.lote == lote)
 
-    query = query.order_by(Lancamento.data_vencimento, ClienteFornecedor.nome)
+    return query.order_by(Lancamento.data_vencimento, ClienteFornecedor.nome)
 
-    return query.all()
+
+@router.get("/", response_model=List[LancamentoResponse])
+def listar_lancamentos(
+    id_clifor: Optional[int] = None,
+    id_tipo_conta: Optional[int] = None,
+    natureza: Optional[str] = None,
+    apenas_abertos: Optional[bool] = None,
+    apenas_vencidos: Optional[bool] = None,
+    apenas_em_analise: Optional[bool] = None,
+    apenas_quitados: Optional[bool] = None,
+    apenas_com_comprovante: Optional[bool] = None,
+    apenas_sem_comprovante: Optional[bool] = None,
+    data_vencimento_de: Optional[date] = None,
+    data_vencimento_ate: Optional[date] = None,
+    data_lancamento_de: Optional[date] = None,
+    data_lancamento_ate: Optional[date] = None,
+    data_pagamento_de: Optional[date] = None,
+    data_pagamento_ate: Optional[date] = None,
+    estorno: Optional[bool] = None,
+    valor_minimo: Optional[Decimal] = None,
+    valor_maximo: Optional[Decimal] = None,
+    lote: Optional[int] = None,
+    db: Session = Depends(get_db),
+    _=Depends(get_current_user)
+):
+    return _query_lancamentos_filtrada(
+        db,
+        id_clifor=id_clifor, id_tipo_conta=id_tipo_conta, natureza=natureza,
+        apenas_abertos=apenas_abertos, apenas_vencidos=apenas_vencidos,
+        apenas_em_analise=apenas_em_analise, apenas_quitados=apenas_quitados,
+        apenas_com_comprovante=apenas_com_comprovante, apenas_sem_comprovante=apenas_sem_comprovante,
+        data_vencimento_de=data_vencimento_de, data_vencimento_ate=data_vencimento_ate,
+        data_lancamento_de=data_lancamento_de, data_lancamento_ate=data_lancamento_ate,
+        data_pagamento_de=data_pagamento_de, data_pagamento_ate=data_pagamento_ate,
+        estorno=estorno, valor_minimo=valor_minimo, valor_maximo=valor_maximo, lote=lote,
+    ).all()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# EXPORTAÇÃO EM .XLSX — assíncrona (job em memória; ver utils/export_jobs.py)
+# ══════════════════════════════════════════════════════════════════════════════
+
+XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+# Formatos de data: campos de data pura / digitados pelo usuário NÃO levam fuso
+# (data_vencimento é DATE; data_pagamento é a data digitada à meia-noite). Só os
+# carimbos do servidor (UTC) viram horário local — Brasil hoje é UTC-3 fixo, sem
+# horário de verão, então subtrair 3h basta e não exige tzdata.
+def _fmt_data(d) -> str:
+    return d.strftime("%d/%m/%Y") if d else ""
+
+
+def _fmt_carimbo(dt) -> str:
+    return (dt - timedelta(hours=3)).strftime("%d/%m/%Y %H:%M") if dt else ""
+
+
+def _num(v):
+    return float(v) if v is not None else None
+
+
+def _mascarar_cpf_cnpj(doc: Optional[str]) -> str:
+    """Espelha rassurarCpfCnpj do frontend — máscara para o perfil Consulta."""
+    if not doc:
+        return "—"
+    d = re.sub(r"\D", "", doc)
+    if len(d) == 11:
+        return f"***.***.{d[6:9]}-**"
+    if len(d) == 14:
+        return f"**.{d[2:5]}.{d[5:8]}/****.{d[12:]}"
+    return doc
+
+
+_NATUREZA_LABEL = {"Debito": "Débito", "Credito": "Crédito"}
+
+
+def _valor_enum(v) -> str:
+    return getattr(v, "value", v) or ""
+
+
+def _total_pago(r) -> Optional[float]:
+    if r.valor_pago is None:
+        return None
+    return float(r.valor_pago or 0) + float(r.multa or 0) + float(r.juros or 0)
+
+
+def _descrever_filtros(db: Session, f: dict) -> str:
+    """Texto legível dos filtros — vai no topo do .xlsx e no corpo do e-mail."""
+    partes = []
+    if f.get("id_clifor") is not None:
+        cf = db.query(ClienteFornecedor).filter(ClienteFornecedor.id_clifor == f["id_clifor"]).first()
+        partes.append(f"Cliente/Fornecedor: {cf.nome if cf else f['id_clifor']}")
+    if f.get("id_tipo_conta") is not None:
+        tc = db.query(tipo_conta).filter(tipo_conta.id_tipo_conta == f["id_tipo_conta"]).first()
+        partes.append(f"Tipo de Conta: {tc.descricao_conta if tc else f['id_tipo_conta']}")
+    if f.get("natureza"):
+        partes.append(f"Natureza: {_NATUREZA_LABEL.get(f['natureza'], f['natureza'])}")
+    status = [rot for chave, rot in (
+        ("apenas_abertos", "Abertos"), ("apenas_vencidos", "Vencidos"),
+        ("apenas_em_analise", "Em análise"), ("apenas_quitados", "Quitados"),
+    ) if f.get(chave)]
+    if status:
+        partes.append(f"Status: {', '.join(status)}")
+    if f.get("apenas_com_comprovante"):
+        partes.append("Com comprovante")
+    if f.get("apenas_sem_comprovante"):
+        partes.append("Sem comprovante")
+    if f.get("estorno") is not None:
+        partes.append(f"Reembolso: {'sim' if f['estorno'] else 'não'}")
+    if f.get("data_vencimento_de") or f.get("data_vencimento_ate"):
+        partes.append(f"Vencimento: {_fmt_data(f.get('data_vencimento_de')) or '…'} a {_fmt_data(f.get('data_vencimento_ate')) or '…'}")
+    if f.get("data_lancamento_de") or f.get("data_lancamento_ate"):
+        partes.append(f"Lançamento: {_fmt_data(f.get('data_lancamento_de')) or '…'} a {_fmt_data(f.get('data_lancamento_ate')) or '…'}")
+    if f.get("data_pagamento_de") or f.get("data_pagamento_ate"):
+        partes.append(f"Pagamento: {_fmt_data(f.get('data_pagamento_de')) or '…'} a {_fmt_data(f.get('data_pagamento_ate')) or '…'}")
+    if f.get("valor_minimo") is not None or f.get("valor_maximo") is not None:
+        partes.append(f"Valor: {f.get('valor_minimo', '…')} a {f.get('valor_maximo', '…')}")
+    return " · ".join(partes) if partes else "Nenhum filtro aplicado (todos os lançamentos)"
+
+
+def _colunas(r, perfil_completo: bool) -> list[tuple[str, object]]:
+    """Pares (cabeçalho, valor) de uma linha. Consulta recebe só as colunas da
+    tabela (CPF mascarado); Operador/Admin recebem tabela + campos das modais."""
+    origem = "Em Lote" if r.lote is not None else "Manual"
+    tipo = f"{r.id_tipo_conta_fk} - {r.descricao_tipo_conta}" if r.descricao_tipo_conta else str(r.id_tipo_conta_fk)
+    natureza = _NATUREZA_LABEL.get(_valor_enum(r.natureza_lancamento), _valor_enum(r.natureza_lancamento))
+
+    if not perfil_completo:
+        return [
+            ("CPF/CNPJ", _mascarar_cpf_cnpj(r.cpf_cnpj_clifor)),
+            ("Nome / Razão Social", r.nome_clifor or "—"),
+            ("Tipo de Conta", tipo),
+            ("Natureza", natureza),
+            ("Vencimento", _fmt_data(r.data_vencimento)),
+            ("Pagamento", _fmt_data(r.data_pagamento)),
+            ("Vl. Lançamento", _num(r.valor)),
+            ("Vl. Pagamento", _total_pago(r)),
+            ("Status", _valor_enum(r.situacao)),
+            ("Origem", origem),
+        ]
+
+    return [
+        ("ID", r.id_lancamento),
+        ("CPF/CNPJ", r.cpf_cnpj_clifor or "—"),
+        ("Nome / Razão Social", r.nome_clifor or "—"),
+        ("Tipo de Conta", tipo),
+        ("Natureza", natureza),
+        ("Status", _valor_enum(r.situacao)),
+        ("Origem", origem),
+        ("Lote", r.lote if r.lote is not None else ""),
+        ("Reembolso", "Sim" if r.estorno else "Não"),
+        ("Data de Lançamento", _fmt_carimbo(r.data_lancamento)),
+        ("Vencimento", _fmt_data(r.data_vencimento)),
+        ("Pagamento", _fmt_data(r.data_pagamento)),
+        ("Vl. Lançamento", _num(r.valor)),
+        ("Valor Pago", _num(r.valor_pago)),
+        ("Multa", _num(r.multa)),
+        ("Juros", _num(r.juros)),
+        ("Vl. Pagamento (Total)", _total_pago(r)),
+        ("Observação do Lançamento", r.observacao or ""),
+        ("Observação do Pagamento", r.observacao_pagamento or ""),
+        ("Comprovante", r.comprovante_nome or "—"),
+        ("Lançado por", r.nome_usuario_lancamento or "—"),
+        ("Efetivado por", r.nome_usuario_efetivacao or "—"),
+        ("Data de Efetivação", _fmt_carimbo(r.data_efetivacao)),
+        ("Aprovado por", r.nome_usuario_aprovacao or "—"),
+        ("Data de Aprovação", _fmt_carimbo(r.data_aprovacao)),
+        ("Editado por", r.nome_usuario_edicao or "—"),
+        ("Data de Edição", _fmt_carimbo(r.data_edicao)),
+    ]
+
+
+def _montar_xlsx(registros, perfil_completo: bool, filtros_desc: str, data_pesquisa: datetime, job_id: str) -> Optional[bytes]:
+    """Monta o workbook. Retorna None se o job foi cancelado no meio."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Lançamentos"
+
+    # Bloco de metadados — também vai no corpo do e-mail.
+    ws["A1"] = "Exportação de Lançamentos — AMSI"
+    ws["A1"].font = Font(bold=True, size=14)
+    ws["A2"] = f"Data da pesquisa: {_fmt_carimbo(data_pesquisa)}"
+    ws["A3"] = f"Filtros: {filtros_desc}"
+    ws["A4"] = f"Total de lançamentos: {len(registros)}"
+
+    LINHA_CABECALHO = 6
+    cabecalhos = [h for h, _ in _colunas(registros[0], perfil_completo)] if registros else \
+        [h for h, _ in _colunas_vazia(perfil_completo)]
+    for col, titulo in enumerate(cabecalhos, start=1):
+        c = ws.cell(row=LINHA_CABECALHO, column=col, value=titulo)
+        c.font = Font(bold=True)
+    ws.freeze_panes = f"A{LINHA_CABECALHO + 1}"
+
+    larguras = [len(h) for h in cabecalhos]
+    linha = LINHA_CABECALHO + 1
+    for i, r in enumerate(registros):
+        if i % 200 == 0 and export_jobs.cancelado(job_id):
+            return None
+        for col, (_, valor) in enumerate(_colunas(r, perfil_completo), start=1):
+            ws.cell(row=linha, column=col, value=valor)
+            larguras[col - 1] = max(larguras[col - 1], len(str(valor)) if valor is not None else 0)
+        linha += 1
+
+    # Largura de coluna aproximada, limitada para não estourar.
+    from openpyxl.utils import get_column_letter
+    for col, larg in enumerate(larguras, start=1):
+        ws.column_dimensions[get_column_letter(col)].width = min(max(larg + 2, 10), 45)
+
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    return buffer.getvalue()
+
+
+def _colunas_vazia(perfil_completo: bool):
+    """Cabeçalhos quando não há registros — usa um objeto stub só para os títulos."""
+    class _Stub:
+        def __getattr__(self, _):
+            return None
+    return _colunas(_Stub(), perfil_completo)
+
+
+def _processar_exportacao(job_id: str, filtros: dict, perfil_completo: bool,
+                          filtros_desc: str, data_pesquisa: datetime):
+    """Roda em thread própria: consulta o banco e monta o .xlsx, guardando no job."""
+    db = SessionLocal()
+    try:
+        registros = [
+            LancamentoResponse.model_validate(l)
+            for l in _query_lancamentos_filtrada(db, **filtros).all()
+        ]
+    except Exception as e:
+        logging.warning(f"Exportação {job_id}: falha na consulta — {e}")
+        export_jobs.marcar_erro(job_id, "Falha ao consultar os lançamentos.")
+        db.close()
+        return
+    finally:
+        db.close()
+
+    if export_jobs.cancelado(job_id):
+        return
+    try:
+        conteudo = _montar_xlsx(registros, perfil_completo, filtros_desc, data_pesquisa, job_id)
+        if conteudo is None:  # cancelado no meio da montagem
+            return
+        # Horário local (UTC-3) no nome, com data e hora:min:seg.
+        data_str = (data_pesquisa - timedelta(hours=3)).strftime("%Y-%m-%d_%H-%M-%S")
+        export_jobs.marcar_concluido(job_id, conteudo, f"lancamentos_{data_str}.xlsx")
+    except Exception as e:
+        logging.warning(f"Exportação {job_id}: falha ao montar planilha — {e}")
+        export_jobs.marcar_erro(job_id, "Falha ao gerar a planilha.")
+
+
+def _dono_ou_404(job_id: str, current_user: Usuario) -> dict:
+    """Recupera o job garantindo que pertence ao usuário — o arquivo pode conter
+    CPF sem máscara, então um usuário nunca acessa job de outro."""
+    job = export_jobs.obter(job_id)
+    if not job or job["user_id"] != current_user.id_usuario:
+        raise HTTPException(status_code=404, detail="Exportação não encontrada")
+    return job
+
+
+@router.post("/exportar")
+def iniciar_exportacao(
+    id_clifor: Optional[int] = None,
+    id_tipo_conta: Optional[int] = None,
+    natureza: Optional[str] = None,
+    apenas_abertos: Optional[bool] = None,
+    apenas_vencidos: Optional[bool] = None,
+    apenas_em_analise: Optional[bool] = None,
+    apenas_quitados: Optional[bool] = None,
+    apenas_com_comprovante: Optional[bool] = None,
+    apenas_sem_comprovante: Optional[bool] = None,
+    data_vencimento_de: Optional[date] = None,
+    data_vencimento_ate: Optional[date] = None,
+    data_lancamento_de: Optional[date] = None,
+    data_lancamento_ate: Optional[date] = None,
+    data_pagamento_de: Optional[date] = None,
+    data_pagamento_ate: Optional[date] = None,
+    estorno: Optional[bool] = None,
+    valor_minimo: Optional[Decimal] = None,
+    valor_maximo: Optional[Decimal] = None,
+    lote: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    """Inicia a geração de um .xlsx com os lançamentos filtrados (nova consulta ao
+    banco). Devolve um job_id para acompanhamento; a entrega (download/e-mail) é
+    decidida pelas rotas seguintes."""
+    filtros = {
+        "id_clifor": id_clifor, "id_tipo_conta": id_tipo_conta, "natureza": natureza,
+        "apenas_abertos": apenas_abertos, "apenas_vencidos": apenas_vencidos,
+        "apenas_em_analise": apenas_em_analise, "apenas_quitados": apenas_quitados,
+        "apenas_com_comprovante": apenas_com_comprovante, "apenas_sem_comprovante": apenas_sem_comprovante,
+        "data_vencimento_de": data_vencimento_de, "data_vencimento_ate": data_vencimento_ate,
+        "data_lancamento_de": data_lancamento_de, "data_lancamento_ate": data_lancamento_ate,
+        "data_pagamento_de": data_pagamento_de, "data_pagamento_ate": data_pagamento_ate,
+        "estorno": estorno, "valor_minimo": valor_minimo, "valor_maximo": valor_maximo, "lote": lote,
+    }
+    data_pesquisa = datetime.utcnow()
+    filtros_desc = _descrever_filtros(db, filtros)
+    perfil_completo = current_user.perfil_de_acesso in (AcessoEnum.Administrador, AcessoEnum.Operador)
+
+    job_id = export_jobs.criar(current_user.id_usuario, filtros_desc, data_pesquisa)
+    threading.Thread(
+        target=_processar_exportacao,
+        args=(job_id, filtros, perfil_completo, filtros_desc, data_pesquisa),
+        daemon=True,
+    ).start()
+    return {"job_id": job_id}
+
+
+@router.get("/exportar/{job_id}")
+def status_exportacao(job_id: str, current_user: Usuario = Depends(get_current_user)):
+    job = _dono_ou_404(job_id, current_user)
+    return {"status": job["status"], "error": job["error"]}
+
+
+@router.get("/exportar/{job_id}/download")
+def baixar_exportacao(job_id: str, current_user: Usuario = Depends(get_current_user)):
+    job = _dono_ou_404(job_id, current_user)
+    if job["status"] != export_jobs.CONCLUIDO or not job["resultado"]:
+        raise HTTPException(status_code=409, detail="Exportação ainda não está pronta")
+    return Response(
+        content=job["resultado"],
+        media_type=XLSX_MEDIA_TYPE,
+        headers={"Content-Disposition": f'attachment; filename="{job["filename"]}"'},
+    )
+
+
+@router.post("/exportar/{job_id}/enviar-email")
+def enviar_exportacao_email(job_id: str, current_user: Usuario = Depends(get_current_user)):
+    job = _dono_ou_404(job_id, current_user)
+    if job["status"] != export_jobs.CONCLUIDO or not job["resultado"]:
+        raise HTTPException(status_code=409, detail="Exportação ainda não está pronta")
+
+    # Zipa o .xlsx e anexa em base64 (formato da Brevo).
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr(job["filename"], job["resultado"])
+    zip_nome = job["filename"].rsplit(".", 1)[0] + ".zip"
+    anexo_b64 = base64.b64encode(zip_buffer.getvalue()).decode("ascii")
+
+    corpo = f"""
+<!DOCTYPE html>
+<html lang="pt-BR">
+<body style="margin:0;padding:0;background:#EFE6DD;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px;">
+    <tr><td align="center">
+      <table width="600" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(27,67,50,0.10);">
+        <tr><td style="background:#1B4332;padding:32px 40px;text-align:center;">
+          <p style="margin:0;font-size:2rem;font-weight:700;color:#C9A84C;letter-spacing:0.1em;">AMSI</p>
+          <p style="margin:4px 0 0;font-size:0.72rem;color:rgba(255,255,255,0.6);letter-spacing:0.2em;text-transform:uppercase;">Associação de Moradores de Santa Isabel</p>
+        </td></tr>
+        <tr><td style="padding:36px 40px;">
+          <p style="font-size:1.3rem;font-weight:600;color:#1B4332;margin:0 0 8px;">Exportação de lançamentos 📊</p>
+          <p style="color:#6b7280;margin:0 0 20px;">Olá, <strong style="color:#2C2C2C;">{current_user.nome}</strong>! Segue em anexo (arquivo <strong>.zip</strong>) o resultado da sua exportação de lançamentos.</p>
+          <div style="background:#f4f1ec;border-left:4px solid #1B4332;padding:12px 16px;border-radius:4px;margin:0 0 20px;">
+            <p style="margin:0 0 6px;font-size:0.85rem;color:#2C2C2C;"><strong>Data da pesquisa:</strong> {_fmt_carimbo(job["data_pesquisa"])}</p>
+            <p style="margin:0;font-size:0.85rem;color:#2C2C2C;"><strong>Filtros aplicados:</strong> {job["filtros_desc"]}</p>
+          </div>
+          <p style="font-size:0.78rem;color:#6b7280;margin:0;">Se preferir, acesse o sistema: <a href="{FRONTEND_URL}" style="color:#1B4332;">{FRONTEND_URL}</a></p>
+        </td></tr>
+        <tr><td style="padding:16px 40px;text-align:center;border-top:1px solid #d1c9bf;">
+          <p style="margin:0;font-size:0.72rem;color:#a0a0a0;">© 2026 AMSI — Este é um email automático.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>
+"""
+    enviado = enviar_email(
+        current_user.email,
+        "Exportação de lançamentos — AMSI Project",
+        corpo,
+        anexos=[{"content": anexo_b64, "name": zip_nome}],
+    )
+    if not enviado:
+        raise HTTPException(status_code=502, detail="Não foi possível enviar o e-mail. Tente novamente.")
+    return {"detail": "E-mail enviado com sucesso"}
+
+
+@router.delete("/exportar/{job_id}")
+def cancelar_exportacao(job_id: str, current_user: Usuario = Depends(get_current_user)):
+    _dono_ou_404(job_id, current_user)
+    export_jobs.cancelar(job_id)
+    export_jobs.marcar_cancelado(job_id)
+    return {"detail": "Exportação cancelada"}
 
 
 @router.get("/{id_lancamento}", response_model=LancamentoResponse)

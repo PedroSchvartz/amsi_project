@@ -515,7 +515,9 @@ export const deleteContato = async (id_contato) => {
 //   data_lancamento_de, data_lancamento_ate — string ISO (YYYY-MM-DD)
 //   valor_minimo, valor_maximo — number
 
-export const getLancamentos = async (filtros = {}) => {
+// Monta a query string dos filtros de lançamento. Compartilhada entre a listagem
+// e a exportação — assim os dois nunca divergem nos parâmetros enviados.
+function montarParamsLancamentos(filtros = {}) {
 	const params = new URLSearchParams();
 	if (filtros.id_clifor != null) params.append('id_clifor', filtros.id_clifor);
 	if (filtros.id_tipo_conta != null) params.append('id_tipo_conta', filtros.id_tipo_conta);
@@ -540,9 +542,74 @@ export const getLancamentos = async (filtros = {}) => {
 	if (filtros.valor_minimo != null) params.append('valor_minimo', filtros.valor_minimo);
 	if (filtros.valor_maximo != null) params.append('valor_maximo', filtros.valor_maximo);
 	if (filtros.lote != null) params.append('lote', filtros.lote);
-	const query = params.toString() ? `?${params.toString()}` : '';
-	const response = await fetchComLoading(`${BASE_URL}/lancamento/${query}`, {
+	return params.toString() ? `?${params.toString()}` : '';
+}
+
+export const getLancamentos = async (filtros = {}) => {
+	const response = await fetchComLoading(`${BASE_URL}/lancamento/${montarParamsLancamentos(filtros)}`, {
 		method: 'GET',
+		headers: authHeaders()
+	});
+	return handleResponse(response);
+};
+
+// ─── Exportação de lançamentos em .xlsx (assíncrona; ver exportacaoContext) ──────
+
+// Inicia o job no backend (nova consulta com os filtros) → { job_id }.
+export const iniciarExportacao = async (filtros = {}) => {
+	const response = await fetchComLoading(
+		`${BASE_URL}/lancamento/exportar${montarParamsLancamentos(filtros)}`,
+		{ method: 'POST', headers: authHeaders() }
+	);
+	return handleResponse(response);
+};
+
+// Consulta o andamento → { status: 'processando'|'concluido'|'cancelado'|'erro', error }.
+// Usa fetch direto (não fetchComLoading) porque é chamada em polling: passar pelo
+// loading bus faria o overlay global piscar a cada verificação.
+export const statusExportacao = async (jobId) => {
+	const response = await fetch(`${BASE_URL}/lancamento/exportar/${jobId}`, {
+		method: 'GET',
+		headers: authHeaders()
+	});
+	return handleResponse(response);
+};
+
+// Baixa o arquivo pronto e dispara o download (não abre aba).
+export const baixarExportacao = async (jobId) => {
+	const response = await fetchComLoading(`${BASE_URL}/lancamento/exportar/${jobId}/download`, {
+		method: 'GET',
+		headers: authHeaders()
+	});
+	if (!response.ok) throw new Error('Não foi possível baixar a exportação.');
+	const agora = new Date();
+	const p = (n) => String(n).padStart(2, '0');
+	const nome = /filename="([^"]+)"/.exec(response.headers.get('Content-Disposition') || '')?.[1]
+		|| `lancamentos_${agora.getFullYear()}-${p(agora.getMonth() + 1)}-${p(agora.getDate())}_${p(agora.getHours())}-${p(agora.getMinutes())}-${p(agora.getSeconds())}.xlsx`;
+	const blob = await response.blob();
+	const url = URL.createObjectURL(blob);
+	const a = document.createElement('a');
+	a.href = url;
+	a.download = nome;
+	document.body.appendChild(a);
+	a.click();
+	a.remove();
+	URL.revokeObjectURL(url);
+};
+
+// Pede ao backend para zipar e enviar o arquivo ao e-mail do usuário logado.
+export const enviarExportacaoEmail = async (jobId) => {
+	const response = await fetchComLoading(`${BASE_URL}/lancamento/exportar/${jobId}/enviar-email`, {
+		method: 'POST',
+		headers: authHeaders()
+	});
+	return handleResponse(response);
+};
+
+// Cancela o job e avisa o backend para parar o processo.
+export const cancelarExportacao = async (jobId) => {
+	const response = await fetchComLoading(`${BASE_URL}/lancamento/exportar/${jobId}`, {
+		method: 'DELETE',
 		headers: authHeaders()
 	});
 	return handleResponse(response);

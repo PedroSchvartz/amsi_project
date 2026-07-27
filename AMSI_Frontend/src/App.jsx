@@ -15,6 +15,7 @@ import PrivateRoute from './components/PrivateRoute';
 import Layout from './components/Layout';
 import { LoadingProvider, useLoading } from './services/loadingContext';
 import { ToastProvider } from './components/ToastStack';
+import { ExportacaoProvider } from './services/exportacaoContext';
 import { logout } from './services/auth';
 import { setSessaoExpiradaCallback } from './services/api';
 import Dashboard from './pages/dashboard';
@@ -222,6 +223,7 @@ function MonitorSessao() {
 function App() {
 	return (
 		<ToastProvider>
+		<ExportacaoProvider>
 		<LoadingProvider>
 			<Spinner />
 			<BrowserRouter>
@@ -331,6 +333,7 @@ function App() {
 				</Routes>
 			</BrowserRouter>
 		</LoadingProvider>
+		</ExportacaoProvider>
 		</ToastProvider>
 	);
 }
