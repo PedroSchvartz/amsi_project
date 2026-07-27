@@ -22,6 +22,10 @@ logs/
 
 # Outputs de debug
 output.txt
+erros_limpeza_total.txt
+
+# Planilha de dados local (carga de associados) — não versionar
+backend/low_priority/pendentes_AMBSI-Associados-CargaSistema.xlsx
 
 # IDEs
 .vscode/
