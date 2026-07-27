@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
 	getLancamentosResumo,
@@ -6,6 +6,7 @@ import {
 	getClifors,
 	getSaldosClifors
 } from '../services/api';
+import { getCache, setCache } from '../services/cache';
 import '../styles/dashboard.css';
 
 function formatarValor(v) {
@@ -255,7 +256,9 @@ function Dashboard() {
 	// Último período efetivamente aplicado (1 = "Últimos 6 meses", carregado na montagem)
 	const [periodoAplicado, setPeriodoAplicado] = useState(1);
 
-	const carregarDados = useCallback(async (params) => {
+	// `meta` carrega o estado de seleção do período (botões ativos, rascunho) para o
+	// cache — assim, ao voltar à tela, o resultado E os controles reidratam juntos.
+	const carregarDados = useCallback(async (params, meta) => {
 		setCarregando(true);
 		setErro('');
 		try {
@@ -265,11 +268,20 @@ function Dashboard() {
 				getResumoPorTipo({ ...params, natureza: 'Credito' }),
 				getClifors({ inadimplente: true })
 			]);
+			const despesasTop = despesas.slice(0, 5);
+			const receitasTop = receitas.slice(0, 5);
 			setResumo(res);
-			setPorTipoDespesa(despesas.slice(0, 5));
-			setPorTipoReceita(receitas.slice(0, 5));
+			setPorTipoDespesa(despesasTop);
+			setPorTipoReceita(receitasTop);
 			setInadimplentes(clifors);
 			setPopulado(true);
+			setCache('dashboard', {
+				resumo: res,
+				porTipoDespesa: despesasTop,
+				porTipoReceita: receitasTop,
+				inadimplentes: clifors,
+				...meta
+			});
 		} catch (err) {
 			if (err.message !== 'sessao-expirada')
 				setErro(err.message || 'Erro ao carregar dados do dashboard.');
@@ -278,7 +290,23 @@ function Dashboard() {
 		}
 	}, []);
 
-	// Não busca ao abrir: o usuário dispara a carga no botão "Pesquisar".
+	// Não busca ao abrir: o usuário dispara a busca no botão "Pesquisar". Mas se já houve
+	// uma pesquisa nesta sessão, reidrata o resultado (e a seleção) do cache. Ver 3.13.
+	useEffect(() => {
+		const cache = getCache('dashboard');
+		if (!cache) return;
+		setResumo(cache.resumo);
+		setPorTipoDespesa(cache.porTipoDespesa);
+		setPorTipoReceita(cache.porTipoReceita);
+		setInadimplentes(cache.inadimplentes);
+		setFiltrosAplicados(cache.filtrosAplicados);
+		setPeriodoSelecionado(cache.periodoSelecionado);
+		setPeriodoAplicado(cache.periodoAplicado);
+		setRascunhoDe(cache.rascunhoDe);
+		setRascunhoAte(cache.rascunhoAte);
+		setPendente(false);
+		setPopulado(true);
+	}, []);
 
 	const computarParams = () => {
 		if (rascunhoDe || rascunhoAte)
@@ -316,9 +344,15 @@ function Dashboard() {
 	const aplicar = () => {
 		const params = computarParams();
 		setFiltrosAplicados(params);
-		carregarDados(params);
+		carregarDados(params, {
+			filtrosAplicados: params,
+			periodoSelecionado,
+			periodoAplicado: periodoSelecionado, // null se datas customizadas
+			rascunhoDe,
+			rascunhoAte
+		});
 		setPendente(false);
-		setPeriodoAplicado(periodoSelecionado); // null se datas customizadas
+		setPeriodoAplicado(periodoSelecionado);
 	};
 
 	// O botão sempre diz "Pesquisar"; ganha o aviso de pendência quando o período foi

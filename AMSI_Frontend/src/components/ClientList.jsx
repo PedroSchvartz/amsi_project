@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getClifors, getSaldosClifors, deleteClifor } from '../services/api.js';
 import { useToast } from './ToastStack.jsx';
 import ModalConfirm from './ModalConfirm.jsx';
 import CliforResumoPopup from './CliforResumoPopup.jsx';
 import { isAdmin, isConsulta } from '../services/auth.js';
+import { getCache, setCache } from '../services/cache.js';
 import '../styles/clientList.css';
 
 const TIPO_LABEL = { C: 'Cliente', F: 'Fornecedor', A: 'Ambos' };
@@ -35,7 +36,15 @@ function ClientList() {
 	const [filtroTipo, setFiltroTipo] = useState('');
 	const [filtroStatus, setFiltroStatus] = useState('');
 
-	// Não busca ao abrir: o usuário dispara a carga no botão "Pesquisar".
+	// Não busca ao abrir: o usuário dispara a busca no botão "Pesquisar". Mas se já houve
+	// uma pesquisa nesta sessão, reidrata o resultado do cache (persiste a navegação). 3.13.
+	useEffect(() => {
+		const cache = getCache('clientes');
+		if (!cache) return;
+		setClifors(cache.clifors);
+		setSaldos(cache.saldos);
+		setPopulado(true);
+	}, []);
 
 	const carregar = async () => {
 		try {
@@ -50,6 +59,7 @@ function ClientList() {
 				};
 			setSaldos(mapa);
 			setPopulado(true);
+			setCache('clientes', { clifors: lista, saldos: mapa });
 		} catch (err) {
 			mostrarToast(err.message || 'Erro ao carregar clientes/fornecedores', 'erro');
 		} finally {

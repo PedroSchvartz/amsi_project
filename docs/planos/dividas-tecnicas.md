@@ -108,6 +108,12 @@ Mesma origem do 3.8/3.9/3.10 — vídeo sobre erros comuns de performance (ponto
 
 **Resumo:** hoje toda tela de listagem (lançamentos, clientes/fornecedores, usuários, tipos de conta, dashboard) busca os dados no backend toda vez que é montada, mesmo revisitada segundos depois sem nada ter mudado. O plano introduz um cache de sessão em memória (`services/cache.js`, sem `sessionStorage`): a primeira visita a uma tela busca do banco normalmente; visitas seguintes na mesma sessão reaproveitam o cache; um botão "Recarregar" em cada tela força busca nova; mutações (criar/editar/excluir) invalidam o cache do recurso automaticamente; logout limpa tudo.
 
+> ⚠️ **Premissa desatualizada desde o commit `0bbdcf7`:** lançamentos, dashboard e
+> clientes/fornecedores **não buscam mais ao montar** — carregam só no botão "Pesquisar".
+> Ao puxar este item, seguir o contrato do [3.13](#313-persistência-dos-resultados-de-busca-na-sessão-regressão-do-pesquisar):
+> sem auto-load na primeira visita; persistir o resultado da última busca até nova busca
+> ou logout. As demais telas (usuários, tipos de conta) seguem buscando ao montar.
+
 ### 3.12 N+1 (pior que o 3.8) e falta de paginação em `GET /cliente_fornecedor/`
 
 > Reportado pelo Pedro (2026-07-09): "tela de Clientes/Fornecedores demorando tanto para carregar". Diagnóstico feito na hora — causa raiz já identificada, fix ainda não aplicado (fica para quando este item for puxado).
@@ -123,6 +129,38 @@ Mesma origem do 3.8/3.9/3.10 — vídeo sobre erros comuns de performance (ponto
 2. Adicionar `index=True` nas duas colunas de FK (migração simples, sem quebra de compatibilidade).
 3. Paginação segue o mesmo racional do 3.9 — pode ser resolvido junto, no mesmo padrão de contrato (skip/limit + `X-Total-Count`), para não implementar dois formatos de paginação diferentes no backend.
 4. Medir antes/depois com `EXPLAIN ANALYZE` ou contagem de queries emitidas (mesma sugestão de teste do 3.8) para confirmar o ganho.
+
+### 3.13 Persistência dos resultados de busca na sessão (regressão do "Pesquisar")
+
+> Reportado pelo Pedro (2026-07-26), logo após subir o comportamento "telas não
+> carregam ao abrir; botão Pesquisar" (commit `0bbdcf7`). É o outro lado da mesma
+> moeda do [3.11](#311-cache-de-sessão-no-frontend--carregar-uma-vez-recarregar-sob-demanda).
+
+**Comportamento atual (esquisito):** lançamentos, dashboard e clientes/fornecedores
+guardam o resultado da busca em **estado do componente** (`useState`). Ao navegar para
+outra tela e voltar, o componente desmonta/remonta, o estado zera e a tela volta vazia
+("Clique em Pesquisar") — os resultados da última busca somem, mesmo sem nada ter
+mudado. O usuário é obrigado a pesquisar de novo a cada ida-e-volta.
+
+**Comportamento desejado:** a tela só busca quando o usuário clica em "Pesquisar", e o
+resultado da última busca (com os filtros que a geraram) **permanece carregado** ao sair
+e voltar à tela. Só é descartado quando:
+- o usuário pesquisa de novo naquela tela (sobrescreve), ou
+- faz logout/login.
+
+**Implementação sugerida:**
+- Mover o par `{ filtros aplicados, resultado }` de cada tela do `useState` local para
+  um store de sessão **em memória, fora do componente** (o `services/cache.js` do 3.11
+  ou um contexto React). Ao montar, se houver cache da tela, reidratar sem refazer a
+  requisição.
+- "Pesquisar" sobrescreve o cache daquela tela; logout limpa tudo (mesmo gancho do
+  `localStorage.clear()` já existente no `auth.logout`).
+- Não usar `sessionStorage`/`localStorage` para o resultado (dado sensível + volume) —
+  memória da aba basta, alinhado ao 3.11.
+
+**Relação com 3.11:** o 3.11 assume "primeira visita busca do banco normalmente"; isso
+mudou quando o lazy-load + Pesquisar subiu. Ao puxar o 3.11, adotar **este** contrato
+(sem auto-load; persistir por busca até nova busca ou logout) em vez do texto original.
 
 ---
 

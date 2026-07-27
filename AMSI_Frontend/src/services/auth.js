@@ -1,3 +1,5 @@
+import { limparCache } from './cache';
+
 const BASE_URL = import.meta.env.VITE_API_URL;
 
 export const getToken = () => {
@@ -63,4 +65,5 @@ export const logout = () => {
 		}).catch(() => {});
 	}
 	localStorage.clear();
+	limparCache(); // some com os resultados de busca em memória — próximo login começa limpo
 };
