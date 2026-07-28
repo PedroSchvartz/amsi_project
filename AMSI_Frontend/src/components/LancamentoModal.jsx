@@ -42,14 +42,14 @@ function LancamentoModal({ onFechar }) {
 		carregarDados();
 	}, []);
 
-	const carregarDados = async () => {
-		try {
-			const [cs, ts] = await Promise.all([getClifors(), getTiposConta()]);
-			setClifors(cs);
-			setTiposConta(ts);
-		} catch (err) {
-			mostrarToast('Erro ao carregar dados: ' + err.message, 'erro');
-		}
+	const carregarDados = () => {
+		// Selects independentes: o Tipo de Conta (rápido) não espera os clifors.
+		getTiposConta()
+			.then(setTiposConta)
+			.catch((err) => mostrarToast('Erro ao carregar tipos de conta: ' + err.message, 'erro'));
+		getClifors()
+			.then(setClifors)
+			.catch((err) => mostrarToast('Erro ao carregar clientes/fornecedores: ' + err.message, 'erro'));
 	};
 
 	const handleChange = (e) => {

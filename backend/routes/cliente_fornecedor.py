@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import func, exists
 from database import get_db
 from models.cliente_fornecedor import ClienteFornecedor
@@ -37,7 +37,10 @@ def listar_clifors(
     db: Session = Depends(get_db),
     _=Depends(get_current_user)
 ):
-    query = db.query(ClienteFornecedor)
+    query = db.query(ClienteFornecedor).options(
+        selectinload(ClienteFornecedor.enderecos),
+        selectinload(ClienteFornecedor.contatos),
+    )
 
     if nome is not None:
         query = query.filter(ClienteFornecedor.nome.ilike(f"%{nome}%"))
