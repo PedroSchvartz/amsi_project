@@ -177,11 +177,24 @@ function ListaLancamentosPage() {
 		}
 	}, []);
 
+	// Dados dos selects de filtro (clifors + tipos de conta). Carrega em silêncio (sem o
+	// overlay de "carregando") e guarda no cache: abrir a tela não deve mostrar loading —
+	// só o botão "Pesquisar" mostra. Ao voltar à tela, reidrata do cache sem rebuscar. 3.13.
 	const carregarAuxiliares = async () => {
+		const aux = getCache('lancamentos-aux');
+		if (aux) {
+			setClifors(aux.clifors);
+			setTiposConta(aux.tiposConta);
+			return;
+		}
 		try {
-			const [cs, ts] = await Promise.all([getClifors(), getTiposConta()]);
+			const [cs, ts] = await Promise.all([
+				getClifors({}, { silencioso: true }),
+				getTiposConta({ silencioso: true })
+			]);
 			setClifors(cs);
 			setTiposConta(ts);
+			setCache('lancamentos-aux', { clifors: cs, tiposConta: ts });
 		} catch {}
 	};
 

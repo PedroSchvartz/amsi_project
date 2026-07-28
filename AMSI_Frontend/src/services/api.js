@@ -13,8 +13,11 @@ export const setSessaoExpiradaCallback = (cb) => { _onSessaoExpirada = cb; };
 // logo após o app ser carregado.
 let ultimaRespostaOk = Date.now();
 
-async function fetchComLoading(url, options) {
-	loadingBus.iniciar();
+// `silencioso`: não aciona o overlay global de carregamento. Usado em cargas de
+// fundo (ex.: popular os selects de filtro ao abrir uma tela) que não devem
+// mostrar "carregando" — o retry de banco adormecido continua valendo.
+async function fetchComLoading(url, options, { silencioso = false } = {}) {
+	if (!silencioso) loadingBus.iniciar();
 	try {
 		const res = await fetch(url, options);
 		ultimaRespostaOk = Date.now();
@@ -36,7 +39,7 @@ async function fetchComLoading(url, options) {
 		}
 		throw err;
 	} finally {
-		loadingBus.finalizar();
+		if (!silencioso) loadingBus.finalizar();
 	}
 }
 
@@ -293,7 +296,7 @@ export const desvincularCliforDoUsuario = async (id_usuario) => {
 // 🏢 CLIENTE / FORNECEDOR
 // ======================
 
-export const getClifors = async (filtros = {}) => {
+export const getClifors = async (filtros = {}, { silencioso = false } = {}) => {
 	const params = new URLSearchParams();
 	if (filtros.nome) params.append('nome', filtros.nome);
 	if (filtros.tipo_clifor) params.append('tipo_clifor', filtros.tipo_clifor);
@@ -306,7 +309,7 @@ export const getClifors = async (filtros = {}) => {
 	const response = await fetchComLoading(`${BASE_URL}/cliente_fornecedor/${query}`, {
 		method: 'GET',
 		headers: authHeaders()
-	});
+	}, { silencioso });
 	return handleResponse(response);
 };
 
@@ -730,11 +733,11 @@ export const editarLancamento = async (id_lancamento, data) => {
 // 🏷️ TIPO DE CONTA
 // ======================
 
-export const getTiposConta = async () => {
+export const getTiposConta = async ({ silencioso = false } = {}) => {
 	const response = await fetchComLoading(`${BASE_URL}/tipo_conta/`, {
 		method: 'GET',
 		headers: authHeaders()
-	});
+	}, { silencioso });
 	return handleResponse(response);
 };
 
