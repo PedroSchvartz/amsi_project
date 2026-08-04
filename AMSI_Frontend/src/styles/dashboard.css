@@ -125,6 +125,17 @@
 	color: #fbbf24;
 }
 
+/* Em análise — laranja, o mesmo tom do badge "Em análise" da listagem. */
+.dash-kpi-card__icon--analise {
+	background: rgba(249, 115, 22, 0.12);
+	color: #ea580c;
+}
+
+[data-theme='corporativo'] .dash-kpi-card__icon--analise {
+	background: rgba(249, 115, 22, 0.18);
+	color: #fdba74;
+}
+
 .dash-kpi-card__label {
 	font-size: 0.72rem;
 	font-weight: 600;
@@ -139,6 +150,12 @@
 	font-weight: 700;
 	color: var(--text);
 	line-height: 1;
+}
+
+/* Linha secundária do card (ex.: "aguardando aprovação" no Em Análise) */
+.dash-kpi-card__sub {
+	font-size: 0.7rem;
+	color: var(--text-muted);
 }
 
 /* Valor positivo/negativo com cor semântica */
@@ -159,7 +176,68 @@
 }
 
 /* ════════════════════════════════════════
-   SEÇÃO DE GRÁFICOS / CONTEÚDO
+   BLOCO TEMÁTICO (No período × Posição atual)
+   Agrupa um título, a faixa de contexto e os cards/tabelas daquele recorte.
+   ════════════════════════════════════════ */
+.dash-bloco {
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+}
+
+.dash-bloco__head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+	flex-wrap: wrap;
+}
+
+.dash-bloco__titulo {
+	font-family: var(--font-display);
+	font-size: 1.15rem;
+	font-weight: 700;
+	color: var(--text);
+	margin: 0;
+}
+
+/* Faixa de contexto: deixa explícito a QUE recorte os cards abaixo respondem —
+   o intervalo aplicado (No período) ou "hoje" (Posição atual). Era justamente o
+   que faltava: o seletor parecia governar todos os cards, mas só governa metade. */
+.dash-bloco__faixa {
+	font-size: 0.8rem;
+	color: var(--text-muted);
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+/* Estado inicial (nenhuma pesquisa ainda) — não mostra zeros que parecem dados reais. */
+.dash-vazio {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 10px;
+	padding: 56px 20px;
+	text-align: center;
+	color: var(--text-muted);
+	background: var(--bg-card);
+	border: 1px dashed var(--border);
+	border-radius: 12px;
+}
+
+.dash-vazio i {
+	font-size: 1.8rem;
+	opacity: 0.7;
+}
+
+.dash-vazio p {
+	margin: 0;
+	font-size: 0.9rem;
+}
+
+/* ════════════════════════════════════════
+   SEÇÃO DE CONTEÚDO (tabelas/rankings)
    ════════════════════════════════════════ */
 .dash-section {
 	background: var(--bg-card);
@@ -442,27 +520,6 @@
 	transform: translateX(-50%);
 	border: 6px solid transparent;
 	border-top-color: var(--text);
-}
-
-.dash-btn-atualizar {
-	background: transparent;
-	border: 1px solid var(--border);
-	border-radius: 8px;
-	padding: 7px 14px;
-	color: var(--text-muted);
-	cursor: pointer;
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	font-size: 0.82rem;
-	transition:
-		background 0.2s ease,
-		color 0.2s ease;
-}
-
-.dash-btn-atualizar:hover {
-	background: var(--input-bg);
-	color: var(--text);
 }
 
 .dash-loading {

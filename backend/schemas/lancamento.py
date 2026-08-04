@@ -163,6 +163,11 @@ class LancamentoResumo(BaseModel):
     total_a_receber_excluindo_inadimplentes: Decimal
     total_vencido_a_receber: Decimal
     total_vencido_a_pagar: Decimal
+    # Em análise: efetivado, aguardando aprovação do admin. Não é caixa (fora dos
+    # realizados) nem "aberto" (já foi efetivado) — é o balde da fila de aprovação.
+    total_em_analise_receber: Decimal = Decimal(0)
+    total_em_analise_pagar: Decimal = Decimal(0)
+    quantidade_em_analise: int = 0
     quantidade_abertos: int
     quantidade_vencidos: int
     quantidade_inadimplentes: int
