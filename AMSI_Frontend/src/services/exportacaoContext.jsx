@@ -62,11 +62,17 @@ export function ExportacaoProvider({ children }) {
 	useEffect(() => {
 		if (!job || job.status !== 'processando') return;
 		let ativo = true;
+		// Trava de entrega única: statusExportacao é assíncrono e pode demorar mais que o
+		// intervalo, deixando dois ticks em voo ao mesmo tempo. Sem esta trava, ambos veem
+		// "concluido" e chamam finalizar → o download dispara duas vezes.
+		let finalizando = false;
 		const timer = setInterval(async () => {
+			if (finalizando) return;
 			try {
 				const { status } = await statusExportacao(job.jobId);
-				if (!ativo) return;
+				if (!ativo || finalizando) return;
 				if (status === 'processando') return;
+				finalizando = true;
 				clearInterval(timer);
 				await finalizar(status);
 			} catch {
