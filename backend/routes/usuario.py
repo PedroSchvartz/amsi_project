@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from database import get_db
 from models.usuario import Usuario
 from models.token_ativo import TokenAtivo
@@ -373,6 +373,10 @@ def sugerir_clifor_para_usuario(
     try:
         resultados = (
             db.query(ClienteFornecedor)
+            .options(
+                selectinload(ClienteFornecedor.enderecos),
+                selectinload(ClienteFornecedor.contatos),
+            )
             .filter(ClienteFornecedor.id_usuario_fk == None)
             .filter(ClienteFornecedor.ativo == True)
             .order_by(func.similarity(ClienteFornecedor.nome, termo).desc())
@@ -382,6 +386,10 @@ def sugerir_clifor_para_usuario(
     except Exception:
         resultados = (
             db.query(ClienteFornecedor)
+            .options(
+                selectinload(ClienteFornecedor.enderecos),
+                selectinload(ClienteFornecedor.contatos),
+            )
             .filter(ClienteFornecedor.id_usuario_fk == None)
             .filter(ClienteFornecedor.ativo == True)
             .filter(ClienteFornecedor.nome.ilike(f"%{termo}%"))
