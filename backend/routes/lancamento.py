@@ -96,9 +96,11 @@ def resumo_lancamentos(
     # Saldo do período (não mais "desde sempre" — conforme spec item 5)
     saldo_total = total_recebido - total_pago
 
-    # Pendentes: dinheiro que ainda não entrou. Em análise entra aqui — foi efetivado,
-    # mas até o admin aprovar continua sendo "a receber/a pagar".
-    q_abertos   = q_base().filter(Lancamento.data_aprovacao == None, Lancamento.estorno == False)
+    # Pendentes: dinheiro que ainda não entrou. O recorte é por EFETIVAÇÃO (estado
+    # visível na listagem), não por aprovação: "aberto" é quem ainda não foi efetivado.
+    # Em análise (efetivado, aguardando aprovação) NÃO entra aqui — é balde próprio,
+    # calculado abaixo. Assim cada card do dashboard reconcilia 1:1 com o filtro da lista.
+    q_abertos   = q_base().filter(Lancamento.data_efetivacao == None, Lancamento.estorno == False)
     q_a_receber = q_abertos.filter(Lancamento.natureza_lancamento == "Credito")
     q_a_pagar   = q_abertos.filter(Lancamento.natureza_lancamento == "Debito")
 
@@ -109,6 +111,22 @@ def resumo_lancamentos(
     total_a_pagar = Decimal(db.query(func.coalesce(func.sum(Lancamento.valor), 0)).filter(
         Lancamento.id_lancamento.in_(q_a_pagar.with_entities(Lancamento.id_lancamento))
     ).scalar())
+
+    # Em análise: efetivado mas ainda não aprovado. Não é caixa (fora dos realizados) nem
+    # aberto (já foi efetivado) — é a fila de aprovação do admin. Espelha o filtro
+    # `apenas_em_analise` da listagem (efetivacao != None, aprovacao == None, sem estorno).
+    q_em_analise = q_base().filter(
+        Lancamento.data_efetivacao != None,
+        Lancamento.data_aprovacao == None,
+        Lancamento.estorno == False,
+    )
+    total_em_analise_receber = Decimal(db.query(func.coalesce(func.sum(func.coalesce(Lancamento.valor_pago, Lancamento.valor)), 0)).filter(
+        Lancamento.id_lancamento.in_(q_em_analise.filter(Lancamento.natureza_lancamento == "Credito").with_entities(Lancamento.id_lancamento))
+    ).scalar())
+    total_em_analise_pagar = Decimal(db.query(func.coalesce(func.sum(func.coalesce(Lancamento.valor_pago, Lancamento.valor)), 0)).filter(
+        Lancamento.id_lancamento.in_(q_em_analise.filter(Lancamento.natureza_lancamento == "Debito").with_entities(Lancamento.id_lancamento))
+    ).scalar())
+    quantidade_em_analise = q_em_analise.count()
 
     # Inadimplência: créditos vencidos e não pagos
     q_vencidos_credito = q_abertos.filter(
@@ -145,6 +163,9 @@ def resumo_lancamentos(
         saldo_total=saldo_total,
         total_a_receber=total_a_receber,
         total_a_pagar=total_a_pagar,
+        total_em_analise_receber=total_em_analise_receber,
+        total_em_analise_pagar=total_em_analise_pagar,
+        quantidade_em_analise=quantidade_em_analise,
         total_inadimplencia=total_inadimplencia,
         total_a_receber_excluindo_inadimplentes=total_a_receber_excl,
         total_vencido_a_receber=total_vencido_a_receber,
@@ -323,6 +344,15 @@ def listar_lancamentos(
 
 XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
+# Formatos de exibição das células (o VALOR gravado é sempre data/número puro —
+# isto só muda como o Excel mostra, para o "de até" de datas e as fórmulas de valor
+# funcionarem sem tratar a planilha).
+FMT_DATA = "DD/MM/YYYY"
+FMT_CARIMBO = "DD/MM/YYYY HH:MM"
+# Seções positivo;negativo;zero — a coluna exibe estilo moeda (1.500,50), mas o
+# valor 0 aparece simplesmente como "0". A célula continua sendo número (não texto).
+FMT_MOEDA = "#,##0.00;-#,##0.00;0"
+
 # Formatos de data: campos de data pura / digitados pelo usuário NÃO levam fuso
 # (data_vencimento é DATE; data_pagamento é a data digitada à meia-noite). Só os
 # carimbos do servidor (UTC) viram horário local — Brasil hoje é UTC-3 fixo, sem
@@ -335,14 +365,29 @@ def _fmt_carimbo(dt) -> str:
     return (dt - timedelta(hours=3)).strftime("%d/%m/%Y %H:%M") if dt else ""
 
 
-def _num(v):
-    return float(v) if v is not None else None
+# ── Valores de célula (tipados) — para o Excel tratar como data/número de verdade ──
+def _data_cel(d):
+    """Data pura como valor de célula. datetime → tira o fuso (Excel não aceita).
+    None → célula vazia (filtro de data no Excel ignora vazias)."""
+    if isinstance(d, datetime):
+        return d.replace(tzinfo=None)
+    return d
+
+
+def _carimbo_cel(dt):
+    """Carimbo do servidor (UTC) → horário local (UTC-3) como datetime. None → vazia."""
+    return (dt - timedelta(hours=3)).replace(tzinfo=None) if dt else None
+
+
+def _moeda_cel(v):
+    """Valor monetário como número puro (sem símbolo). Nulo ou zero → o número 0."""
+    return float(v) if v is not None else 0
 
 
 def _mascarar_cpf_cnpj(doc: Optional[str]) -> str:
     """Espelha rassurarCpfCnpj do frontend — máscara para o perfil Consulta."""
     if not doc:
-        return "—"
+        return ""
     d = re.sub(r"\D", "", doc)
     if len(d) == 11:
         return f"***.***.{d[6:9]}-**"
@@ -398,55 +443,56 @@ def _descrever_filtros(db: Session, f: dict) -> str:
     return " · ".join(partes) if partes else "Nenhum filtro aplicado (todos os lançamentos)"
 
 
-def _colunas(r, perfil_completo: bool) -> list[tuple[str, object]]:
-    """Pares (cabeçalho, valor) de uma linha. Consulta recebe só as colunas da
-    tabela (CPF mascarado); Operador/Admin recebem tabela + campos das modais."""
+def _colunas(r, perfil_completo: bool) -> list[tuple[str, object, Optional[str]]]:
+    """Triplas (cabeçalho, valor, formato) de uma linha. Consulta recebe só as
+    colunas da tabela (CPF mascarado); Operador/Admin recebem tabela + campos das
+    modais. `formato` é o number_format da célula (None = texto/geral)."""
     origem = "Em Lote" if r.lote is not None else "Manual"
     tipo = f"{r.id_tipo_conta_fk} - {r.descricao_tipo_conta}" if r.descricao_tipo_conta else str(r.id_tipo_conta_fk)
     natureza = _NATUREZA_LABEL.get(_valor_enum(r.natureza_lancamento), _valor_enum(r.natureza_lancamento))
 
     if not perfil_completo:
         return [
-            ("CPF/CNPJ", _mascarar_cpf_cnpj(r.cpf_cnpj_clifor)),
-            ("Nome / Razão Social", r.nome_clifor or "—"),
-            ("Tipo de Conta", tipo),
-            ("Natureza", natureza),
-            ("Vencimento", _fmt_data(r.data_vencimento)),
-            ("Pagamento", _fmt_data(r.data_pagamento)),
-            ("Vl. Lançamento", _num(r.valor)),
-            ("Vl. Pagamento", _total_pago(r)),
-            ("Status", _valor_enum(r.situacao)),
-            ("Origem", origem),
+            ("CPF/CNPJ", _mascarar_cpf_cnpj(r.cpf_cnpj_clifor), None),
+            ("Nome / Razão Social", r.nome_clifor or "", None),
+            ("Tipo de Conta", tipo, None),
+            ("Natureza", natureza, None),
+            ("Vencimento", _data_cel(r.data_vencimento), FMT_DATA),
+            ("Pagamento", _data_cel(r.data_pagamento), FMT_DATA),
+            ("Vl. Lançamento", _moeda_cel(r.valor), FMT_MOEDA),
+            ("Vl. Pagamento", _moeda_cel(_total_pago(r)), FMT_MOEDA),
+            ("Status", _valor_enum(r.situacao), None),
+            ("Origem", origem, None),
         ]
 
     return [
-        ("ID", r.id_lancamento),
-        ("CPF/CNPJ", r.cpf_cnpj_clifor or "—"),
-        ("Nome / Razão Social", r.nome_clifor or "—"),
-        ("Tipo de Conta", tipo),
-        ("Natureza", natureza),
-        ("Status", _valor_enum(r.situacao)),
-        ("Origem", origem),
-        ("Lote", r.lote if r.lote is not None else ""),
-        ("Reembolso", "Sim" if r.estorno else "Não"),
-        ("Data de Lançamento", _fmt_carimbo(r.data_lancamento)),
-        ("Vencimento", _fmt_data(r.data_vencimento)),
-        ("Pagamento", _fmt_data(r.data_pagamento)),
-        ("Vl. Lançamento", _num(r.valor)),
-        ("Valor Pago", _num(r.valor_pago)),
-        ("Multa", _num(r.multa)),
-        ("Juros", _num(r.juros)),
-        ("Vl. Pagamento (Total)", _total_pago(r)),
-        ("Observação do Lançamento", r.observacao or ""),
-        ("Observação do Pagamento", r.observacao_pagamento or ""),
-        ("Comprovante", r.comprovante_nome or "—"),
-        ("Lançado por", r.nome_usuario_lancamento or "—"),
-        ("Efetivado por", r.nome_usuario_efetivacao or "—"),
-        ("Data de Efetivação", _fmt_carimbo(r.data_efetivacao)),
-        ("Aprovado por", r.nome_usuario_aprovacao or "—"),
-        ("Data de Aprovação", _fmt_carimbo(r.data_aprovacao)),
-        ("Editado por", r.nome_usuario_edicao or "—"),
-        ("Data de Edição", _fmt_carimbo(r.data_edicao)),
+        ("ID", r.id_lancamento, None),
+        ("CPF/CNPJ", r.cpf_cnpj_clifor or "", None),
+        ("Nome / Razão Social", r.nome_clifor or "", None),
+        ("Tipo de Conta", tipo, None),
+        ("Natureza", natureza, None),
+        ("Status", _valor_enum(r.situacao), None),
+        ("Origem", origem, None),
+        ("Lote", r.lote if r.lote is not None else "", None),
+        ("Reembolso", "Sim" if r.estorno else "Não", None),
+        ("Data de Lançamento", _carimbo_cel(r.data_lancamento), FMT_CARIMBO),
+        ("Vencimento", _data_cel(r.data_vencimento), FMT_DATA),
+        ("Pagamento", _data_cel(r.data_pagamento), FMT_DATA),
+        ("Vl. Lançamento", _moeda_cel(r.valor), FMT_MOEDA),
+        ("Valor Pago", _moeda_cel(r.valor_pago), FMT_MOEDA),
+        ("Multa", _moeda_cel(r.multa), FMT_MOEDA),
+        ("Juros", _moeda_cel(r.juros), FMT_MOEDA),
+        ("Vl. Pagamento (Total)", _moeda_cel(_total_pago(r)), FMT_MOEDA),
+        ("Observação do Lançamento", r.observacao or "", None),
+        ("Observação do Pagamento", r.observacao_pagamento or "", None),
+        ("Comprovante", r.comprovante_nome or "", None),
+        ("Lançado por", r.nome_usuario_lancamento or "", None),
+        ("Efetivado por", r.nome_usuario_efetivacao or "", None),
+        ("Data de Efetivação", _carimbo_cel(r.data_efetivacao), FMT_CARIMBO),
+        ("Aprovado por", r.nome_usuario_aprovacao or "", None),
+        ("Data de Aprovação", _carimbo_cel(r.data_aprovacao), FMT_CARIMBO),
+        ("Editado por", r.nome_usuario_edicao or "", None),
+        ("Data de Edição", _carimbo_cel(r.data_edicao), FMT_CARIMBO),
     ]
 
 
@@ -464,8 +510,8 @@ def _montar_xlsx(registros, perfil_completo: bool, filtros_desc: str, data_pesqu
     ws["A4"] = f"Total de lançamentos: {len(registros)}"
 
     LINHA_CABECALHO = 6
-    cabecalhos = [h for h, _ in _colunas(registros[0], perfil_completo)] if registros else \
-        [h for h, _ in _colunas_vazia(perfil_completo)]
+    cabecalhos = [h for h, _, _ in _colunas(registros[0], perfil_completo)] if registros else \
+        [h for h, _, _ in _colunas_vazia(perfil_completo)]
     for col, titulo in enumerate(cabecalhos, start=1):
         c = ws.cell(row=LINHA_CABECALHO, column=col, value=titulo)
         c.font = Font(bold=True)
@@ -476,8 +522,10 @@ def _montar_xlsx(registros, perfil_completo: bool, filtros_desc: str, data_pesqu
     for i, r in enumerate(registros):
         if i % 200 == 0 and export_jobs.cancelado(job_id):
             return None
-        for col, (_, valor) in enumerate(_colunas(r, perfil_completo), start=1):
-            ws.cell(row=linha, column=col, value=valor)
+        for col, (_, valor, fmt) in enumerate(_colunas(r, perfil_completo), start=1):
+            c = ws.cell(row=linha, column=col, value=valor)
+            if fmt and valor is not None:
+                c.number_format = fmt
             larguras[col - 1] = max(larguras[col - 1], len(str(valor)) if valor is not None else 0)
         linha += 1
 
