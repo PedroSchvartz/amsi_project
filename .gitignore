@@ -64,3 +64,4 @@ backend/utils/.dados_demo/
 # (não deve ir para o repositório)
 backend/reset_senha_pedro.py
 backend/Resetar senha Pedro.bat
+.vercel
