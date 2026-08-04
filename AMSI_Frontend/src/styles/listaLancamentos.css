@@ -349,8 +349,9 @@
 	border: 1px solid var(--badge-pago-border);
 }
 
-/* Efetivado, aguardando aprovação do admin. Roxo para não colidir com
-   aberto (verde), pago (azul), vencido (vermelho) nem estorno (âmbar). */
+/* Efetivado, aguardando aprovação do admin. Amarelo-laranja para não colidir com
+   aberto (verde), pago (azul), vencido (vermelho); o estorno (âmbar/amarelo) fica
+   mais frio e o "Em Lote" agora carrega o roxo. */
 .badge.badge-analise {
 	background: var(--badge-analise-bg);
 	color: var(--badge-analise-fg);
@@ -518,11 +519,11 @@
 	color: var(--text-muted);
 }
 
-/* Em Lote (criado em massa) — laranja suave */
+/* Em Lote (criado em massa) — roxo suave */
 .badge.badge-origem--lote {
-	background: #fed7aa;
-	color: #9a3412;
-	border: 1px solid #fdba74;
+	background: #ddd6fe;
+	color: #4c1d95;
+	border: 1px solid #a78bfa;
 }
 
 /* Automatizado (recorrência, futuro) — azul suave */
@@ -539,9 +540,9 @@
 }
 
 [data-theme='corporativo'] .badge-origem--lote {
-	background: rgba(249, 115, 22, 0.22);
-	color: #fdba74;
-	border-color: rgba(249, 115, 22, 0.45);
+	background: rgba(167, 139, 250, 0.22);
+	color: #c4b5fd;
+	border-color: rgba(167, 139, 250, 0.45);
 }
 
 [data-theme='corporativo'] .badge-origem--auto {
@@ -594,15 +595,15 @@
 	background: rgba(34, 197, 94, 0.22);
 }
 
-/* Aprovar (admin): mesmo roxo do badge "Em análise", que é o que ele resolve. */
+/* Aprovar (admin): mesmo amarelo-laranja do badge "Em análise", que é o que ele resolve. */
 .ll-btn-acao.aprovar {
-	background: rgba(167, 139, 250, 0.12);
-	color: #6d28d9;
-	border: 1px solid rgba(167, 139, 250, 0.2);
+	background: rgba(249, 115, 22, 0.12);
+	color: #9a3412;
+	border: 1px solid rgba(249, 115, 22, 0.2);
 }
 
 .ll-btn-acao.aprovar:hover {
-	background: rgba(167, 139, 250, 0.22);
+	background: rgba(249, 115, 22, 0.22);
 }
 
 .ll-btn-acao.deletar {
@@ -621,8 +622,8 @@
 }
 
 [data-theme='corporativo'] .ll-btn-acao.aprovar {
-	background: rgba(167, 139, 250, 0.15);
-	color: #c4b5fd;
+	background: rgba(249, 115, 22, 0.15);
+	color: #fdba74;
 }
 
 [data-theme='corporativo'] .ll-btn-acao.deletar {

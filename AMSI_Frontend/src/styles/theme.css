@@ -47,9 +47,9 @@
   --badge-aberto-fg:      #14532d;
   --badge-aberto-border:  #22c55e;
 
-  --badge-analise-bg:     #ddd6fe;
-  --badge-analise-fg:     #4c1d95;
-  --badge-analise-border: #a78bfa;
+  --badge-analise-bg:     #fed7aa;
+  --badge-analise-fg:     #9a3412;
+  --badge-analise-border: #fb923c;
 
   --badge-pago-bg:        #bfdbfe;
   --badge-pago-fg:        #1e3a8a;
@@ -107,9 +107,9 @@
   --badge-aberto-fg:      #86efac;
   --badge-aberto-border:  rgba(34, 197, 94, 0.45);
 
-  --badge-analise-bg:     rgba(167, 139, 250, 0.22);
-  --badge-analise-fg:     #c4b5fd;
-  --badge-analise-border: rgba(167, 139, 250, 0.45);
+  --badge-analise-bg:     rgba(249, 115, 22, 0.22);
+  --badge-analise-fg:     #fdba74;
+  --badge-analise-border: rgba(249, 115, 22, 0.45);
 
   --badge-pago-bg:        rgba(56, 189, 248, 0.22);
   --badge-pago-fg:        #7dd3fc;
