@@ -199,6 +199,68 @@
 	color: var(--text);
 }
 
+/* Reverter (undo do fluxo), dentro da modal de histórico. "Voltar" arma a ação;
+   "Confirmar" só fica ativo e segurável enquanto armado. Tom de aviso (gold). */
+.ll-reverter-grupo {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	flex-wrap: wrap;
+}
+
+.ll-btn-voltar {
+	background: transparent;
+	color: var(--gold);
+	border: 1px solid var(--gold);
+	padding: 7px 14px;
+	border-radius: 8px;
+	cursor: pointer;
+	font-size: 0.85rem;
+	transition:
+		box-shadow 0.15s ease,
+		background 0.2s ease;
+}
+
+.ll-btn-voltar:hover {
+	background: var(--input-bg);
+}
+
+.ll-btn-voltar.is-armado {
+	font-weight: 600;
+	box-shadow: inset 0 0 0 1px var(--gold);
+}
+
+.ll-btn-confirmar-hold {
+	position: relative;
+	overflow: hidden;
+	background: transparent;
+	color: var(--text-muted);
+	border: 1px solid var(--border);
+	padding: 7px 14px;
+	border-radius: 8px;
+	font-size: 0.85rem;
+	font-weight: 600;
+	cursor: not-allowed;
+	touch-action: none; /* no touch, segurar não deve rolar a tela */
+	user-select: none;
+}
+
+.ll-btn-confirmar-hold.is-armado {
+	color: var(--primary);
+	border-color: var(--primary);
+	cursor: pointer;
+}
+
+/* Barra de preenchimento do hold — a largura (0..100%) vem inline via style. */
+.ll-hold-progresso {
+	position: absolute;
+	left: 0;
+	bottom: 0;
+	height: 3px;
+	background: var(--primary);
+	pointer-events: none;
+}
+
 /* ── Feedback de erro/sucesso ── */
 .ll-erro {
 	color: #dc2626;

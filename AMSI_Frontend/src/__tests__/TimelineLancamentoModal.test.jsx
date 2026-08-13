@@ -153,3 +153,49 @@ describe('abrir o perfil pelo nome', () => {
 		expect(screen.queryByRole('button', { name: 'por —' })).not.toBeInTheDocument();
 	});
 });
+
+describe('reverter (undo do fluxo)', () => {
+	const PAGO = {
+		id_lancamento: 367,
+		data_lancamento: '2026-06-17T13:00:00',
+		data_efetivacao: '2026-06-17T14:00:00',
+		data_aprovacao: '2026-06-17T15:00:00',
+		situacao: 'Pago',
+	};
+
+	it('sem podeReverter não mostra o Voltar (é assim que o não-admin vê)', () => {
+		render(<TimelineLancamentoModal lancamento={PAGO} onFechar={() => {}} />);
+		expect(screen.queryByRole('button', { name: /Voltar para/ })).not.toBeInTheDocument();
+	});
+
+	it('Pago mostra "Voltar para Em análise" e o Confirmar começa desabilitado', () => {
+		render(<TimelineLancamentoModal lancamento={PAGO} onFechar={() => {}} podeReverter onReverter={vi.fn()} />);
+		expect(screen.getByRole('button', { name: /Voltar para Em análise/ })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: 'Confirmar' })).toBeDisabled();
+	});
+
+	it('armar pelo Voltar habilita o Confirmar (texto não muda)', () => {
+		render(<TimelineLancamentoModal lancamento={PAGO} onFechar={() => {}} podeReverter onReverter={vi.fn()} />);
+		expect(screen.getByRole('button', { name: 'Confirmar' })).toBeDisabled();
+		fireEvent.click(screen.getByRole('button', { name: /Voltar para Em análise/ }));
+		expect(screen.getByRole('button', { name: 'Confirmar' })).toBeEnabled();
+	});
+
+	it('Em análise oferece voltar para Aberto (um passo por vez)', () => {
+		const emAnalise = {
+			id_lancamento: 377,
+			data_lancamento: '2026-06-17T13:00:00',
+			data_efetivacao: '2026-06-17T14:00:00',
+			situacao: 'Em análise',
+		};
+		render(<TimelineLancamentoModal lancamento={emAnalise} onFechar={() => {}} podeReverter onReverter={vi.fn()} />);
+		expect(screen.getByRole('button', { name: /Voltar para Aberto/ })).toBeInTheDocument();
+		expect(screen.queryByRole('button', { name: /Voltar para Em análise/ })).not.toBeInTheDocument();
+	});
+
+	it('Aberto não oferece reverter nada', () => {
+		const aberto = { id_lancamento: 1, data_lancamento: '2026-06-17T13:00:00', situacao: 'Aberto' };
+		render(<TimelineLancamentoModal lancamento={aberto} onFechar={() => {}} podeReverter onReverter={vi.fn()} />);
+		expect(screen.queryByRole('button', { name: /Voltar para/ })).not.toBeInTheDocument();
+	});
+});

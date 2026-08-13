@@ -1631,6 +1631,120 @@ def test_editar_admin_consulta_403(client, headers_consulta, lancamento):
 
 
 # ================================================
+# REVERTER — PATCH /{id}/editar com reverter_para (exige_admin)
+# ================================================
+
+def _efetivar_admin(client, headers_admin, id_l, valor="120.00"):
+    """Admin efetiva → vai direto a Pago (efetivação + aprovação no mesmo ato)."""
+    from datetime import datetime
+    r = client.put(f"/lancamento/{id_l}", json={
+        "data_pagamento": datetime.now().isoformat(),
+        "valor_pago": valor,
+    }, headers=headers_admin)
+    assert r.status_code == 200
+    assert r.json()["situacao"] == "Pago"
+
+
+def test_reverter_pago_para_em_analise(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base):
+    """Pago → Em análise: some a aprovação, a data de pagamento permanece."""
+    id_l = _abrir(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base)
+    _efetivar_admin(client, headers_admin, id_l)
+
+    r = client.patch(f"/lancamento/{id_l}/editar", json={"reverter_para": "em_analise"}, headers=headers_admin)
+    assert r.status_code == 200
+    data = r.json()
+    assert data["situacao"] == "Em análise"
+    assert data["data_aprovacao"] is None
+    assert data["id_usuario_fk_aprovacao"] is None
+    assert data["data_efetivacao"] is not None
+    assert data["data_pagamento"] is not None   # mantida — a aprovação nunca a tocou
+
+    client.delete(f"/lancamento/{id_l}", headers=headers_admin)
+
+
+def test_reverter_pago_para_aberto_limpa_tudo(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base):
+    """Pago → Aberto: zera efetivação, aprovação, pagamento — e o rastro de edição."""
+    id_l = _abrir(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base)
+    _efetivar_admin(client, headers_admin, id_l)
+
+    # Uma edição normal primeiro, pra o rastro existir e o revert ter o que limpar.
+    r = client.patch(f"/lancamento/{id_l}/editar", json={"valor": "999.00"}, headers=headers_admin)
+    assert r.status_code == 200
+    assert r.json()["data_edicao"] is not None
+
+    r = client.patch(f"/lancamento/{id_l}/editar", json={"reverter_para": "aberto"}, headers=headers_admin)
+    assert r.status_code == 200
+    data = r.json()
+    assert data["situacao"] == "Aberto"
+    assert data["data_efetivacao"] is None
+    assert data["id_usuario_fk_efetivacao"] is None
+    assert data["data_aprovacao"] is None
+    assert data["id_usuario_fk_aprovacao"] is None
+    assert data["data_pagamento"] is None
+    assert data["valor_pago"] is None
+    assert data["data_edicao"] is None            # rastro limpo
+    assert data["id_usuario_fk_edicao"] is None
+
+    client.delete(f"/lancamento/{id_l}", headers=headers_admin)
+
+
+def test_reverter_em_analise_para_aberto(client, headers_admin, headers_operador, usuario_base, clifor_base, tipo_lancamento_base):
+    """Em análise (efetivado pelo operador, sem aprovação) → Aberto."""
+    from datetime import datetime
+    id_l = _abrir(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base)
+    r = client.put(f"/lancamento/{id_l}", json={
+        "data_pagamento": datetime.now().isoformat(),
+        "valor_pago": "120.00",
+    }, headers=headers_operador)
+    assert r.json()["situacao"] == "Em análise"
+
+    r = client.patch(f"/lancamento/{id_l}/editar", json={"reverter_para": "aberto"}, headers=headers_admin)
+    assert r.status_code == 200
+    data = r.json()
+    assert data["situacao"] == "Aberto"
+    assert data["data_efetivacao"] is None
+    assert data["data_pagamento"] is None
+
+    client.delete(f"/lancamento/{id_l}", headers=headers_admin)
+
+
+def test_reverter_para_em_analise_num_aberto_409(client, headers_admin, lancamento):
+    """Aberto não tem aprovação a desfazer → 409."""
+    r = client.patch(f"/lancamento/{lancamento['id_lancamento']}/editar",
+                     json={"reverter_para": "em_analise"}, headers=headers_admin)
+    assert r.status_code == 409
+
+
+def test_reverter_para_aberto_num_aberto_409(client, headers_admin, lancamento):
+    """Já está Aberto → nada a reverter → 409."""
+    r = client.patch(f"/lancamento/{lancamento['id_lancamento']}/editar",
+                     json={"reverter_para": "aberto"}, headers=headers_admin)
+    assert r.status_code == 409
+
+
+def test_reverter_com_campo_editavel_400(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base):
+    """reverter_para não se combina com edição de campos → 400."""
+    id_l = _abrir(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base)
+    _efetivar_admin(client, headers_admin, id_l)
+    r = client.patch(f"/lancamento/{id_l}/editar",
+                     json={"reverter_para": "aberto", "valor": "1.00"}, headers=headers_admin)
+    assert r.status_code == 400
+    client.delete(f"/lancamento/{id_l}", headers=headers_admin)
+
+
+def test_reverter_operador_403(client, headers_operador, lancamento):
+    r = client.patch(f"/lancamento/{lancamento['id_lancamento']}/editar",
+                     json={"reverter_para": "aberto"}, headers=headers_operador)
+    assert r.status_code == 403
+
+
+def test_reverter_sem_token_401(client, lancamento):
+    r = client.patch(f"/lancamento/{lancamento['id_lancamento']}/editar",
+                     json={"reverter_para": "aberto"})
+    assert r.status_code == 401
+
+
+# ================================================
 # FLUXO DE APROVAÇÃO — EM ANÁLISE
 # ================================================
 

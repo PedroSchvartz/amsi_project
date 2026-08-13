@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict, model_validator
-from typing import Optional, List
+from typing import Optional, List, Literal
 from datetime import datetime, date
 from decimal import Decimal
 from enum import Enum
@@ -68,10 +68,15 @@ class LancamentoUpdate(BaseModel):
 class LancamentoEditAdmin(BaseModel):
     """Edição completa — apenas administradores.
 
-    Não aceita os carimbos do fluxo (data_efetivacao/data_aprovacao) nem o de edição:
-    todos são do servidor. Aceitá-los deixaria o admin apagar um evento da linha do
-    tempo em silêncio, e a tela existe justamente para provar quem fez o quê.
-    Consequência assumida: aprovação é definitiva, não há desfazer.
+    Na edição de campos não aceita os carimbos do fluxo (data_efetivacao/data_aprovacao)
+    nem o de edição: todos são do servidor. Aceitá-los deixaria o admin apagar um evento
+    da linha do tempo em silêncio, e a tela existe justamente para provar quem fez o quê.
+
+    `reverter_para` é a exceção deliberada: uma ação de undo que anda a máquina de estados
+    de trás pra frente (Pago → Em análise → Aberto), zerando os carimbos daquele passo —
+    e também os de edição, para a linha voltar a parecer intocada. É exclusiva: não se
+    combina com edição de campos no mesmo request (a rota devolve 400). A responsabilização
+    de quem reverteu continua no log de atividade por rota.
     """
     id_clifor_relacionado_fk: Optional[int] = None
     id_tipo_conta_fk: Optional[int] = None
@@ -85,6 +90,7 @@ class LancamentoEditAdmin(BaseModel):
     multa: Optional[Decimal] = None
     juros: Optional[Decimal] = None
     estorno: Optional[bool] = None
+    reverter_para: Optional[Literal["em_analise", "aberto"]] = None
 
 
 class LancamentoResponse(BaseModel):

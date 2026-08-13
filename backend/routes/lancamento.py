@@ -914,6 +914,50 @@ def editar_lancamento_admin(
     lancamento = db.query(Lancamento).filter(Lancamento.id_lancamento == id_lancamento).first()
     if not lancamento:
         raise HTTPException(status_code=404, detail="Lançamento não encontrado")
+
+    # Revert é uma ação de undo exclusiva: anda a máquina de estados de trás pra frente
+    # (Pago → Em análise → Aberto) e apaga os carimbos do passo desfeito. Não se mistura
+    # com edição de campos — o mesmo payload teria dois significados. Tratada e retornada
+    # antes da mescla normal.
+    if dados.reverter_para is not None:
+        outros = set(dados.model_dump(exclude_unset=True)) - {"reverter_para"}
+        if outros:
+            raise HTTPException(
+                status_code=400,
+                detail="reverter_para não pode ser combinado com edição de campos",
+            )
+
+        if dados.reverter_para == "em_analise":
+            # Desfaz só a aprovação (Pago → Em análise). data_pagamento fica intacta: a
+            # aprovação nunca a tocou, é da efetivação. Exige estar Pago.
+            if lancamento.data_aprovacao is None:
+                raise HTTPException(status_code=409, detail="Lançamento não está Pago: nada a reverter para Em análise")
+            lancamento.data_aprovacao = None
+            lancamento.id_usuario_fk_aprovacao = None
+        else:  # "aberto"
+            # Desfaz efetivação (e a aprovação, se houver) → Aberto, como se nunca tivesse
+            # acontecido. Aqui data_pagamento zera: sem efetivacao o CHECK do banco
+            # (efetivacao NULL OR pagamento NOT NULL) fica satisfeito.
+            if lancamento.data_efetivacao is None:
+                raise HTTPException(status_code=409, detail="Lançamento já está Aberto: nada a reverter")
+            lancamento.data_aprovacao = None
+            lancamento.id_usuario_fk_aprovacao = None
+            lancamento.data_efetivacao = None
+            lancamento.id_usuario_fk_efetivacao = None
+            lancamento.data_pagamento = None
+            lancamento.valor_pago = None
+            lancamento.observacao_pagamento = None
+
+        # Limpa o rastro de edição também — o pedido é a linha voltar a parecer intocada.
+        # Quem reverteu fica registrado no log de atividade por rota (middleware), não aqui.
+        lancamento.data_edicao = None
+        lancamento.id_usuario_fk_edicao = None
+
+        db.commit()
+        db.refresh(lancamento)
+        atualizar_inadimplente(lancamento.id_clifor_relacionado_fk, db)
+        return lancamento
+
     if dados.id_clifor_relacionado_fk is not None:
         if not db.query(ClienteFornecedor).filter(ClienteFornecedor.id_clifor == dados.id_clifor_relacionado_fk).first():
             raise HTTPException(status_code=404, detail="Cliente/Fornecedor não encontrado")

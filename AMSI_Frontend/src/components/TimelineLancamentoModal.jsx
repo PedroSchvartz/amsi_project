@@ -1,3 +1,5 @@
+import { useState, useRef, useEffect } from 'react';
+
 // Os quatro eventos do lançamento que carregam ator + carimbo de servidor.
 // `ordem` é o desempate: quando o admin efetiva, o backend carimba data_efetivacao e
 // data_aprovacao no MESMO instante, e sem isto os dois sairiam em ordem aleatória.
@@ -81,8 +83,68 @@ export const ultimaInteracao = (l) => {
 //
 // zIndex abaixo do PerfilCompletoPopup (10001), que abre POR CIMA deste, e acima da
 // modal de Editar/Efetivar (1000), sobre a qual este abre.
-function TimelineLancamentoModal({ lancamento, onFechar, onAbrirPerfil }) {
+// Quanto tempo o "Confirmar" precisa ficar segurado antes de disparar. Reverter apaga
+// carimbos e some com a data de pagamento — segurar evita o clique acidental sem prender
+// o usuário num modal de confirmação.
+const HOLD_MS = 1000;
+
+function TimelineLancamentoModal({ lancamento, onFechar, onAbrirPerfil, podeReverter, onReverter }) {
 	const eventos = eventosDoLancamento(lancamento);
+
+	// Um passo de undo por vez: o estado atual só pode voltar para o imediatamente
+	// anterior. Pago → Em análise; Em análise → Aberto; o resto não tem o que desfazer.
+	const alvoRevert =
+		lancamento?.situacao === 'Pago' ? 'em_analise'
+			: lancamento?.situacao === 'Em análise' ? 'aberto'
+				: null;
+	const mostrarReverter = !!podeReverter && !!alvoRevert;
+	const rotuloDestino = alvoRevert === 'em_analise' ? 'Em análise' : 'Aberto';
+
+	// "Voltar" arma a ação; "Confirmar" só fica ativo (e segurável) enquanto armado.
+	const [armado, setArmado] = useState(false);
+	const [progresso, setProgresso] = useState(0); // 0..1, preenchimento do hold
+	const rafRef = useRef(null);
+	const inicioRef = useRef(0);
+
+	const pararRaf = () => {
+		if (rafRef.current) cancelAnimationFrame(rafRef.current);
+		rafRef.current = null;
+	};
+
+	// Limpa o rAF se a modal desmontar no meio de um hold (ex.: revert dispara e a
+	// página fecha a modal).
+	useEffect(() => () => pararRaf(), []);
+
+	const cancelarHold = () => {
+		pararRaf();
+		setProgresso(0);
+	};
+
+	const alternarArmado = () => {
+		setArmado((a) => {
+			if (a) cancelarHold();
+			return !a;
+		});
+	};
+
+	const iniciarHold = () => {
+		if (!armado) return;
+		inicioRef.current = performance.now();
+		pararRaf();
+		const tick = (agora) => {
+			const p = Math.min(1, (agora - inicioRef.current) / HOLD_MS);
+			setProgresso(p);
+			if (p >= 1) {
+				pararRaf();
+				setProgresso(0);
+				setArmado(false);
+				onReverter?.(alvoRevert);
+			} else {
+				rafRef.current = requestAnimationFrame(tick);
+			}
+		};
+		rafRef.current = requestAnimationFrame(tick);
+	};
 
 	return (
 		<div className="ll-overlay" style={{ zIndex: 10000 }} onClick={onFechar}>
@@ -115,7 +177,34 @@ function TimelineLancamentoModal({ lancamento, onFechar, onAbrirPerfil }) {
 					))}
 				</ol>
 
-				<div className="ll-buttons" style={{ justifyContent: 'flex-end' }}>
+				<div className="ll-buttons" style={{ justifyContent: 'space-between' }}>
+					<div className="ll-reverter-grupo">
+						{mostrarReverter && (
+							<>
+								<button
+									type="button"
+									className={`ll-btn-voltar ${armado ? 'is-armado' : ''}`}
+									onClick={alternarArmado}
+									aria-pressed={armado}
+								>
+									<i className="bi bi-arrow-counterclockwise" /> Voltar para {rotuloDestino}
+								</button>
+								<button
+									type="button"
+									className={`ll-btn-confirmar-hold ${armado ? 'is-armado' : ''}`}
+									disabled={!armado}
+									onPointerDown={iniciarHold}
+									onPointerUp={cancelarHold}
+									onPointerLeave={cancelarHold}
+									onPointerCancel={cancelarHold}
+									title={armado ? 'Segure para confirmar a reversão' : 'Selecione "Voltar" primeiro'}
+								>
+									<span>Confirmar</span>
+									<span className="ll-hold-progresso" style={{ width: `${progresso * 100}%` }} />
+								</button>
+							</>
+						)}
+					</div>
 					<button type="button" className="ll-btn-limpar" onClick={onFechar}>
 						Fechar
 					</button>

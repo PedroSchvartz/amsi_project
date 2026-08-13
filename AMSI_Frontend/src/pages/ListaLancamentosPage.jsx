@@ -499,6 +499,28 @@ function ListaLancamentosPage() {
 		}
 	};
 
+	// ── Reverter: desfaz o fluxo um passo (Pago → Em análise → Aberto). Só admin; vive
+	//    dentro da modal de histórico. O backend valida a transição e apaga os carimbos
+	//    do passo desfeito, inclusive o rastro de edição. ────────────────────────────
+	const handleReverterTimeline = async (para) => {
+		const id = timelineModal?.id_lancamento;
+		if (!id) return;
+		try {
+			await editarLancamento(id, { reverter_para: para });
+			mostrarToast(
+				para === 'aberto'
+					? 'Lançamento revertido para Aberto.'
+					: 'Aprovação desfeita — lançamento voltou para Em análise.'
+			);
+			setTimelineModal(null);
+			buscar();
+			setLoteRefresh((x) => x + 1);
+		} catch (err) {
+			if (err.message !== 'sessao-expirada')
+				mostrarToast(err.message || 'Erro ao reverter lançamento', 'erro');
+		}
+	};
+
 	// ── Formatação ──────────────────────────────────────────────────────────────
 	const formatarData = (iso) => {
 		if (!iso) return '—';
@@ -1985,6 +2007,8 @@ function ListaLancamentosPage() {
 					lancamento={timelineModal}
 					onFechar={() => setTimelineModal(null)}
 					onAbrirPerfil={admin ? abrirPerfilUsuario : null}
+					podeReverter={admin}
+					onReverter={handleReverterTimeline}
 				/>
 			)}
 
