@@ -224,6 +224,83 @@ def test_filtro_valor_faixa(client, headers_admin, lancamento, lancamento_vencid
     assert lancamento["id_lancamento"] not in ids
 
 
+# ------------------------------------------------
+# Filtro por LOTE DO MORADOR (clifor.lote) — terreno, não o lote de criação (batch)
+# ------------------------------------------------
+
+def _clifor_com_lote(client, headers_admin, usuario_base, cpf, lote):
+    r = client.post("/cliente_fornecedor/", json={
+        "id_usuario_fk": usuario_base["id_usuario"],
+        "pessoafisica_juridica": True,
+        "cpf_cnpj": cpf,
+        "rg_inscricaoestadual": cpf.replace(".", "").replace("-", ""),
+        "nome": f"CliFor Lote {lote}",
+        "lote": lote,
+        "datanascimento": "1990-01-01",
+        "tipo_clifor": "A",
+        "ativo": True,
+        "inadimplente": False,
+    }, headers=headers_admin)
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def _lancamento_de(client, headers_admin, usuario_base, id_clifor, tipo):
+    r = client.post("/lancamento/", json={
+        "id_usuario_fk_lancamento": usuario_base["id_usuario"],
+        "id_clifor_relacionado_fk": id_clifor,
+        "id_tipo_conta_fk": tipo,
+        "valor": "10.00",
+        "data_vencimento": "2026-12-31",
+        "natureza_lancamento": "Debito",
+    }, headers=headers_admin)
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def test_filtro_lote_clifor(client, headers_admin, usuario_base, tipo_lancamento_base):
+    """lote_clifor casa lançamentos pelo lote (terreno) do clifor relacionado."""
+    tipo = tipo_lancamento_base["id_tipo_conta"]
+    cli_a = _clifor_com_lote(client, headers_admin, usuario_base, "212.121.212-12", "Quadra 1 Lote A")
+    cli_b = _clifor_com_lote(client, headers_admin, usuario_base, "313.131.313-13", "Quadra 2 Lote B")
+    lanc_a = _lancamento_de(client, headers_admin, usuario_base, cli_a["id_clifor"], tipo)
+    lanc_b = _lancamento_de(client, headers_admin, usuario_base, cli_b["id_clifor"], tipo)
+    try:
+        r = client.get("/lancamento/", params={"lote_clifor": "Quadra 1 Lote A"}, headers=headers_admin)
+        assert r.status_code == 200
+        alvo = next((l for l in r.json() if l["id_lancamento"] == lanc_a["id_lancamento"]), None)
+        ids = {l["id_lancamento"] for l in r.json()}
+        assert lanc_a["id_lancamento"] in ids     # o do lote A entra
+        assert lanc_b["id_lancamento"] not in ids  # o do lote B fica de fora
+        # Não contamina o param `lote` (batch): casamos pelo terreno com batch nulo.
+        assert alvo is not None and alvo["lote"] is None
+    finally:
+        client.delete(f"/lancamento/{lanc_a['id_lancamento']}", headers=headers_admin)
+        client.delete(f"/lancamento/{lanc_b['id_lancamento']}", headers=headers_admin)
+        client.delete(f"/cliente_fornecedor/{cli_a['id_clifor']}", headers=headers_admin)
+        client.delete(f"/cliente_fornecedor/{cli_b['id_clifor']}", headers=headers_admin)
+
+
+def test_sem_lote_clifor_nao_filtra(client, headers_admin, usuario_base, tipo_lancamento_base):
+    """Sem lote_clifor a listagem não filtra por lote — ambos os lançamentos aparecem."""
+    tipo = tipo_lancamento_base["id_tipo_conta"]
+    cli_a = _clifor_com_lote(client, headers_admin, usuario_base, "414.141.414-14", "Lote X")
+    cli_b = _clifor_com_lote(client, headers_admin, usuario_base, "515.151.515-15", "Lote Y")
+    lanc_a = _lancamento_de(client, headers_admin, usuario_base, cli_a["id_clifor"], tipo)
+    lanc_b = _lancamento_de(client, headers_admin, usuario_base, cli_b["id_clifor"], tipo)
+    try:
+        r = client.get("/lancamento/", headers=headers_admin)
+        assert r.status_code == 200
+        ids = {l["id_lancamento"] for l in r.json()}
+        assert lanc_a["id_lancamento"] in ids
+        assert lanc_b["id_lancamento"] in ids
+    finally:
+        client.delete(f"/lancamento/{lanc_a['id_lancamento']}", headers=headers_admin)
+        client.delete(f"/lancamento/{lanc_b['id_lancamento']}", headers=headers_admin)
+        client.delete(f"/cliente_fornecedor/{cli_a['id_clifor']}", headers=headers_admin)
+        client.delete(f"/cliente_fornecedor/{cli_b['id_clifor']}", headers=headers_admin)
+
+
 # ================================================
 # FILTROS — COMBINADOS
 # ================================================
@@ -403,26 +480,29 @@ def test_resumo_por_tipo_filtro_natureza(client, headers_admin, lancamento, usua
 
 
 def test_resumo_por_tipo_valor_pago_null(client, headers_admin, lancamento, usuario_base):
-    """Lançamento quitado sem valor_pago deve usar valor no total."""
-    # Fechar sem valor_pago explícito
+    """Lançamento quitado sem valor_pago deve usar valor no total.
+
+    Um único PUT: como Admin, efetivar já aprova (Aberto → Pago direto) e carimba
+    data_aprovacao — condição para o lançamento entrar no resumo. Pagamos HOJE porque
+    o filtro de período é sobre data_pagamento; um segundo PUT para mudar a data não
+    funcionaria (409 'já efetivado').
+    """
+    from datetime import datetime, date
+    hoje = date.today().isoformat()
+
+    # Efetivar sem valor_pago explícito e com pagamento hoje.
     client.put(f"/lancamento/{lancamento['id_lancamento']}", json={
-        "data_pagamento": "2026-05-01T00:00:00"
+        "data_pagamento": datetime.now().isoformat()
     }, headers=headers_admin)
 
+    # Sem filtro: total usa `valor` (250) porque valor_pago é null → coalesce.
     r = client.get("/lancamento/resumo-por-tipo", headers=headers_admin)
     assert r.status_code == 200
     data = r.json()
     assert len(data) >= 1
     assert all(float(item["total"]) > 0 for item in data)
 
-
-    from datetime import datetime, date
-    hoje = date.today().isoformat()
-    client.put(f"/lancamento/{lancamento['id_lancamento']}", json={
-        "data_pagamento": datetime.now().isoformat(),
-        "valor_pago": "250.00"
-    }, headers=headers_admin)
-
+    # Filtro por período sobre data_pagamento: hoje inclui, período antigo exclui.
     r_com = client.get(f"/lancamento/resumo-por-tipo?data_pagamento_de={hoje}", headers=headers_admin)
     r_sem = client.get("/lancamento/resumo-por-tipo?data_pagamento_de=2000-01-01&data_pagamento_ate=2000-01-31", headers=headers_admin)
     assert r_com.status_code == 200

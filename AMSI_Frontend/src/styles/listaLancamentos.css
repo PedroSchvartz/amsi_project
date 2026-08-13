@@ -70,17 +70,6 @@
 	flex: 1.5;
 }
 
-/* Lote: campo reservado, ainda desabilitado. Fica claramente apagado para não passar
-   por um filtro funcional. */
-.ll-field--reservado {
-	opacity: 0.55;
-}
-
-.ll-field--reservado select:disabled {
-	cursor: not-allowed;
-	color: var(--text-muted);
-}
-
 .ll-field label {
 	font-size: 0.72rem;
 	font-weight: 500;

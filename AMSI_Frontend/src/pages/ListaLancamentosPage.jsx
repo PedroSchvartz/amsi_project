@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+﻿import { useState, useEffect, useMemo } from 'react';
 import LancamentoModal from '../components/LancamentoModal.jsx';
 import LoteLancamentosModal from '../components/LoteLancamentosModal.jsx';
 import { useSearchParams } from 'react-router-dom';
@@ -48,6 +48,7 @@ function hojeLocal() {
 
 const FILTROS_INICIAL = {
 	id_clifor: '',
+	lote_clifor: '',
 	id_tipo_conta: '',
 	natureza: '',
 	apenas_abertos: '',
@@ -76,6 +77,7 @@ const FILTROS_INICIAL = {
 function filtrosParaParams(f) {
 	const params = {};
 	if (f.id_clifor) params.id_clifor = parseInt(f.id_clifor);
+	if (f.lote_clifor) params.lote_clifor = f.lote_clifor;
 	if (f.id_tipo_conta) params.id_tipo_conta = parseInt(f.id_tipo_conta);
 	if (f.natureza) params.natureza = f.natureza;
 	if (f.apenas_abertos !== '') params.apenas_abertos = f.apenas_abertos === 'true';
@@ -164,6 +166,13 @@ function ListaLancamentosPage() {
 	const { iniciar: iniciarExportacao } = useExportacao();
 
 	const admin = isAdmin();
+
+	// Lotes distintos dos clifors carregados — alimentam o dropdown do filtro "Lote".
+	// Client-side: `clifors` já vem completo (com `.lote`), então não há fetch novo.
+	const lotesDisponiveis = useMemo(
+		() => [...new Set(clifors.map((c) => c.lote).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
+		[clifors]
+	);
 
 	useEffect(() => {
 		carregarAuxiliares();
@@ -836,12 +845,21 @@ function ListaLancamentosPage() {
 								</select>
 							</div>
 
-							{/* Lote: espaço reservado para o filtro que chega numa atualização
-							    futura. Desabilitado — só segura o lugar por enquanto. */}
-							<div className="ll-field ll-field--reservado">
+							{/* Lote do morador (terreno) — filtra os lançamentos pelo lote do
+							    cliente/fornecedor relacionado. Opções = lotes distintos dos clifors. */}
+							<div className="ll-field">
 								<label>Lote</label>
-								<select disabled title="Em breve">
-									<option>Em breve</option>
+								<select
+									name="lote_clifor"
+									value={filtros.lote_clifor}
+									onChange={handleFiltroChange}
+								>
+									<option value="">Todos</option>
+									{lotesDisponiveis.map((lote) => (
+										<option key={lote} value={lote}>
+											{lote}
+										</option>
+									))}
 								</select>
 							</div>
 						</div>

@@ -238,6 +238,7 @@ def _query_lancamentos_filtrada(
     valor_minimo: Optional[Decimal] = None,
     valor_maximo: Optional[Decimal] = None,
     lote: Optional[int] = None,
+    lote_clifor: Optional[str] = None,
     status_modo: str = "inclusivo",
 ):
     """Monta a query filtrada da listagem. Compartilhada entre GET / (JSON) e a
@@ -317,6 +318,12 @@ def _query_lancamentos_filtrada(
         query = query.filter(Lancamento.valor <= valor_maximo)
     if lote is not None:
         query = query.filter(Lancamento.lote == lote)
+    # Lote do MORADOR (terreno, texto em clientefornecedor) — não confundir com o
+    # `lote` acima, que é o timestamp de lote de criação. Match exato: o valor vem de
+    # um dropdown populado só com lotes que existem. O JOIN em ClienteFornecedor já
+    # está montado no topo, então basta filtrar.
+    if lote_clifor is not None:
+        query = query.filter(ClienteFornecedor.lote == lote_clifor)
 
     return query.order_by(Lancamento.data_vencimento, ClienteFornecedor.nome)
 
@@ -342,6 +349,7 @@ def listar_lancamentos(
     valor_minimo: Optional[Decimal] = None,
     valor_maximo: Optional[Decimal] = None,
     lote: Optional[int] = None,
+    lote_clifor: Optional[str] = None,
     status_modo: str = "inclusivo",
     db: Session = Depends(get_db),
     _=Depends(get_current_user)
@@ -356,6 +364,7 @@ def listar_lancamentos(
         data_lancamento_de=data_lancamento_de, data_lancamento_ate=data_lancamento_ate,
         data_pagamento_de=data_pagamento_de, data_pagamento_ate=data_pagamento_ate,
         estorno=estorno, valor_minimo=valor_minimo, valor_maximo=valor_maximo, lote=lote,
+        lote_clifor=lote_clifor,
         status_modo=status_modo,
     ).all()
 
@@ -437,6 +446,8 @@ def _descrever_filtros(db: Session, f: dict) -> str:
     if f.get("id_clifor") is not None:
         cf = db.query(ClienteFornecedor).filter(ClienteFornecedor.id_clifor == f["id_clifor"]).first()
         partes.append(f"Cliente/Fornecedor: {cf.nome if cf else f['id_clifor']}")
+    if f.get("lote_clifor"):
+        partes.append(f"Lote: {f['lote_clifor']}")
     if f.get("id_tipo_conta") is not None:
         tc = db.query(tipo_conta).filter(tipo_conta.id_tipo_conta == f["id_tipo_conta"]).first()
         partes.append(f"Tipo de Conta: {tc.descricao_conta if tc else f['id_tipo_conta']}")
@@ -631,6 +642,7 @@ def iniciar_exportacao(
     valor_minimo: Optional[Decimal] = None,
     valor_maximo: Optional[Decimal] = None,
     lote: Optional[int] = None,
+    lote_clifor: Optional[str] = None,
     status_modo: str = "inclusivo",
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(get_current_user),
@@ -647,6 +659,7 @@ def iniciar_exportacao(
         "data_lancamento_de": data_lancamento_de, "data_lancamento_ate": data_lancamento_ate,
         "data_pagamento_de": data_pagamento_de, "data_pagamento_ate": data_pagamento_ate,
         "estorno": estorno, "valor_minimo": valor_minimo, "valor_maximo": valor_maximo, "lote": lote,
+        "lote_clifor": lote_clifor,
         "status_modo": status_modo,
     }
     data_pesquisa = datetime.utcnow()
