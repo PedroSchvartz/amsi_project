@@ -26,6 +26,8 @@ const FORM_INICIAL = {
 	nome: '',
 	cpf_cnpj: '',
 	rg_inscricaoestadual: '',
+	nome_usual: '',
+	lote: '',
 	datanascimento: '',
 	id_usuario_fk: '',
 	ativo: true
@@ -290,6 +292,8 @@ function ClientRegister() {
 			nome: form.nome.trim(),
 			cpf_cnpj: form.cpf_cnpj.replace(/\D/g, ''),
 			rg_inscricaoestadual: form.rg_inscricaoestadual.trim() || null,
+			nome_usual: form.nome_usual.trim() || null,
+			lote: form.lote.trim() || null,
 			datanascimento: form.datanascimento || null,
 			ativo: form.ativo,
 			id_usuario_fk: form.id_usuario_fk ? parseInt(form.id_usuario_fk) : null,
@@ -446,10 +450,7 @@ function ClientRegister() {
 								{erros.cpf_cnpj && <div className="invalid-feedback">{erros.cpf_cnpj}</div>}
 							</div>
 							<div className="col-12 col-md-3">
-								<label className="form-label">
-									{isPF ? 'RG' : 'Inscrição Estadual'}{' '}
-									<span className="text-muted fw-normal">(opcional)</span>
-								</label>
+								<label className="form-label">{isPF ? 'RG' : 'Inscrição Estadual'}</label>
 								<input
 									className="form-control"
 									name="rg_inscricaoestadual"
@@ -457,10 +458,27 @@ function ClientRegister() {
 									onChange={handleChange}
 								/>
 							</div>
+							<div className="col-12 col-md-6">
+								<label className="form-label">Nome Usual</label>
+								<input
+									className="form-control"
+									name="nome_usual"
+									value={form.nome_usual}
+									onChange={handleChange}
+								/>
+							</div>
+							<div className="col-12 col-md-3">
+								<label className="form-label">Lote</label>
+								<input
+									className="form-control"
+									name="lote"
+									value={form.lote}
+									onChange={handleChange}
+								/>
+							</div>
 							<div className="col-12 col-md-3">
 								<label className="form-label">
-									{isPF ? 'Data de Nascimento' : 'Data de Fundação'}{' '}
-									<span className="text-muted fw-normal">(opcional)</span>
+									{isPF ? 'Data de Nascimento' : 'Data de Fundação'}
 								</label>
 								<input
 									type="date"
@@ -471,9 +489,7 @@ function ClientRegister() {
 								/>
 							</div>
 							<div className="col-12 col-md-5">
-								<label className="form-label">
-									Vincular a Usuário <span className="text-muted fw-normal">(opcional)</span>
-								</label>
+								<label className="form-label">Vincular a Usuário</label>
 								<select
 									className="form-select"
 									name="id_usuario_fk"
@@ -497,7 +513,7 @@ function ClientRegister() {
 					<div className="client-form-card__header">
 						<span className="client-form-card__header-title">
 							<i className="bi bi-geo-alt me-2" style={{ color: 'var(--primary)' }} />
-							Endereços <span className="text-muted fw-normal small">(opcional)</span>
+							Endereços
 						</span>
 					</div>
 					<div className="client-form-card__body">
@@ -622,7 +638,7 @@ function ClientRegister() {
 					<div className="client-form-card__header">
 						<span className="client-form-card__header-title">
 							<i className="bi bi-person-lines-fill me-2" style={{ color: 'var(--primary)' }} />
-							Contato <span className="text-muted fw-normal small">(opcional)</span>
+							Contato
 						</span>
 					</div>
 					<div className="client-form-card__body">

@@ -21,6 +21,8 @@ class ClienteFornecedor(Base):
     cpf_cnpj = Column(String(255), nullable=False)
     rg_inscricaoestadual = Column(String(255), nullable=True)
     nome = Column(String(255), nullable=False)
+    nome_usual = Column(String(255), nullable=True)
+    lote = Column(String(255), nullable=True)
     datanascimento = Column(Date, nullable=True)
     tipo_clifor = Column(SAEnum(TipoCliForEnum, name="tipo_clifor_enum", values_callable=lambda x: [e.value for e in x]), nullable=False)
     ativo = Column(Boolean, nullable=False, default=True)

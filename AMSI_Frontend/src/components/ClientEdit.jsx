@@ -148,6 +148,8 @@ function ClientEdit() {
 				nome: clifor.nome,
 				cpf_cnpj: clifor.cpf_cnpj,
 				rg_inscricaoestadual: clifor.rg_inscricaoestadual || '',
+				nome_usual: clifor.nome_usual || '',
+				lote: clifor.lote || '',
 				datanascimento: clifor.datanascimento || '',
 				id_usuario_fk: clifor.id_usuario_fk ? String(clifor.id_usuario_fk) : '',
 				ativo: clifor.ativo
@@ -281,6 +283,8 @@ function ClientEdit() {
 			nome: form.nome.trim(),
 			cpf_cnpj: form.cpf_cnpj.replace(/\D/g, ''),
 			rg_inscricaoestadual: (form.rg_inscricaoestadual || '').trim() || null,
+			nome_usual: (form.nome_usual || '').trim() || null,
+			lote: (form.lote || '').trim() || null,
 			datanascimento: form.datanascimento || null,
 			ativo: form.ativo,
 			id_usuario_fk: form.id_usuario_fk ? parseInt(form.id_usuario_fk) : null,
@@ -450,10 +454,7 @@ function ClientEdit() {
 								{erros.cpf_cnpj && <div className="invalid-feedback">{erros.cpf_cnpj}</div>}
 							</div>
 							<div className="col-12 col-md-3">
-								<label className="form-label">
-									{isPF ? 'RG' : 'Inscrição Estadual'}{' '}
-								<span className="text-muted fw-normal">(opcional)</span>
-								</label>
+								<label className="form-label">{isPF ? 'RG' : 'Inscrição Estadual'}</label>
 								<input
 									className={`form-control ${erros.rg_inscricaoestadual ? 'is-invalid' : ''}`}
 									name="rg_inscricaoestadual"
@@ -464,10 +465,27 @@ function ClientEdit() {
 									<div className="invalid-feedback">{erros.rg_inscricaoestadual}</div>
 								)}
 							</div>
+							<div className="col-12 col-md-6">
+								<label className="form-label">Nome Usual</label>
+								<input
+									className="form-control"
+									name="nome_usual"
+									value={form.nome_usual}
+									onChange={handleChange}
+								/>
+							</div>
+							<div className="col-12 col-md-3">
+								<label className="form-label">Lote</label>
+								<input
+									className="form-control"
+									name="lote"
+									value={form.lote}
+									onChange={handleChange}
+								/>
+							</div>
 							<div className="col-12 col-md-3">
 								<label className="form-label">
-									{isPF ? 'Data de Nascimento' : 'Data de Fundação'}{' '}
-								<span className="text-muted fw-normal">(opcional)</span>
+									{isPF ? 'Data de Nascimento' : 'Data de Fundação'}
 								</label>
 								<input
 									type="date"
@@ -481,9 +499,7 @@ function ClientEdit() {
 								)}
 							</div>
 							<div className="col-12 col-md-5">
-								<label className="form-label">
-									Vincular a Usuário <span className="text-muted fw-normal">(opcional)</span>
-								</label>
+								<label className="form-label">Vincular a Usuário</label>
 								<select
 									className="form-select"
 									name="id_usuario_fk"

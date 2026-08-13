@@ -51,6 +51,21 @@ def _aplicar_migracoes():
                 ))
                 conn.commit()
 
+    # Migration: colunas 'nome_usual' e 'lote' em clientefornecedor (texto opcional).
+    # Igual ao caso 'lote' de lancamento: o model as declara, mas o create_all não
+    # altera tabela que já existe — sem este ALTER o SELECT do modelo quebra em
+    # produção com UndefinedColumn. As duas entram juntas, então o guard numa basta.
+    if "clientefornecedor" in insp.get_table_names():
+        cols = [c["name"] for c in insp.get_columns("clientefornecedor")]
+        if "nome_usual" not in cols:
+            with engine.connect() as conn:
+                conn.execute(text(
+                    "ALTER TABLE clientefornecedor "
+                    "ADD COLUMN nome_usual VARCHAR(255), "
+                    "ADD COLUMN lote VARCHAR(255)"
+                ))
+                conn.commit()
+
     # Migration: coluna 'lote' em lancamento (lançamento em massa).
     # Antes vivia só no bootstrap.py (rodado à mão); precisa rodar no startup de
     # TODO deploy, senão o SELECT do modelo Lancamento (que inclui 'lote') quebra

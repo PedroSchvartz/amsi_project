@@ -60,6 +60,8 @@ CREATE TABLE ClienteFornecedor (
     CPF_CNPJ VARCHAR(255) NOT NULL,
     RG_InscricaoEstadual VARCHAR(255) NOT NULL,
     Nome VARCHAR(255) NOT NULL,
+    Nome_Usual VARCHAR(255),
+    Lote VARCHAR(255),
     DataNascimento DATE NOT NULL,
     Tipo_CliFor tipo_clifor_enum NOT NULL,
     Ativo BOOLEAN NOT NULL DEFAULT TRUE,

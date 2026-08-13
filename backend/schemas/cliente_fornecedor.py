@@ -50,6 +50,8 @@ class ClienteFornecedorCreate(BaseModel):
     cpf_cnpj: str
     rg_inscricaoestadual: Optional[str] = None
     nome: str
+    nome_usual: Optional[str] = None
+    lote: Optional[str] = None
     datanascimento: Optional[date] = None
     tipo_clifor: TipoCliForEnum
     ativo: bool = True
@@ -66,6 +68,8 @@ class ClienteFornecedorUpdate(BaseModel):
     cpf_cnpj: Optional[str] = None
     rg_inscricaoestadual: Optional[str] = None
     nome: Optional[str] = None
+    nome_usual: Optional[str] = None
+    lote: Optional[str] = None
     datanascimento: Optional[date] = None
     tipo_clifor: Optional[TipoCliForEnum] = None
     ativo: Optional[bool] = None
@@ -83,6 +87,8 @@ class ClienteFornecedorResponse(BaseModel):
     cpf_cnpj: str
     rg_inscricaoestadual: Optional[str] = None
     nome: str
+    nome_usual: Optional[str] = None
+    lote: Optional[str] = None
     datanascimento: Optional[date] = None
     tipo_clifor: TipoCliForEnum
     ativo: bool

@@ -320,6 +320,63 @@ def test_atualizar_clifor(client, headers_admin, clifor):
 
 
 # ================================================
+# NOME USUAL + LOTE (campos texto opcionais)
+# ================================================
+
+def test_criar_clifor_com_nome_usual_e_lote(client, headers_admin, usuario_base):
+    r = client.post("/cliente_fornecedor/", json={
+        "id_usuario_fk": usuario_base["id_usuario"],
+        "pessoafisica_juridica": True,
+        "cpf_cnpj": "666.666.666-66",
+        "rg_inscricaoestadual": "6666666",
+        "nome": "CliFor Com Usual e Lote",
+        "nome_usual": "Seu Zé",
+        "lote": "Quadra 3, Lote 12",
+        "datanascimento": "1970-02-02",
+        "tipo_clifor": "C",
+        "ativo": True,
+        "inadimplente": False
+    }, headers=headers_admin)
+    assert r.status_code == 200
+    data = r.json()
+    assert data["nome_usual"] == "Seu Zé"
+    assert data["lote"] == "Quadra 3, Lote 12"
+    client.delete(f"/cliente_fornecedor/{data['id_clifor']}", headers=headers_admin)
+
+
+def test_criar_clifor_sem_nome_usual_e_lote(client, headers_admin, usuario_base):
+    r = client.post("/cliente_fornecedor/", json={
+        "id_usuario_fk": usuario_base["id_usuario"],
+        "pessoafisica_juridica": True,
+        "cpf_cnpj": "777.777.777-77",
+        "rg_inscricaoestadual": "7777777",
+        "nome": "CliFor Sem Usual",
+        "datanascimento": "1970-02-02",
+        "tipo_clifor": "C",
+        "ativo": True,
+        "inadimplente": False
+    }, headers=headers_admin)
+    assert r.status_code == 200
+    data = r.json()
+    assert data["nome_usual"] is None
+    assert data["lote"] is None
+    client.delete(f"/cliente_fornecedor/{data['id_clifor']}", headers=headers_admin)
+
+
+def test_atualizar_clifor_nome_usual_e_lote(client, headers_admin, clifor):
+    r = client.put(f"/cliente_fornecedor/{clifor['id_clifor']}",
+                   json={"nome_usual": "Apelido Novo", "lote": "Lote 45"},
+                   headers=headers_admin)
+    assert r.status_code == 200
+    assert r.json()["nome_usual"] == "Apelido Novo"
+    assert r.json()["lote"] == "Lote 45"
+
+    r2 = client.get(f"/cliente_fornecedor/{clifor['id_clifor']}", headers=headers_admin)
+    assert r2.json()["nome_usual"] == "Apelido Novo"
+    assert r2.json()["lote"] == "Lote 45"
+
+
+# ================================================
 # FILTROS — ISOLADOS
 # ================================================
 
