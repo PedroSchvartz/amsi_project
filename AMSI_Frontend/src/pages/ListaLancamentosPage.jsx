@@ -64,7 +64,10 @@ const FILTROS_INICIAL = {
 	data_pagamento_ate: '',
 	estorno: '',
 	valor_minimo: '',
-	valor_maximo: ''
+	valor_maximo: '',
+	// Como os status marcados se combinam: 'inclusivo' = OU/união (padrão),
+	// 'exclusivo' = E/interseção. Só na sessão — Limpar/recarregar volta a inclusivo.
+	status_modo: 'inclusivo'
 };
 
 // Converte o estado cru do formulário (strings, '' = vazio, vírgula decimal) no objeto
@@ -92,6 +95,7 @@ function filtrosParaParams(f) {
 	if (f.estorno !== '') params.estorno = f.estorno === 'true';
 	if (f.valor_minimo) params.valor_minimo = parseFloat(f.valor_minimo.replace(',', '.'));
 	if (f.valor_maximo) params.valor_maximo = parseFloat(f.valor_maximo.replace(',', '.'));
+	if (f.status_modo) params.status_modo = f.status_modo;
 	return params;
 }
 
@@ -134,6 +138,12 @@ function ListaLancamentosPage() {
 	const [tiposConta, setTiposConta] = useState([]);
 	const [filtros, setFiltros] = useState(FILTROS_INICIAL);
 	const [filtrosAplicados, setFiltrosAplicados] = useState(FILTROS_INICIAL);
+	// Qual lado ('de'/'ate') de cada par de datas foi preenchido primeiro. A âncora fica
+	// livre; só o segundo campo recebe o limite relativo (ver handleDataChange/limiteData).
+	const [ancoraData, setAncoraData] = useState({ vencimento: null, lancamento: null, pagamento: null });
+	// Nome do último campo (data ou valor) tocado — decide em qual campo a mensagem de
+	// falha aparece quando há mais de um par inválido ao mesmo tempo.
+	const [ultimoCampoTocado, setUltimoCampoTocado] = useState(null);
 	const [populado, setPopulado] = useState(false); // true após a 1ª busca — só troca a mensagem de vazio
 	const { mostrarToast } = useToast();
 
@@ -217,10 +227,116 @@ function ListaLancamentosPage() {
 	const handleFiltroChange = (e) => {
 		const { name, value } = e.target;
 		const monetarios = ['valor_minimo', 'valor_maximo'];
+		if (monetarios.includes(name)) setUltimoCampoTocado(name);
 		setFiltros({
 			...filtros,
 			[name]: monetarios.includes(name) ? value.replace(/[^0-9,]/g, '') : value
 		});
+	};
+
+	const exclusivo = filtros.status_modo === 'exclusivo';
+
+	// Datas "de/até": a restrição relativa trava só o campo preenchido por ÚLTIMO. O
+	// primeiro vira âncora e fica livre (pode até inverter a faixa); quem cede é o segundo.
+	// Sem âncora (ex.: filtros vindos da URL) cai no limite mútuo simétrico.
+	const handleDataChange = (e) => {
+		const { name, value } = e.target;
+		const [, par, lado] = name.match(/^data_(vencimento|lancamento|pagamento)_(de|ate)$/);
+		const outroLado = lado === 'de' ? 'ate' : 'de';
+		const parceiroPreenchido = !!filtros[`data_${par}_${outroLado}`];
+
+		let ancora = ancoraData[par];
+		if (value && !parceiroPreenchido) {
+			ancora = lado; // preencheu com o parceiro vazio → é o primeiro
+		} else if (!value && ancoraData[par] === lado) {
+			ancora = parceiroPreenchido ? outroLado : null; // limpou a âncora → passa ao parceiro
+		}
+
+		setAncoraData({ ...ancoraData, [par]: ancora });
+		setUltimoCampoTocado(name);
+		setFiltros({ ...filtros, [name]: value });
+	};
+
+	// max do "de" / min do "até": undefined no campo-âncora (livre), limite do parceiro no
+	// outro. Só vale no modo exclusivo; no inclusivo as datas ficam soltas.
+	const limiteData = (par, lado) => {
+		if (!exclusivo) return undefined;
+		if (ancoraData[par] === lado) return undefined;
+		return (lado === 'de' ? filtros[`data_${par}_ate`] : filtros[`data_${par}_de`]) || undefined;
+	};
+
+	// Falha prevista: pares de data e valor SEMPRE filtram por intervalo (de E até, mín E
+	// máx), independente do modo — então uma faixa invertida garante busca vazia mesmo no
+	// inclusivo. Por isso o aviso vale nos DOIS modos: linha vermelha em TODOS os campos
+	// envolvidos + mensagem única no último campo tocado (senão no primeiro inválido).
+	const PARES_DATA = ['vencimento', 'lancamento', 'pagamento'];
+	const dataInvalida = (par) => {
+		const de = filtros[`data_${par}_de`];
+		const ate = filtros[`data_${par}_ate`];
+		return !!de && !!ate && de > ate; // ISO yyyy-mm-dd compara lexicograficamente
+	};
+	const parseValor = (s) => {
+		if (!s) return null;
+		const n = parseFloat(String(s).replace(',', '.'));
+		return Number.isNaN(n) ? null : n;
+	};
+	const valorInvalido = (() => {
+		const min = parseValor(filtros.valor_minimo);
+		const max = parseValor(filtros.valor_maximo);
+		return min !== null && max !== null && min > max;
+	})();
+	const paresInvalidos = PARES_DATA.filter(dataInvalida);
+	const valorFalha = valorInvalido;
+	const camposComLinha = new Set([
+		...paresInvalidos.flatMap((par) => [`data_${par}_de`, `data_${par}_ate`]),
+		...(valorFalha ? ['valor_minimo', 'valor_maximo'] : [])
+	]);
+	const falhaPrevista = camposComLinha.size > 0;
+	const campoMensagem = camposComLinha.has(ultimoCampoTocado)
+		? ultimoCampoTocado
+		: [...camposComLinha][0] || null;
+	const textoFalha = (name) =>
+		name?.startsWith('valor_')
+			? 'O mínimo não pode ser maior que o máximo.'
+			: 'O início não pode ser depois do fim.';
+
+	// No modo exclusivo (interseção) o ciclo Aberto/Em análise/Pago é excludente: dois
+	// ao mesmo tempo dariam vazio. Vira single-select — marcar um limpa os outros dois;
+	// remarcar o já ativo desliga (não trava num estado impossível de zerar).
+	const CICLO = ['apenas_abertos', 'apenas_em_analise', 'apenas_quitados'];
+
+	const marcarCiclo = (campo, marcado) => {
+		if (exclusivo) {
+			setFiltros({
+				...filtros,
+				apenas_abertos: '',
+				apenas_em_analise: '',
+				apenas_quitados: '',
+				[campo]: marcado ? 'true' : ''
+			});
+		} else {
+			setFiltros({ ...filtros, [campo]: marcado ? 'true' : '' });
+		}
+	};
+
+	// Troca de modo. Ao ENTRAR no exclusivo com mais de um do ciclo marcado, mantém só
+	// o primeiro — senão o filtro já nasceria vazio.
+	const trocarModo = (modo) => {
+		if (modo === 'exclusivo') {
+			const marcados = CICLO.filter((k) => filtros[k] === 'true');
+			if (marcados.length > 1) {
+				const manter = marcados[0];
+				setFiltros({
+					...filtros,
+					status_modo: modo,
+					apenas_abertos: manter === 'apenas_abertos' ? 'true' : '',
+					apenas_em_analise: manter === 'apenas_em_analise' ? 'true' : '',
+					apenas_quitados: manter === 'apenas_quitados' ? 'true' : ''
+				});
+				return;
+			}
+		}
+		setFiltros({ ...filtros, status_modo: modo });
 	};
 
 	const handleAplicar = (e) => {
@@ -230,6 +346,8 @@ function ListaLancamentosPage() {
 
 	const handleLimpar = () => {
 		setFiltros(FILTROS_INICIAL);
+		setAncoraData({ vencimento: null, lancamento: null, pagamento: null });
+		setUltimoCampoTocado(null);
 		buscar(FILTROS_INICIAL);
 	};
 
@@ -243,9 +361,13 @@ function ListaLancamentosPage() {
 	const filtrosPendentes = JSON.stringify(filtros) !== JSON.stringify(filtrosAplicados);
 
 	// O botão sempre diz "Pesquisar"; quando já houve uma busca e o usuário mexeu num
-	// filtro sem reaplicar, ganha o aviso de pendência (a mesma dica que já existia).
+	// filtro sem reaplicar, pulsa amarelo (pendência). Havendo falha prevista (só no modo
+	// exclusivo), a mesma pulsação vira vermelha — precede a pendência.
 	const buscarPendente = populado && filtrosPendentes;
-	const rotuloBuscar = buscarPendente ? '⚠ Pesquisar ⚠' : 'Pesquisar';
+	const rotuloBuscar = buscarPendente || falhaPrevista ? '⚠ Pesquisar ⚠' : 'Pesquisar';
+	const classeBuscar = `ll-btn-filtrar${
+		falhaPrevista ? ' ll-btn-filtrar--falha' : buscarPendente ? ' ll-btn-filtrar--pendente' : ''
+	}`;
 
 	// ── Helpers de nome com fallback local ─────────────────────────────────────
 	const nomeClifor = (l) =>
@@ -677,7 +799,7 @@ function ListaLancamentosPage() {
 						<h4>FILTROS</h4>
 
 						<div className="ll-row">
-							<div className="ll-field">
+							<div className="ll-field ll-field--cliente">
 								<label>Cliente / Fornecedor</label>
 								<select name="id_clifor" value={filtros.id_clifor} onChange={handleFiltroChange}>
 									<option value="">Todos</option>
@@ -713,6 +835,15 @@ function ListaLancamentosPage() {
 									<option value="Credito">Crédito</option>
 								</select>
 							</div>
+
+							{/* Lote: espaço reservado para o filtro que chega numa atualização
+							    futura. Desabilitado — só segura o lugar por enquanto. */}
+							<div className="ll-field ll-field--reservado">
+								<label>Lote</label>
+								<select disabled title="Em breve">
+									<option>Em breve</option>
+								</select>
+							</div>
 						</div>
 
 						<div className="ll-row">
@@ -721,36 +852,56 @@ function ListaLancamentosPage() {
 								<input
 									type="date"
 									name="data_vencimento_de"
+									className={camposComLinha.has('data_vencimento_de') ? 'll-input-erro' : undefined}
 									value={filtros.data_vencimento_de}
-									onChange={handleFiltroChange}
+									max={limiteData('vencimento', 'de')}
+									onChange={handleDataChange}
 								/>
+								{campoMensagem === 'data_vencimento_de' && (
+									<span className="ll-erro-data">O início não pode ser depois do fim.</span>
+								)}
 							</div>
 							<div className="ll-field">
 								<label>Vencimento até</label>
 								<input
 									type="date"
 									name="data_vencimento_ate"
+									className={camposComLinha.has('data_vencimento_ate') ? 'll-input-erro' : undefined}
 									value={filtros.data_vencimento_ate}
-									onChange={handleFiltroChange}
+									min={limiteData('vencimento', 'ate')}
+									onChange={handleDataChange}
 								/>
+								{campoMensagem === 'data_vencimento_ate' && (
+									<span className="ll-erro-data">O início não pode ser depois do fim.</span>
+								)}
 							</div>
 							<div className="ll-field">
 								<label>Lançamento de</label>
 								<input
 									type="date"
 									name="data_lancamento_de"
+									className={camposComLinha.has('data_lancamento_de') ? 'll-input-erro' : undefined}
 									value={filtros.data_lancamento_de}
-									onChange={handleFiltroChange}
+									max={limiteData('lancamento', 'de')}
+									onChange={handleDataChange}
 								/>
+								{campoMensagem === 'data_lancamento_de' && (
+									<span className="ll-erro-data">O início não pode ser depois do fim.</span>
+								)}
 							</div>
 							<div className="ll-field">
 								<label>Lançamento até</label>
 								<input
 									type="date"
 									name="data_lancamento_ate"
+									className={camposComLinha.has('data_lancamento_ate') ? 'll-input-erro' : undefined}
 									value={filtros.data_lancamento_ate}
-									onChange={handleFiltroChange}
+									min={limiteData('lancamento', 'ate')}
+									onChange={handleDataChange}
 								/>
+								{campoMensagem === 'data_lancamento_ate' && (
+									<span className="ll-erro-data">O início não pode ser depois do fim.</span>
+								)}
 							</div>
 						</div>
 
@@ -758,94 +909,91 @@ function ListaLancamentosPage() {
 							<div className="ll-field">
 								<label>Status</label>
 								<div className="ll-status-checks">
-									<label>
-										<input
-											type="checkbox"
-											checked={filtros.apenas_abertos === 'true'}
-											onChange={(e) =>
-												setFiltros({ ...filtros, apenas_abertos: e.target.checked ? 'true' : '' })
-											}
-										/>
-										Abertos
-									</label>
-									<label>
-										<input
-											type="checkbox"
-											checked={filtros.apenas_vencidos === 'true'}
-											onChange={(e) =>
-												setFiltros({ ...filtros, apenas_vencidos: e.target.checked ? 'true' : '' })
-											}
-										/>
-										Vencidos
-									</label>
-									<label>
-										<input
-											type="checkbox"
-											checked={filtros.apenas_em_analise === 'true'}
-											onChange={(e) =>
-												setFiltros({
-													...filtros,
-													apenas_em_analise: e.target.checked ? 'true' : ''
-												})
-											}
-										/>
-										Em análise
-									</label>
-									<label>
-										<input
-											type="checkbox"
-											checked={filtros.apenas_quitados === 'true'}
-											onChange={(e) =>
-												setFiltros({ ...filtros, apenas_quitados: e.target.checked ? 'true' : '' })
-											}
-										/>
-										Quitados
-									</label>
-									<label>
-										<input
-											type="checkbox"
-											checked={filtros.estorno === 'true'}
-											onChange={(e) =>
-												setFiltros({ ...filtros, estorno: e.target.checked ? 'true' : '' })
-											}
-										/>
-										Reembolso
-									</label>
-									<span
-										style={{
-											borderLeft: '1px solid var(--border)',
-											margin: '0 4px',
-											alignSelf: 'stretch'
-										}}
-									/>
-									<label>
-										<input
-											type="checkbox"
-											checked={filtros.apenas_com_comprovante === 'true'}
-											onChange={(e) =>
-												setFiltros({
-													...filtros,
-													apenas_com_comprovante: e.target.checked ? 'true' : '',
-													apenas_sem_comprovante: ''
-												})
-											}
-										/>
-										Com comprovante
-									</label>
-									<label>
-										<input
-											type="checkbox"
-											checked={filtros.apenas_sem_comprovante === 'true'}
-											onChange={(e) =>
-												setFiltros({
-													...filtros,
-													apenas_sem_comprovante: e.target.checked ? 'true' : '',
-													apenas_com_comprovante: ''
-												})
-											}
-										/>
-										Sem comprovante
-									</label>
+									<div className="ll-status-grupo">
+										<label>
+											<input
+												type="checkbox"
+												className={exclusivo ? 'll-checkbox-round' : ''}
+												checked={filtros.apenas_abertos === 'true'}
+												onChange={(e) => marcarCiclo('apenas_abertos', e.target.checked)}
+											/>
+											Aberto
+										</label>
+										<label>
+											<input
+												type="checkbox"
+												className={exclusivo ? 'll-checkbox-round' : ''}
+												checked={filtros.apenas_em_analise === 'true'}
+												onChange={(e) => marcarCiclo('apenas_em_analise', e.target.checked)}
+											/>
+											Em análise
+										</label>
+										<label>
+											<input
+												type="checkbox"
+												className={exclusivo ? 'll-checkbox-round' : ''}
+												checked={filtros.apenas_quitados === 'true'}
+												onChange={(e) => marcarCiclo('apenas_quitados', e.target.checked)}
+											/>
+											Pago
+										</label>
+									</div>
+									<span className="ll-status-sep" />
+									<div className="ll-status-grupo">
+										<label>
+											<input
+												type="checkbox"
+												checked={filtros.apenas_vencidos === 'true'}
+												onChange={(e) =>
+													setFiltros({ ...filtros, apenas_vencidos: e.target.checked ? 'true' : '' })
+												}
+											/>
+											Vencidos
+										</label>
+										<label>
+											<input
+												type="checkbox"
+												checked={filtros.estorno === 'true'}
+												onChange={(e) =>
+													setFiltros({ ...filtros, estorno: e.target.checked ? 'true' : '' })
+												}
+											/>
+											Reembolso
+										</label>
+									</div>
+									<span className="ll-status-sep" />
+									<div className="ll-status-grupo">
+										<label>
+											<input
+												type="checkbox"
+												className={exclusivo ? 'll-checkbox-round' : ''}
+												checked={filtros.apenas_com_comprovante === 'true'}
+												onChange={(e) =>
+													setFiltros({
+														...filtros,
+														apenas_com_comprovante: e.target.checked ? 'true' : '',
+														apenas_sem_comprovante: ''
+													})
+												}
+											/>
+											Com comprovante
+										</label>
+										<label>
+											<input
+												type="checkbox"
+												className={exclusivo ? 'll-checkbox-round' : ''}
+												checked={filtros.apenas_sem_comprovante === 'true'}
+												onChange={(e) =>
+													setFiltros({
+														...filtros,
+														apenas_sem_comprovante: e.target.checked ? 'true' : '',
+														apenas_com_comprovante: ''
+													})
+												}
+											/>
+											Sem comprovante
+										</label>
+									</div>
 								</div>
 							</div>
 						</div>
@@ -856,32 +1004,43 @@ function ListaLancamentosPage() {
 								<input
 									type="date"
 									name="data_pagamento_de"
+									className={camposComLinha.has('data_pagamento_de') ? 'll-input-erro' : undefined}
 									value={filtros.data_pagamento_de}
-									onChange={handleFiltroChange}
+									max={limiteData('pagamento', 'de')}
+									onChange={handleDataChange}
 								/>
+								{campoMensagem === 'data_pagamento_de' && (
+									<span className="ll-erro-data">O início não pode ser depois do fim.</span>
+								)}
 							</div>
 							<div className="ll-field">
 								<label>Pagamento até</label>
 								<input
 									type="date"
 									name="data_pagamento_ate"
+									className={camposComLinha.has('data_pagamento_ate') ? 'll-input-erro' : undefined}
 									value={filtros.data_pagamento_ate}
-									onChange={handleFiltroChange}
+									min={limiteData('pagamento', 'ate')}
+									onChange={handleDataChange}
 								/>
+								{campoMensagem === 'data_pagamento_ate' && (
+									<span className="ll-erro-data">O início não pode ser depois do fim.</span>
+								)}
 							</div>
-						</div>
-
-						<div className="ll-row">
 							<div className="ll-field">
 								<label>Valor mínimo</label>
 								<input
 									type="text"
 									inputMode="decimal"
 									name="valor_minimo"
+									className={camposComLinha.has('valor_minimo') ? 'll-input-erro' : undefined}
 									value={filtros.valor_minimo}
 									onChange={handleFiltroChange}
 									placeholder="0,00"
 								/>
+								{campoMensagem === 'valor_minimo' && (
+									<span className="ll-erro-data">{textoFalha('valor_minimo')}</span>
+								)}
 							</div>
 							<div className="ll-field">
 								<label>Valor máximo</label>
@@ -889,23 +1048,56 @@ function ListaLancamentosPage() {
 									type="text"
 									inputMode="decimal"
 									name="valor_maximo"
+									className={camposComLinha.has('valor_maximo') ? 'll-input-erro' : undefined}
 									value={filtros.valor_maximo}
 									onChange={handleFiltroChange}
 									placeholder="0,00"
 								/>
+								{campoMensagem === 'valor_maximo' && (
+									<span className="ll-erro-data">{textoFalha('valor_maximo')}</span>
+								)}
 							</div>
 						</div>
 
 						<div className="ll-buttons">
-							<button type="button" className="ll-btn-limpar" onClick={handleLimpar}>
-								Limpar
-							</button>
-							<button
-								type="submit"
-								className={`ll-btn-filtrar${buscarPendente ? ' ll-btn-filtrar--pendente' : ''}`}
-							>
-								{rotuloBuscar}
-							</button>
+							{/* À esquerda, alinhado com o título: modo de combinação dos status
+							    (só na sessão). Inclusivo (OU) é o padrão; Exclusivo (E) exige todos.
+							    A nota fica na mesma linha, logo à direita do toggle. */}
+							<div className="ll-modo-grupo">
+								<div
+									className="ll-status-modo"
+									role="group"
+									aria-label="Modo de combinação dos status"
+								>
+									<button
+										type="button"
+										className={!exclusivo ? 'is-ativo' : ''}
+										aria-pressed={!exclusivo}
+										onClick={() => trocarModo('inclusivo')}
+										title="União: traz quem está em QUALQUER status marcado"
+									>
+										Inclusivo
+									</button>
+									<button
+										type="button"
+										className={exclusivo ? 'is-ativo' : ''}
+										aria-pressed={exclusivo}
+										onClick={() => trocarModo('exclusivo')}
+										title="Interseção: só quem satisfaz TODOS os status marcados"
+									>
+										Exclusivo
+									</button>
+								</div>
+								<p className="ll-modo-nota">O modo vale só para os status.</p>
+							</div>
+							<div className="ll-buttons-acoes">
+								<button type="button" className="ll-btn-limpar" onClick={handleLimpar}>
+									Limpar
+								</button>
+								<button type="submit" className={classeBuscar}>
+									{rotuloBuscar}
+								</button>
+							</div>
 						</div>
 					</form>
 				</div>

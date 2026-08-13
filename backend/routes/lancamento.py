@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Response
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func
+from sqlalchemy import func, or_, and_
 from database import get_db, SessionLocal
 from models.lancamento import Lancamento
 from models.usuario import Usuario, AcessoEnum
@@ -238,9 +238,14 @@ def _query_lancamentos_filtrada(
     valor_minimo: Optional[Decimal] = None,
     valor_maximo: Optional[Decimal] = None,
     lote: Optional[int] = None,
+    status_modo: str = "inclusivo",
 ):
     """Monta a query filtrada da listagem. Compartilhada entre GET / (JSON) e a
-    exportação em .xlsx — assim os dois nunca divergem nos filtros aplicados."""
+    exportação em .xlsx — assim os dois nunca divergem nos filtros aplicados.
+
+    `status_modo` decide como os filtros de ESTADO marcados se combinam:
+    `inclusivo` (padrão) = OU/união (marcar Aberto + Pago mostra os dois);
+    `exclusivo` = E/interseção (só quem satisfaz todos ao mesmo tempo)."""
     query = db.query(Lancamento).join(
         ClienteFornecedor,
         Lancamento.id_clifor_relacionado_fk == ClienteFornecedor.id_clifor
@@ -261,18 +266,31 @@ def _query_lancamentos_filtrada(
         query = query.filter(Lancamento.natureza_lancamento == natureza)
     # Estes filtros são de ESTADO (o que o usuário vê na tela), não de dinheiro:
     # olham data_efetivacao para casar exatamente com o badge da listagem.
+    # Cada checkbox marcado vira uma condição; `status_modo` decide se elas se
+    # somam (OU/união) ou se cruzam (E/interseção). Reembolso (estorno=True) entra
+    # no mesmo grupo — é o cluster "modificadores" do painel junto com Vencidos.
+    condicoes_estado = []
     if apenas_abertos:
-        query = query.filter(Lancamento.data_efetivacao == None)
+        condicoes_estado.append(Lancamento.data_efetivacao == None)
     if apenas_vencidos:
         # Em análise não é vencido: alguém já pagou, não se cobra de novo.
-        query = query.filter(
+        condicoes_estado.append(and_(
             Lancamento.data_efetivacao == None,
             Lancamento.data_vencimento < date.today()
-        )
+        ))
     if apenas_em_analise:
-        query = query.filter(Lancamento.data_efetivacao != None, Lancamento.data_aprovacao == None)
+        condicoes_estado.append(and_(Lancamento.data_efetivacao != None, Lancamento.data_aprovacao == None))
     if apenas_quitados:
-        query = query.filter(Lancamento.data_aprovacao != None)
+        condicoes_estado.append(Lancamento.data_aprovacao != None)
+    if estorno is True:
+        condicoes_estado.append(Lancamento.estorno == True)
+
+    if condicoes_estado:
+        if status_modo == "exclusivo":
+            query = query.filter(*condicoes_estado)           # E / interseção
+        else:
+            query = query.filter(or_(*condicoes_estado))      # OU / união (padrão)
+
     if apenas_com_comprovante:
         query = query.filter(Lancamento.comprovante != None)
     if apenas_sem_comprovante:
@@ -289,8 +307,10 @@ def _query_lancamentos_filtrada(
         query = query.filter(func.date(Lancamento.data_pagamento) >= data_pagamento_de)
     if data_pagamento_ate is not None:
         query = query.filter(func.date(Lancamento.data_pagamento) <= data_pagamento_ate)
-    if estorno is not None:
-        query = query.filter(Lancamento.estorno == estorno)
+    # estorno=True já entrou no grupo de estado acima. estorno=False continua E
+    # rígido: "esconder reembolsos" não é um "mostrar também", é restrição.
+    if estorno is False:
+        query = query.filter(Lancamento.estorno == False)
     if valor_minimo is not None:
         query = query.filter(Lancamento.valor >= valor_minimo)
     if valor_maximo is not None:
@@ -322,6 +342,7 @@ def listar_lancamentos(
     valor_minimo: Optional[Decimal] = None,
     valor_maximo: Optional[Decimal] = None,
     lote: Optional[int] = None,
+    status_modo: str = "inclusivo",
     db: Session = Depends(get_db),
     _=Depends(get_current_user)
 ):
@@ -335,6 +356,7 @@ def listar_lancamentos(
         data_lancamento_de=data_lancamento_de, data_lancamento_ate=data_lancamento_ate,
         data_pagamento_de=data_pagamento_de, data_pagamento_ate=data_pagamento_ate,
         estorno=estorno, valor_minimo=valor_minimo, valor_maximo=valor_maximo, lote=lote,
+        status_modo=status_modo,
     ).all()
 
 
@@ -421,11 +443,12 @@ def _descrever_filtros(db: Session, f: dict) -> str:
     if f.get("natureza"):
         partes.append(f"Natureza: {_NATUREZA_LABEL.get(f['natureza'], f['natureza'])}")
     status = [rot for chave, rot in (
-        ("apenas_abertos", "Abertos"), ("apenas_vencidos", "Vencidos"),
-        ("apenas_em_analise", "Em análise"), ("apenas_quitados", "Quitados"),
+        ("apenas_abertos", "Aberto"), ("apenas_vencidos", "Vencidos"),
+        ("apenas_em_analise", "Em análise"), ("apenas_quitados", "Pago"),
     ) if f.get(chave)]
     if status:
-        partes.append(f"Status: {', '.join(status)}")
+        conector = " e " if f.get("status_modo") == "exclusivo" else " ou "
+        partes.append(f"Status: {conector.join(status)}")
     if f.get("apenas_com_comprovante"):
         partes.append("Com comprovante")
     if f.get("apenas_sem_comprovante"):
@@ -608,6 +631,7 @@ def iniciar_exportacao(
     valor_minimo: Optional[Decimal] = None,
     valor_maximo: Optional[Decimal] = None,
     lote: Optional[int] = None,
+    status_modo: str = "inclusivo",
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(get_current_user),
 ):
@@ -623,6 +647,7 @@ def iniciar_exportacao(
         "data_lancamento_de": data_lancamento_de, "data_lancamento_ate": data_lancamento_ate,
         "data_pagamento_de": data_pagamento_de, "data_pagamento_ate": data_pagamento_ate,
         "estorno": estorno, "valor_minimo": valor_minimo, "valor_maximo": valor_maximo, "lote": lote,
+        "status_modo": status_modo,
     }
     data_pesquisa = datetime.utcnow()
     filtros_desc = _descrever_filtros(db, filtros)

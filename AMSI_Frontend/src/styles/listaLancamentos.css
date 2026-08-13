@@ -64,6 +64,23 @@
 	min-width: 140px;
 }
 
+/* Cliente/Fornecedor ocupa mais que Tipo de Conta e Natureza — que encolhem para
+   ~66% do original quando o "Lote" entra na linha como quarto campo (flex 1 cada). */
+.ll-field--cliente {
+	flex: 1.5;
+}
+
+/* Lote: campo reservado, ainda desabilitado. Fica claramente apagado para não passar
+   por um filtro funcional. */
+.ll-field--reservado {
+	opacity: 0.55;
+}
+
+.ll-field--reservado select:disabled {
+	cursor: not-allowed;
+	color: var(--text-muted);
+}
+
 .ll-field label {
 	font-size: 0.72rem;
 	font-weight: 500;
@@ -102,6 +119,34 @@
 	box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.12);
 }
 
+/* Faixa de data inválida (de > até): linha vermelha fina abaixo do campo infrator.
+   Seletor mais específico que ".ll-field input" para vencer a borda padrão. */
+.ll-field input.ll-input-erro {
+	border-bottom: 2px solid var(--danger);
+}
+
+/* Mensagem da faixa inválida — aparece só uma vez, sob o último campo interagido. */
+.ll-erro-data {
+	margin-top: 4px;
+	font-size: 0.72rem;
+	color: var(--danger);
+}
+
+/* Nota única: o modo Inclusivo/Exclusivo governa só os status; datas e valores sempre
+   filtram por intervalo (interseção), então a faixa invertida zera a busca em qualquer modo. */
+.ll-modo-grupo {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	flex-wrap: wrap;
+}
+
+.ll-modo-nota {
+	margin: 0;
+	font-size: 0.74rem;
+	color: var(--text-muted);
+}
+
 /* Checkbox inline */
 .ll-checkbox {
 	flex-direction: row;
@@ -125,9 +170,17 @@
 /* ── Botões de filtro ── */
 .ll-buttons {
 	display: flex;
-	justify-content: flex-end;
+	justify-content: space-between;
+	align-items: center;
 	gap: 10px;
 	margin-top: 16px;
+	flex-wrap: wrap;
+}
+
+/* Limpar + Pesquisar ficam juntos à direita; o toggle de modo fica à esquerda. */
+.ll-buttons-acoes {
+	display: flex;
+	gap: 10px;
 	flex-wrap: wrap;
 }
 
@@ -178,6 +231,29 @@
 	}
 	50% {
 		box-shadow: 0 0 0 7px rgba(201, 168, 76, 0.15);
+	}
+}
+
+/* Mesma pulsação do "pendente", mas vermelha: sinaliza falha prevista (só no modo
+   exclusivo — faixa de data ou de valor invertida). Precede o estado de pendência. */
+.ll-btn-filtrar--falha {
+	background: var(--danger);
+	border: 2px solid var(--danger);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 40%, transparent);
+	animation: ll-pulso-falha 1.4s ease-in-out infinite;
+}
+
+.ll-btn-filtrar--falha:hover {
+	filter: brightness(0.92);
+}
+
+@keyframes ll-pulso-falha {
+	0%,
+	100% {
+		box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 40%, transparent);
+	}
+	50% {
+		box-shadow: 0 0 0 7px color-mix(in srgb, var(--danger) 15%, transparent);
 	}
 }
 
@@ -825,6 +901,52 @@
 	gap: 20px;
 	flex-wrap: wrap;
 	margin-top: 4px;
+	align-items: center;
+}
+
+/* Cada cluster (Ciclo | Vencidos+Reembolso | Comprovante) agrupa seus checks juntos. */
+.ll-status-grupo {
+	display: flex;
+	gap: 16px;
+	flex-wrap: wrap;
+}
+
+/* Divisória vertical entre clusters. */
+.ll-status-sep {
+	width: 1px;
+	align-self: stretch;
+	min-height: 20px;
+	background: var(--border);
+}
+
+/* Toggle segmentado do modo de combinação. Ativo usa a cor primária do tema. */
+.ll-status-modo {
+	display: inline-flex;
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	overflow: hidden;
+}
+
+.ll-status-modo button {
+	border: none;
+	background: transparent;
+	color: var(--text-muted);
+	font-size: 0.72rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	padding: 5px 12px;
+	cursor: pointer;
+	transition: background 0.15s ease, color 0.15s ease;
+}
+
+.ll-status-modo button + button {
+	border-left: 1px solid var(--border);
+}
+
+.ll-status-modo button.is-ativo {
+	background: var(--primary);
+	color: #ffffff; /* mesmo texto-sobre-primário do .ll-btn-filtrar */
 }
 
 .ll-status-checks label {

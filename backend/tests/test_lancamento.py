@@ -2123,3 +2123,79 @@ def test_data_lancamento_e_utc(client, headers_admin, lancamento):
         f"data_lancamento está {diff / 3600:.1f}h longe do utcnow() — "
         "provavelmente voltou a ser gravado em hora local"
     )
+
+
+# ================================================
+# STATUS_MODO — união (inclusivo/OU) x interseção (exclusivo/E) dos filtros de estado
+# ================================================
+
+def test_status_modo_inclusivo_une_aberto_e_pago(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base):
+    """Inclusivo (padrão): marcar Aberto + Pago traz os dois grupos (união)."""
+    id_aberto = _abrir(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base)
+    id_pago = _abrir(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base)
+    _efetivar_admin(client, headers_admin, id_pago)
+
+    r = client.get("/lancamento/", params={
+        "apenas_abertos": True, "apenas_quitados": True, "status_modo": "inclusivo",
+    }, headers=headers_admin)
+    assert r.status_code == 200
+    ids = {l["id_lancamento"] for l in r.json()}
+    assert id_aberto in ids
+    assert id_pago in ids
+
+    client.delete(f"/lancamento/{id_aberto}", headers=headers_admin)
+    client.delete(f"/lancamento/{id_pago}", headers=headers_admin)
+
+
+def test_status_modo_exclusivo_intersecta_aberto_e_pago(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base):
+    """Exclusivo: Aberto E Pago ao mesmo tempo é impossível — resultado vazio."""
+    id_aberto = _abrir(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base)
+    id_pago = _abrir(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base)
+    _efetivar_admin(client, headers_admin, id_pago)
+
+    r = client.get("/lancamento/", params={
+        "apenas_abertos": True, "apenas_quitados": True, "status_modo": "exclusivo",
+    }, headers=headers_admin)
+    assert r.status_code == 200
+    assert r.json() == []
+
+    client.delete(f"/lancamento/{id_aberto}", headers=headers_admin)
+    client.delete(f"/lancamento/{id_pago}", headers=headers_admin)
+
+
+def test_status_modo_padrao_e_inclusivo(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base):
+    """Sem status_modo na URL, o padrão é inclusivo (OU)."""
+    id_aberto = _abrir(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base)
+    id_pago = _abrir(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base)
+    _efetivar_admin(client, headers_admin, id_pago)
+
+    r = client.get("/lancamento/", params={
+        "apenas_abertos": True, "apenas_quitados": True,
+    }, headers=headers_admin)
+    assert r.status_code == 200
+    ids = {l["id_lancamento"] for l in r.json()}
+    assert id_aberto in ids and id_pago in ids
+
+    client.delete(f"/lancamento/{id_aberto}", headers=headers_admin)
+    client.delete(f"/lancamento/{id_pago}", headers=headers_admin)
+
+
+def test_status_modo_inclusivo_reembolso_entra_na_uniao(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base):
+    """Reembolso (estorno=True) é braço da união: Aberto + Reembolso traz os dois,
+    mesmo quando o reembolso NÃO está aberto (entra só pelo braço do estorno)."""
+    id_aberto = _abrir(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base)
+    id_reemb = _abrir(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base)
+    _efetivar_admin(client, headers_admin, id_reemb)  # vira Pago (não é aberto)
+    r = client.patch(f"/lancamento/{id_reemb}/editar", json={"estorno": True}, headers=headers_admin)
+    assert r.status_code == 200
+
+    r = client.get("/lancamento/", params={
+        "apenas_abertos": True, "estorno": True, "status_modo": "inclusivo",
+    }, headers=headers_admin)
+    assert r.status_code == 200
+    ids = {l["id_lancamento"] for l in r.json()}
+    assert id_aberto in ids   # entra pelo braço "abertos"
+    assert id_reemb in ids    # entra pelo braço "estorno" (não é aberto)
+
+    client.delete(f"/lancamento/{id_aberto}", headers=headers_admin)
+    client.delete(f"/lancamento/{id_reemb}", headers=headers_admin)

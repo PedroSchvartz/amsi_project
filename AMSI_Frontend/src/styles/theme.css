@@ -30,6 +30,9 @@
   --border:        #d9d0c7;
   --shadow:        rgba(0, 0, 0, 0.08);
 
+  /* Erro / validação */
+  --danger:        #ef4444;
+
   /* Tipografia */
   --font-display:  'Cormorant Garamond', serif;
   --font-body:     'DM Sans', sans-serif;
@@ -88,6 +91,9 @@
   /* Bordas e sombras */
   --border:        #334155;
   --shadow:        rgba(0, 0, 0, 0.35);
+
+  /* Erro / validação — vermelho mais claro para contraste no fundo escuro */
+  --danger:        #f87171;
 
   /* Tipografia — mesma do tema verde */
   --font-display:  'Cormorant Garamond', serif;
