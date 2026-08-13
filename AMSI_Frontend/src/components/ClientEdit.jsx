@@ -475,7 +475,7 @@ function ClientEdit() {
 								/>
 							</div>
 							<div className="col-12 col-md-3">
-								<label className="form-label">Lote</label>
+								<label className="form-label">Lote do Associado</label>
 								<input
 									className="form-control"
 									name="lote"

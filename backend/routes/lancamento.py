@@ -447,7 +447,7 @@ def _descrever_filtros(db: Session, f: dict) -> str:
         cf = db.query(ClienteFornecedor).filter(ClienteFornecedor.id_clifor == f["id_clifor"]).first()
         partes.append(f"Cliente/Fornecedor: {cf.nome if cf else f['id_clifor']}")
     if f.get("lote_clifor"):
-        partes.append(f"Lote: {f['lote_clifor']}")
+        partes.append(f"Lote do Associado: {f['lote_clifor']}")
     if f.get("id_tipo_conta") is not None:
         tc = db.query(tipo_conta).filter(tipo_conta.id_tipo_conta == f["id_tipo_conta"]).first()
         partes.append(f"Tipo de Conta: {tc.descricao_conta if tc else f['id_tipo_conta']}")
@@ -507,7 +507,7 @@ def _colunas(r, perfil_completo: bool) -> list[tuple[str, object, Optional[str]]
         ("Natureza", natureza, None),
         ("Status", _valor_enum(r.situacao), None),
         ("Origem", origem, None),
-        ("Lote", r.lote if r.lote is not None else "", None),
+        ("Lote de Criação", r.lote if r.lote is not None else "", None),
         ("Reembolso", "Sim" if r.estorno else "Não", None),
         ("Data de Lançamento", _carimbo_cel(r.data_lancamento), FMT_CARIMBO),
         ("Vencimento", _data_cel(r.data_vencimento), FMT_DATA),

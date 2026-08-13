@@ -167,7 +167,7 @@ function ListaLancamentosPage() {
 
 	const admin = isAdmin();
 
-	// Lotes distintos dos clifors carregados — alimentam o dropdown do filtro "Lote".
+	// Lotes distintos dos clifors carregados — alimentam o dropdown do filtro "Lote do Associado".
 	// Client-side: `clifors` já vem completo (com `.lote`), então não há fetch novo.
 	const lotesDisponiveis = useMemo(
 		() => [...new Set(clifors.map((c) => c.lote).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
@@ -845,10 +845,10 @@ function ListaLancamentosPage() {
 								</select>
 							</div>
 
-							{/* Lote do morador (terreno) — filtra os lançamentos pelo lote do
+							{/* Lote do Associado (terreno) — filtra os lançamentos pelo lote do
 							    cliente/fornecedor relacionado. Opções = lotes distintos dos clifors. */}
 							<div className="ll-field">
-								<label>Lote</label>
+								<label>Lote do Associado</label>
 								<select
 									name="lote_clifor"
 									value={filtros.lote_clifor}
