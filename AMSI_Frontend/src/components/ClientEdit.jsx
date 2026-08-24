@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
 	getClifor,
+	getClifors,
 	updateClifor,
 	getUsers,
 	getEnderecosPorClifor,
@@ -127,6 +128,7 @@ function ClientEdit() {
 	const [telefones, setTelefones] = useState([]);
 	const [emails, setEmails] = useState([]);
 	const [usuarios, setUsuarios] = useState([]);
+	const [lotesDisponiveis, setLotesDisponiveis] = useState([]);
 	const [erros, setErros] = useState({});
 
 	useEffect(() => {
@@ -136,12 +138,19 @@ function ClientEdit() {
 	async function carregarDados() {
 		setCarregando(true);
 		try {
-			const [clifor, ends, conts, users] = await Promise.all([
+			const [clifor, ends, conts, users, clifors] = await Promise.all([
 				getClifor(id),
 				getEnderecosPorClifor(id),
 				getContatosPorClifor(id),
-				getUsers()
+				getUsers(),
+				getClifors({}, { silencioso: true })
 			]);
+			// Lotes já cadastrados → sugestões do combo (aceita lote novo também).
+			setLotesDisponiveis(
+				[...new Set(clifors.map((c) => c.lote).filter(Boolean))].sort((a, b) =>
+					a.localeCompare(b)
+				)
+			);
 			setForm({
 				tipo_clifor: clifor.tipo_clifor,
 				pessoafisica_juridica: String(clifor.pessoafisica_juridica),
@@ -479,9 +488,15 @@ function ClientEdit() {
 								<input
 									className="form-control"
 									name="lote"
+									list="lotes-disponiveis"
 									value={form.lote}
 									onChange={handleChange}
 								/>
+								<datalist id="lotes-disponiveis">
+									{lotesDisponiveis.map((lote) => (
+										<option key={lote} value={lote} />
+									))}
+								</datalist>
 							</div>
 							<div className="col-12 col-md-3">
 								<label className="form-label">

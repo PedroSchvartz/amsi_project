@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createClifor, getUsers } from '../services/api';
+import { createClifor, getUsers, getClifors } from '../services/api';
 import { useToast } from './ToastStack.jsx';
 import '../styles/clientForm.css'; /* suporte completo aos dois temas */
 
@@ -132,11 +132,20 @@ function ClientRegister() {
 	const [enderecos, setEnderecos] = useState([{ ...ENDERECO_VAZIO }]);
 	const [contatos, setContatos] = useState([{ ...CONTATO_VAZIO }]);
 	const [usuarios, setUsuarios] = useState([]);
+	const [lotesDisponiveis, setLotesDisponiveis] = useState([]);
 	const [erros, setErros] = useState({});
 
 	useEffect(() => {
 		getUsers()
 			.then(setUsuarios)
+			.catch(() => {});
+		// Lotes já cadastrados → sugestões do combo (o campo continua aceitando lote novo).
+		getClifors({}, { silencioso: true })
+			.then((cs) =>
+				setLotesDisponiveis(
+					[...new Set(cs.map((c) => c.lote).filter(Boolean))].sort((a, b) => a.localeCompare(b))
+				)
+			)
 			.catch(() => {});
 	}, []);
 
@@ -472,9 +481,15 @@ function ClientRegister() {
 								<input
 									className="form-control"
 									name="lote"
+									list="lotes-disponiveis"
 									value={form.lote}
 									onChange={handleChange}
 								/>
+								<datalist id="lotes-disponiveis">
+									{lotesDisponiveis.map((lote) => (
+										<option key={lote} value={lote} />
+									))}
+								</datalist>
 							</div>
 							<div className="col-12 col-md-3">
 								<label className="form-label">
