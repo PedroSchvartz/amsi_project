@@ -66,6 +66,20 @@ def _aplicar_migracoes():
                 ))
                 conn.commit()
 
+    # Migration: índices nas FKs de endereco/contato (id_clifor_fk).
+    # Postgres não indexa FK automaticamente; a listagem de clifor faz selectinload
+    # dessas duas coleções (WHERE id_clifor_fk IN (...)), então sem índice é seq scan.
+    # create_all não adiciona índice em tabela que já existe → precisa deste CREATE.
+    # IF NOT EXISTS torna idempotente e casa com o nome declarado nos models.
+    with engine.connect() as conn:
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_endereco_clifor ON endereco(id_clifor_fk)"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_contato_clifor ON contato(id_clifor_fk)"
+        ))
+        conn.commit()
+
     # Migration: coluna 'lote' em lancamento (lançamento em massa).
     # Antes vivia só no bootstrap.py (rodado à mão); precisa rodar no startup de
     # TODO deploy, senão o SELECT do modelo Lancamento (que inclui 'lote') quebra

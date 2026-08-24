@@ -117,6 +117,12 @@ Mesma origem do 3.8/3.9/3.10 — vídeo sobre erros comuns de performance (ponto
 ### 3.12 N+1 (pior que o 3.8) e falta de paginação em `GET /cliente_fornecedor/`
 
 > Reportado pelo Pedro (2026-07-09): "tela de Clientes/Fornecedores demorando tanto para carregar". Diagnóstico feito na hora — causa raiz já identificada, fix ainda não aplicado (fica para quando este item for puxado).
+>
+> ✅ **Parcialmente feito (2026-08-18):** o eager-load já estava resolvido — `listar_clifors`
+> usa `selectinload(enderecos)` + `selectinload(contatos)` (não é mais 2N+1). Os **índices nas
+> FKs** `endereco.id_clifor_fk` e `contato.id_clifor_fk` foram adicionados (ponto 2 abaixo):
+> `Index` nos models + migração `CREATE INDEX IF NOT EXISTS` em `main._aplicar_migracoes()` +
+> `tabelas_do_banco.txt`. **Resta só a paginação** (ponto 3 — decisões abertas, ver 3.9).
 
 **Causa raiz:** `listar_clifors` ([`routes/cliente_fornecedor.py:29-60`](../../backend/routes/cliente_fornecedor.py)) roda `db.query(ClienteFornecedor)...all()` sem eager load nenhum. `ClienteFornecedorResponse` ([`schemas/cliente_fornecedor.py:90-91`](../../backend/schemas/cliente_fornecedor.py)) inclui `enderecos` e `contatos` — duas relações lazy-loaded (`models/cliente_fornecedor.py:30-31`). Sem `joinedload`/`selectinload`, cada clifor da lista dispara **2 queries extras** (uma para endereços, uma para contatos) na hora de serializar. É o mesmo padrão de bug do [3.8](#38-corrigir-n1-query-na-listagem-de-lançamentos), só que aqui são 2 relações em vez de 1 — até **2N+1 queries** numa única resposta.
 

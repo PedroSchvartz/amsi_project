@@ -92,6 +92,10 @@ CREATE TABLE Endereco (
     FOREIGN KEY (id_CliFor_FK) REFERENCES ClienteFornecedor(id_CliFor)
 );
 
+-- FK indexada: a listagem de clifor faz selectinload de endereços (WHERE id_CliFor_FK IN (...));
+-- Postgres não indexa FK automaticamente, então sem isto é seq scan conforme a tabela cresce.
+CREATE INDEX idx_endereco_clifor ON Endereco(id_CliFor_FK);
+
 
 CREATE TABLE Contato (
     id_Contato BIGINT GENERATED ALWAYS AS IDENTITY,
@@ -102,6 +106,9 @@ CREATE TABLE Contato (
     PRIMARY KEY (id_Contato),
     FOREIGN KEY (id_CliFor_FK) REFERENCES ClienteFornecedor(id_CliFor)
 );
+
+-- FK indexada: mesma razão do idx_endereco_clifor — selectinload de contatos na listagem de clifor.
+CREATE INDEX idx_contato_clifor ON Contato(id_CliFor_FK);
 
 
 CREATE TABLE Login (
