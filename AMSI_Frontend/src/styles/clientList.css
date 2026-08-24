@@ -209,13 +209,9 @@
 	display: inline-flex;
 	align-items: center;
 	gap: 4px;
-}
-
-.cl-th-icon {
-	font-size: 11px;
-	opacity: 0.65;
 	cursor: help;
-	line-height: 1;
+	text-decoration: underline dotted;
+	text-underline-offset: 3px;
 }
 
 .cl-tooltip-box {
@@ -231,8 +227,12 @@
 	font-weight: 400;
 	text-transform: none;
 	letter-spacing: 0;
-	white-space: nowrap;
-	padding: 5px 10px;
+	white-space: normal;
+	width: max-content;
+	max-width: 240px;
+	text-align: left;
+	line-height: 1.4;
+	padding: 6px 10px;
 	border-radius: 6px;
 	z-index: 200;
 	pointer-events: none;

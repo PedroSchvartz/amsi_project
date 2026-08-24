@@ -429,6 +429,29 @@ function ClientEdit() {
 									<div className="text-danger small mt-1">{erros.pessoafisica_juridica}</div>
 								)}
 							</div>
+								<div className="col-12 col-md-auto">
+									<label className="form-label">Status</label>
+									<div className="d-flex flex-wrap gap-4">
+										{[
+											[true, 'Ativo'],
+											[false, 'Inativo']
+										].map(([val, label]) => (
+											<div key={label} className="form-check">
+												<input
+													className="form-check-input"
+													type="radio"
+													name="ativo"
+													id={`ativo_${val}`}
+													checked={form.ativo === val}
+													onChange={() => setForm({ ...form, ativo: val })}
+												/>
+												<label className="form-check-label" htmlFor={`ativo_${val}`}>
+													{label}
+												</label>
+											</div>
+										))}
+									</div>
+								</div>
 						</div>
 
 						{/* Campos principais */}

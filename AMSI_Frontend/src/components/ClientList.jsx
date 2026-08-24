@@ -173,25 +173,51 @@ function ClientList() {
 						<thead>
 							<tr>
 								<th>Nome</th>
-								<th>Tipo</th>
-								<th>Documento</th>
-								<th>Status</th>
-								<th>Inadimplente</th>
+								<th>
+									<span className="cl-th-info">
+										Tipo
+										<span className="cl-tooltip-box">
+											Papel da entidade: Cliente (recebe da associação), Fornecedor (a associação paga) ou Ambos.
+										</span>
+									</span>
+								</th>
+								<th>
+									<span className="cl-th-info">
+										Documento
+										<span className="cl-tooltip-box">
+											CPF ou CNPJ da entidade, exibido mascarado. Clique para revelar.
+										</span>
+									</span>
+								</th>
+								<th>
+									<span className="cl-th-info">
+										Status
+										<span className="cl-tooltip-box">
+											"Ativo" indica que o cadastro está em uso; "Inativo", que foi desativado — arquivado sem ser apagado.
+										</span>
+									</span>
+								</th>
+								<th>
+									<span className="cl-th-info">
+										Inadimplente
+										<span className="cl-tooltip-box">
+											"Sim" quando a entidade tem crédito vencido e ainda não pago — ou seja, deve à associação e passou do vencimento.
+										</span>
+									</span>
+								</th>
 								<th>
 									<span className="cl-th-info">
 										A Receber
-										<span className="cl-th-icon">ℹ</span>
 										<span className="cl-tooltip-box">
-											Soma dos créditos em aberto (o que esta entidade deve à associação)
+											Soma dos créditos em aberto (o que esta entidade deve à associação).
 										</span>
 									</span>
 								</th>
 								<th>
 									<span className="cl-th-info">
 										A Pagar
-										<span className="cl-th-icon">ℹ</span>
 										<span className="cl-tooltip-box">
-											Soma dos débitos em aberto (o que a associação deve a esta entidade)
+											Soma dos débitos em aberto (o que a associação deve a esta entidade).
 										</span>
 									</span>
 								</th>
