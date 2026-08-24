@@ -329,6 +329,15 @@ export const getSaldosClifors = async () => {
 	return handleResponse(response);
 };
 
+// Lotes distintos cadastrados (não-nulos/não-vazios), ordenados — alimenta o filtro da listagem.
+export const getLotesClifor = async ({ silencioso = false } = {}) => {
+	const response = await fetchComLoading(`${BASE_URL}/cliente_fornecedor/lotes`, {
+		method: 'GET',
+		headers: authHeaders()
+	}, { silencioso });
+	return handleResponse(response);
+};
+
 export const getCliforResumo = async (id_clifor) => {
 	const response = await fetchComLoading(`${BASE_URL}/cliente_fornecedor/${id_clifor}/resumo`, {
 		method: 'GET',
@@ -545,6 +554,7 @@ function montarParamsLancamentos(filtros = {}) {
 	if (filtros.valor_minimo != null) params.append('valor_minimo', filtros.valor_minimo);
 	if (filtros.valor_maximo != null) params.append('valor_maximo', filtros.valor_maximo);
 	if (filtros.lote != null) params.append('lote', filtros.lote);
+	if (filtros.lote_clifor != null) params.append('lote_clifor', filtros.lote_clifor);
 	return params.toString() ? `?${params.toString()}` : '';
 }
 

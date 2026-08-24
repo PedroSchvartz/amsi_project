@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useMemo } from 'react';
+﻿import { useState, useEffect } from 'react';
 import LancamentoModal from '../components/LancamentoModal.jsx';
 import LoteLancamentosModal from '../components/LoteLancamentosModal.jsx';
 import { useSearchParams } from 'react-router-dom';
@@ -21,6 +21,7 @@ import {
 	editarLancamento,
 	deleteLancamento,
 	getClifors,
+	getLotesClifor,
 	getTiposConta,
 	anexarComprovante,
 	baixarComprovante,
@@ -167,15 +168,15 @@ function ListaLancamentosPage() {
 
 	const admin = isAdmin();
 
-	// Lotes distintos dos clifors carregados — alimentam o dropdown do filtro "Lote do Associado".
-	// Client-side: `clifors` já vem completo (com `.lote`), então não há fetch novo.
-	const lotesDisponiveis = useMemo(
-		() => [...new Set(clifors.map((c) => c.lote).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
-		[clifors]
-	);
+	// Lotes distintos que alimentam o dropdown do filtro "Lote do Associado". Rebuscados a
+	// cada abertura da tela (GET /cliente_fornecedor/lotes), sem cache: o campo fica travado
+	// enquanto o refresh corre, então nunca mostra uma lista defasada de um clifor removido/editado.
+	const [lotesDisponiveis, setLotesDisponiveis] = useState([]);
+	const [lotesCarregando, setLotesCarregando] = useState(true);
 
 	useEffect(() => {
 		carregarAuxiliares();
+		carregarLotes();
 		// Drill-down do Dashboard: filtros chegam prontos e a intenção do clique é ver os
 		// itens — busca sozinho (e sobrescreve o cache).
 		if (searchParams.has('origemDashboard')) {
@@ -218,6 +219,18 @@ function ListaLancamentosPage() {
 			setTiposConta(ts);
 			setCache('lancamentos-aux', { clifors: cs, tiposConta: ts });
 		} catch {}
+	};
+
+	// Sempre fresco a cada abertura da tela (sem cache): trava o select enquanto busca. Em
+	// silêncio (sem o overlay de "carregando") — o disabled já sinaliza o refresh no próprio campo.
+	const carregarLotes = async () => {
+		setLotesCarregando(true);
+		try {
+			setLotesDisponiveis(await getLotesClifor({ silencioso: true }));
+		} catch {
+		} finally {
+			setLotesCarregando(false);
+		}
 	};
 
 	const buscar = async (f = filtros) => {
@@ -853,8 +866,9 @@ function ListaLancamentosPage() {
 									name="lote_clifor"
 									value={filtros.lote_clifor}
 									onChange={handleFiltroChange}
+									disabled={lotesCarregando}
 								>
-									<option value="">Todos</option>
+									<option value="">{lotesCarregando ? 'Carregando…' : 'Todos'}</option>
 									{lotesDisponiveis.map((lote) => (
 										<option key={lote} value={lote}>
 											{lote}

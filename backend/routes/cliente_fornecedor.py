@@ -97,6 +97,19 @@ def saldos_clifors(db: Session = Depends(get_db), _=Depends(get_current_user)):
     return [{"id_clifor": r.id_clifor, "total_a_receber": r.total_a_receber, "total_a_pagar": r.total_a_pagar} for r in resultado]
 
 
+@router.get("/lotes", response_model=List[str])
+def listar_lotes(db: Session = Depends(get_db), _=Depends(get_current_user)):
+    """Lotes distintos cadastrados (não-nulos/não-vazios), ordenados — alimenta o filtro da listagem."""
+    linhas = (
+        db.query(ClienteFornecedor.lote)
+        .filter(ClienteFornecedor.lote.isnot(None), ClienteFornecedor.lote != "")
+        .distinct()
+        .order_by(ClienteFornecedor.lote)
+        .all()
+    )
+    return [linha.lote for linha in linhas]
+
+
 @router.get("/{id_clifor}/resumo", response_model=CliForResumo)
 def resumo_clifor(id_clifor: int, db: Session = Depends(get_db), _=Depends(get_current_user)):
     clifor = db.query(ClienteFornecedor).filter(ClienteFornecedor.id_clifor == id_clifor).first()
