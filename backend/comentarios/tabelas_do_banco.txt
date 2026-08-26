@@ -66,6 +66,7 @@ CREATE TABLE ClienteFornecedor (
     Tipo_CliFor tipo_clifor_enum NOT NULL,
     Ativo BOOLEAN NOT NULL DEFAULT TRUE,
     Inadimplente BOOLEAN NOT NULL DEFAULT FALSE,
+    Bloqueado BOOLEAN NOT NULL DEFAULT FALSE,
     PRIMARY KEY (id_CliFor),
     FOREIGN KEY (id_Usuario_FK) REFERENCES Usuario(id_usuario)
 );
@@ -75,6 +76,7 @@ CREATE INDEX idx_clifor_cpf_cnpj ON ClienteFornecedor(CPF_CNPJ);
 CREATE INDEX idx_clifor_nome ON ClienteFornecedor(Nome);
 CREATE INDEX idx_clifor_ativo ON ClienteFornecedor(Ativo);
 CREATE INDEX idx_clifor_inadimplente ON ClienteFornecedor(Inadimplente);
+CREATE INDEX idx_clifor_bloqueado ON ClienteFornecedor(Bloqueado);
 
 
 CREATE TABLE Endereco (

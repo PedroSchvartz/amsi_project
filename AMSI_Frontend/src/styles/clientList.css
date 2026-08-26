@@ -92,6 +92,7 @@
 	letter-spacing: 0.04em;
 	padding: 12px 16px;
 	text-align: left;
+	white-space: nowrap; /* cabeçalho não quebra em telas estreitas; a tabela rola no overflow-x do wrapper */
 }
 
 .cl-table tbody tr {
@@ -145,6 +146,13 @@
 .cl-badge--inadimplente {
 	background: rgba(248, 113, 113, 0.15);
 	color: #dc2626;
+}
+/* Bloqueado usa âmbar — distingue do vermelho de inadimplente, já que ambas as
+   colunas mostram "Sim"/"Não". Cores semânticas fixas nos dois temas, como os
+   demais badges deste bloco. */
+.cl-badge--bloqueado {
+	background: rgba(251, 191, 36, 0.18);
+	color: #d97706;
 }
 
 /* ── Botão editar ── */

@@ -161,7 +161,8 @@ function ClientEdit() {
 				lote: clifor.lote || '',
 				datanascimento: clifor.datanascimento || '',
 				id_usuario_fk: clifor.id_usuario_fk ? String(clifor.id_usuario_fk) : '',
-				ativo: clifor.ativo
+				ativo: clifor.ativo,
+				bloqueado: clifor.bloqueado
 			});
 			setEnderecos(
 				ends.map((e) => ({
@@ -296,6 +297,7 @@ function ClientEdit() {
 			lote: (form.lote || '').trim() || null,
 			datanascimento: form.datanascimento || null,
 			ativo: form.ativo,
+			bloqueado: form.bloqueado,
 			id_usuario_fk: form.id_usuario_fk ? parseInt(form.id_usuario_fk) : null,
 			enderecos: enderecos
 				.filter((end) =>
@@ -368,9 +370,9 @@ function ClientEdit() {
 						</span>
 					</div>
 					<div className="client-form-card__body">
-						{/* Tipo de clifor + tipo de pessoa */}
-						<div className="row g-4 mb-4">
-							<div className="col-12 col-md-auto">
+						{/* Tipo de clifor + tipo de pessoa + status */}
+						<div className="client-form-status-row mb-4">
+							<div className="client-form-status-group">
 								<label className="form-label">
 									Tipo <span className="text-danger">*</span>
 								</label>
@@ -400,7 +402,8 @@ function ClientEdit() {
 									<div className="text-danger small mt-1">{erros.tipo_clifor}</div>
 								)}
 							</div>
-							<div className="col-12 col-md-auto">
+							<div className="client-form-status-sep" aria-hidden="true" />
+							<div className="client-form-status-group">
 								<label className="form-label">
 									Tipo de Pessoa <span className="text-danger">*</span>
 								</label>
@@ -429,27 +432,34 @@ function ClientEdit() {
 									<div className="text-danger small mt-1">{erros.pessoafisica_juridica}</div>
 								)}
 							</div>
-								<div className="col-12 col-md-auto">
+								<div className="client-form-status-sep" aria-hidden="true" />
+								<div className="client-form-status-group">
 									<label className="form-label">Status</label>
 									<div className="d-flex flex-wrap gap-4">
-										{[
-											[true, 'Ativo'],
-											[false, 'Inativo']
-										].map(([val, label]) => (
-											<div key={label} className="form-check">
-												<input
-													className="form-check-input"
-													type="radio"
-													name="ativo"
-													id={`ativo_${val}`}
-													checked={form.ativo === val}
-													onChange={() => setForm({ ...form, ativo: val })}
-												/>
-												<label className="form-check-label" htmlFor={`ativo_${val}`}>
-													{label}
-												</label>
-											</div>
-										))}
+										<div className="form-check">
+											<input
+												className="form-check-input"
+												type="checkbox"
+												id="ativo"
+												checked={form.ativo}
+												onChange={(e) => setForm({ ...form, ativo: e.target.checked })}
+											/>
+											<label className="form-check-label" htmlFor="ativo">
+												Ativo
+											</label>
+										</div>
+										<div className="form-check">
+											<input
+												className="form-check-input"
+												type="checkbox"
+												id="bloqueado"
+												checked={form.bloqueado}
+												onChange={(e) => setForm({ ...form, bloqueado: e.target.checked })}
+											/>
+											<label className="form-check-label" htmlFor="bloqueado">
+												Bloqueado
+											</label>
+										</div>
 									</div>
 								</div>
 						</div>

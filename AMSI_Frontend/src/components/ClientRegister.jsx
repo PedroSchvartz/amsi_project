@@ -30,7 +30,8 @@ const FORM_INICIAL = {
 	lote: '',
 	datanascimento: '',
 	id_usuario_fk: '',
-	ativo: true
+	ativo: true,
+	bloqueado: false
 };
 
 const validarCPF = (cpf) => {
@@ -305,6 +306,7 @@ function ClientRegister() {
 			lote: form.lote.trim() || null,
 			datanascimento: form.datanascimento || null,
 			ativo: form.ativo,
+			bloqueado: form.bloqueado,
 			id_usuario_fk: form.id_usuario_fk ? parseInt(form.id_usuario_fk) : null,
 			enderecos: enderecosPreenchidos.map((end) => ({
 				logradouro: end.logradouro.trim(),
@@ -363,9 +365,9 @@ function ClientRegister() {
 						</span>
 					</div>
 					<div className="client-form-card__body">
-						{/* Tipo de clifor + tipo de pessoa */}
-						<div className="row g-4 mb-4">
-							<div className="col-12 col-md-auto">
+						{/* Tipo de clifor + tipo de pessoa + status */}
+						<div className="client-form-status-row mb-4">
+							<div className="client-form-status-group">
 								<label className="form-label">
 									Tipo <span className="text-danger">*</span>
 								</label>
@@ -395,7 +397,8 @@ function ClientRegister() {
 									<div className="text-danger small mt-1">{erros.tipo_clifor}</div>
 								)}
 							</div>
-							<div className="col-12 col-md-auto">
+							<div className="client-form-status-sep" aria-hidden="true" />
+							<div className="client-form-status-group">
 								<label className="form-label">
 									Tipo de Pessoa <span className="text-danger">*</span>
 								</label>
@@ -423,6 +426,36 @@ function ClientRegister() {
 								{erros.pessoafisica_juridica && (
 									<div className="text-danger small mt-1">{erros.pessoafisica_juridica}</div>
 								)}
+							</div>
+							<div className="client-form-status-sep" aria-hidden="true" />
+							<div className="client-form-status-group">
+								<label className="form-label">Status</label>
+								<div className="d-flex flex-wrap gap-4">
+									<div className="form-check">
+										<input
+											className="form-check-input"
+											type="checkbox"
+											id="ativo"
+											checked={form.ativo}
+											onChange={(e) => setForm({ ...form, ativo: e.target.checked })}
+										/>
+										<label className="form-check-label" htmlFor="ativo">
+											Ativo
+										</label>
+									</div>
+									<div className="form-check">
+										<input
+											className="form-check-input"
+											type="checkbox"
+											id="bloqueado"
+											checked={form.bloqueado}
+											onChange={(e) => setForm({ ...form, bloqueado: e.target.checked })}
+										/>
+										<label className="form-check-label" htmlFor="bloqueado">
+											Bloqueado
+										</label>
+									</div>
+								</div>
 							</div>
 						</div>
 

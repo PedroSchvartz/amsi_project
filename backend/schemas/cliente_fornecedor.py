@@ -56,6 +56,7 @@ class ClienteFornecedorCreate(BaseModel):
     tipo_clifor: TipoCliForEnum
     ativo: bool = True
     inadimplente: bool = False
+    bloqueado: bool = False
     enderecos: Optional[List[EnderecoInline]] = None
     contatos: Optional[List[ContatoInline]] = None
 
@@ -74,6 +75,7 @@ class ClienteFornecedorUpdate(BaseModel):
     tipo_clifor: Optional[TipoCliForEnum] = None
     ativo: Optional[bool] = None
     inadimplente: Optional[bool] = None
+    bloqueado: Optional[bool] = None
     enderecos: Optional[List[EnderecoInline]] = None
     contatos: Optional[List[ContatoInline]] = None
 
@@ -93,6 +95,7 @@ class ClienteFornecedorResponse(BaseModel):
     tipo_clifor: TipoCliForEnum
     ativo: bool
     inadimplente: bool
+    bloqueado: bool
     enderecos: List[EnderecoInlineResponse] = []
     contatos: List[ContatoInlineResponse] = []
 

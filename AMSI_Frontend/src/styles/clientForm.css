@@ -146,6 +146,38 @@
   color: var(--text);
 }
 
+/* ── Linha de status (Tipo | Tipo de Pessoa | Status) ──
+   Clusters separados por divisória vertical, como os checks de status da
+   listagem de lançamentos — dá respiro e deixa claro que são grupos distintos. */
+.client-form-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 28px;
+}
+
+.client-form-status-group {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Divisória vertical entre clusters (some quando a linha quebra no mobile). */
+.client-form-status-sep {
+  width: 1px;
+  align-self: stretch;
+  min-height: 38px;
+  background: var(--border);
+}
+
+@media (max-width: 767px) {
+  .client-form-status-row {
+    gap: 18px;
+  }
+  .client-form-status-sep {
+    display: none;
+  }
+}
+
 /* ── Texto de erro inline ── */
 .client-form-container .invalid-feedback {
   font-size: 0.78rem;

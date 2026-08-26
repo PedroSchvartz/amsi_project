@@ -32,6 +32,7 @@ def listar_clifors(
     tipo_clifor: Optional[str] = None,
     ativo: Optional[bool] = None,
     inadimplente: Optional[bool] = None,
+    bloqueado: Optional[bool] = None,
     apenas_pendentes: Optional[bool] = None,
     pessoafisica_juridica: Optional[bool] = None,
     db: Session = Depends(get_db),
@@ -50,6 +51,8 @@ def listar_clifors(
         query = query.filter(ClienteFornecedor.ativo == ativo)
     if inadimplente is not None:
         query = query.filter(ClienteFornecedor.inadimplente == inadimplente)
+    if bloqueado is not None:
+        query = query.filter(ClienteFornecedor.bloqueado == bloqueado)
     if pessoafisica_juridica is not None:
         query = query.filter(ClienteFornecedor.pessoafisica_juridica == pessoafisica_juridica)
     if apenas_pendentes:

@@ -27,6 +27,7 @@ class ClienteFornecedor(Base):
     tipo_clifor = Column(SAEnum(TipoCliForEnum, name="tipo_clifor_enum", values_callable=lambda x: [e.value for e in x]), nullable=False)
     ativo = Column(Boolean, nullable=False, default=True)
     inadimplente = Column(Boolean, nullable=False, default=False)
+    bloqueado = Column(Boolean, nullable=False, default=False)
 
     usuario = relationship("Usuario", backref="clientes_fornecedores")
     enderecos = relationship("Endereco", backref="cliente_fornecedor", cascade="all, delete-orphan")

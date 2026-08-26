@@ -87,6 +87,7 @@ function ClientList() {
 		if (filtroStatus === 'ativo' && !c.ativo) return false;
 		if (filtroStatus === 'inativo' && c.ativo) return false;
 		if (filtroStatus === 'inadimplente' && !c.inadimplente) return false;
+		if (filtroStatus === 'bloqueado' && !c.bloqueado) return false;
 		return true;
 	});
 
@@ -158,6 +159,7 @@ function ClientList() {
 					<option value="ativo">Ativo</option>
 					<option value="inativo">Inativo</option>
 					<option value="inadimplente">Inadimplente</option>
+					<option value="bloqueado">Bloqueado</option>
 				</select>
 			</div>
 
@@ -202,6 +204,14 @@ function ClientList() {
 										Inadimplente
 										<span className="cl-tooltip-box">
 											"Sim" quando a entidade tem crédito vencido e ainda não pago — ou seja, deve à associação e passou do vencimento.
+										</span>
+									</span>
+								</th>
+								<th>
+									<span className="cl-th-info">
+										Bloqueado
+										<span className="cl-tooltip-box">
+											"Sim" quando o cadastro foi bloqueado manualmente — sinaliza restrição administrativa, sem apagar o registro.
 										</span>
 									</span>
 								</th>
@@ -259,6 +269,13 @@ function ClientList() {
 												className={`cl-badge ${c.inadimplente ? 'cl-badge--inadimplente' : 'cl-badge--ok'}`}
 											>
 												{c.inadimplente ? 'Sim' : 'Não'}
+											</span>
+										</td>
+										<td>
+											<span
+												className={`cl-badge ${c.bloqueado ? 'cl-badge--bloqueado' : 'cl-badge--ok'}`}
+											>
+												{c.bloqueado ? 'Sim' : 'Não'}
 											</span>
 										</td>
 										<td>

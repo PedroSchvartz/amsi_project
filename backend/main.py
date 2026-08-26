@@ -66,6 +66,23 @@ def _aplicar_migracoes():
                 ))
                 conn.commit()
 
+        # Migration: coluna 'bloqueado' (flag de bloqueio manual do cadastro).
+        # Mesmo motivo das anteriores: o model a declara, mas create_all não altera
+        # tabela existente → sem este ALTER o SELECT quebra em produção. NOT NULL
+        # DEFAULT FALSE preenche as linhas antigas; o índice casa a convenção de
+        # ativo/inadimplente (IF NOT EXISTS torna idempotente).
+        if "bloqueado" not in cols:
+            with engine.connect() as conn:
+                conn.execute(text(
+                    "ALTER TABLE clientefornecedor "
+                    "ADD COLUMN bloqueado BOOLEAN NOT NULL DEFAULT FALSE"
+                ))
+                conn.execute(text(
+                    "CREATE INDEX IF NOT EXISTS idx_clifor_bloqueado "
+                    "ON clientefornecedor(bloqueado)"
+                ))
+                conn.commit()
+
     # Migration: índices nas FKs de endereco/contato (id_clifor_fk).
     # Postgres não indexa FK automaticamente; a listagem de clifor faz selectinload
     # dessas duas coleções (WHERE id_clifor_fk IN (...)), então sem índice é seq scan.
