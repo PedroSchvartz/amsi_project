@@ -2,17 +2,8 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { getClifors } from '../services/api.js';
 import { useToast } from './ToastStack.jsx';
+import CliforFiltros, { useCliforFiltros } from './CliforFiltros.jsx';
 import '../styles/clientList.css';
-
-const TIPO_LABEL = { C: 'Cliente', F: 'Fornecedor', A: 'Ambos' };
-
-function rassurarCpfCnpj(doc) {
-	if (!doc) return '—';
-	const d = doc.replace(/\D/g, '');
-	if (d.length === 11) return `***.***.${d.slice(6, 9)}-**`;
-	if (d.length === 14) return `**.${d.slice(2, 5)}.${d.slice(5, 8)}/****.${d.slice(12)}`;
-	return doc;
-}
 
 /**
  * Modal-seletor de clifors para lançamento em massa.
@@ -30,9 +21,7 @@ function MassaCliforSeletorModal({ selecionados = [], onConfirmar, onFechar }) {
 	const [loading, setLoading] = useState(true);
 	const [marcados, setMarcados] = useState(() => new Set(selecionados));
 
-	const [busca, setBusca] = useState('');
-	const [filtroTipo, setFiltroTipo] = useState('');
-	const [filtroStatus, setFiltroStatus] = useState('');
+	const { valores, setters, filtrar } = useCliforFiltros();
 
 	useEffect(() => {
 		(async () => {
@@ -48,14 +37,7 @@ function MassaCliforSeletorModal({ selecionados = [], onConfirmar, onFechar }) {
 		})();
 	}, []);
 
-	const cliforsFiltrados = clifors.filter((c) => {
-		if (busca && !c.nome.toLowerCase().includes(busca.toLowerCase())) return false;
-		if (filtroTipo && c.tipo_clifor !== filtroTipo) return false;
-		if (filtroStatus === 'ativo' && !c.ativo) return false;
-		if (filtroStatus === 'inativo' && c.ativo) return false;
-		if (filtroStatus === 'inadimplente' && !c.inadimplente) return false;
-		return true;
-	});
+	const cliforsFiltrados = filtrar(clifors);
 
 	const toggle = (id) =>
 		setMarcados((prev) => {
@@ -117,27 +99,12 @@ function MassaCliforSeletorModal({ selecionados = [], onConfirmar, onFechar }) {
 				</div>
 
 				{/* Filtros */}
-				<div className="cl-filtros" style={{ padding: '16px 24px 0', marginBottom: 0 }}>
-					<input
-						className="cl-busca"
-						type="text"
-						placeholder="Buscar por nome..."
-						value={busca}
-						onChange={(e) => setBusca(e.target.value)}
-					/>
-					<select className="cl-select" value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value)}>
-						<option value="">Todos os tipos</option>
-						<option value="C">Cliente</option>
-						<option value="F">Fornecedor</option>
-						<option value="A">Ambos</option>
-					</select>
-					<select className="cl-select" value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)}>
-						<option value="">Todos os status</option>
-						<option value="ativo">Ativo</option>
-						<option value="inativo">Inativo</option>
-						<option value="inadimplente">Inadimplente</option>
-					</select>
-				</div>
+				<CliforFiltros
+					valores={valores}
+					setters={setters}
+					estiloLinha1={{ padding: '16px 24px 0', marginBottom: 0 }}
+					estiloLinha2={{ padding: '12px 24px 0', marginBottom: 0 }}
+				/>
 
 				{/* Corpo rolável — tabela */}
 				<div style={{ padding: '16px 24px', overflowY: 'auto', flex: 1 }}>
@@ -152,10 +119,7 @@ function MassaCliforSeletorModal({ selecionados = [], onConfirmar, onFechar }) {
 									<tr>
 										<th style={{ width: 44 }} />
 										<th>Nome</th>
-										<th>Tipo</th>
-										<th>Documento</th>
-										<th>Status</th>
-										<th>Inadimplente</th>
+										<th>Lote</th>
 									</tr>
 								</thead>
 								<tbody>
@@ -174,20 +138,7 @@ function MassaCliforSeletorModal({ selecionados = [], onConfirmar, onFechar }) {
 												/>
 											</td>
 											<td>{c.nome}</td>
-											<td>{TIPO_LABEL[c.tipo_clifor] ?? c.tipo_clifor}</td>
-											<td>
-												<span className="cl-doc">{rassurarCpfCnpj(c.cpf_cnpj)}</span>
-											</td>
-											<td>
-												<span className={`cl-badge ${c.ativo ? 'cl-badge--ativo' : 'cl-badge--inativo'}`}>
-													{c.ativo ? 'Ativo' : 'Inativo'}
-												</span>
-											</td>
-											<td>
-												<span className={`cl-badge ${c.inadimplente ? 'cl-badge--inadimplente' : 'cl-badge--ok'}`}>
-													{c.inadimplente ? 'Sim' : 'Não'}
-												</span>
-											</td>
+											<td>{c.lote || '—'}</td>
 										</tr>
 									))}
 								</tbody>

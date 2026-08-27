@@ -4,6 +4,7 @@ import { getClifors, getSaldosClifors, deleteClifor } from '../services/api.js';
 import { useToast } from './ToastStack.jsx';
 import ModalConfirm from './ModalConfirm.jsx';
 import CliforResumoPopup from './CliforResumoPopup.jsx';
+import CliforFiltros, { useCliforFiltros } from './CliforFiltros.jsx';
 import { isAdmin, isConsulta } from '../services/auth.js';
 import { getCache, setCache } from '../services/cache.js';
 import '../styles/clientList.css';
@@ -32,9 +33,7 @@ function ClientList() {
 	const [confirmarDeletar, setConfirmarDeletar] = useState(null);
 	const [cliforDetalhe, setCliforDetalhe] = useState(null);
 
-	const [busca, setBusca] = useState('');
-	const [filtroTipo, setFiltroTipo] = useState('');
-	const [filtroStatus, setFiltroStatus] = useState('');
+	const { valores, setters, filtrar } = useCliforFiltros();
 
 	// Não busca ao abrir: o usuário dispara a busca no botão "Pesquisar". Mas se já houve
 	// uma pesquisa nesta sessão, reidrata o resultado do cache (persiste a navegação). 3.13.
@@ -81,15 +80,7 @@ function ClientList() {
 		}
 	};
 
-	const cliforsFiltrados = clifors.filter((c) => {
-		if (busca && !c.nome.toLowerCase().includes(busca.toLowerCase())) return false;
-		if (filtroTipo && c.tipo_clifor !== filtroTipo) return false;
-		if (filtroStatus === 'ativo' && !c.ativo) return false;
-		if (filtroStatus === 'inativo' && c.ativo) return false;
-		if (filtroStatus === 'inadimplente' && !c.inadimplente) return false;
-		if (filtroStatus === 'bloqueado' && !c.bloqueado) return false;
-		return true;
-	});
+	const cliforsFiltrados = filtrar(clifors);
 
 	return (
 		<div className="cl-container">
@@ -132,36 +123,7 @@ function ClientList() {
 				</div>
 			</div>
 
-			<div className="cl-filtros">
-				<input
-					className="cl-busca"
-					type="text"
-					placeholder="Buscar por nome..."
-					value={busca}
-					onChange={(e) => setBusca(e.target.value)}
-				/>
-				<select
-					className="cl-select"
-					value={filtroTipo}
-					onChange={(e) => setFiltroTipo(e.target.value)}
-				>
-					<option value="">Todos os tipos</option>
-					<option value="C">Cliente</option>
-					<option value="F">Fornecedor</option>
-					<option value="A">Ambos</option>
-				</select>
-				<select
-					className="cl-select"
-					value={filtroStatus}
-					onChange={(e) => setFiltroStatus(e.target.value)}
-				>
-					<option value="">Todos os status</option>
-					<option value="ativo">Ativo</option>
-					<option value="inativo">Inativo</option>
-					<option value="inadimplente">Inadimplente</option>
-					<option value="bloqueado">Bloqueado</option>
-				</select>
-			</div>
+			<CliforFiltros valores={valores} setters={setters} />
 
 			{loading ? (
 				<p className="cl-loading">Carregando...</p>
