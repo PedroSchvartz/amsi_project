@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 import logging
 
 from database import engine, Base
-from models import usuario, tipo_conta, cliente_fornecedor, endereco, contato, login, lancamento, token_ativo, log_atividade, senha_token
+from models import usuario, tipo_conta, cliente_fornecedor, endereco, contato, login, lancamento, token_ativo, log_atividade, senha_token, parametrizacao
 from routes import usuario as usuario_router
 from routes import login as login_router
 from routes import tipo_conta as tipo_lancamento_router
@@ -14,6 +14,7 @@ from routes import contato as contato_router
 from routes import lancamento as lancamento_router
 from routes import demo as demo_router
 from routes import log_atividade as log_atividade_router
+from routes import parametrizacao as parametrizacao_router
 from auth.router import router as auth_router
 
 from fastapi.middleware.cors import CORSMiddleware
@@ -265,6 +266,7 @@ app.include_router(contato_router.router)
 app.include_router(lancamento_router.router)
 app.include_router(demo_router.router)
 app.include_router(log_atividade_router.router)
+app.include_router(parametrizacao_router.router)
 if APP_ENV != "production":
     app.include_router(logs_router)
 

@@ -116,15 +116,15 @@ function TipoContaPage() {
 			) : tipos.length === 0 ? (
 				<p style={{ color: 'var(--text-muted)' }}>Nenhum tipo de conta cadastrado.</p>
 			) : (
-				<div style={{ background: 'var(--bg-card)', borderRadius: 12, border: '1px solid var(--border)', overflow: 'hidden' }}>
+				<div style={{ background: 'var(--bg-card)', borderRadius: 12, border: '1px solid var(--border)', overflow: 'auto', maxHeight: '60vh' }}>
 					<table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
 						<thead>
-							<tr style={{ background: 'var(--input-bg)', borderBottom: '1px solid var(--border)' }}>
-								<th style={{ padding: '10px 14px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600 }}>Cód.</th>
-								<th style={{ padding: '10px 14px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600 }}>Descrição</th>
-								<th style={{ padding: '10px 14px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600 }}>Natureza</th>
-								<th style={{ padding: '10px 14px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600 }}>Observação</th>
-								<th style={{ padding: '10px 14px', textAlign: 'center', color: 'var(--text-muted)', fontWeight: 600 }}>Ações</th>
+							<tr style={{ borderBottom: '1px solid var(--border)' }}>
+								<th style={{ padding: '10px 14px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, position: 'sticky', top: 0, background: 'var(--input-bg)', zIndex: 1 }}>Cód.</th>
+								<th style={{ padding: '10px 14px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, position: 'sticky', top: 0, background: 'var(--input-bg)', zIndex: 1 }}>Descrição</th>
+								<th style={{ padding: '10px 14px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, position: 'sticky', top: 0, background: 'var(--input-bg)', zIndex: 1 }}>Natureza</th>
+								<th style={{ padding: '10px 14px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, position: 'sticky', top: 0, background: 'var(--input-bg)', zIndex: 1 }}>Observação</th>
+								<th style={{ padding: '10px 14px', textAlign: 'center', color: 'var(--text-muted)', fontWeight: 600, position: 'sticky', top: 0, background: 'var(--input-bg)', zIndex: 1 }}>Ações</th>
 							</tr>
 						</thead>
 						<tbody>

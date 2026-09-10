@@ -220,6 +220,29 @@
   margin: 4px 0;
 }
 
+/* ── Cabeçalho de grupo "Parâmetros" (mobile) e seus subitens ── */
+.layout-menu-mobile__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.layout-menu-mobile__header i {
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+
+.layout-menu-mobile__subitem {
+  padding-left: 40px;
+}
+
 /* ════════════════════════════════════════
    MENU HORIZONTAL — DESKTOP
    ════════════════════════════════════════ */
@@ -265,6 +288,74 @@
 .layout-menu-desktop__item--active {
   color: var(--primary);
   border-bottom-color: var(--primary);
+  font-weight: 600;
+}
+
+/* ── Dropdown "Parâmetros" (desktop) ── */
+.layout-param {
+  position: relative;
+  display: inline-flex;
+}
+
+/* O trigger reusa .layout-menu-desktop__item, mas é um <button> — zera o visual nativo */
+.layout-param__trigger {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.layout-param__caret {
+  font-size: 0.7rem;
+  transition: transform 0.2s ease;
+}
+
+.layout-param__caret--aberto {
+  transform: rotate(180deg);
+}
+
+.layout-param__menu {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  min-width: 230px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px var(--shadow);
+  z-index: 200;
+}
+
+.layout-param__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  font-size: 0.83rem;
+  font-weight: 500;
+  color: var(--text);
+  text-decoration: none;
+  border-radius: 6px;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.layout-param__item i {
+  font-size: 0.9rem;
+  opacity: 0.75;
+}
+
+.layout-param__item:hover {
+  background: var(--input-bg);
+  color: var(--text);
+}
+
+.layout-param__item--active {
+  color: var(--primary);
   font-weight: 600;
 }
 

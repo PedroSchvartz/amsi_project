@@ -787,6 +787,49 @@ export const deleteTipoConta = async (id_tipo_conta) => {
 };
 
 // ======================
+// 🎯 PARAMETRIZAÇÃO
+// ======================
+
+// Seleções nomeadas de clifors por Tipo de Conta. Com id_tipo_conta, filtra as
+// daquele tipo (usado no Novo Lançamento). Resposta de cada item:
+// { id_parametrizacao, nome, id_tipo_conta_fk, descricao_tipo_conta, valor, ids_clifor, total }.
+export const getParametrizacoes = async ({ id_tipo_conta } = {}) => {
+	const url = id_tipo_conta != null
+		? `${BASE_URL}/parametrizacao/?id_tipo_conta=${id_tipo_conta}`
+		: `${BASE_URL}/parametrizacao/`;
+	const response = await fetchComLoading(url, { method: 'GET', headers: authHeaders() });
+	return handleResponse(response);
+};
+
+// body: { nome, id_tipo_conta_fk, valor?, ids_clifor: [...] } — só Admin.
+export const createParametrizacao = async (data) => {
+	const response = await fetchComLoading(`${BASE_URL}/parametrizacao/`, {
+		method: 'POST',
+		headers: authHeaders(),
+		body: JSON.stringify(data)
+	});
+	return handleResponse(response);
+};
+
+// Substituição completa (nome, tipo, valor e lista de clifors) — só Admin.
+export const updateParametrizacao = async (id_parametrizacao, data) => {
+	const response = await fetchComLoading(`${BASE_URL}/parametrizacao/${id_parametrizacao}`, {
+		method: 'PUT',
+		headers: authHeaders(),
+		body: JSON.stringify(data)
+	});
+	return handleResponse(response);
+};
+
+export const deleteParametrizacao = async (id_parametrizacao) => {
+	const response = await fetchComLoading(`${BASE_URL}/parametrizacao/${id_parametrizacao}`, {
+		method: 'DELETE',
+		headers: authHeaders()
+	});
+	return handleResponse(response);
+};
+
+// ======================
 // 📋 LOGIN / SESSÕES
 // ======================
 

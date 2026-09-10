@@ -319,3 +319,34 @@ CREATE TABLE senha_token (
 
 -- Lookup do token na validacao: e o unico caminho de leitura da tabela.
 CREATE INDEX idx_senha_token_hash ON senha_token(token_hash);
+
+
+-- ================================================
+-- PARAMETRIZACAO — selecao nomeada de clifors por Tipo de Conta
+-- Um Tipo de Conta pode ter varias parametrizacoes; cada uma agrupa N clifors
+-- e um valor sugerido opcional. Alimenta o preenchimento automatico dos clifors
+-- (e do valor) no Novo Lancamento ao escolher o Tipo de Conta. So Admin gerencia.
+-- ================================================
+
+CREATE TABLE parametrizacao (
+    id_parametrizacao BIGINT GENERATED ALWAYS AS IDENTITY,
+    nome VARCHAR(255) NOT NULL,
+    id_tipo_conta_FK BIGINT NOT NULL,
+    valor DECIMAL(15,2) DEFAULT NULL,        -- valor sugerido; NULL = nao preenche
+    PRIMARY KEY (id_parametrizacao),
+    FOREIGN KEY (id_tipo_conta_FK) REFERENCES tipo_conta(id_tipo_conta)
+);
+
+CREATE INDEX idx_parametrizacao_tipo_conta ON parametrizacao(id_tipo_conta_FK);
+
+-- Itens N:N — os clifors de cada parametrizacao. ON DELETE CASCADE: apagar a
+-- parametrizacao leva junto seus itens (a lista salva nao sobrevive sozinha).
+CREATE TABLE parametrizacao_clifor (
+    id_parametrizacao_FK BIGINT NOT NULL,
+    id_CliFor_FK BIGINT NOT NULL,
+    PRIMARY KEY (id_parametrizacao_FK, id_CliFor_FK),
+    FOREIGN KEY (id_parametrizacao_FK) REFERENCES parametrizacao(id_parametrizacao) ON DELETE CASCADE,
+    FOREIGN KEY (id_CliFor_FK) REFERENCES ClienteFornecedor(id_CliFor)
+);
+
+CREATE INDEX idx_parametrizacao_clifor_clifor ON parametrizacao_clifor(id_CliFor_FK);

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useLocation, Outlet } from 'react-router-dom';
 import ErrorBoundary from './ErrorBoundary';
 import '../styles/layout.css';
@@ -15,6 +15,8 @@ function Layout() {
 	const [tema, setTema] = useState(() => localStorage.getItem('amsi_tema') || 'verde');
 	const [menuAberto, setMenuAberto] = useState(false);
 	const [perfilAberto, setPerfilAberto] = useState(false);
+	const [paramAberto, setParamAberto] = useState(false); // dropdown "Parâmetros" (desktop)
+	const paramRef = useRef(null);
 	const admin = isAdmin();
 	const operador = isOperador();
 	const consulta = isConsulta();
@@ -57,10 +59,28 @@ function Layout() {
 		navigate('/');
 	};
 
+	// Fecha o dropdown "Parâmetros" ao navegar
+	useEffect(() => {
+		setParamAberto(false);
+	}, [location.pathname]);
+
+	// Fecha o dropdown "Parâmetros" ao clicar fora dele
+	useEffect(() => {
+		if (!paramAberto) return;
+		const handleClickFora = (e) => {
+			if (paramRef.current && !paramRef.current.contains(e.target)) {
+				setParamAberto(false);
+			}
+		};
+		document.addEventListener('mousedown', handleClickFora);
+		return () => document.removeEventListener('mousedown', handleClickFora);
+	}, [paramAberto]);
+
 	const payload = getUserFromToken();
 	const usuarioLocal = JSON.parse(localStorage.getItem('user') || 'null');
 	const nomeUsuario = usuarioLocal?.nome || 'Usuário';
 	const isActive = (path) => location.pathname === path;
+	const paramAtivo = isActive('/tipo_conta') || isActive('/parametrizacoes');
 
 	const menuLinks = [
 		(admin || operador || consulta) && { to: '/dashboard', label: 'Dashboard', icon: 'bi-speedometer2' },
@@ -140,6 +160,32 @@ function Layout() {
 					</Link>
 				))}
 
+				{/* Parâmetros — só Admin; itens indentados sob o cabeçalho */}
+				{admin && (
+					<>
+						<div className="layout-menu-mobile__header">
+							<i className="bi bi-sliders" />
+							Parâmetros
+						</div>
+						<Link
+							to="/tipo_conta"
+							className={`layout-menu-mobile__item layout-menu-mobile__subitem ${isActive('/tipo_conta') ? 'layout-menu-mobile__item--active' : ''}`}
+							onClick={() => setMenuAberto(false)}
+						>
+							<i className="bi bi-tags" />
+							Tipos de Contas
+						</Link>
+						<Link
+							to="/parametrizacoes"
+							className={`layout-menu-mobile__item layout-menu-mobile__subitem ${isActive('/parametrizacoes') ? 'layout-menu-mobile__item--active' : ''}`}
+							onClick={() => setMenuAberto(false)}
+						>
+							<i className="bi bi-sliders2" />
+							Parametrizar Lançamentos
+						</Link>
+					</>
+				)}
+
 				{/* Separador */}
 				<div className="layout-menu-mobile__separator" />
 
@@ -180,6 +226,43 @@ function Layout() {
 							{link.label}
 						</Link>
 					))}
+
+					{/* Parâmetros — dropdown por clique, só Admin */}
+					{admin && (
+						<div className="layout-param" ref={paramRef}>
+							<button
+								type="button"
+								className={`layout-menu-desktop__item layout-param__trigger ${paramAtivo ? 'layout-menu-desktop__item--active' : ''}`}
+								onClick={() => setParamAberto((v) => !v)}
+								aria-expanded={paramAberto}
+								aria-haspopup="true"
+							>
+								<i className="bi bi-sliders" />
+								Parâmetros
+								<i className={`bi bi-chevron-down layout-param__caret ${paramAberto ? 'layout-param__caret--aberto' : ''}`} />
+							</button>
+							{paramAberto && (
+								<div className="layout-param__menu">
+									<Link
+										to="/tipo_conta"
+										className={`layout-param__item ${isActive('/tipo_conta') ? 'layout-param__item--active' : ''}`}
+										onClick={() => setParamAberto(false)}
+									>
+										<i className="bi bi-tags" />
+										Tipos de Contas
+									</Link>
+									<Link
+										to="/parametrizacoes"
+										className={`layout-param__item ${isActive('/parametrizacoes') ? 'layout-param__item--active' : ''}`}
+										onClick={() => setParamAberto(false)}
+									>
+										<i className="bi bi-sliders2" />
+										Parametrizar Lançamentos
+									</Link>
+								</div>
+							)}
+						</div>
+					)}
 				</div>
 
 				<button className="layout-menu-desktop__sair" onClick={handleSair}>

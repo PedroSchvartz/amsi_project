@@ -344,6 +344,8 @@
    ════════════════════════════════════════ */
 .ll-table-wrapper {
 	overflow-x: auto;
+	overflow-y: auto;
+	max-height: 60vh;
 	background:
 		linear-gradient(to right, var(--bg-card) 20%, transparent),
 		linear-gradient(to left,  var(--bg-card) 20%, transparent) right,
@@ -363,7 +365,6 @@
 }
 
 .ll-table thead {
-	background: var(--primary);
 	color: #ffffff;
 }
 
@@ -375,6 +376,12 @@
 	letter-spacing: 0.06em;
 	text-transform: uppercase;
 	white-space: nowrap;
+	/* Cabeçalho fixo ao rolar o corpo; fundo no th (não no thead) para o
+	   sticky não deixar a linha vazar por baixo. */
+	position: sticky;
+	top: 0;
+	background: var(--primary);
+	z-index: 2;
 }
 
 /* ── Tooltip nos cabeçalhos ── */

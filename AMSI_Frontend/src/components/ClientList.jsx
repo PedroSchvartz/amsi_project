@@ -11,14 +11,6 @@ import '../styles/clientList.css';
 
 const TIPO_LABEL = { C: 'Cliente', F: 'Fornecedor', A: 'Ambos' };
 
-function rassurarCpfCnpj(doc) {
-	if (!doc) return '—';
-	const d = doc.replace(/\D/g, '');
-	if (d.length === 11) return `***.***.${d.slice(6, 9)}-**`;
-	if (d.length === 14) return `**.${d.slice(2, 5)}.${d.slice(5, 8)}/****.${d.slice(12)}`;
-	return doc;
-}
-
 function ClientList() {
 	const navigate = useNavigate();
 	const { mostrarToast } = useToast();
@@ -29,7 +21,6 @@ function ClientList() {
 	const [saldos, setSaldos] = useState({});
 	const [loading, setLoading] = useState(false);
 	const [populado, setPopulado] = useState(false); // true após a 1ª busca
-	const [cpfVisivel, setCpfVisivel] = useState({});
 	const [confirmarDeletar, setConfirmarDeletar] = useState(null);
 	const [cliforDetalhe, setCliforDetalhe] = useState(null);
 
@@ -65,8 +56,6 @@ function ClientList() {
 			setLoading(false);
 		}
 	};
-
-	const toggleCpf = (id) => setCpfVisivel((prev) => ({ ...prev, [id]: !prev[id] }));
 
 	const handleDeletar = async () => {
 		try {
@@ -147,14 +136,6 @@ function ClientList() {
 								</th>
 								<th>
 									<span className="cl-th-info">
-										Documento
-										<span className="cl-tooltip-box">
-											CPF ou CNPJ da entidade, exibido mascarado. Clique para revelar.
-										</span>
-									</span>
-								</th>
-								<th>
-									<span className="cl-th-info">
 										Status
 										<span className="cl-tooltip-box">
 											"Ativo" indica que o cadastro está em uso; "Inativo", que foi desativado — arquivado sem ser apagado.
@@ -209,16 +190,6 @@ function ClientList() {
 									>
 										<td>{c.nome}</td>
 										<td>{TIPO_LABEL[c.tipo_clifor] ?? c.tipo_clifor}</td>
-										<td onClick={(e) => e.stopPropagation()}>
-											<span
-												className={`cl-doc${consulta ? '' : ' cl-rasurado'}`}
-												title={consulta ? 'Dado protegido' : cpfVisivel[c.id_clifor] ? 'Clique para ocultar' : 'Clique para revelar'}
-												onClick={() => !consulta && toggleCpf(c.id_clifor)}
-												style={consulta ? {} : { cursor: 'pointer' }}
-											>
-												{!consulta && cpfVisivel[c.id_clifor] ? c.cpf_cnpj || '—' : rassurarCpfCnpj(c.cpf_cnpj)}
-											</span>
-										</td>
 										<td>
 											<span
 												className={`cl-badge ${c.ativo ? 'cl-badge--ativo' : 'cl-badge--inativo'}`}

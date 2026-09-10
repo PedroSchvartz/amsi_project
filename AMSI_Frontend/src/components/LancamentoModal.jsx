@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useToast } from '../components/ToastStack.jsx';
-import { createLancamento, createLancamentoMassa, getClifors, getTiposConta, createTipoConta } from '../services/api';
-import { getUserFromToken, isAdmin, hasPerfilMinimo } from '../services/auth';
+import { createLancamento, createLancamentoMassa, getClifors, getTiposConta, getParametrizacoes } from '../services/api';
+import { getUserFromToken, hasPerfilMinimo } from '../services/auth';
 import MassaCliforSeletorModal from './MassaCliforSeletorModal.jsx';
 import '../styles/lancamento.css';
 
@@ -31,16 +31,45 @@ function LancamentoModal({ onFechar }) {
 	const [seletorAberto, setSeletorAberto] = useState(false);
 	const [confirmarMassa, setConfirmarMassa] = useState(false);
 	const [cpfRevelado, setCpfRevelado] = useState({});
-	const [popup, setPopup] = useState(false);
-	const [novoTipo, setNovoTipo] = useState({
-		descricao_conta: '',
-		natureza_conta: '',
-		observacao: ''
-	});
+	const [parametrizacoes, setParametrizacoes] = useState([]);
+	const [paramSelecionadaId, setParamSelecionadaId] = useState('');
 
 	useEffect(() => {
 		carregarDados();
 	}, []);
+
+	// Aplica uma parametrização: carrega os clifors salvos e, se houver, o valor sugerido.
+	const aplicarParametrizacao = (p) => {
+		setParamSelecionadaId(String(p.id_parametrizacao));
+		setClifforsSelecionados(p.ids_clifor || []);
+		if (p.valor != null && p.valor !== '') {
+			setForm((f) => ({ ...f, valor: Number(p.valor).toFixed(2).replace('.', ',') }));
+		}
+	};
+
+	// Ao escolher o Tipo de Conta, busca as parametrizações dele. Havendo alguma,
+	// aplica a primeira automaticamente; com mais de uma, um dropdown deixa trocar.
+	useEffect(() => {
+		if (!form.id_tipo_conta_fk) {
+			setParametrizacoes([]);
+			setParamSelecionadaId('');
+			return;
+		}
+		let ativo = true;
+		getParametrizacoes({ id_tipo_conta: parseInt(form.id_tipo_conta_fk) })
+			.then((lista) => {
+				if (!ativo) return;
+				setParametrizacoes(lista);
+				if (lista.length > 0) aplicarParametrizacao(lista[0]);
+				else setParamSelecionadaId('');
+			})
+			.catch(() => {
+				if (ativo) setParametrizacoes([]);
+			});
+		return () => {
+			ativo = false;
+		};
+	}, [form.id_tipo_conta_fk]);
 
 	const carregarDados = () => {
 		// Selects independentes: o Tipo de Conta (rápido) não espera os clifors.
@@ -155,21 +184,9 @@ function LancamentoModal({ onFechar }) {
 		}
 	};
 
-	const handleNovoTipoChange = (e) => setNovoTipo({ ...novoTipo, [e.target.name]: e.target.value });
-
-	const handleSalvarTipo = async (e) => {
-		e.preventDefault();
-		try {
-			const criado = await createTipoConta(novoTipo);
-			const atualizado = await getTiposConta();
-			setTiposConta(atualizado);
-			setForm({ ...form, id_tipo_conta_fk: String(criado.id_tipo_conta) });
-			setPopup(false);
-			setNovoTipo({ descricao_conta: '', natureza_conta: '', observacao: '' });
-		} catch (err) {
-			mostrarToast(err.message || 'Erro ao criar tipo de conta', 'erro');
-		}
-	};
+	// Abre o seletor de clifors. A pré-seleção agora vem das parametrizações do
+	// Tipo de Conta (aplicadas ao escolher o tipo), não mais do último lote.
+	const abrirSeletor = () => setSeletorAberto(true);
 
 	const tipoSelecionado = tiposConta.find(
 		(t) => t.id_tipo_conta === parseInt(form.id_tipo_conta_fk)
@@ -207,6 +224,56 @@ function LancamentoModal({ onFechar }) {
 					</div>
 
 					<form onSubmit={handleSubmit} className="box">
+						<div className="lm-tipo-row">
+						<div>
+							<label>Tipo de Conta</label>
+							<select
+								name="id_tipo_conta_fk"
+								value={form.id_tipo_conta_fk}
+								onChange={handleChange}
+								required
+							>
+								<option value="">Selecione</option>
+								{tiposConta.map((t) => (
+									<option key={t.id_tipo_conta} value={t.id_tipo_conta}>
+										{t.descricao_conta}
+									</option>
+								))}
+							</select>
+						</div>
+						<div>
+							<label>Natureza</label>
+							<input value={naturezaExibida} readOnly title="Preenchido automaticamente ao selecionar o Tipo de Conta" />
+						</div>
+					</div>
+
+						{parametrizacoes.length > 1 && (
+							<div>
+								<label>Parametrização</label>
+								<select
+									value={paramSelecionadaId}
+									onChange={(e) => {
+										const id = e.target.value;
+										if (!id) {
+											setParamSelecionadaId('');
+											setClifforsSelecionados([]);
+											return;
+										}
+										const p = parametrizacoes.find((x) => String(x.id_parametrizacao) === id);
+										if (p) aplicarParametrizacao(p);
+									}}
+									title="Carrega os clientes/fornecedores salvos nesta parametrização"
+								>
+									<option value="">— Nenhuma —</option>
+									{parametrizacoes.map((p) => (
+										<option key={p.id_parametrizacao} value={p.id_parametrizacao}>
+											{p.nome} ({p.total})
+										</option>
+									))}
+								</select>
+							</div>
+						)}
+
 						<label>Cliente / Fornecedor</label>
 						<div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
 							{modoMassa ? (
@@ -240,36 +307,13 @@ function LancamentoModal({ onFechar }) {
 									type="button"
 									className="save"
 									style={{ flex: 'none', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6 }}
-									onClick={() => setSeletorAberto(true)}
+									onClick={abrirSeletor}
 								>
 									<i className="bi bi-people-fill" />
 									{modoMassa ? 'Editar seleção' : 'Vários'}
 								</button>
 							)}
 						</div>
-
-						<div className="lm-tipo-row">
-						<div>
-							<label>Tipo de Conta</label>
-							<select
-								name="id_tipo_conta_fk"
-								value={form.id_tipo_conta_fk}
-								onChange={handleChange}
-								required
-							>
-								<option value="">Selecione</option>
-								{tiposConta.map((t) => (
-									<option key={t.id_tipo_conta} value={t.id_tipo_conta}>
-										{t.descricao_conta}
-									</option>
-								))}
-							</select>
-						</div>
-						<div>
-							<label>Natureza</label>
-							<input value={naturezaExibida} readOnly title="Preenchido automaticamente ao selecionar o Tipo de Conta" />
-						</div>
-					</div>
 
 					<div className="lm-row3">
 						<div>
@@ -318,14 +362,7 @@ function LancamentoModal({ onFechar }) {
 
 					<hr style={{ margin: '20px 0 0', border: 'none', borderTop: '1px solid var(--border)' }} />
 					<div className="lm-footer">
-						<div>
-							{isAdmin() && (
-								<button type="button" className="novo-tipo" onClick={() => setPopup(true)}>
-									+ Novo Tipo
-								</button>
-							)}
-						</div>
-						<div className="lm-footer-right">
+						<div className="lm-footer-right" style={{ marginLeft: 'auto' }}>
 							<button type="button" className="cancel" onClick={onFechar}>
 								CANCELAR
 							</button>
@@ -385,52 +422,6 @@ function LancamentoModal({ onFechar }) {
 								CRIAR {clifforsSelecionados.length}
 							</button>
 						</div>
-					</div>
-				</div>
-			)}
-
-			{popup && (
-				<div className="popup-overlay" style={{ zIndex: 9990 }} onClick={() => setPopup(false)}>
-					<div className="popup-box" onClick={(e) => e.stopPropagation()}>
-						<h3>Novo Tipo de Conta</h3>
-						<form onSubmit={handleSalvarTipo} className="box">
-							<label>Nome da conta</label>
-							<input
-								name="descricao_conta"
-								value={novoTipo.descricao_conta}
-								onChange={handleNovoTipoChange}
-								required
-							/>
-
-							<label>Natureza</label>
-							<select
-								name="natureza_conta"
-								value={novoTipo.natureza_conta}
-								onChange={handleNovoTipoChange}
-								required
-							>
-								<option value="">Selecione</option>
-								<option value="Debito">Débito</option>
-								<option value="Credito">Crédito</option>
-							</select>
-
-							<label>Descrição</label>
-							<textarea
-								name="observacao"
-								value={novoTipo.observacao}
-								onChange={handleNovoTipoChange}
-								rows="2"
-							/>
-
-							<div className="buttons">
-								<button type="button" className="cancel" onClick={() => setPopup(false)}>
-									CANCELAR
-								</button>
-								<button type="submit" className="save">
-									SALVAR
-								</button>
-							</div>
-						</form>
 					</div>
 				</div>
 			)}

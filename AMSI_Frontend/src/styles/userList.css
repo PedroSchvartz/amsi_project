@@ -24,6 +24,15 @@
 /* ════════════════════════════════════════
    TABELA
    ════════════════════════════════════════ */
+/* Wrapper de scroll: altura limitada + rolagem interna, com a borda/raio que
+   antes ficavam na própria tabela (para o cabeçalho fixo não vazar no canto). */
+.user-list-table-wrapper {
+  max-height: 60vh;
+  overflow: auto;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+
 .user-list-container .table {
   width: 100%;
   border-collapse: collapse;
@@ -31,9 +40,6 @@
   font-size: 0.87rem;
   color: var(--text);
   background: var(--bg-card);
-  border-radius: 12px;
-  overflow: hidden;
-  border: 1px solid var(--border);
   /* Override Bootstrap CSS vars para compatibilidade com ambos os temas */
   --bs-table-bg: transparent;
   --bs-table-color: var(--text);
@@ -43,12 +49,7 @@
 /* Cabeçalho da tabela */
 .user-list-container .table thead tr {
   /* Removido !important — especificidade resolvida pelo escopo da classe pai */
-  background: var(--accent);
   border-bottom: 2px solid var(--border);
-}
-
-[data-theme="corporativo"] .user-list-container .table thead tr {
-  background: var(--bg-card);
 }
 
 .user-list-container .table th {
@@ -59,10 +60,16 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--primary);
+  /* Cabeçalho fixo ao rolar; fundo no th (não no tr) para o sticky funcionar. */
+  position: sticky;
+  top: 0;
+  background: var(--accent);
+  z-index: 1;
 }
 
 [data-theme="corporativo"] .user-list-container .table th {
   color: var(--text-muted);
+  background: var(--bg-card);
 }
 
 /* Linhas do corpo */

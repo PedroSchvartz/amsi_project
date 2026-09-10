@@ -104,6 +104,7 @@ function UserList() {
 				</div>
 			</div>
 
+			<div className="user-list-table-wrapper">
 			<table className="table">
 				<thead>
 					<tr>
@@ -202,6 +203,7 @@ function UserList() {
 					)}
 				</tbody>
 			</table>
+			</div>
 
 			{modalCadastro && (
 				<UserRegisterModal

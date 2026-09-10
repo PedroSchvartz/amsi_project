@@ -20,9 +20,9 @@ import * as auth from '../services/auth.js';
 vi.mock('../services/api', () => ({
 	getClifors: vi.fn(),
 	getTiposConta: vi.fn(),
+	getParametrizacoes: vi.fn(() => Promise.resolve([])),
 	createLancamento: vi.fn(() => Promise.resolve({})),
-	createLancamentoMassa: vi.fn(() => Promise.resolve({ total_criados: 2 })),
-	createTipoConta: vi.fn(() => Promise.resolve({ id_tipo_conta: 9 }))
+	createLancamentoMassa: vi.fn(() => Promise.resolve({ total_criados: 2 }))
 }));
 
 vi.mock('../services/auth', () => ({
