@@ -13,6 +13,7 @@ import { useState } from 'react';
 export function useCliforFiltros() {
 	const [tipoPesquisa, setTipoPesquisa] = useState('nome');
 	const [busca, setBusca] = useState('');
+	const [filtroTipo, setFiltroTipo] = useState('');
 	const [filtroStatus, setFiltroStatus] = useState('');
 	const [filtroInadimplente, setFiltroInadimplente] = useState('');
 	const [filtroBloqueado, setFiltroBloqueado] = useState('');
@@ -28,6 +29,7 @@ export function useCliforFiltros() {
 					if (!campo.toLowerCase().includes(busca.toLowerCase())) return false;
 				}
 			}
+			if (filtroTipo && c.tipo_clifor !== filtroTipo) return false;
 			if (filtroStatus === 'ativo' && !c.ativo) return false;
 			if (filtroStatus === 'inativo' && c.ativo) return false;
 			if (filtroInadimplente === 'sim' && !c.inadimplente) return false;
@@ -38,15 +40,15 @@ export function useCliforFiltros() {
 		});
 
 	return {
-		valores: { tipoPesquisa, busca, filtroStatus, filtroInadimplente, filtroBloqueado },
-		setters: { setTipoPesquisa, setBusca, setFiltroStatus, setFiltroInadimplente, setFiltroBloqueado },
+		valores: { tipoPesquisa, busca, filtroTipo, filtroStatus, filtroInadimplente, filtroBloqueado },
+		setters: { setTipoPesquisa, setBusca, setFiltroTipo, setFiltroStatus, setFiltroInadimplente, setFiltroBloqueado },
 		filtrar
 	};
 }
 
 function CliforFiltros({ valores, setters, estiloLinha1, estiloLinha2 }) {
-	const { tipoPesquisa, busca, filtroStatus, filtroInadimplente, filtroBloqueado } = valores;
-	const { setTipoPesquisa, setBusca, setFiltroStatus, setFiltroInadimplente, setFiltroBloqueado } = setters;
+	const { tipoPesquisa, busca, filtroTipo, filtroStatus, filtroInadimplente, filtroBloqueado } = valores;
+	const { setTipoPesquisa, setBusca, setFiltroTipo, setFiltroStatus, setFiltroInadimplente, setFiltroBloqueado } = setters;
 
 	return (
 		<>
@@ -78,6 +80,19 @@ function CliforFiltros({ valores, setters, estiloLinha1, estiloLinha2 }) {
 				/>
 			</div>
 			<div className="cl-filtros" style={estiloLinha2}>
+				<span className="cl-select-wrap">
+					<select
+						className="cl-select"
+						value={filtroTipo}
+						onChange={(e) => setFiltroTipo(e.target.value)}
+						title="Filtrar por tipo"
+					>
+						<option value="">Tipo: todos</option>
+						<option value="C">Cliente</option>
+						<option value="F">Fornecedor</option>
+						<option value="A">Ambos</option>
+					</select>
+				</span>
 				<span className="cl-select-wrap">
 					<select
 						className="cl-select"

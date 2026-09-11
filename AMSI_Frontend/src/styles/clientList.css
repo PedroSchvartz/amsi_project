@@ -288,3 +288,12 @@
 .cl-table tbody tr.cl-row-clicavel {
 	cursor: pointer;
 }
+
+/* ── Coluna Nome: limita a largura e quebra o texto, para nomes longos não
+   esticarem a tabela e empurrarem a coluna de Ações para fora da tela. ── */
+.cl-table td.cl-col-nome {
+	max-width: 12ch;
+	white-space: normal;
+	overflow-wrap: anywhere;
+	word-break: break-word;
+}

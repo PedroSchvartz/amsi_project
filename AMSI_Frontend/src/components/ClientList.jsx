@@ -174,7 +174,7 @@ function ClientList() {
 										</span>
 									</span>
 								</th>
-								<th>Ações</th>
+								{!consulta && <th>Ações</th>}
 							</tr>
 						</thead>
 						<tbody>
@@ -186,9 +186,13 @@ function ClientList() {
 									<tr
 										key={c.id_clifor}
 										className="cl-row-clicavel"
-										onClick={() => setCliforDetalhe(c)}
+										onClick={() =>
+											consulta
+												? setCliforDetalhe(c)
+												: navigate(`/cliente_fornecedor/${c.id_clifor}/editar`)
+										}
 									>
-										<td>{c.nome}</td>
+										<td className="cl-col-nome">{c.nome}</td>
 										<td>{TIPO_LABEL[c.tipo_clifor] ?? c.tipo_clifor}</td>
 										<td>
 											<span
@@ -229,26 +233,27 @@ function ClientList() {
 												<span className="cl-saldo" style={{ color: 'var(--text-muted)' }}>—</span>
 											)}
 										</td>
-										<td style={{ display: 'flex', gap: 6 }} onClick={(e) => e.stopPropagation()}>
-											{!consulta && (
+										{!consulta && (
+											<td style={{ display: 'flex', gap: 6 }} onClick={(e) => e.stopPropagation()}>
 												<button
 													className="cl-btn-editar"
-													onClick={() => navigate(`/cliente_fornecedor/${c.id_clifor}/editar`)}
+													onClick={() => setCliforDetalhe(c)}
+													title="Ver resumo"
 												>
-													<i className="bi bi-pencil"></i> Editar
+													<i className="bi bi-eye"></i>
 												</button>
-											)}
-											{admin && (
-												<button
-													className="cl-btn-editar"
-													style={{ background: '#ef4444', borderColor: '#ef4444' }}
-													onClick={() => setConfirmarDeletar(c)}
-													title="Excluir cliente/fornecedor"
-												>
-													<i className="bi bi-trash"></i>
-												</button>
-											)}
-										</td>
+												{admin && (
+													<button
+														className="cl-btn-editar"
+														style={{ background: '#ef4444', borderColor: '#ef4444' }}
+														onClick={() => setConfirmarDeletar(c)}
+														title="Excluir cliente/fornecedor"
+													>
+														<i className="bi bi-trash"></i>
+													</button>
+												)}
+											</td>
+										)}
 									</tr>
 								);
 							})}
