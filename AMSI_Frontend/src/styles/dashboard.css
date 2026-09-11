@@ -296,6 +296,24 @@
 	border-bottom: 2px solid var(--border);
 }
 
+/* Wrapper que dá teto de altura às tabelas Despesas/Receitas (agora completas,
+   sem slice) e as rola por dentro, com o cabeçalho fixo no topo. Escopo só no
+   wrapper: a tabela de Inadimplentes, fora dele, fica intocada. O fundo do sticky
+   vai no th (não no tr) pra a linha não vazar por baixo ao rolar. */
+.dash-table-scroll {
+	max-height: 360px;
+	overflow-y: auto;
+}
+.dash-table-scroll thead th {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	background: var(--accent);
+}
+[data-theme='corporativo'] .dash-table-scroll thead th {
+	background: var(--bg-card);
+}
+
 .dash-table th {
 	padding: 10px 14px;
 	text-align: left;

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getLancamentosResumo, getResumoPorTipo, getClifors } from '../services/api';
+import { isConsulta } from '../services/auth';
 import { getCache, setCache } from '../services/cache';
 import '../styles/dashboard.css';
 
@@ -210,6 +211,7 @@ function KpiCard({ infoKey, icon, iconClass, label, value, sub, valueClass, onDi
 						<p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text)', lineHeight: 1.7 }}>
 							{info.descricao}
 						</p>
+						{onDiscriminar && (
 						<div style={{ borderTop: '1px solid var(--border)', marginTop: 20, paddingTop: 16, textAlign: 'right' }}>
 							<button
 								onClick={() => { setPopup(false); onDiscriminar(); }}
@@ -230,6 +232,7 @@ function KpiCard({ infoKey, icon, iconClass, label, value, sub, valueClass, onDi
 								<i className="bi bi-list-ul" /> Ver os lançamentos deste indicador
 							</button>
 						</div>
+						)}
 					</div>
 				</div>
 			)}
@@ -266,17 +269,15 @@ function Dashboard() {
 				getResumoPorTipo({ ...params, natureza: 'Credito' }),
 				getClifors({ inadimplente: true })
 			]);
-			const despesasTop = despesas.slice(0, 5);
-			const receitasTop = receitas.slice(0, 5);
 			setResumo(res);
-			setPorTipoDespesa(despesasTop);
-			setPorTipoReceita(receitasTop);
+			setPorTipoDespesa(despesas);
+			setPorTipoReceita(receitas);
 			setInadimplentes(clifors);
 			setPopulado(true);
 			setCache('dashboard', {
 				resumo: res,
-				porTipoDespesa: despesasTop,
-				porTipoReceita: receitasTop,
+				porTipoDespesa: despesas,
+				porTipoReceita: receitas,
 				inadimplentes: clifors,
 				...meta
 			});
@@ -432,7 +433,7 @@ function Dashboard() {
 								label="Total Receitas"
 								value={formatarValor(resumo?.total_recebido)}
 								valueClass="dash-kpi-card__value--positivo"
-								onDiscriminar={() => discriminar('receita_recebida')}
+								onDiscriminar={isConsulta() ? undefined : () => discriminar('receita_recebida')}
 							/>
 							<KpiCard
 								infoKey="despesa_paga"
@@ -441,7 +442,7 @@ function Dashboard() {
 								label="Total Despesas"
 								value={formatarValor(resumo?.total_pago)}
 								valueClass="dash-kpi-card__value--negativo"
-								onDiscriminar={() => discriminar('despesa_paga')}
+								onDiscriminar={isConsulta() ? undefined : () => discriminar('despesa_paga')}
 							/>
 							<KpiCard
 								infoKey="saldo_periodo"
@@ -454,7 +455,7 @@ function Dashboard() {
 										? 'dash-kpi-card__value--positivo'
 										: 'dash-kpi-card__value--negativo'
 								}
-								onDiscriminar={() => discriminar('saldo_periodo')}
+								onDiscriminar={isConsulta() ? undefined : () => discriminar('saldo_periodo')}
 							/>
 							<KpiCard
 								infoKey="reembolsos"
@@ -462,7 +463,7 @@ function Dashboard() {
 								iconClass="dash-kpi-card__icon--reembolso"
 								label="Estornos / Reembolsos"
 								value={formatarValor(resumo?.total_reembolsado)}
-								onDiscriminar={() => discriminar('reembolsos')}
+								onDiscriminar={isConsulta() ? undefined : () => discriminar('reembolsos')}
 							/>
 						</div>
 
@@ -472,7 +473,7 @@ function Dashboard() {
 								<div className="dash-section__header">
 									<h2 className="dash-section__title">
 										<i className="bi bi-arrow-up-circle me-2" style={{ color: '#b91c1c' }} />
-										Top Despesas
+										Despesas
 									</h2>
 									{porTipoDespesa.length > 0 && (
 										<span className="dash-section__badge">{porTipoDespesa.length}</span>
@@ -484,6 +485,7 @@ function Dashboard() {
 										Nenhuma despesa no período.
 									</p>
 								) : (
+									<div className="dash-table-scroll">
 									<table className="dash-table">
 										<thead>
 											<tr>
@@ -504,6 +506,7 @@ function Dashboard() {
 											))}
 										</tbody>
 									</table>
+									</div>
 								)}
 							</div>
 
@@ -511,7 +514,7 @@ function Dashboard() {
 								<div className="dash-section__header">
 									<h2 className="dash-section__title">
 										<i className="bi bi-arrow-down-circle me-2" style={{ color: '#16a34a' }} />
-										Top Receitas
+										Receitas
 									</h2>
 									{porTipoReceita.length > 0 && (
 										<span className="dash-section__badge">{porTipoReceita.length}</span>
@@ -523,6 +526,7 @@ function Dashboard() {
 										Nenhuma receita no período.
 									</p>
 								) : (
+									<div className="dash-table-scroll">
 									<table className="dash-table">
 										<thead>
 											<tr>
@@ -543,12 +547,15 @@ function Dashboard() {
 											))}
 										</tbody>
 									</table>
+									</div>
 								)}
 							</div>
 						</div>
 					</section>
 
-					{/* ── Posição atual (fotografia de hoje; independe do período) ── */}
+					{/* ── Posição atual (fotografia de hoje; independe do período) —
+					     oculta para o perfil Consulta (só vê o bloco "No período"). ── */}
+					{!isConsulta() && (
 					<section className="dash-bloco">
 						<div className="dash-bloco__head">
 							<h2 className="dash-bloco__titulo">Posição atual</h2>
@@ -658,6 +665,7 @@ function Dashboard() {
 							)}
 						</div>
 					</section>
+					)}
 				</>
 			)}
 		</div>
