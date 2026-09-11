@@ -122,6 +122,8 @@ test.describe('Lançamentos', () => {
 	test('lançamento criado aparece na lista da UI', async ({ pageAdmin }) => {
 		await criarLancamento(pageAdmin);
 		await pageAdmin.goto('/lancamentos');
+		// A lista não auto-carrega (ticket 3.13): o usuário dispara a busca no "Pesquisar".
+		await pageAdmin.getByRole('button', { name: 'Pesquisar' }).click();
 		// Valor formatado pt-BR: 753,19
 		await expect(pageAdmin.getByText('753,19').first()).toBeVisible({ timeout: 8000 });
 	});

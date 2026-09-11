@@ -121,10 +121,17 @@ test.describe('Lançamento em massa (6.3)', () => {
 
 	test('chip "Em Lote" abre o modal do lote com os lançamentos', async ({ pageAdmin }) => {
 		await pageAdmin.goto('/lancamentos');
+		// A lista não auto-carrega (ticket 3.13): o usuário dispara a busca no "Pesquisar".
+		await pageAdmin.getByRole('button', { name: 'Pesquisar' }).click();
 		const linha = pageAdmin.locator('tr', { hasText: NOME_A });
 		await expect(linha).toBeVisible({ timeout: 8000 });
 
-		await linha.getByTitle('Ver lançamentos deste lote').click();
+		// O chip de origem "Em Lote" vive só no modal de detalhe, não na linha da lista.
+		// Abrimos o detalhe (Editar, admin) e clicamos no chip de lá.
+		await linha.getByTitle('Editar lançamento (admin)').click();
+		const modalDetalhe = pageAdmin.locator('.ll-modal--duplo');
+		await expect(modalDetalhe).toBeVisible();
+		await modalDetalhe.getByTitle('Ver lançamentos deste lote').click();
 
 		const modalLote = pageAdmin.locator('.popup-overlay');
 		await expect(modalLote.getByRole('heading', { name: /Lançamentos do Lote/ })).toBeVisible();
@@ -134,6 +141,8 @@ test.describe('Lançamento em massa (6.3)', () => {
 
 	test('Efetivar já vem com a Data de Pagamento preenchida com hoje', async ({ pageAdmin }) => {
 		await pageAdmin.goto('/lancamentos');
+		// A lista não auto-carrega (ticket 3.13): o usuário dispara a busca no "Pesquisar".
+		await pageAdmin.getByRole('button', { name: 'Pesquisar' }).click();
 		const linha = pageAdmin.locator('tr', { hasText: NOME_A });
 		await expect(linha).toBeVisible({ timeout: 8000 });
 
@@ -146,6 +155,8 @@ test.describe('Lançamento em massa (6.3)', () => {
 
 	test('regressão z-index: lote aberto de dentro do Efetivar fica por cima', async ({ pageAdmin }) => {
 		await pageAdmin.goto('/lancamentos');
+		// A lista não auto-carrega (ticket 3.13): o usuário dispara a busca no "Pesquisar".
+		await pageAdmin.getByRole('button', { name: 'Pesquisar' }).click();
 		const linha = pageAdmin.locator('tr', { hasText: NOME_A });
 		await expect(linha).toBeVisible({ timeout: 8000 });
 

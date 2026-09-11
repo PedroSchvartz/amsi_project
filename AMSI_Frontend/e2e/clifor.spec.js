@@ -94,6 +94,8 @@ test.describe('Cliente/Fornecedor', () => {
 
 		// Redireciona para a lista e o registro aparece
 		await pageOperador.waitForURL('**/cliente_fornecedor', { timeout: 8000 });
+		// A lista não auto-carrega (ticket 3.13): o usuário dispara a busca no "Pesquisar".
+		await pageOperador.getByRole('button', { name: 'Pesquisar' }).click();
 		await expect(pageOperador.getByText(NOME_CLIFOR)).toBeVisible({ timeout: 8000 });
 	});
 
@@ -117,6 +119,8 @@ test.describe('Cliente/Fornecedor', () => {
 		expect(res.ok()).toBeTruthy();
 
 		await pageAdmin.goto('/cliente_fornecedor');
+		// A lista não auto-carrega (ticket 3.13): o usuário dispara a busca no "Pesquisar".
+		await pageAdmin.getByRole('button', { name: 'Pesquisar' }).click();
 		const linha = pageAdmin.locator('tr').filter({ hasText: NOME_CLIFOR });
 		await linha.locator('button:has(i.bi-trash)').click();
 
