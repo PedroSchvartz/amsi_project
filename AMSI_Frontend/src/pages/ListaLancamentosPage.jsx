@@ -30,14 +30,6 @@ import {
 } from '../services/api';
 import { isAdmin, isConsulta, hasPerfilMinimo } from '../services/auth';
 
-function rassurarCpfCnpj(doc) {
-	if (!doc) return '—';
-	const d = doc.replace(/\D/g, '');
-	if (d.length === 11) return `***.***.${d.slice(6, 9)}-**`;
-	if (d.length === 14) return `**.${d.slice(2, 5)}.${d.slice(5, 8)}/****.${d.slice(12)}`;
-	return doc;
-}
-
 // Data de hoje no fuso local (YYYY-MM-DD). Não usar toISOString aqui: em UTC-3 à noite
 // ele já retorna o dia seguinte, o que pré-preencheria a data de pagamento errada.
 function hojeLocal() {
@@ -129,7 +121,6 @@ const EDITAR_INICIAL = {
 function ListaLancamentosPage() {
 	const [searchParams] = useSearchParams();
 	const [modalAberto, setModalAberto] = useState(false);
-	const [cpfVisivelLanc, setCpfVisivelLanc] = useState({});
 	const [loteModal, setLoteModal] = useState(null);
 	const [loteRefresh, setLoteRefresh] = useState(0); // bump → refaz o fetch do LoteLancamentosModal
 	// Empilhamento: o modal aberto por último fica por cima. `loteAcima` true quando o
@@ -1138,38 +1129,39 @@ function ListaLancamentosPage() {
 				<div className="ll-card">
 					<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
 						<h4 style={{ margin: 0 }}>TRANSAÇÕES ({lancamentos.length})</h4>
-						<button
-							type="button"
-							onClick={handleExportar}
-							disabled={lancamentos.length === 0}
-							title={
-								lancamentos.length === 0
-									? 'Pesquise lançamentos para exportar'
-									: 'Exportar o resultado em .xlsx'
-							}
-							style={{
-								padding: '7px 16px',
-								borderRadius: 8,
-								border: 'none',
-								background: lancamentos.length === 0 ? 'var(--border)' : 'var(--primary)',
-								color: '#fff',
-								fontWeight: 600,
-								fontSize: '0.82rem',
-								cursor: lancamentos.length === 0 ? 'not-allowed' : 'pointer',
-								display: 'flex',
-								alignItems: 'center',
-								gap: 6
-							}}
-						>
-							<i className="bi bi-file-earmark-spreadsheet" />
-							Exportar
-						</button>
+						{hasPerfilMinimo('Operador') && (
+							<button
+								type="button"
+								onClick={handleExportar}
+								disabled={lancamentos.length === 0}
+								title={
+									lancamentos.length === 0
+										? 'Pesquise lançamentos para exportar'
+										: 'Exportar o resultado em .xlsx'
+								}
+								style={{
+									padding: '7px 16px',
+									borderRadius: 8,
+									border: 'none',
+									background: lancamentos.length === 0 ? 'var(--border)' : 'var(--primary)',
+									color: '#fff',
+									fontWeight: 600,
+									fontSize: '0.82rem',
+									cursor: lancamentos.length === 0 ? 'not-allowed' : 'pointer',
+									display: 'flex',
+									alignItems: 'center',
+									gap: 6
+								}}
+							>
+								<i className="bi bi-file-earmark-spreadsheet" />
+								Exportar
+							</button>
+						)}
 					</div>
 					<div className="ll-table-wrapper" style={{ marginTop: 12 }}>
 						<table className="ll-table">
 							<thead>
 								<tr>
-									<th data-tooltip="CPF ou CNPJ do cliente / fornecedor">CPF/CNPJ</th>
 									<th data-tooltip="Nome do cliente ou razão social do fornecedor">
 										Nome / Razão Social
 									</th>
@@ -1184,13 +1176,15 @@ function ListaLancamentosPage() {
 									<th data-tooltip="Situação do lançamento: Pago, Em análise, Em aberto ou Vencido">
 										Status
 									</th>
-									<th data-tooltip="Ações disponíveis: editar, comprovante, efetivar">Ações</th>
+									{!isConsulta() && (
+										<th data-tooltip="Ações disponíveis: editar, comprovante, efetivar">Ações</th>
+									)}
 								</tr>
 							</thead>
 							<tbody>
 								{lancamentos.length === 0 ? (
 									<tr>
-										<td colSpan="10" className="ll-empty">
+										<td colSpan={isConsulta() ? 8 : 9} className="ll-empty">
 											{populado
 												? 'Nenhum lançamento encontrado'
 												: 'Clique em "Pesquisar" para buscar os lançamentos.'}
@@ -1199,30 +1193,6 @@ function ListaLancamentosPage() {
 								) : (
 									lancamentos.map((l) => (
 										<tr key={l.id_lancamento}>
-											<td>
-												{isConsulta() ? (
-													<span title="Dado protegido">{rassurarCpfCnpj(l.cpf_cnpj_clifor)}</span>
-												) : (
-													<span
-														title={
-															cpfVisivelLanc[l.id_lancamento]
-																? 'Clique para ocultar'
-																: 'Clique para revelar'
-														}
-														onClick={() =>
-															setCpfVisivelLanc((prev) => ({
-																...prev,
-																[l.id_lancamento]: !prev[l.id_lancamento]
-															}))
-														}
-														style={{ cursor: 'pointer' }}
-													>
-														{cpfVisivelLanc[l.id_lancamento]
-															? l.cpf_cnpj_clifor || '—'
-															: rassurarCpfCnpj(l.cpf_cnpj_clifor)}
-													</span>
-												)}
-											</td>
 											<td>{nomeClifor(l)}</td>
 											<td>{nomeTipo(l)}</td>
 											<td>{l.natureza_lancamento}</td>
@@ -1231,6 +1201,7 @@ function ListaLancamentosPage() {
 											<td>{formatarValor(l.valor)}</td>
 											<td>{formatarTotal(l)}</td>
 											<td>{statusLabel(l)}</td>
+											{!isConsulta() && (
 											<td>
 												<div className="ll-acoes">
 													{admin && (
@@ -1282,6 +1253,7 @@ function ListaLancamentosPage() {
 													)}
 												</div>
 											</td>
+											)}
 										</tr>
 									))
 								)}
