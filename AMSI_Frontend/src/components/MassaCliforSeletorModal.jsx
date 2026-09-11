@@ -38,6 +38,10 @@ function MassaCliforSeletorModal({ selecionados = [], onConfirmar, onFechar }) {
 	}, []);
 
 	const cliforsFiltrados = filtrar(clifors);
+	// Só clifor ativo entra em lançamento em massa. Os inativos aparecem ao final,
+	// esmaecidos e sem checkbox — visíveis para referência, mas não selecionáveis.
+	const ativos = cliforsFiltrados.filter((c) => c.ativo);
+	const inativos = cliforsFiltrados.filter((c) => !c.ativo);
 
 	const toggle = (id) =>
 		setMarcados((prev) => {
@@ -50,18 +54,18 @@ function MassaCliforSeletorModal({ selecionados = [], onConfirmar, onFechar }) {
 	const selecionarTodos = () =>
 		setMarcados((prev) => {
 			const proximo = new Set(prev);
-			cliforsFiltrados.forEach((c) => proximo.add(c.id_clifor));
+			ativos.forEach((c) => proximo.add(c.id_clifor));
 			return proximo;
 		});
 
 	const limpar = () =>
 		setMarcados((prev) => {
 			const proximo = new Set(prev);
-			cliforsFiltrados.forEach((c) => proximo.delete(c.id_clifor));
+			ativos.forEach((c) => proximo.delete(c.id_clifor));
 			return proximo;
 		});
 
-	const selecionadosNoFiltro = cliforsFiltrados.filter((c) => marcados.has(c.id_clifor)).length;
+	const selecionadosNoFiltro = ativos.filter((c) => marcados.has(c.id_clifor)).length;
 
 	return createPortal(
 		<div
@@ -123,7 +127,7 @@ function MassaCliforSeletorModal({ selecionados = [], onConfirmar, onFechar }) {
 									</tr>
 								</thead>
 								<tbody>
-									{cliforsFiltrados.map((c) => (
+									{ativos.map((c) => (
 										<tr
 											key={c.id_clifor}
 											className="cl-row-clicavel"
@@ -139,6 +143,32 @@ function MassaCliforSeletorModal({ selecionados = [], onConfirmar, onFechar }) {
 											</td>
 											<td>{c.nome}</td>
 											<td>{c.lote || '—'}</td>
+										</tr>
+									))}
+									{inativos.length > 0 && (
+										<tr>
+											<td
+												colSpan={3}
+												style={{
+													color: 'var(--text-muted)',
+													fontSize: '0.72rem',
+													textTransform: 'uppercase',
+													letterSpacing: '0.04em',
+													fontWeight: 600,
+													background: 'var(--input-bg)'
+												}}
+											>
+												Inativos — não podem receber lançamento em massa
+											</td>
+										</tr>
+									)}
+									{inativos.map((c) => (
+										<tr key={c.id_clifor} style={{ opacity: 0.55 }}>
+											<td style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+												<i className="bi bi-slash-circle" title="Inativo" />
+											</td>
+											<td style={{ color: 'var(--text-muted)' }}>{c.nome}</td>
+											<td style={{ color: 'var(--text-muted)' }}>{c.lote || '—'}</td>
 										</tr>
 									))}
 								</tbody>
@@ -165,7 +195,7 @@ function MassaCliforSeletorModal({ selecionados = [], onConfirmar, onFechar }) {
 						Limpar
 					</button>
 					<span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-						{selecionadosNoFiltro} de {cliforsFiltrados.length} selecionados
+						{selecionadosNoFiltro} de {ativos.length} selecionados
 					</span>
 					<div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
 						<button type="button" className="cancel" onClick={onFechar}>

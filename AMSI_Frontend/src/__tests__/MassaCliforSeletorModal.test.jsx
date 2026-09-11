@@ -25,10 +25,13 @@ vi.mock('../components/ToastStack.jsx', () => ({
 	useToast: () => ({ mostrarToast: vi.fn() })
 }));
 
+// 3 ativos (selecionáveis) + 1 inativo (Diego). O inativo aparece na lista mas
+// não pode ser marcado nem entra na contagem — coberto no describe "inativos".
 const CLIFORS = [
 	{ id_clifor: 1, nome: 'Ana Cliente', tipo_clifor: 'C', cpf_cnpj: '11111111111', ativo: true, inadimplente: false },
 	{ id_clifor: 2, nome: 'Bruno Fornecedor', tipo_clifor: 'F', cpf_cnpj: '22222222222', ativo: true, inadimplente: false },
-	{ id_clifor: 3, nome: 'Carla Cliente', tipo_clifor: 'C', cpf_cnpj: '33333333333', ativo: false, inadimplente: true }
+	{ id_clifor: 3, nome: 'Carla Cliente', tipo_clifor: 'C', cpf_cnpj: '33333333333', ativo: true, inadimplente: false },
+	{ id_clifor: 4, nome: 'Diego Inativo', tipo_clifor: 'F', cpf_cnpj: '44444444444', ativo: false, inadimplente: false }
 ];
 
 beforeEach(() => {
@@ -132,6 +135,37 @@ describe('MassaCliforSeletorModal — filtro + ações em massa', () => {
 			target: { value: '' }
 		});
 		expect(screen.getByText('2 de 3 selecionados')).toBeInTheDocument();
+	});
+});
+
+describe('MassaCliforSeletorModal — inativos (não selecionáveis)', () => {
+	it('lista o inativo sem checkbox e fora da contagem (só os 3 ativos contam)', async () => {
+		render(<MassaCliforSeletorModal onConfirmar={() => {}} onFechar={() => {}} />);
+		await screen.findByText('Ana Cliente');
+
+		expect(screen.getByText('Diego Inativo')).toBeInTheDocument();
+		expect(within(linhaDe('Diego Inativo')).queryByRole('checkbox')).toBeNull();
+		expect(screen.getByText('0 de 3 selecionados')).toBeInTheDocument();
+	});
+
+	it('clicar na linha do inativo não marca nada', async () => {
+		render(<MassaCliforSeletorModal onConfirmar={() => {}} onFechar={() => {}} />);
+		await screen.findByText('Ana Cliente');
+
+		fireEvent.click(linhaDe('Diego Inativo'));
+		expect(screen.getByText('0 de 3 selecionados')).toBeInTheDocument();
+	});
+
+	it('"Selecionar todos" ignora o inativo — confirma só os ids ativos', async () => {
+		const onConfirmar = vi.fn();
+		render(<MassaCliforSeletorModal onConfirmar={onConfirmar} onFechar={() => {}} />);
+		await screen.findByText('Ana Cliente');
+
+		fireEvent.click(screen.getByRole('button', { name: 'Selecionar todos' }));
+		expect(screen.getByText('3 de 3 selecionados')).toBeInTheDocument();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Confirmar seleção' }));
+		expect(onConfirmar.mock.calls[0][0].sort((a, b) => a - b)).toEqual([1, 2, 3]);
 	});
 });
 

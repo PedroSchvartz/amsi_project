@@ -1412,7 +1412,7 @@ def test_fechamento_sem_multa_e_juros_ficam_nulos(client, headers_admin, usuario
 # LANÇAMENTO EM MASSA (6.3)
 # ================================================
 
-def _criar_clifor_massa(client, headers_admin, usuario_base, cpf, nome):
+def _criar_clifor_massa(client, headers_admin, usuario_base, cpf, nome, ativo=True):
     """Cria um clifor extra para os testes de massa (cleanup é responsabilidade do teste)."""
     r = client.post("/cliente_fornecedor/", json={
         "id_usuario_fk": usuario_base["id_usuario"],
@@ -1422,7 +1422,7 @@ def _criar_clifor_massa(client, headers_admin, usuario_base, cpf, nome):
         "nome": nome,
         "datanascimento": "1990-01-01",
         "tipo_clifor": "A",
-        "ativo": True,
+        "ativo": ativo,
         "inadimplente": False
     }, headers=headers_admin)
     assert r.status_code == 200, f"Falha ao criar clifor extra: {r.text}"
@@ -1544,6 +1544,46 @@ def test_massa_operador_200(client, headers_admin, headers_operador, usuario_bas
         for id_l in data.get("ids", []):
             client.delete(f"/lancamento/{id_l}", headers=headers_admin)
         client.delete(f"/cliente_fornecedor/{extra['id_clifor']}", headers=headers_admin)
+
+
+def test_massa_400_clifor_inativo(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base):
+    """Clifor inativo na lista → 400, id inativo citado no detail, e nada criado (rede de segurança do /massa)."""
+    inativo = _criar_clifor_massa(client, headers_admin, usuario_base, "555.555.555-55", "CliFor Massa Inativo", ativo=False)
+    antes = len(client.get("/lancamento/", headers=headers_admin).json())
+    try:
+        r = client.post("/lancamento/massa", json={
+            "id_usuario_fk_lancamento": usuario_base["id_usuario"],
+            "ids_clifor": [clifor_base["id_clifor"], inativo["id_clifor"]],
+            "id_tipo_conta_fk": tipo_lancamento_base["id_tipo_conta"],
+            "valor": "100.00",
+            "data_vencimento": "2099-12-31",
+            "natureza_lancamento": "Debito"
+        }, headers=headers_admin)
+        assert r.status_code == 400, r.text
+        assert str(inativo["id_clifor"]) in r.json()["detail"]
+        depois = len(client.get("/lancamento/", headers=headers_admin).json())
+        assert depois == antes, "Nenhum lançamento deveria ter sido criado quando há clifor inativo no lote"
+    finally:
+        client.delete(f"/cliente_fornecedor/{inativo['id_clifor']}", headers=headers_admin)
+
+
+def test_single_permite_clifor_inativo(client, headers_admin, usuario_base, tipo_lancamento_base):
+    """POST /lancamento/ avulso continua liberado para clifor inativo — só o /massa restringe."""
+    inativo = _criar_clifor_massa(client, headers_admin, usuario_base, "666.666.666-66", "CliFor Single Inativo", ativo=False)
+    r = client.post("/lancamento/", json={
+        "id_usuario_fk_lancamento": usuario_base["id_usuario"],
+        "id_clifor_relacionado_fk": inativo["id_clifor"],
+        "id_tipo_conta_fk": tipo_lancamento_base["id_tipo_conta"],
+        "valor": "100.00",
+        "data_vencimento": "2099-12-31",
+        "natureza_lancamento": "Debito"
+    }, headers=headers_admin)
+    try:
+        assert r.status_code == 200, r.text
+    finally:
+        if r.is_success:
+            client.delete(f"/lancamento/{r.json()['id_lancamento']}", headers=headers_admin)
+        client.delete(f"/cliente_fornecedor/{inativo['id_clifor']}", headers=headers_admin)
 
 
 def test_single_continua_lote_nulo(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base):

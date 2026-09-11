@@ -840,6 +840,19 @@ def criar_lancamentos_massa(
     if faltantes:
         raise HTTPException(status_code=404, detail=f"Cliente/Fornecedor não encontrado: {faltantes}")
 
+    # Rede de segurança: o front já não deixa selecionar inativo, mas barra aqui também.
+    # Lançamento manual avulso (POST /) continua liberado para inativo — só o massa restringe.
+    inativos = [
+        r.id_clifor for r in
+        db.query(ClienteFornecedor.id_clifor)
+        .filter(ClienteFornecedor.id_clifor.in_(ids), ClienteFornecedor.ativo.is_(False)).all()
+    ]
+    if inativos:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cliente/Fornecedor inativo não pode receber lançamento em massa: {inativos}",
+        )
+
     lote = int(datetime.utcnow().timestamp() * 1000)   # ms, igual ao exp_ms do token
 
     novos = []
