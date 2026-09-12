@@ -26,6 +26,15 @@ esses códigos.
 - Comparativo mês a mês
 
 ### 2.4 Perfil de acesso granular
+
+> ✅ **Primeira fatia entregue (reunião 2026-09-09):** restrições de UI do perfil
+> Consulta — na tela de lançamentos não vê a coluna "Ações" nem o botão "Exportar"
+> (só Operador+) (commit `1074d0a`); no dashboard some o bloco "Posição atual" (só vê
+> "No período") e os KPIs não oferecem "discriminar" (commit `9c87041`); na lista de
+> clifor não vê a coluna "Ações" (commit `654198f`). É restrição **de UI apenas** — o
+> escopo de dados no backend continua aberto (ver item 7 da mesma reunião, na seção 10
+> de [`dividas-tecnicas.md`](./dividas-tecnicas.md)).
+
 - Atualmente RBAC com 3 níveis fixos (Admin / Operador / Consulta).
 - Evolução: permissões por recurso (ex: Operador pode ver lançamentos mas não exportar).
 
@@ -215,6 +224,11 @@ Como parte da expansão multi-associação, o sistema passará a gerar boletos b
 > `LancamentoModal`, com `POST /lancamento/massa` e campo `lote`) já foi **entregue**
 > (commit `4435aff`). Esta seção descreve a versão completa, que evolui por cima do
 > mesmo endpoint.
+>
+> ✅ **Reunião 2026-09-09:** clifor **inativo** não pode receber lançamento em massa —
+> `POST /lancamento/massa` retorna 400 citando os ids inativos e não cria nada; o
+> lançamento avulso (`POST /`) segue liberado para inativo; no modal-seletor os
+> inativos aparecem esmaecidos, sem checkbox e fora da contagem (commit `9e4d9fa`).
 
 Funcionalidade que permite criar múltiplos lançamentos de uma só vez a partir de um template configurável — útil para cobranças pontuais que se aplicam a um conjunto de associados.
 
@@ -344,3 +358,72 @@ Permitir que associados paguem seus lançamentos via PIX gerado pelo próprio si
 - Integração com gateway que suporte PIX (Asaas, Pagar.me, Gerencianet/Efí).
 - Webhook `POST /pagamento/pix/callback` recebe confirmação e aciona a quitação.
 - Complementa a geração de boletos (5.2) — o associado escolhe a forma de pagamento preferida.
+
+---
+
+## Reunião 2026-09-09 — demandas de produto (pendentes)
+
+> Itens **novos** levantados na reunião de 2026-09-09 que entregam capacidade nova ao
+> usuário. Os refinamentos de UI/RBAC e validações já entregues na mesma reunião estão
+> na seção [Reunião 2026-09-09](./dividas-tecnicas.md) de `dividas-tecnicas.md`. O item
+> "API de envio de email" da lista original foi **resolvido** (revisão de IPs do Brevo
+> desligada — sem código; ver memória `projeto_brevo_ip_dinamico`).
+
+### R0909.4 Login por CPF **ou** Email
+
+Hoje o identificador do usuário é o email (o campo `login` foi removido). A demanda
+reintroduz um identificador flexível: no front, o rótulo "Email" vira **"CPF ou
+Email"**; no banco, volta um campo `login` que aceita qualquer valor (CPF ou email).
+
+- ⚠️ **Estrutural — mexe no banco e na autenticação.** Segue `tabelas_do_banco.txt` →
+  model → schema → route (auth). Merece sessão dedicada; avaliar impacto no bootstrap,
+  no reset de senha e nos usuários existentes (migração do email atual para `login`).
+- Relaciona-se com R0909.13 (criar usuário a partir do clifor com login por CPF).
+
+### R0909.7 Perfil Consulta só visualiza os próprios dados
+
+Na tela de lançamentos, o perfil Consulta deve ver **apenas os lançamentos do próprio
+clifor vinculado**, não a base inteira.
+
+- É a contraparte de dados do que hoje só é escondido na UI (2.4). Precisa de **escopo
+  no backend** — hoje `GET /lancamento/` não filtra por perfil (ver item de segurança
+  na seção Reunião 2026-09-09 de [`dividas-tecnicas.md`](./dividas-tecnicas.md)).
+- Sobrepõe-se ao [7.1 Portal do Associado](#71-visualização-do-próprio-clifor) — vale
+  desenhar os dois juntos (o `GET /minha-conta` proposto lá resolve este escopo).
+
+### R0909.12 Exibir (e editar) os tipos de conta em massa do clifor no cadastro/edição
+
+Na tela de cadastro/edição de clifor, mostrar **quais tipos de conta em massa** trazem
+aquele clifor — permitindo também editar essa associação a partir da tela do clifor.
+
+- Relaciona-se com a Parametrização de clifors já existente (seleção nomeada de
+  clifors+valor por Tipo de Conta) — aqui é a visão inversa (a partir do clifor).
+
+### R0909.13 Incluir usuários a partir do clifor (login por CPF)
+
+Permitir criar usuários diretamente a partir do clifor, com login por CPF, **somente
+entre os clifors selecionados** (recorte definido pelo Marcio).
+
+- Depende de R0909.4 (login por CPF) e de R0909.16 (clifor 1–N usuários).
+
+### R0909.14 Novo booleano "associado" no clifor
+
+Adicionar a flag **"associado"** ao clifor (tela e tabela `cliente_fornecedor`).
+
+- Segue `tabelas_do_banco.txt` → model → schema → route.
+- Par com R0909.15 (o "associado" sai do usuário e passa a viver no clifor).
+
+### R0909.15 "Cargo" do usuário perde a opção "associado"
+
+Na tela de usuário, o campo **"cargo"** deixa de ter "associado" — esse conceito migra
+para o clifor (R0909.14).
+
+### R0909.16 Relacionamento clifor ↔ usuários passa de 1–1 para 1–N
+
+O vínculo entre clifor e usuários (por email e id) deixa de ser **1–1** e passa a ser
+**1–N** (um clifor pode ter vários usuários).
+
+- ⚠️ **Estrutural — mudança de cardinalidade no modelo.** Alinhar com o plano
+  [5.1 Plataforma multi-associação](#51-plataforma-multi-associação) /
+  [`multi-associacao-jwt-fundacao.md`](./multi-associacao-jwt-fundacao.md) antes de
+  implementar, para não migrar o schema duas vezes.

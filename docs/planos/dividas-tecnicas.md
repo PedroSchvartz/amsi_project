@@ -170,6 +170,33 @@ mudou quando o lazy-load + Pesquisar subiu. Ao puxar o 3.11, adotar **este** con
 
 ---
 
+## Reunião 2026-09-09 — refinamentos de UI/RBAC (entregues)
+
+> ✅ Evoluções pequenas do que já roda, entregues em 2026-09-09 (não commitadas ao
+> ar ainda — deploy é sob demanda). As **features novas** da mesma reunião estão na
+> seção [Reunião 2026-09-09](./demandas-novas.md) de `demandas-novas.md`; o gap de
+> **escopo de dados do perfil Consulta** ficou aberto e está na seção 10 abaixo.
+
+- **Scroll da lista de clientes** — coluna "Nome" ganha teto de largura com quebra,
+  para nomes longos não empurrarem a coluna "Ações" para fora da tela (commit
+  `654198f`). Complementa o scroll interno das tabelas do commit `e639982`.
+- **Remoção da coluna CPF/CNPJ na tela de lançamentos** — coluna e máscara removidas
+  (commit `1074d0a`).
+- **Dashboard — listas completas** — "Top Despesas"/"Top Receitas" deixam de cortar em
+  5, viram "Despesas"/"Receitas" com scroll interno e cabeçalho fixo (commit `9c87041`).
+- **Clifor — botão editar só ícone** — o botão da linha perde o texto "Editar" e fica
+  só ícone + tooltip; clique na linha abre a edição (Operador+) ou o resumo (Consulta)
+  (commit `654198f`).
+- **Clifor — filtro por tipo** — novo select Cliente/Fornecedor/Ambos na linha de
+  filtros da lista (commit `654198f`).
+- **Restrições de UI do perfil Consulta** — ver [2.4 Perfil de acesso granular](./demandas-novas.md#24-perfil-de-acesso-granular)
+  (entregue como UI apenas; escopo de dados segue aberto — seção 10 abaixo).
+- **Testes e2e alinhados** — specs de clifor/lançamentos/massa passam a clicar
+  "Pesquisar" antes de ler a lista (telas não auto-carregam, ticket 3.13) e o chip
+  "Ver lançamentos deste lote" é aberto pelo modal de detalhe (commit `9d72da4`).
+
+---
+
 ## 4. Deploy e Operação
 
 ### 4.1 Variável `APP_ENV` obrigatória no checklist de deploy
@@ -203,3 +230,11 @@ mudou quando o lazy-load + Pesquisar subiu. Ao puxar o 3.11, adotar **este** con
 - **Alinhamento do escopo de perfil `Consulta` nas rotas de endereço e contato** —
   garantir que a verificação de permissão nessas rotas seja consistente com o
   resto da aplicação. Ver detalhe no doc 12 e em [`../09_seguranca.md`](../09_seguranca.md).
+- **Escopo de dados do perfil `Consulta` em `GET /lancamento/` (reunião 2026-09-09,
+  item 7)** — hoje `listar_lancamentos` ([`routes/lancamento.py`](../../backend/routes/lancamento.py))
+  só faz `Depends(get_current_user)` e **não filtra por perfil/usuário**: devolve a base
+  inteira para qualquer autenticado, inclusive Consulta. A restrição entregue em
+  2026-09-09 é **só de UI** (esconde coluna/botões) — o dado continua acessível via API.
+  Fechar exige escopar a query ao clifor vinculado do usuário Consulta (casa com o
+  [7.1 Portal do Associado](./demandas-novas.md#71-visualização-do-próprio-clifor) /
+  `GET /minha-conta`).
