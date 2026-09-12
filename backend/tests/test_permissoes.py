@@ -169,7 +169,7 @@ def test_registrar_sessao_proibido_consulta(client, headers_consulta, usuario_ba
 
 def test_login_usuario_bloqueado(client, headers_admin, consulta_session):
     """Usuário bloqueado não consegue autenticar — retorna 403."""
-    from utils.config import CONSULTA_TESTE_EMAIL, CONSULTA_TESTE_SENHA
+    from utils.config import CONSULTA_TESTE_EMAIL
     if not consulta_session["disponivel"]:
         pytest.skip(consulta_session["motivo"])
     id_u = consulta_session["id_usuario"]
@@ -177,7 +177,7 @@ def test_login_usuario_bloqueado(client, headers_admin, consulta_session):
     try:
         r = client.post("/auth/token", json={
             "email": CONSULTA_TESTE_EMAIL,
-            "senha": CONSULTA_TESTE_SENHA,
+            "senha": consulta_session["senha_temp"],
         })
         assert r.status_code == 403
     finally:
@@ -186,7 +186,7 @@ def test_login_usuario_bloqueado(client, headers_admin, consulta_session):
 
 def test_login_usuario_suspenso(client, headers_admin, consulta_session):
     """Usuário suspenso não consegue autenticar — retorna 403."""
-    from utils.config import CONSULTA_TESTE_EMAIL, CONSULTA_TESTE_SENHA
+    from utils.config import CONSULTA_TESTE_EMAIL
     from datetime import datetime, timedelta
     if not consulta_session["disponivel"]:
         pytest.skip(consulta_session["motivo"])
@@ -196,7 +196,7 @@ def test_login_usuario_suspenso(client, headers_admin, consulta_session):
     try:
         r = client.post("/auth/token", json={
             "email": CONSULTA_TESTE_EMAIL,
-            "senha": CONSULTA_TESTE_SENHA,
+            "senha": consulta_session["senha_temp"],
         })
         assert r.status_code == 403
     finally:
@@ -207,7 +207,7 @@ def test_login_usuario_excluido(client, headers_admin, consulta_session):
     """Usuário soft-deletado não consegue autenticar.
     Retorna 401 (invisível para o auth — o registro excluído é ignorado na query).
     """
-    from utils.config import CONSULTA_TESTE_EMAIL, CONSULTA_TESTE_SENHA
+    from utils.config import CONSULTA_TESTE_EMAIL
     from datetime import datetime
     if not consulta_session["disponivel"]:
         pytest.skip(consulta_session["motivo"])
@@ -216,7 +216,7 @@ def test_login_usuario_excluido(client, headers_admin, consulta_session):
     try:
         r = client.post("/auth/token", json={
             "email": CONSULTA_TESTE_EMAIL,
-            "senha": CONSULTA_TESTE_SENHA,
+            "senha": consulta_session["senha_temp"],
         })
         assert r.status_code == 401
     finally:

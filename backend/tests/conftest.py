@@ -4,6 +4,14 @@ import pytest
 from fastapi.testclient import TestClient
 from main import app
 from database import SessionLocal
+from utils.bootstrap import banco_e_local, SENHA_LOCAL_PADRAO
+
+
+def _senha_teste(config_senha):
+    """Honra a regra local-123: no banco local o bootstrap grava "123" em TODO
+    usuario (inclusive os de teste), entao o login tem de usar "123". Fora do
+    local (CI/remoto), usa a senha do config.env."""
+    return SENHA_LOCAL_PADRAO if banco_e_local() else config_senha
 
 
 # ================================================
@@ -82,7 +90,7 @@ def token_admin(client):
     from utils.config import ADMIN_TESTE_EMAIL, ADMIN_TESTE_SENHA
     r = client.post("/auth/token", json={
         "email": ADMIN_TESTE_EMAIL,
-        "senha": ADMIN_TESTE_SENHA
+        "senha": _senha_teste(ADMIN_TESTE_SENHA)
     })
     assert r.status_code == 200, (
         f"Falha ao autenticar admin de teste ({ADMIN_TESTE_EMAIL}): {r.text} — "
@@ -94,6 +102,14 @@ def token_admin(client):
 @pytest.fixture(scope="session")
 def headers_admin(token_admin):
     return {"Authorization": f"Bearer {token_admin}"}
+
+
+@pytest.fixture(scope="session")
+def senha_admin():
+    """Senha efetiva do admin de teste (123 no banco local). Para os testes que
+    reautenticam o admin direto, sem passar pelo fixture token_admin."""
+    from utils.config import ADMIN_TESTE_SENHA
+    return _senha_teste(ADMIN_TESTE_SENHA)
 
 
 # ================================================
@@ -130,7 +146,7 @@ def consulta_session(client, headers_admin):
         "motivo": None,
         "id_usuario": consulta["id_usuario"],
         "email": CONSULTA_TESTE_EMAIL,
-        "senha_temp": CONSULTA_TESTE_SENHA,
+        "senha_temp": _senha_teste(CONSULTA_TESTE_SENHA),
     }
 
 
@@ -168,7 +184,7 @@ def operador_session(client, headers_admin):
         "motivo": None,
         "id_usuario": operador["id_usuario"],
         "email": OPERADOR_TESTE_EMAIL,
-        "senha_temp": OPERADOR_TESTE_SENHA,
+        "senha_temp": _senha_teste(OPERADOR_TESTE_SENHA),
     }
 
 

@@ -1,6 +1,6 @@
 import pytest
 
-from utils.config import ADMIN_TESTE_EMAIL, ADMIN_TESTE_SENHA
+from utils.config import ADMIN_TESTE_EMAIL
 from utils.rate_limit import limiter
 
 
@@ -55,7 +55,7 @@ def _login(client, email, senha):
     return r.json()["access_token"]
 
 
-def test_login_sucesso(client, headers_admin):
+def test_login_sucesso(client, headers_admin, senha_admin):
     """Testa login com usuário temporário para não invalidar a sessão do admin."""
     # Criar usuário temporário
     r = client.post("/usuarios/", json={
@@ -76,7 +76,7 @@ def test_login_sucesso(client, headers_admin):
     # usamos o admin para verificar estrutura do response
     r2 = client.post("/auth/token", json={
         "email": ADMIN_TESTE_EMAIL,
-        "senha": ADMIN_TESTE_SENHA
+        "senha": senha_admin
     })
     assert r2.status_code == 200
     assert "access_token" in r2.json()
@@ -116,7 +116,7 @@ def test_header_session_expires(client, headers_admin):
     assert "x-session-expires" in r.headers
 
 
-def test_logout(client, headers_admin):
+def test_logout(client, headers_admin, senha_admin):
     # Criar usuário temporário para testar logout sem afetar sessão do admin
     r = client.post("/usuarios/", json={
         "nome": "Logout Teste",
@@ -140,7 +140,7 @@ def test_logout(client, headers_admin):
     # e imediatamente reautenticamos
     r_login = client.post("/auth/token", json={
         "email": ADMIN_TESTE_EMAIL,
-        "senha": ADMIN_TESTE_SENHA
+        "senha": senha_admin
     })
     token_temp = r_login.json()["access_token"]
     headers_temp = {"Authorization": f"Bearer {token_temp}"}
@@ -156,7 +156,7 @@ def test_logout(client, headers_admin):
     # Reautenticar admin para restaurar sessão
     r_re = client.post("/auth/token", json={
         "email": ADMIN_TESTE_EMAIL,
-        "senha": ADMIN_TESTE_SENHA
+        "senha": senha_admin
     })
     novo_token = r_re.json()["access_token"]
     headers_admin["Authorization"] = f"Bearer {novo_token}"
