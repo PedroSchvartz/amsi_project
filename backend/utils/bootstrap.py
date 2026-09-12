@@ -7,14 +7,28 @@ import string
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlalchemy.orm import Session
+from sqlalchemy.engine import make_url
 from database import SessionLocal
 from models.usuario import Usuario, CargoEnum, AcessoEnum
 from utils.auth_utils import hash_senha
 from utils.email_sender import enviar_email
-from utils.config import FRONTEND_URL
+from utils.config import FRONTEND_URL, APP_ENV, DATABASE_URL
 from utils.frequentes import configure_logging, colorir
 from utils.config import CONSULTA_TESTE_EMAIL, CONSULTA_TESTE_SENHA, OPERADOR_TESTE_EMAIL, OPERADOR_TESTE_SENHA
 from utils.config import ADMIN_TESTE_EMAIL, ADMIN_TESTE_SENHA
+
+
+# Regra do seed local: no banco da máquina de dev TODA senha é "123", em todos os
+# perfis — facilita testar login sem depender do config.env nem de email. A guarda
+# banco_e_local() garante que isso NUNCA vale em produção (APP_ENV=production ou host
+# remoto): lá o admin continua nascendo com senha aleatória enviada por email.
+SENHA_LOCAL_PADRAO = "123"
+
+
+def banco_e_local() -> bool:
+    """True só quando o alvo é o Postgres local — libera a senha padrão do seed."""
+    host = (make_url(DATABASE_URL).host or "").lower()
+    return APP_ENV != "production" and host in ("", "localhost", "127.0.0.1", "::1")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -83,11 +97,12 @@ def _migrar_acesso_enum(db: Session):
 def _upsert_usuario_teste(db: Session, dados: dict):
     """Cria ou sobrescreve um usuário de teste com a senha e flags definidos em USUARIOS_TESTE."""
     email = dados["email"]
+    senha = SENHA_LOCAL_PADRAO if banco_e_local() else dados["senha"]
     existente = db.query(Usuario).filter(Usuario.email == email).first()
 
     if existente:
         existente.nome             = dados["nome"]
-        existente.senha            = hash_senha(dados["senha"])
+        existente.senha            = hash_senha(senha)
         existente.cargo            = dados["cargo"]
         existente.perfil_de_acesso = dados["perfil_de_acesso"]
         existente.bloqueado        = False
@@ -99,7 +114,7 @@ def _upsert_usuario_teste(db: Session, dados: dict):
         novo = Usuario(
             email=email,
             nome=dados["nome"],
-            senha=hash_senha(dados["senha"]),
+            senha=hash_senha(senha),
             cargo=dados["cargo"],
             perfil_de_acesso=dados["perfil_de_acesso"],
             notificacao=False,
@@ -128,7 +143,9 @@ def garantir_admins_iniciais():
 
             if not usuario_existente:
                 print(colorir(cor="azul", texto=f"🚀 Criando admin: {admin_data['email']}"))
-                senha_provisoria = _gerar_senha_provisoria()
+                local = banco_e_local()
+                # Local: senha 123 e sem troca obrigatória, para entrar direto no seed.
+                senha_provisoria = SENHA_LOCAL_PADRAO if local else _gerar_senha_provisoria()
 
                 novo_admin = Usuario(
                     email=admin_data["email"],
@@ -138,10 +155,14 @@ def garantir_admins_iniciais():
                     perfil_de_acesso=admin_data["perfil_de_acesso"],
                     notificacao=True,
                     bloqueado=False,
-                    primeiro_acesso=True,
+                    primeiro_acesso=not local,
                 )
                 db.add(novo_admin)
                 db.flush()
+
+                if local:
+                    print(colorir(cor="verde", texto=f"✔ Admin local criado com senha padrão '{SENHA_LOCAL_PADRAO}' — email não enviado."))
+                    continue
 
                 corpo = f"""
 <!DOCTYPE html>

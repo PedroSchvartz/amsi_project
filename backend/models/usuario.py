@@ -26,7 +26,9 @@ class Usuario(Base):
     nome = Column(String(255), nullable=False)
     data_cadastro = Column(TIMESTAMP, nullable=False, server_default=func.now())
     email = Column(String(255), nullable=False)
-    cargo = Column(SAEnum(CargoEnum, name="cargo_enum"), nullable=False)
+    # values_callable: o cargo_enum no banco guarda os VALORES (ex.: "Secretário"
+    # acentuado), nao os nomes dos membros — sem isto, gravar Secretario quebra.
+    cargo = Column(SAEnum(CargoEnum, name="cargo_enum", values_callable=lambda x: [e.value for e in x]), nullable=False)
     perfil_de_acesso = Column(SAEnum(AcessoEnum, name="acesso_enum"), nullable=False)
     notificacao = Column(Boolean, nullable=False, default=False)
     suspenso = Column(TIMESTAMP, nullable=True, default=None)
