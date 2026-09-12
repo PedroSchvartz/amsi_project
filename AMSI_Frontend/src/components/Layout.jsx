@@ -86,7 +86,7 @@ function Layout() {
 		(admin || operador || consulta) && { to: '/dashboard', label: 'Dashboard', icon: 'bi-speedometer2' },
 		admin && { to: '/usuarios', label: 'Usuários', icon: 'bi-people' },
 		(admin || operador || consulta) && { to: '/lancamentos', label: 'Lançamentos', icon: 'bi-journal-text' },
-		(admin || operador || consulta) && { to: '/cliente_fornecedor', label: 'Clientes / Fornecedores', icon: 'bi-person-lines-fill' }
+		(admin || operador) && { to: '/cliente_fornecedor', label: 'Clientes / Fornecedores', icon: 'bi-person-lines-fill' }
 	].filter(Boolean);
 
 	return (

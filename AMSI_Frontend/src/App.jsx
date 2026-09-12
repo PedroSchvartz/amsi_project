@@ -287,7 +287,7 @@ function App() {
 						<Route
 							path="/cliente_fornecedor"
 							element={
-								<PrivateRoute minPerfil="Consulta">
+								<PrivateRoute minPerfil="Operador">
 									<ClientListPage />
 								</PrivateRoute>
 							}

@@ -26,9 +26,10 @@ import {
 	anexarComprovante,
 	baixarComprovante,
 	removerComprovante,
-	getUser
+	getUser,
+	getCliforDoUsuario
 } from '../services/api';
-import { isAdmin, isConsulta, hasPerfilMinimo } from '../services/auth';
+import { isAdmin, isConsulta, hasPerfilMinimo, getUserFromToken } from '../services/auth';
 
 // Data de hoje no fuso local (YYYY-MM-DD). Não usar toISOString aqui: em UTC-3 à noite
 // ele já retorna o dia seguinte, o que pré-preencheria a data de pagamento errada.
@@ -130,6 +131,11 @@ function ListaLancamentosPage() {
 	const [lancamentos, setLancamentos] = useState([]);
 	const [clifors, setClifors] = useState([]);
 	const [tiposConta, setTiposConta] = useState([]);
+	// Consulta: id_clifor do próprio usuário (trava o filtro). null = ainda não resolvido / não é Consulta.
+	const [meuClifor, setMeuClifor] = useState(null);
+	// Consulta sem clifor vinculado: caso que "não deveria existir", mas se existir a tela
+	// não pode listar nada (nem a base inteira). Curto-circuita a busca.
+	const [consultaSemClifor, setConsultaSemClifor] = useState(false);
 	const [filtros, setFiltros] = useState(FILTROS_INICIAL);
 	const [filtrosAplicados, setFiltrosAplicados] = useState(FILTROS_INICIAL);
 	// Qual lado ('de'/'ate') de cada par de datas foi preenchido primeiro. A âncora fica
@@ -191,6 +197,15 @@ function ListaLancamentosPage() {
 		}
 	}, []);
 
+	// Consulta: assim que o clifor do usuário resolve, trava o filtro nele — cobre os três
+	// caminhos do mount (drill-down, cache, tela vazia) sem duplicar lógica.
+	useEffect(() => {
+		if (meuClifor == null) return;
+		const id = String(meuClifor);
+		setFiltros((f) => ({ ...f, id_clifor: id }));
+		setFiltrosAplicados((f) => ({ ...f, id_clifor: id }));
+	}, [meuClifor]);
+
 	// Dados dos selects de filtro (clifors + tipos de conta). Carrega em silêncio (sem o
 	// overlay de "carregando") e guarda no cache: abrir a tela não deve mostrar loading —
 	// só o botão "Pesquisar" mostra. Ao voltar à tela, reidrata do cache sem rebuscar. 3.13.
@@ -199,9 +214,29 @@ function ListaLancamentosPage() {
 		if (aux) {
 			setClifors(aux.clifors);
 			setTiposConta(aux.tiposConta);
+			// Consulta: o select lista só o próprio clifor — reancora o trava-filtro do cache.
+			if (isConsulta()) {
+				if (aux.clifors.length) setMeuClifor(aux.clifors[0].id_clifor);
+				else setConsultaSemClifor(true);
+			}
 			return;
 		}
 		try {
+			// Consulta só enxerga a si mesmo: em vez da lista inteira de clifors, busca o
+			// próprio vínculo e trava o filtro nele (id do JWT). Sem clifor vinculado → lista vazia.
+			if (isConsulta()) {
+				const [meu, ts] = await Promise.all([
+					getCliforDoUsuario(Number(getUserFromToken()?.sub), { silencioso: true }),
+					getTiposConta({ silencioso: true })
+				]);
+				const cs = meu ? [meu] : [];
+				setClifors(cs);
+				setTiposConta(ts);
+				if (meu) setMeuClifor(meu.id_clifor);
+				else setConsultaSemClifor(true);
+				setCache('lancamentos-aux', { clifors: cs, tiposConta: ts });
+				return;
+			}
 			const [cs, ts] = await Promise.all([
 				getClifors({}, { silencioso: true }),
 				getTiposConta({ silencioso: true })
@@ -225,12 +260,23 @@ function ListaLancamentosPage() {
 	};
 
 	const buscar = async (f = filtros) => {
-		try {
-			const data = await getLancamentos(filtrosParaParams(f));
-			setLancamentos(data);
-			setFiltrosAplicados(f);
+		// Consulta sem clifor vinculado: nunca lista nada (nem a base inteira). Curto-circuito
+		// local — não chega a chamar o backend.
+		if (consultaSemClifor) {
+			setLancamentos([]);
 			setPopulado(true);
-			setCache('lancamentos', { lancamentos: data, filtros: f });
+			setCache('lancamentos', { lancamentos: [], filtros: f });
+			return;
+		}
+		// Consulta: força o escopo no próprio clifor mesmo se algum caminho disparar buscar
+		// antes do effect travar o filtro (ex.: drill-down do Dashboard).
+		const fEfetivo = meuClifor != null ? { ...f, id_clifor: String(meuClifor) } : f;
+		try {
+			const data = await getLancamentos(filtrosParaParams(fEfetivo));
+			setLancamentos(data);
+			setFiltrosAplicados(fEfetivo);
+			setPopulado(true);
+			setCache('lancamentos', { lancamentos: data, filtros: fEfetivo });
 		} catch (err) {
 			if (err.message !== 'sessao-expirada')
 				mostrarToast(err.message || 'Erro ao buscar lançamentos', 'erro');
@@ -358,10 +404,12 @@ function ListaLancamentosPage() {
 	};
 
 	const handleLimpar = () => {
-		setFiltros(FILTROS_INICIAL);
+		// Consulta: "Limpar" não solta o filtro de clifor — ele fica sempre travado no próprio.
+		const base = meuClifor != null ? { ...FILTROS_INICIAL, id_clifor: String(meuClifor) } : FILTROS_INICIAL;
+		setFiltros(base);
 		setAncoraData({ vencimento: null, lancamento: null, pagamento: null });
 		setUltimoCampoTocado(null);
-		buscar(FILTROS_INICIAL);
+		buscar(base);
 	};
 
 	// Inicia a exportação (nova pesquisa no banco com os filtros já aplicados) e abre a
@@ -814,7 +862,7 @@ function ListaLancamentosPage() {
 						<div className="ll-row">
 							<div className="ll-field ll-field--cliente">
 								<label>Cliente / Fornecedor</label>
-								<select name="id_clifor" value={filtros.id_clifor} onChange={handleFiltroChange}>
+								<select name="id_clifor" value={filtros.id_clifor} onChange={handleFiltroChange} disabled={isConsulta()}>
 									<option value="">Todos</option>
 									{clifors.map((c) => (
 										<option key={c.id_clifor} value={c.id_clifor}>

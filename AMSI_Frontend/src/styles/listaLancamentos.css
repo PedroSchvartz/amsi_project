@@ -94,6 +94,16 @@
 		box-shadow 0.2s ease;
 }
 
+/* Campo travado (ex.: clifor no perfil Consulta): indicação sutil só via cor.
+   A regra base fixa background/color, então sem isto o :disabled fica igual ao habilitado. */
+.ll-field input:disabled,
+.ll-field select:disabled,
+.ll-field textarea:disabled {
+	background: var(--bg);
+	color: var(--text-muted);
+	cursor: not-allowed;
+}
+
 .ll-field input:focus,
 .ll-field select:focus,
 .ll-field textarea:focus {

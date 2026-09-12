@@ -252,11 +252,11 @@ export const restaurarUsuario = async (id_usuario) => {
 	});
 	return handleResponse(response);
 };
-export const getCliforDoUsuario = async (id_usuario) => {
+export const getCliforDoUsuario = async (id_usuario, { silencioso = false } = {}) => {
 	const response = await fetchComLoading(`${BASE_URL}/usuarios/${id_usuario}/clifor`, {
 		method: 'GET',
 		headers: authHeaders()
-	});
+	}, { silencioso });
 	if (response.status === 404) return null;
 	return handleResponse(response, { noLogout: false });
 };
