@@ -442,8 +442,28 @@
 	text-align: center;
 }
 
+/* Nome / Razão Social: alinhada à esquerda e podendo quebrar em várias linhas.
+   O nowrap anterior estourava a largura da tabela (rolagem horizontal) quando a
+   razão social era longa. max-width limita a coluna para forçar a quebra. */
+.ll-table th:first-child,
 .ll-table td:first-child {
-	white-space: nowrap;
+	text-align: left;
+}
+
+.ll-table td:first-child {
+	white-space: normal;
+	overflow-wrap: anywhere; /* quebra também nomes/tokens sem espaços */
+	max-width: 280px;
+}
+
+/* Valores monetários alinhados à direita (padrão de leitura de números).
+   Col. 6 = Vl. Lançamento, col. 7 = Vl. Pagamento. Cabeçalho acompanha o corpo.
+   Posições fixas: a coluna condicional (Ações) é a última e não desloca estas. */
+.ll-table th:nth-child(6),
+.ll-table th:nth-child(7),
+.ll-table td:nth-child(6),
+.ll-table td:nth-child(7) {
+	text-align: right;
 }
 
 .ll-table tbody tr {
