@@ -86,21 +86,13 @@ function ClientList() {
 			)}
 
 			{cliforDetalhe && (
-				<CliforResumoPopup
-					clifor={cliforDetalhe}
-					onFechar={() => setCliforDetalhe(null)}
-				/>
+				<CliforResumoPopup clifor={cliforDetalhe} onFechar={() => setCliforDetalhe(null)} />
 			)}
 
 			<div className="cl-header">
 				<h2 className="cl-title">Clientes / Fornecedores</h2>
 				<div style={{ display: 'flex', gap: 8 }}>
-					<button
-						className="cl-btn-editar"
-						onClick={carregar}
-						disabled={loading}
-						title="Pesquisar"
-					>
+					<button className="cl-btn-editar" onClick={carregar} disabled={loading} title="Pesquisar">
 						<i className="bi bi-search" />
 						{loading ? ' Pesquisando...' : ' Pesquisar'}
 					</button>
@@ -130,7 +122,8 @@ function ClientList() {
 									<span className="cl-th-info">
 										Tipo
 										<span className="cl-tooltip-box">
-											Papel da entidade: Cliente (recebe da associação), Fornecedor (a associação paga) ou Ambos.
+											Papel da entidade: Cliente (recebe da associação), Fornecedor (a associação
+											paga) ou Ambos.
 										</span>
 									</span>
 								</th>
@@ -138,7 +131,8 @@ function ClientList() {
 									<span className="cl-th-info">
 										Status
 										<span className="cl-tooltip-box">
-											"Ativo" indica que o cadastro está em uso; "Inativo", que foi desativado — arquivado sem ser apagado.
+											"Ativo" indica que o cadastro está em uso; "Inativo", que foi desativado —
+											arquivado sem ser apagado.
 										</span>
 									</span>
 								</th>
@@ -146,7 +140,8 @@ function ClientList() {
 									<span className="cl-th-info">
 										Inadimplente
 										<span className="cl-tooltip-box">
-											"Sim" quando a entidade tem crédito vencido e ainda não pago — ou seja, deve à associação e passou do vencimento.
+											"Sim" quando a entidade tem crédito vencido e ainda não pago — ou seja, deve à
+											associação e passou do vencimento.
 										</span>
 									</span>
 								</th>
@@ -154,7 +149,8 @@ function ClientList() {
 									<span className="cl-th-info">
 										Bloqueado
 										<span className="cl-tooltip-box">
-											"Sim" quando o cadastro foi bloqueado manualmente — sinaliza restrição administrativa, sem apagar o registro.
+											"Sim" quando o cadastro foi bloqueado manualmente — sinaliza restrição
+											administrativa, sem apagar o registro.
 										</span>
 									</span>
 								</th>
@@ -183,15 +179,7 @@ function ClientList() {
 								const totalReceber = saldo ? parseFloat(saldo.total_a_receber) : null;
 								const totalPagar = saldo ? parseFloat(saldo.total_a_pagar) : null;
 								return (
-									<tr
-										key={c.id_clifor}
-										className="cl-row-clicavel"
-										onClick={() =>
-											consulta
-												? setCliforDetalhe(c)
-												: navigate(`/cliente_fornecedor/${c.id_clifor}/editar`)
-										}
-									>
+									<tr key={c.id_clifor}>
 										<td className="cl-col-nome">{c.nome}</td>
 										<td>{TIPO_LABEL[c.tipo_clifor] ?? c.tipo_clifor}</td>
 										<td>
@@ -221,7 +209,9 @@ function ClientList() {
 													{totalReceber.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
 												</span>
 											) : (
-												<span className="cl-saldo" style={{ color: 'var(--text-muted)' }}>—</span>
+												<span className="cl-saldo" style={{ color: 'var(--text-muted)' }}>
+													—
+												</span>
 											)}
 										</td>
 										<td>
@@ -230,28 +220,42 @@ function ClientList() {
 													{totalPagar.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
 												</span>
 											) : (
-												<span className="cl-saldo" style={{ color: 'var(--text-muted)' }}>—</span>
+												<span className="cl-saldo" style={{ color: 'var(--text-muted)' }}>
+													—
+												</span>
 											)}
 										</td>
 										{!consulta && (
-											<td style={{ display: 'flex', gap: 6 }} onClick={(e) => e.stopPropagation()}>
-												<button
-													className="cl-btn-editar"
-													onClick={() => setCliforDetalhe(c)}
-													title="Ver resumo"
-												>
-													<i className="bi bi-eye"></i>
-												</button>
-												{admin && (
+											<td>
+												{/* Flex num <div> interno; no próprio <td> ele quebra o layout
+												   de tabela (a célula deixa de ser table-cell e os botões vazam
+												   sobre a coluna vizinha). */}
+												<div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
 													<button
 														className="cl-btn-editar"
-														style={{ background: '#ef4444', borderColor: '#ef4444' }}
-														onClick={() => setConfirmarDeletar(c)}
-														title="Excluir cliente/fornecedor"
+														onClick={() => navigate(`/cliente_fornecedor/${c.id_clifor}/editar`)}
+														title="Editar"
 													>
-														<i className="bi bi-trash"></i>
+														<i className="bi bi-pencil"></i>
 													</button>
-												)}
+													<button
+														className="cl-btn-editar"
+														onClick={() => setCliforDetalhe(c)}
+														title="Ver resumo"
+													>
+														<i className="bi bi-eye"></i>
+													</button>
+													{admin && (
+														<button
+															className="cl-btn-editar"
+															style={{ background: '#ef4444', borderColor: '#ef4444' }}
+															onClick={() => setConfirmarDeletar(c)}
+															title="Excluir cliente/fornecedor"
+														>
+															<i className="bi bi-trash"></i>
+														</button>
+													)}
+												</div>
 											</td>
 										)}
 									</tr>
