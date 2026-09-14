@@ -395,9 +395,12 @@
 }
 
 /* ── Tooltip nos cabeçalhos ── */
+/* Não redefinir position aqui: o `position: relative` sobrescrevia o
+   `position: sticky` de .ll-table th (regra mais específica), então o cabeçalho
+   rolava junto e perdia a referência. O próprio sticky já é contexto de
+   posicionamento para o tooltip ::after abaixo. */
 .ll-table th[data-tooltip] {
 	cursor: help;
-	position: relative;
 }
 
 .ll-table th[data-tooltip]::after {
