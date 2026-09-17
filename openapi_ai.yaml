@@ -60,7 +60,7 @@
       obrigatorio: true
     cargo:
       tipo: CargoEnum
-      obrigatorio: true
+      obrigatorio: false
     perfil_de_acesso:
       tipo: AcessoEnum
       obrigatorio: true
@@ -99,7 +99,7 @@
       obrigatorio: true
     cargo:
       tipo: CargoEnum
-      obrigatorio: true
+      obrigatorio: false
     perfil_de_acesso:
       tipo: AcessoEnum
       obrigatorio: true
@@ -119,7 +119,7 @@
       obrigatorio: true
     cargo:
       tipo: CargoEnum
-      obrigatorio: true
+      obrigatorio: false
     perfil_de_acesso:
       tipo: AcessoEnum
       obrigatorio: true
@@ -167,7 +167,7 @@
       obrigatorio: true
     cargo:
       tipo: CargoEnum
-      obrigatorio: true
+      obrigatorio: false
     perfil_de_acesso:
       tipo: AcessoEnum
       obrigatorio: true
@@ -242,7 +242,7 @@
       obrigatorio: true
     cargo:
       tipo: CargoEnum
-      obrigatorio: true
+      obrigatorio: false
     perfil_de_acesso:
       tipo: AcessoEnum
       obrigatorio: true

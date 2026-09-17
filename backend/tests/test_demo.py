@@ -215,15 +215,15 @@ class TestDemoRegistro:
         assert r.status_code == 200
         assert r.json()["cargo"] == "Tesoureiro"
 
-    def test_registro_cargo_default_e_associado(self, client):
-        """Quando cargo não é informado, o default deve ser Associado."""
+    def test_registro_cargo_default_e_conselheiro(self, client):
+        """Quando cargo não é informado, o default é Conselheiro (item 15: sem 'Associado')."""
         r = client.post("/demo/registro", json={
             "nome": _NOME_DEMO,
             "email": _EMAIL_DEMO,
             "senha": _SENHA_DEMO,
         })
         assert r.status_code == 200
-        assert r.json()["cargo"] == "Associado"
+        assert r.json()["cargo"] == "Conselheiro"
 
     def test_registro_cargo_invalido_retorna_422(self, client):
         """Cargo fora do enum deve ser rejeitado pelo Pydantic (422)."""

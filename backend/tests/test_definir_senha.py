@@ -83,7 +83,7 @@ def usuario_token(client, headers_admin):
     r = client.post("/usuarios/", json={
         "nome": "Definir Senha Teste",
         "email": email,
-        "cargo": "Associado",
+        "cargo": None,
         "perfil_de_acesso": "Consulta",
         "notificacao": False
     }, headers=headers_admin)
@@ -218,7 +218,7 @@ def test_cadastro_emite_link_que_define_senha(client, headers_admin, monkeypatch
     r = client.post("/usuarios/", json={
         "nome": "Cadastro Link Teste",
         "email": email,
-        "cargo": "Associado",
+        "cargo": None,
         "perfil_de_acesso": "Consulta",
         "notificacao": False
     }, headers=headers_admin)

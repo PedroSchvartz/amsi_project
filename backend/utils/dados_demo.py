@@ -326,7 +326,6 @@ def gerar(args):
                 tipo_cf = TipoCliForEnum.Fornecedor
 
             cf = ClienteFornecedor(
-                id_usuario_fk=uid,
                 pessoafisica_juridica=is_pf,
                 cpf_cnpj=doc,
                 rg_inscricaoestadual=rg,

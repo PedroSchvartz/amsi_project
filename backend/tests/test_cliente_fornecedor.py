@@ -4,7 +4,6 @@ import pytest
 @pytest.fixture
 def clifor(client, headers_admin, usuario_base):
     r = client.post("/cliente_fornecedor/", json={
-        "id_usuario_fk": usuario_base["id_usuario"],
         "pessoafisica_juridica": True,
         "cpf_cnpj": "222.222.222-22",
         "rg_inscricaoestadual": "2222222",
@@ -22,7 +21,6 @@ def clifor(client, headers_admin, usuario_base):
 @pytest.fixture
 def clifor_inadimplente(client, headers_admin, usuario_base):
     r = client.post("/cliente_fornecedor/", json={
-        "id_usuario_fk": usuario_base["id_usuario"],
         "pessoafisica_juridica": True,
         "cpf_cnpj": "444.444.444-44",
         "rg_inscricaoestadual": "4444444",
@@ -40,7 +38,6 @@ def clifor_inadimplente(client, headers_admin, usuario_base):
 @pytest.fixture
 def clifor_juridico(client, headers_admin, usuario_base):
     r = client.post("/cliente_fornecedor/", json={
-        "id_usuario_fk": usuario_base["id_usuario"],
         "pessoafisica_juridica": False,
         "cpf_cnpj": "55.555.555/0001-55",
         "rg_inscricaoestadual": "555555555",
@@ -55,9 +52,8 @@ def clifor_juridico(client, headers_admin, usuario_base):
     client.delete(f"/cliente_fornecedor/{data['id_clifor']}", headers=headers_admin)
 
 
-def test_criar_clifor(client, headers_admin, usuario_base):
+def test_criar_clifor(client, headers_admin):
     r = client.post("/cliente_fornecedor/", json={
-        "id_usuario_fk": usuario_base["id_usuario"],
         "pessoafisica_juridica": False,
         "cpf_cnpj": "33.333.333/0001-33",
         "rg_inscricaoestadual": "333333333",
@@ -70,15 +66,38 @@ def test_criar_clifor(client, headers_admin, usuario_base):
     assert r.status_code == 200
     data = r.json()
     assert data["enderecos"] == []
-    # Vínculo com usuário garante ao menos o e-mail do usuário entre os contatos.
-    assert len(data["contatos"]) == 1
-    assert data["contatos"][0]["tipocontato"] == "Email"
+    # Sem vínculo na criação (o vínculo virou 1‑n via /usuarios/.../associar): sem contatos.
+    assert data["contatos"] == []
+    # 'associado' (item 14) tem default False quando ausente no payload.
+    assert data["associado"] is False
     client.delete(f"/cliente_fornecedor/{data['id_clifor']}", headers=headers_admin)
 
 
-def test_criar_clifor_com_enderecos_e_contatos(client, headers_admin, usuario_base):
+def test_criar_e_editar_clifor_associado(client, headers_admin):
+    """Booleano 'associado' (item 14) persiste na criação e alterna na edição."""
     r = client.post("/cliente_fornecedor/", json={
-        "id_usuario_fk": usuario_base["id_usuario"],
+        "pessoafisica_juridica": True,
+        "cpf_cnpj": "121.212.121-21",
+        "rg_inscricaoestadual": "1212121",
+        "nome": "CliFor Associado",
+        "datanascimento": "1990-01-01",
+        "tipo_clifor": "C",
+        "associado": True,
+    }, headers=headers_admin)
+    assert r.status_code == 200
+    data = r.json()
+    assert data["associado"] is True
+
+    r2 = client.put(f"/cliente_fornecedor/{data['id_clifor']}",
+                    json={"associado": False}, headers=headers_admin)
+    assert r2.status_code == 200
+    assert r2.json()["associado"] is False
+
+    client.delete(f"/cliente_fornecedor/{data['id_clifor']}", headers=headers_admin)
+
+
+def test_criar_clifor_com_enderecos_e_contatos(client, headers_admin):
+    r = client.post("/cliente_fornecedor/", json={
         "pessoafisica_juridica": True,
         "cpf_cnpj": "111.111.111-11",
         "rg_inscricaoestadual": "1111111",
@@ -111,9 +130,9 @@ def test_criar_clifor_com_enderecos_e_contatos(client, headers_admin, usuario_ba
     assert len(data["enderecos"]) == 1
     assert data["enderecos"][0]["logradouro"] == "Rua Teste"
     assert data["enderecos"][0]["id_clifor_fk"] == data["id_clifor"]
-    # 1 telefone do payload + 1 e-mail do usuário vinculado (garantido pelo vínculo).
-    assert len(data["contatos"]) == 2
-    assert {c["tipocontato"] for c in data["contatos"]} == {"Telefone", "Email"}
+    # Só o telefone do payload — a criação não vincula usuário nem injeta e-mail.
+    assert len(data["contatos"]) == 1
+    assert {c["tipocontato"] for c in data["contatos"]} == {"Telefone"}
     telefone = next(c for c in data["contatos"] if c["tipocontato"] == "Telefone")
     assert telefone["info_do_contato"] == "(11) 99999-9999"
     assert telefone["id_clifor_fk"] == data["id_clifor"]
@@ -275,7 +294,6 @@ def test_buscar_clifor_retorna_enderecos_e_contatos(client, headers_admin, usuar
 
 def test_criar_clifor_sem_token(client, usuario_base):
     r = client.post("/cliente_fornecedor/", json={
-        "id_usuario_fk": usuario_base["id_usuario"],
         "pessoafisica_juridica": True,
         "cpf_cnpj": "000.000.000-00",
         "rg_inscricaoestadual": "0000000",
@@ -325,7 +343,6 @@ def test_atualizar_clifor(client, headers_admin, clifor):
 
 def test_criar_clifor_com_nome_usual_e_lote(client, headers_admin, usuario_base):
     r = client.post("/cliente_fornecedor/", json={
-        "id_usuario_fk": usuario_base["id_usuario"],
         "pessoafisica_juridica": True,
         "cpf_cnpj": "666.666.666-66",
         "rg_inscricaoestadual": "6666666",
@@ -346,7 +363,6 @@ def test_criar_clifor_com_nome_usual_e_lote(client, headers_admin, usuario_base)
 
 def test_criar_clifor_sem_nome_usual_e_lote(client, headers_admin, usuario_base):
     r = client.post("/cliente_fornecedor/", json={
-        "id_usuario_fk": usuario_base["id_usuario"],
         "pessoafisica_juridica": True,
         "cpf_cnpj": "777.777.777-77",
         "rg_inscricaoestadual": "7777777",

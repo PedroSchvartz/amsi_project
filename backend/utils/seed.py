@@ -139,7 +139,9 @@ _SOBRENOMES = ["Almeida", "Barbosa", "Cardoso", "Dias", "Esteves", "Freitas", "G
                "Nunes", "Oliveira", "Prado", "Queiroz", "Ramos", "Santos", "Teixeira", "Uchoa", "Vieira", "Xavier"]
 # Perfis dos usuarios demo: mais Consulta/Operador, alguns Administrador.
 _PERFIS_ROT = [AcessoEnum.Consulta, AcessoEnum.Operador, AcessoEnum.Consulta, AcessoEnum.Operador, AcessoEnum.Administrador]
-_CARGOS_ROT = [CargoEnum.Associado, CargoEnum.Conselheiro, CargoEnum.Secretario, CargoEnum.Diretor, CargoEnum.Tesoureiro]
+# None (item 15): rotaciona alguns usuarios SEM cargo, para exercitar o caminho NULL na
+# UI local (espelha o prod pos-migracao, onde os ex-'Associado' ficaram sem cargo).
+_CARGOS_ROT = [None, CargoEnum.Conselheiro, CargoEnum.Secretario, CargoEnum.Diretor, CargoEnum.Tesoureiro]
 
 
 # ============================================================
@@ -193,7 +195,7 @@ def _upsert_tipo(db, dados):
     return novo
 
 
-def _upsert_clifor(db, dados, id_admin):
+def _upsert_clifor(db, dados):
     existente = db.query(ClienteFornecedor).filter(ClienteFornecedor.cpf_cnpj == dados["cpf_cnpj"]).first()
     if existente:
         return existente
@@ -201,7 +203,7 @@ def _upsert_clifor(db, dados, id_admin):
     contatos_raw = dados.pop("contatos")
     endereco_raw = dados.pop("endereco")
 
-    novo = ClienteFornecedor(id_usuario_fk=id_admin, **dados)
+    novo = ClienteFornecedor(**dados)
     db.add(novo)
     db.flush()
 
@@ -262,7 +264,7 @@ def _gerar_usuarios_extra(db):
     ok(f"  + {criados} usuarios demo criados (perfis variados)")
 
 
-def _gerar_associados(db, id_admin):
+def _gerar_associados(db):
     """Cria N_ASSOCIADOS_EXTRA clientes pagadores. Idempotente por cpf_cnpj. Retorna a lista."""
     novos = []
     for i in range(N_ASSOCIADOS_EXTRA):
@@ -277,7 +279,7 @@ def _gerar_associados(db, id_admin):
             "endereco": {"logradouro": f"Rua {_SOBRENOMES[i % len(_SOBRENOMES)]}", "numero": str(10 + i),
                          "bairro": "Centro", "cidade": "Santa Isabel", "uf": "SP", "cep": f"07500-{i:03d}"},
         }
-        novos.append(_upsert_clifor(db, dados, id_admin))
+        novos.append(_upsert_clifor(db, dados))
     db.commit()
     return novos
 
@@ -390,8 +392,8 @@ def seed(limpar=False):
         tipos = {d["descricao_conta"]: _upsert_tipo(db, d) for d in TIPOS_CONTA}
 
         inf("\n=== Clientes / Fornecedores ===")
-        clifors = {d["nome"]: _upsert_clifor(db, dict(d), admin.id_usuario) for d in CLIFORS}
-        associados_extra = _gerar_associados(db, admin.id_usuario)
+        clifors = {d["nome"]: _upsert_clifor(db, dict(d)) for d in CLIFORS}
+        associados_extra = _gerar_associados(db)
         ok(f"  + {len(associados_extra)} associados pagadores gerados")
 
         db.commit()

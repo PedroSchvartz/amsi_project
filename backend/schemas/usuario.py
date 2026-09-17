@@ -23,7 +23,7 @@ class AcessoEnum(str, Enum):
 class UsuarioCreate(BaseModel):
     nome: str
     email: EmailStr
-    cargo: CargoEnum
+    cargo: Optional[CargoEnum] = None
     perfil_de_acesso: AcessoEnum
     notificacao: bool = False
     # senha removida — gerada automaticamente pelo sistema
@@ -41,13 +41,14 @@ class UsuarioUpdate(BaseModel):
     exclusao: Optional[datetime] = None
     senha: Optional[str] = None
     primeiro_acesso: Optional[bool] = None
+    id_clifor_fk: Optional[int] = None
 
 
 class UsuarioResponse(BaseModel):
     id_usuario: int
     nome: str
     email: str
-    cargo: CargoEnum
+    cargo: Optional[CargoEnum] = None
     perfil_de_acesso: AcessoEnum
     notificacao: bool
     suspenso: Optional[datetime] = None
@@ -56,5 +57,6 @@ class UsuarioResponse(BaseModel):
     exclusao: Optional[datetime] = None
     data_cadastro: datetime
     primeiro_acesso: bool
+    id_clifor_fk: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True)

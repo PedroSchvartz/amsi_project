@@ -5,7 +5,7 @@ def test_criar_usuario(client, headers_admin):
     r = client.post("/usuarios/", json={
         "nome": "Usuario Pytest Temp",
         "email": "pytest_temp@amsi.com",
-        "cargo": "Associado",
+        "cargo": None,
         "perfil_de_acesso": "Consulta",
         "notificacao": False
     }, headers=headers_admin)
@@ -22,7 +22,7 @@ def test_criar_usuario(client, headers_admin):
         r = client.post("/usuarios/", json={
             "nome": "Usuario Pytest Temp",
             "email": "pytest_temp@amsi.com",
-            "cargo": "Associado",
+            "cargo": None,
             "perfil_de_acesso": "Consulta",
             "notificacao": False
         }, headers=headers_admin)
@@ -39,11 +39,53 @@ def test_criar_usuario(client, headers_admin):
     client.delete(f"/usuarios/{data['id_usuario']}", headers=headers_admin)
 
 
+def test_criar_usuario_cargo_null_round_trip(client, headers_admin):
+    """Item 15: cargo é opcional — criar sem cargo devolve cargo=None e o GET não dá 500."""
+    r = client.post("/usuarios/", json={
+        "nome": "Usuario Sem Cargo",
+        "email": "pytest_sem_cargo@amsi.com",
+        "cargo": None,
+        "perfil_de_acesso": "Consulta",
+        "notificacao": False
+    }, headers=headers_admin)
+    if r.status_code == 409:
+        todos = client.get("/usuarios/", headers=headers_admin).json()
+        u = next((x for x in todos if x["email"] == "pytest_sem_cargo@amsi.com"), None)
+        if u:
+            logins = client.get(f"/login/por-usuario/{u['id_usuario']}", headers=headers_admin)
+            if logins.is_success:
+                for login in logins.json():
+                    client.delete(f"/login/{login['id_login']}", headers=headers_admin)
+            client.delete(f"/usuarios/{u['id_usuario']}", headers=headers_admin)
+        r = client.post("/usuarios/", json={
+            "nome": "Usuario Sem Cargo",
+            "email": "pytest_sem_cargo@amsi.com",
+            "cargo": None,
+            "perfil_de_acesso": "Consulta",
+            "notificacao": False
+        }, headers=headers_admin)
+    assert r.status_code == 200
+    data = r.json()
+    assert data["cargo"] is None
+
+    # GET individual não deve quebrar na serialização de cargo NULL
+    g = client.get(f"/usuarios/{data['id_usuario']}", headers=headers_admin)
+    assert g.status_code == 200
+    assert g.json()["cargo"] is None
+
+    # Limpeza
+    logins = client.get(f"/login/por-usuario/{data['id_usuario']}", headers=headers_admin)
+    if logins.is_success:
+        for login in logins.json():
+            client.delete(f"/login/{login['id_login']}", headers=headers_admin)
+    client.delete(f"/usuarios/{data['id_usuario']}", headers=headers_admin)
+
+
 def test_criar_usuario_email_duplicado(client, headers_admin, usuario_base):
     r = client.post("/usuarios/", json={
         "nome": "Duplicado",
         "email": usuario_base["email"],
-        "cargo": "Associado",
+        "cargo": None,
         "perfil_de_acesso": "Consulta",
         "notificacao": False
     }, headers=headers_admin)
@@ -54,7 +96,7 @@ def test_criar_usuario_email_invalido(client, headers_admin):
     r = client.post("/usuarios/", json={
         "nome": "Email Invalido",
         "email": "teste@dominioqueprovavelmentenaoexiste12345.xyz",
-        "cargo": "Associado",
+        "cargo": None,
         "perfil_de_acesso": "Consulta",
         "notificacao": False
     }, headers=headers_admin)
@@ -65,7 +107,7 @@ def test_criar_usuario_sem_token(client):
     r = client.post("/usuarios/", json={
         "nome": "Sem Token",
         "email": "semtoken@amsi.com",
-        "cargo": "Associado",
+        "cargo": None,
         "perfil_de_acesso": "Consulta",
         "notificacao": False
     })
@@ -115,7 +157,7 @@ def test_clifor_do_usuario_sem_vinculo(client, headers_admin, usuario_base):
     r = client.post("/usuarios/", json={
         "nome": "Usuario Sem Clifor",
         "email": "pytest_sem_clifor@amsi.com",
-        "cargo": "Associado",
+        "cargo": None,
         "perfil_de_acesso": "Consulta",
         "notificacao": False
     }, headers=headers_admin)
@@ -143,7 +185,6 @@ def test_clifor_do_usuario_com_vinculo(client, headers_admin, usuario_base, clif
     assert r.status_code == 200
     data = r.json()
     assert data["id_clifor"] == clifor_base["id_clifor"]
-    assert data["id_usuario_fk"] == usuario_base["id_usuario"]
 
 
 def test_sugestao_clifor_retorna_lista(client, headers_admin, usuario_base):
@@ -170,7 +211,7 @@ def test_associar_clifor_ao_usuario(client, headers_admin):
     u = client.post("/usuarios/", json={
         "nome": "Usuario Associar Pytest",
         "email": "pytest_associar@amsi.com",
-        "cargo": "Associado",
+        "cargo": None,
         "perfil_de_acesso": "Consulta",
         "notificacao": False
     }, headers=headers_admin)
@@ -195,7 +236,7 @@ def test_associar_clifor_ao_usuario(client, headers_admin):
         headers=headers_admin
     )
     assert r.status_code == 200
-    assert r.json()["id_usuario_fk"] == usuario["id_usuario"]
+    assert r.json()["id_clifor"] == clifor["id_clifor"]
 
     # Verifica via GET
     r2 = client.get(f"/usuarios/{usuario['id_usuario']}/clifor", headers=headers_admin)
@@ -211,39 +252,34 @@ def test_associar_clifor_ao_usuario(client, headers_admin):
     client.delete(f"/usuarios/{usuario['id_usuario']}", headers=headers_admin)
 
 
-def test_associar_clifor_conflito(client, headers_admin, usuario_base, clifor_base):
-    """Tentar associar clifor já vinculado a outro usuário retorna 409."""
-    # Cria segundo usuário
-    u2 = client.post("/usuarios/", json={
-        "nome": "Usuario Conflito Pytest",
-        "email": "pytest_conflito@amsi.com",
-        "cargo": "Associado",
-        "perfil_de_acesso": "Consulta",
-        "notificacao": False
-    }, headers=headers_admin)
-    assert u2.status_code == 200
-    usuario2 = u2.json()
+def test_associar_clifor_a_dois_usuarios(client, headers_admin):
+    """Relação 1‑n: o mesmo clifor pode ser vinculado a dois usuários (sem 409)."""
+    # Usa clifor e usuários próprios (descartáveis) para não sujar o clifor compartilhado:
+    # cada associar injeta o e-mail do usuário como contato; o delete do clifor cascateia.
+    usuario1 = _vinc_criar_usuario(client, headers_admin, "pytest_1n_a@amsi.com")
+    usuario2 = _vinc_criar_usuario(client, headers_admin, "pytest_1n_b@amsi.com")
+    clifor = _vinc_criar_clifor(client, headers_admin, "131.313.131-31", "CliFor 1-n")
 
-    # Tenta associar clifor_base (já vinculado ao usuario_base) ao usuario2
-    r = client.post(
-        f"/usuarios/{usuario2['id_usuario']}/clifor/{clifor_base['id_clifor']}/associar",
-        headers=headers_admin
-    )
-    assert r.status_code == 409
+    # Ambos podem apontar para o mesmo clifor — antes o segundo dava 409.
+    assert _vinc_associar(client, headers_admin, usuario1, clifor)
+    assert _vinc_associar(client, headers_admin, usuario2, clifor)
 
-    # Limpeza
-    logins = client.get(f"/login/por-usuario/{usuario2['id_usuario']}", headers=headers_admin)
-    if logins.is_success:
-        for login in logins.json():
-            client.delete(f"/login/{login['id_login']}", headers=headers_admin)
-    client.delete(f"/usuarios/{usuario2['id_usuario']}", headers=headers_admin)
+    r1 = client.get(f"/usuarios/{usuario1['id_usuario']}/clifor", headers=headers_admin)
+    r2 = client.get(f"/usuarios/{usuario2['id_usuario']}/clifor", headers=headers_admin)
+    assert r1.status_code == 200 and r2.status_code == 200
+    assert r1.json()["id_clifor"] == clifor["id_clifor"]
+    assert r2.json()["id_clifor"] == clifor["id_clifor"]
+
+    # Limpeza: remove os dois usuários e, por fim, o clifor (cascateia os contatos).
+    _vinc_limpar(client, headers_admin, usuario1)
+    _vinc_limpar(client, headers_admin, usuario2, clifor)
 
 def test_desvincular_clifor_do_usuario(client, headers_admin):
     """Desvincula clifor de um usuário e verifica que voltou a 404."""
     u = client.post("/usuarios/", json={
         "nome": "Usuario Desvincular Pytest",
         "email": "pytest_desvincular@amsi.com",
-        "cargo": "Associado",
+        "cargo": None,
         "perfil_de_acesso": "Consulta",
         "notificacao": False
     }, headers=headers_admin)
@@ -285,7 +321,7 @@ def test_desvincular_clifor_sem_vinculo(client, headers_admin):
     u = client.post("/usuarios/", json={
         "nome": "Usuario Sem Vinculo Desv",
         "email": "pytest_semvinculo_desv@amsi.com",
-        "cargo": "Associado",
+        "cargo": None,
         "perfil_de_acesso": "Consulta",
         "notificacao": False
     }, headers=headers_admin)
@@ -312,14 +348,14 @@ def _vinc_emails(clifor_json):
 
 def _vinc_criar_usuario(client, headers_admin, email):
     r = client.post("/usuarios/", json={
-        "nome": f"Vinc {email}", "email": email, "cargo": "Associado",
+        "nome": f"Vinc {email}", "email": email, "cargo": None,
         "perfil_de_acesso": "Consulta", "notificacao": False,
     }, headers=headers_admin)
     assert r.status_code == 200, r.text
     return r.json()
 
 
-def _vinc_criar_clifor(client, headers_admin, cpf, nome, contatos=None, id_usuario_fk=None):
+def _vinc_criar_clifor(client, headers_admin, cpf, nome, contatos=None):
     payload = {
         "pessoafisica_juridica": True, "cpf_cnpj": cpf,
         "rg_inscricaoestadual": cpf.replace(".", "").replace("-", ""),
@@ -327,21 +363,29 @@ def _vinc_criar_clifor(client, headers_admin, cpf, nome, contatos=None, id_usuar
     }
     if contatos is not None:
         payload["contatos"] = contatos
-    if id_usuario_fk is not None:
-        payload["id_usuario_fk"] = id_usuario_fk
     r = client.post("/cliente_fornecedor/", json=payload, headers=headers_admin)
     assert r.status_code == 200, r.text
     return r.json()
 
 
+def _vinc_associar(client, headers_admin, usuario, clifor):
+    r = client.post(
+        f"/usuarios/{usuario['id_usuario']}/clifor/{clifor['id_clifor']}/associar",
+        headers=headers_admin)
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
 def _vinc_limpar(client, headers_admin, usuario, clifor=None):
-    if clifor:
-        client.delete(f"/cliente_fornecedor/{clifor['id_clifor']}", headers=headers_admin)
+    # Remove o usuário antes do clifor: usuario.id_clifor_fk referencia o clifor
+    # e a FK bloquearia o delete se o clifor saísse primeiro.
     logins = client.get(f"/login/por-usuario/{usuario['id_usuario']}", headers=headers_admin)
     if logins.is_success:
         for login in logins.json():
             client.delete(f"/login/{login['id_login']}", headers=headers_admin)
     client.delete(f"/usuarios/{usuario['id_usuario']}", headers=headers_admin)
+    if clifor:
+        client.delete(f"/cliente_fornecedor/{clifor['id_clifor']}", headers=headers_admin)
 
 
 def test_associar_garante_email_do_usuario(client, headers_admin):
@@ -386,23 +430,12 @@ def test_associar_preserva_email_diferente(client, headers_admin):
     _vinc_limpar(client, headers_admin, usuario, clifor)
 
 
-def test_criar_clifor_com_usuario_garante_email(client, headers_admin):
-    """Criar clifor com id_usuario_fk (sem contatos) garante o e-mail do usuário."""
-    usuario = _vinc_criar_usuario(client, headers_admin, "pytest_vinc_create@amsi.com")
-    clifor = _vinc_criar_clifor(
-        client, headers_admin, "777.777.777-77", "CliFor Criado Com Usuario",
-        id_usuario_fk=usuario["id_usuario"])
-    assert "pytest_vinc_create@amsi.com" in _vinc_emails(clifor)
-    _vinc_limpar(client, headers_admin, usuario, clifor)
-
-
 def test_trocar_email_usuario_sincroniza_clifor(client, headers_admin):
     """Trocar o e-mail do usuário atualiza o contato de e-mail no clifor vinculado."""
     usuario = _vinc_criar_usuario(client, headers_admin, "pytest_vinc_sync@amsi.com")
-    clifor = _vinc_criar_clifor(
-        client, headers_admin, "888.888.888-88", "CliFor Sync Email",
-        id_usuario_fk=usuario["id_usuario"])
-    assert "pytest_vinc_sync@amsi.com" in _vinc_emails(clifor)
+    clifor = _vinc_criar_clifor(client, headers_admin, "888.888.888-88", "CliFor Sync Email")
+    vinculado = _vinc_associar(client, headers_admin, usuario, clifor)
+    assert "pytest_vinc_sync@amsi.com" in _vinc_emails(vinculado)
 
     r = client.put(f"/usuarios/{usuario['id_usuario']}",
                    json={"email": "pytest_vinc_sync_novo@amsi.com"}, headers=headers_admin)
@@ -441,16 +474,72 @@ def test_trocar_email_usuario_sem_clifor_nao_quebra(client, headers_admin):
     _vinc_limpar(client, headers_admin, usuario)
 
 
-def test_atualizar_clifor_vincular_usuario_garante_email(client, headers_admin):
-    """Editar um clifor para vinculá-lo a um usuário (PUT) garante o e-mail do usuário."""
-    usuario = _vinc_criar_usuario(client, headers_admin, "pytest_vinc_edit@amsi.com")
-    clifor = _vinc_criar_clifor(client, headers_admin, "100.100.100-10", "CliFor Editar Vinculo")
-    # Clifor nasceu sem vínculo e sem e-mail; o PUT vincula o usuário.
-    r = client.put(f"/cliente_fornecedor/{clifor['id_clifor']}",
-                   json={"id_usuario_fk": usuario["id_usuario"]}, headers=headers_admin)
-    assert r.status_code == 200, r.text
-    assert "pytest_vinc_edit@amsi.com" in _vinc_emails(r.json())
+def test_sugestao_exclui_clifor_ja_vinculado(client, headers_admin):
+    """Sugestão não deve trazer o clifor que o próprio usuário já tem vinculado."""
+    usuario = _vinc_criar_usuario(client, headers_admin, "pytest_sug_excl@amsi.com")
+    clifor = _vinc_criar_clifor(client, headers_admin, "141.414.141-41", "CliFor Sugestao Excluir")
+    _vinc_associar(client, headers_admin, usuario, clifor)
+
+    r = client.get(
+        f"/usuarios/{usuario['id_usuario']}/clifor/sugestao",
+        params={"nome": "CliFor Sugestao Excluir"},
+        headers=headers_admin)
+    assert r.status_code == 200
+    ids = [c["id_clifor"] for c in r.json()]
+    assert clifor["id_clifor"] not in ids, "o clifor já vinculado ao usuário não deve ser sugerido"
+
     _vinc_limpar(client, headers_admin, usuario, clifor)
+
+
+def test_desvincular_nao_afeta_outro_usuario_do_mesmo_clifor(client, headers_admin):
+    """1‑n: desvincular um usuário não remove o vínculo de outro que compartilha o clifor."""
+    usuario1 = _vinc_criar_usuario(client, headers_admin, "pytest_desv_iso_a@amsi.com")
+    usuario2 = _vinc_criar_usuario(client, headers_admin, "pytest_desv_iso_b@amsi.com")
+    clifor = _vinc_criar_clifor(client, headers_admin, "151.515.151-51", "CliFor Desvincular Isolado")
+    _vinc_associar(client, headers_admin, usuario1, clifor)
+    _vinc_associar(client, headers_admin, usuario2, clifor)
+
+    # Desvincula só o usuario1.
+    r = client.delete(f"/usuarios/{usuario1['id_usuario']}/clifor/desvincular", headers=headers_admin)
+    assert r.status_code == 200
+
+    # usuario1 sem vínculo (404); usuario2 permanece vinculado.
+    assert client.get(f"/usuarios/{usuario1['id_usuario']}/clifor", headers=headers_admin).status_code == 404
+    r2 = client.get(f"/usuarios/{usuario2['id_usuario']}/clifor", headers=headers_admin)
+    assert r2.status_code == 200
+    assert r2.json()["id_clifor"] == clifor["id_clifor"]
+
+    _vinc_limpar(client, headers_admin, usuario1)
+    _vinc_limpar(client, headers_admin, usuario2, clifor)
+
+
+def test_clifor_expoe_usuarios_vinculados(client, headers_admin):
+    """O GET do clifor devolve os usuários ligados a ele (lado N do 1‑n),
+    sem nunca expor 'senha' e excluindo usuários soft‑deletados."""
+    usuario1 = _vinc_criar_usuario(client, headers_admin, "pytest_expo_a@amsi.com")
+    usuario2 = _vinc_criar_usuario(client, headers_admin, "pytest_expo_b@amsi.com")
+    clifor = _vinc_criar_clifor(client, headers_admin, "161.616.161-61", "CliFor Expoe Usuarios")
+    _vinc_associar(client, headers_admin, usuario1, clifor)
+    _vinc_associar(client, headers_admin, usuario2, clifor)
+
+    r = client.get(f"/cliente_fornecedor/{clifor['id_clifor']}", headers=headers_admin)
+    assert r.status_code == 200
+    usuarios = r.json()["usuarios"]
+    ids = {u["id_usuario"] for u in usuarios}
+    assert ids == {usuario1["id_usuario"], usuario2["id_usuario"]}
+    # Contrato seguro: só o subconjunto público, nunca a senha.
+    assert all("senha" not in u for u in usuarios)
+    assert {u["email"] for u in usuarios} == {"pytest_expo_a@amsi.com", "pytest_expo_b@amsi.com"}
+
+    # Soft‑delete de um usuário: ele some da lista exposta (exclusao não zera id_clifor_fk).
+    assert client.delete(f"/usuarios/{usuario1['id_usuario']}", headers=headers_admin).status_code == 200
+    r2 = client.get(f"/cliente_fornecedor/{clifor['id_clifor']}", headers=headers_admin)
+    assert r2.status_code == 200
+    ids2 = {u["id_usuario"] for u in r2.json()["usuarios"]}
+    assert ids2 == {usuario2["id_usuario"]}
+
+    _vinc_limpar(client, headers_admin, usuario1)
+    _vinc_limpar(client, headers_admin, usuario2, clifor)
 
 
 def test_criar_usuario_cargo_desenvolvedor(client, headers_admin):
@@ -493,7 +582,7 @@ def test_criar_usuario_primeiro_acesso_true(client, headers_admin):
     r = client.post("/usuarios/", json={
         "nome": "Primeiro Acesso Pytest",
         "email": "pytest_primeiro_acesso@amsi.com",
-        "cargo": "Associado",
+        "cargo": None,
         "perfil_de_acesso": "Consulta",
         "notificacao": False
     }, headers=headers_admin)
@@ -559,7 +648,7 @@ def test_buscar_usuario_excluido_retorna_404(client, headers_admin):
     r = client.post("/usuarios/", json={
         "nome": "Busca Excluido Pytest",
         "email": "pytest_busca_excluido@amsi.com",
-        "cargo": "Associado",
+        "cargo": None,
         "perfil_de_acesso": "Consulta",
         "notificacao": False
     }, headers=headers_admin)
@@ -577,7 +666,7 @@ def test_resetar_senha_usuario_excluido_retorna_404(client, headers_admin):
     r = client.post("/usuarios/", json={
         "nome": "Reset Excluido Pytest",
         "email": "pytest_reset_excluido@amsi.com",
-        "cargo": "Associado",
+        "cargo": None,
         "perfil_de_acesso": "Consulta",
         "notificacao": False
     }, headers=headers_admin)

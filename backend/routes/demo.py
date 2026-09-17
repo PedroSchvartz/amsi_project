@@ -30,7 +30,7 @@ class DemoRegistroRequest(BaseModel):
     nome: str
     email: EmailStr
     senha: str
-    cargo: CargoEnum = CargoEnum.Associado
+    cargo: CargoEnum = CargoEnum.Conselheiro
     perfil_de_acesso: AcessoEnum = AcessoEnum.Consulta
 
 

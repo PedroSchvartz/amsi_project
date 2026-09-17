@@ -40,7 +40,6 @@ def tipo_debito(client, headers_admin):
 def clifor_sem_lancamento(client, headers_admin, usuario_base):
     """Clifor sem nenhum lançamento — para testar exclusão."""
     r = client.post("/cliente_fornecedor/", json={
-        "id_usuario_fk": usuario_base["id_usuario"],
         "pessoafisica_juridica": True,
         "cpf_cnpj": "999.999.999-99",
         "rg_inscricaoestadual": "9999999",
@@ -349,7 +348,7 @@ def _criar_usuario_temp(client, headers_admin, email, nome="Usuario Soft Delete 
     r = client.post("/usuarios/", json={
         "nome": nome,
         "email": email,
-        "cargo": "Associado",
+        "cargo": None,
         "perfil_de_acesso": "Consulta",
         "notificacao": False
     }, headers=headers_admin)
@@ -416,7 +415,7 @@ def test_email_reutilizavel_apos_soft_delete(client, headers_admin):
     r2 = client.post("/usuarios/", json={
         "nome": "Usuario Novo Mesmo Email",
         "email": email,
-        "cargo": "Associado",
+        "cargo": None,
         "perfil_de_acesso": "Consulta",
         "notificacao": False
     }, headers=headers_admin)

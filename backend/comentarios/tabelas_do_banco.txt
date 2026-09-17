@@ -24,7 +24,10 @@ CREATE TABLE Usuario (
     Nome VARCHAR(255) NOT NULL,
     Data_Cadastro TIMESTAMP NOT NULL DEFAULT NOW(),
     Email VARCHAR(255) NOT NULL,
-    Cargo cargo_enum NOT NULL,
+    -- Nullable (item 15): o cargo "Associado" saiu das telas; usuarios que eram
+    -- Associado ficam com cargo NULL (a migracao no main.py zera os existentes).
+    -- O valor 'Associado' segue no tipo cargo_enum, apenas sem uso pela UI.
+    Cargo cargo_enum DEFAULT NULL,
     Perfil_de_Acesso acesso_enum NOT NULL,
     Notificacao BOOLEAN NOT NULL DEFAULT FALSE,
     Suspenso TIMESTAMP DEFAULT NULL,
@@ -36,12 +39,19 @@ CREATE TABLE Usuario (
     -- coluna existe nas bases atuais -- se for dropar, dropar aqui e no banco.
     telegram_id VARCHAR(255) DEFAULT NULL,
     primeiro_acesso BOOLEAN NOT NULL DEFAULT TRUE,
+    -- Vinculo usuario -> clifor. Um clifor pode ter VARIOS usuarios; cada usuario
+    -- pertence a no maximo um clifor. A FK vive aqui (lado "muitos"). Nullable:
+    -- usuarios de equipe (admin/operador) podem nao ter clifor. A constraint e
+    -- adicionada por ALTER apos ClienteFornecedor existir (dependencia circular).
+    id_CliFor_FK BIGINT DEFAULT NULL,
     PRIMARY KEY (id_usuario)
 );
 
 -- Usuario
 CREATE INDEX idx_usuario_email ON Usuario(Email);
 CREATE INDEX idx_usuario_bloqueado ON Usuario(Bloqueado);
+CREATE INDEX idx_usuario_clifor ON Usuario(id_CliFor_FK);
+ALTER TABLE Usuario ADD FOREIGN KEY (id_CliFor_FK) REFERENCES ClienteFornecedor(id_CliFor);
 
 
 CREATE TABLE tipo_conta (
@@ -53,9 +63,10 @@ CREATE TABLE tipo_conta (
 );
 
 
+-- Vinculo com Usuario invertido: a FK agora vive em Usuario (id_CliFor_FK), pois
+-- um clifor pode ter VARIOS usuarios. Esta tabela nao carrega mais id_Usuario_FK.
 CREATE TABLE ClienteFornecedor (
     id_CliFor BIGINT GENERATED ALWAYS AS IDENTITY,
-    id_Usuario_FK BIGINT,
     PessoaFisica_Juridica BOOLEAN NOT NULL,
     CPF_CNPJ VARCHAR(255) NOT NULL,
     RG_InscricaoEstadual VARCHAR(255) NOT NULL,
@@ -67,8 +78,8 @@ CREATE TABLE ClienteFornecedor (
     Ativo BOOLEAN NOT NULL DEFAULT TRUE,
     Inadimplente BOOLEAN NOT NULL DEFAULT FALSE,
     Bloqueado BOOLEAN NOT NULL DEFAULT FALSE,
-    PRIMARY KEY (id_CliFor),
-    FOREIGN KEY (id_Usuario_FK) REFERENCES Usuario(id_usuario)
+    Associado BOOLEAN NOT NULL DEFAULT FALSE,
+    PRIMARY KEY (id_CliFor)
 );
 
 -- ClienteFornecedor

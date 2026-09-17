@@ -18,7 +18,7 @@ def test_criar_usuario_proibido_consulta(client, headers_consulta):
     r = client.post("/usuarios/", json={
         "nome": "Nao Deve Criar",
         "email": "nao_cria_perm@amsi.com",
-        "cargo": "Associado",
+        "cargo": None,
         "perfil_de_acesso": "Consulta",
         "notificacao": False
     }, headers=headers_consulta)
@@ -235,7 +235,7 @@ def test_criar_usuario_proibido_operador(client, headers_operador, operador_sess
     r = client.post("/usuarios/", json={
         "nome": "Nao Deve Criar",
         "email": "nao_cria_op@amsi.com",
-        "cargo": "Associado",
+        "cargo": None,
         "perfil_de_acesso": "Consulta",
         "notificacao": False
     }, headers=headers_operador)

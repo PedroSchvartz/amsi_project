@@ -230,7 +230,6 @@ def test_filtro_valor_faixa(client, headers_admin, lancamento, lancamento_vencid
 
 def _clifor_com_lote(client, headers_admin, usuario_base, cpf, lote):
     r = client.post("/cliente_fornecedor/", json={
-        "id_usuario_fk": usuario_base["id_usuario"],
         "pessoafisica_juridica": True,
         "cpf_cnpj": cpf,
         "rg_inscricaoestadual": cpf.replace(".", "").replace("-", ""),
@@ -1415,7 +1414,6 @@ def test_fechamento_sem_multa_e_juros_ficam_nulos(client, headers_admin, usuario
 def _criar_clifor_massa(client, headers_admin, usuario_base, cpf, nome, ativo=True):
     """Cria um clifor extra para os testes de massa (cleanup é responsabilidade do teste)."""
     r = client.post("/cliente_fornecedor/", json={
-        "id_usuario_fk": usuario_base["id_usuario"],
         "pessoafisica_juridica": True,
         "cpf_cnpj": cpf,
         "rg_inscricaoestadual": "2222222",

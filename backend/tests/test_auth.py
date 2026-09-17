@@ -24,7 +24,7 @@ def _criar_usuario_com_senha(client, headers_admin, email, senha="SenhaTest@123"
     r = client.post("/usuarios/", json={
         "nome": "Auth Test Temp",
         "email": email,
-        "cargo": "Associado",
+        "cargo": None,
         "perfil_de_acesso": "Consulta",
         "notificacao": False
     }, headers=headers_admin)
@@ -61,7 +61,7 @@ def test_login_sucesso(client, headers_admin, senha_admin):
     r = client.post("/usuarios/", json={
         "nome": "Login Sucesso Teste",
         "email": "login_sucesso_teste@amsi.com",
-        "cargo": "Associado",
+        "cargo": None,
         "perfil_de_acesso": "Consulta",
         "notificacao": False
     }, headers=headers_admin)
@@ -121,7 +121,7 @@ def test_logout(client, headers_admin, senha_admin):
     r = client.post("/usuarios/", json={
         "nome": "Logout Teste",
         "email": "logout_teste@amsi.com",
-        "cargo": "Associado",
+        "cargo": None,
         "perfil_de_acesso": "Consulta",
         "notificacao": False
     }, headers=headers_admin)

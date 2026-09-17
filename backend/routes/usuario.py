@@ -54,7 +54,9 @@ def buscar_usuario(id_usuario: int, db: Session = Depends(get_db), _=Depends(get
 
 @router.post("/", response_model=UsuarioResponse)
 def criar_usuario(dados: UsuarioCreate, db: Session = Depends(get_db), usuario_atual: Usuario = Depends(exige_admin)):
-    if dados.cargo.value == "Desenvolvedor" and usuario_atual.cargo.value != "Desenvolvedor":
+    cargo_novo = dados.cargo.value if dados.cargo is not None else None
+    cargo_atual = usuario_atual.cargo.value if usuario_atual.cargo is not None else None
+    if cargo_novo == "Desenvolvedor" and cargo_atual != "Desenvolvedor":
         raise HTTPException(status_code=403, detail="Apenas usuários com cargo Desenvolvedor podem cadastrar outros desenvolvedores")
 
     if not _validar_dominio_email(dados.email):
@@ -170,7 +172,6 @@ def deletar_usuario_hard(
     from models.lancamento import Lancamento
     from models.login import Login
     from models.log_atividade import LogAtividade
-    from models.cliente_fornecedor import ClienteFornecedor as _CliFor
     from models.senha_token import SenhaToken
 
     if id_usuario == 1:
@@ -190,9 +191,7 @@ def deletar_usuario_hard(
     db.query(Lancamento).filter(Lancamento.id_usuario_fk_lancamento == id_usuario)\
         .update({"id_usuario_fk_lancamento": 1}, synchronize_session=False)
 
-    # 3. Clifor — desvincular
-    db.query(_CliFor).filter(_CliFor.id_usuario_fk == id_usuario)\
-        .update({"id_usuario_fk": None}, synchronize_session=False)
+    # 3. Clifor — o vinculo agora vive em usuario.id_clifor_fk, some junto com a linha do usuario.
 
     # 4. Log de atividade — tem ondelete=SET NULL no DB, mas nullificamos antes por segurança
     db.query(LogAtividade).filter(LogAtividade.id_usuario_fk == id_usuario)\
@@ -347,9 +346,11 @@ def buscar_clifor_do_usuario(
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
 
-    clifor = db.query(ClienteFornecedor).filter(
-        ClienteFornecedor.id_usuario_fk == id_usuario
-    ).first()
+    clifor = None
+    if usuario.id_clifor_fk:
+        clifor = db.query(ClienteFornecedor).filter(
+            ClienteFornecedor.id_clifor == usuario.id_clifor_fk
+        ).first()
 
     if not clifor:
         raise HTTPException(status_code=404, detail="Nenhum cliente/fornecedor vinculado a este usuário")
@@ -370,32 +371,40 @@ def sugerir_clifor_para_usuario(
 
     termo = nome if nome else usuario.nome
 
+    # Um clifor pode ter varios usuarios, entao nao filtramos por "sem vinculo";
+    # apenas excluimos o clifor que este usuario ja tem.
+    ja_vinculado = usuario.id_clifor_fk
+
     try:
-        resultados = (
+        query = (
             db.query(ClienteFornecedor)
             .options(
                 selectinload(ClienteFornecedor.enderecos),
                 selectinload(ClienteFornecedor.contatos),
             )
-            .filter(ClienteFornecedor.id_usuario_fk == None)
             .filter(ClienteFornecedor.ativo == True)
+        )
+        if ja_vinculado:
+            query = query.filter(ClienteFornecedor.id_clifor != ja_vinculado)
+        resultados = (
+            query
             .order_by(func.similarity(ClienteFornecedor.nome, termo).desc())
             .limit(5)
             .all()
         )
     except Exception:
-        resultados = (
+        query = (
             db.query(ClienteFornecedor)
             .options(
                 selectinload(ClienteFornecedor.enderecos),
                 selectinload(ClienteFornecedor.contatos),
             )
-            .filter(ClienteFornecedor.id_usuario_fk == None)
             .filter(ClienteFornecedor.ativo == True)
             .filter(ClienteFornecedor.nome.ilike(f"%{termo}%"))
-            .limit(5)
-            .all()
         )
+        if ja_vinculado:
+            query = query.filter(ClienteFornecedor.id_clifor != ja_vinculado)
+        resultados = query.limit(5).all()
 
     return resultados
 
@@ -415,10 +424,8 @@ def associar_clifor_ao_usuario(
     if not clifor:
         raise HTTPException(status_code=404, detail="Cliente/Fornecedor não encontrado")
 
-    if clifor.id_usuario_fk and clifor.id_usuario_fk != id_usuario:
-        raise HTTPException(status_code=409, detail="Este cliente/fornecedor já está vinculado a outro usuário")
-
-    clifor.id_usuario_fk = id_usuario
+    # Um clifor pode ter varios usuarios; um usuario tem no maximo um clifor.
+    usuario.id_clifor_fk = id_clifor
     # Vínculo: garante o e-mail do usuário entre os contatos do clifor.
     garantir_email_no_clifor(clifor, usuario, db)
     db.commit()
@@ -436,14 +443,10 @@ def desvincular_clifor_do_usuario(
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
 
-    clifor = db.query(ClienteFornecedor).filter(
-        ClienteFornecedor.id_usuario_fk == id_usuario
-    ).first()
-
-    if not clifor:
+    if not usuario.id_clifor_fk:
         raise HTTPException(status_code=404, detail="Nenhum cliente/fornecedor vinculado a este usuário")
 
-    clifor.id_usuario_fk = None
+    usuario.id_clifor_fk = None
     db.commit()
     return {"detail": "Cliente/Fornecedor desvinculado com sucesso"}
 
@@ -465,7 +468,9 @@ def exportar_dados_usuario(
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
 
-    clifor = db.query(CliForModel).filter(CliForModel.id_usuario_fk == id_usuario).first()
+    clifor = None
+    if usuario.id_clifor_fk:
+        clifor = db.query(CliForModel).filter(CliForModel.id_clifor == usuario.id_clifor_fk).first()
 
     lancamentos = []
     if clifor:
@@ -485,7 +490,7 @@ def exportar_dados_usuario(
             "id_usuario": usuario.id_usuario,
             "nome": usuario.nome,
             "email": usuario.email,
-            "cargo": usuario.cargo.value,
+            "cargo": usuario.cargo.value if usuario.cargo is not None else None,
             "perfil_de_acesso": usuario.perfil_de_acesso.value,
             "data_cadastro": usuario.data_cadastro,
             "notificacao": usuario.notificacao,

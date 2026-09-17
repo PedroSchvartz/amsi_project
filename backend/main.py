@@ -209,6 +209,74 @@ def _aplicar_migracoes():
                 ))
                 conn.commit()
 
+    # Migration (item 16): inverte o vínculo clifor↔usuário para 1‑n.
+    # Antes o FK morava no clifor (clientefornecedor.id_usuario_fk) e a rota travava
+    # cada clifor a UM usuário. Agora a FK vive no usuário (usuario.id_clifor_fk), então
+    # um clifor pode ter vários usuários. A coluna nova é criada + backfillada a partir
+    # da antiga ANTES de dropá-la, para não perder os vínculos reais em produção.
+    #
+    # Backfill determinístico: se (por dados legados) um mesmo usuário aparecer em vários
+    # clifors, o menor id_clifor vence — evita depender da ordem das linhas.
+    # Guardas pela presença/ausência de coluna: reentrar é no‑op.
+    if "usuario" in insp.get_table_names():
+        cols_usuario = [c["name"] for c in insp.get_columns("usuario")]
+        if "id_clifor_fk" not in cols_usuario:
+            with engine.connect() as conn:
+                conn.execute(text(
+                    "ALTER TABLE usuario ADD COLUMN id_clifor_fk BIGINT "
+                    "REFERENCES clientefornecedor(id_clifor)"
+                ))
+                # Só faz backfill se a coluna antiga ainda existir (base já migrada não tem).
+                clifor_cols = [c["name"] for c in insp.get_columns("clientefornecedor")]
+                if "id_usuario_fk" in clifor_cols:
+                    conn.execute(text(
+                        "UPDATE usuario u SET id_clifor_fk = sub.id_clifor "
+                        "FROM (SELECT id_usuario_fk, MIN(id_clifor) AS id_clifor "
+                        "        FROM clientefornecedor "
+                        "       WHERE id_usuario_fk IS NOT NULL "
+                        "       GROUP BY id_usuario_fk) sub "
+                        "WHERE sub.id_usuario_fk = u.id_usuario"
+                    ))
+                conn.execute(text(
+                    "CREATE INDEX IF NOT EXISTS idx_usuario_clifor ON usuario(id_clifor_fk)"
+                ))
+                conn.commit()
+
+    # Depois do backfill, derruba a coluna antiga (a FK cai junto).
+    if "clientefornecedor" in insp.get_table_names():
+        clifor_cols = [c["name"] for c in insp.get_columns("clientefornecedor")]
+        if "id_usuario_fk" in clifor_cols:
+            with engine.connect() as conn:
+                conn.execute(text(
+                    "ALTER TABLE clientefornecedor DROP COLUMN id_usuario_fk"
+                ))
+                conn.commit()
+
+    # Migration (item 14): booleano 'associado' no clifor (tela + tabela).
+    if "clientefornecedor" in insp.get_table_names():
+        clifor_cols = [c["name"] for c in insp.get_columns("clientefornecedor")]
+        if "associado" not in clifor_cols:
+            with engine.connect() as conn:
+                conn.execute(text(
+                    "ALTER TABLE clientefornecedor "
+                    "ADD COLUMN associado BOOLEAN NOT NULL DEFAULT false"
+                ))
+                conn.commit()
+
+    # Migration (item 15): cargo vira nullable e os ex-'Associado' viram NULL.
+    # O conceito "associado" migrou para o bool do item 14; o cargo 'Associado' saiu das
+    # telas. O valor SEGUE no tipo cargo_enum (purgar enum é pesado e fora de escopo), só
+    # deixa de ser usado. O guard é a PRÓPRIA nullability: rodar só enquanto cargo é NOT
+    # NULL torna a reentrada no‑op e evita zerar Associados que a suíte crie em runtime
+    # (pós‑startup) — a UI nunca mais cria 'Associado'.
+    if "usuario" in insp.get_table_names():
+        cargo_col = next((c for c in insp.get_columns("usuario") if c["name"] == "cargo"), None)
+        if cargo_col is not None and cargo_col["nullable"] is False:
+            with engine.connect() as conn:
+                conn.execute(text("ALTER TABLE usuario ALTER COLUMN cargo DROP NOT NULL"))
+                conn.execute(text("UPDATE usuario SET cargo = NULL WHERE cargo = 'Associado'"))
+                conn.commit()
+
 
 _aplicar_migracoes()
 

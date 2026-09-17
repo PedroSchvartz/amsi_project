@@ -1,4 +1,4 @@
-from sqlalchemy import Column, BigInteger, String, Boolean, Date, ForeignKey
+from sqlalchemy import Column, BigInteger, String, Boolean, Date
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import relationship
 from database import Base
@@ -16,7 +16,6 @@ class ClienteFornecedor(Base):
     __tablename__ = "clientefornecedor"
 
     id_clifor = Column(BigInteger, primary_key=True, autoincrement=True)
-    id_usuario_fk = Column(BigInteger, ForeignKey("usuario.id_usuario"), nullable=True)
     pessoafisica_juridica = Column(Boolean, nullable=False)
     cpf_cnpj = Column(String(255), nullable=False)
     rg_inscricaoestadual = Column(String(255), nullable=True)
@@ -28,7 +27,16 @@ class ClienteFornecedor(Base):
     ativo = Column(Boolean, nullable=False, default=True)
     inadimplente = Column(Boolean, nullable=False, default=False)
     bloqueado = Column(Boolean, nullable=False, default=False)
+    associado = Column(Boolean, nullable=False, default=False)
 
-    usuario = relationship("Usuario", backref="clientes_fornecedores")
+    # O vinculo com usuario agora vive em Usuario.id_clifor_fk (um clifor -> N usuarios);
+    # o backref "usuarios" (lista) e definido la, em models/usuario.py.
     enderecos = relationship("Endereco", backref="cliente_fornecedor", cascade="all, delete-orphan")
     contatos = relationship("Contato", backref="cliente_fornecedor", cascade="all, delete-orphan")
+
+    @property
+    def usuarios_vinculados(self):
+        # Usuarios ativos ligados a este clifor. O soft-delete (routes/usuario.py) marca
+        # exclusao mas NAO zera id_clifor_fk, entao um usuario excluido continua no backref
+        # "usuarios" — filtramos para nunca expo-lo como vinculado.
+        return [u for u in self.usuarios if u.exclusao is None]

@@ -53,10 +53,10 @@ def sincronizar_email_clifor(usuario: Usuario, email_antigo: str, db: Session) -
     Se existir um contato Email com o e-mail antigo, atualiza para o novo; caso
     contrário (foi removido por algum motivo), re-adiciona via garantir_email_no_clifor.
     """
-    if not usuario:
+    if not usuario or not usuario.id_clifor_fk:
         return
     clifor = db.query(ClienteFornecedor).filter(
-        ClienteFornecedor.id_usuario_fk == usuario.id_usuario
+        ClienteFornecedor.id_clifor == usuario.id_clifor_fk
     ).first()
     if not clifor:
         return

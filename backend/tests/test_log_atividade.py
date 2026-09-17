@@ -80,7 +80,7 @@ def _criar_usuario_operador_temp(client, headers_admin, email: str, senha: str =
     r = client.post("/usuarios/", json={
         "nome": "Log Test Operador",
         "email": email,
-        "cargo": "Associado",
+        "cargo": None,
         "perfil_de_acesso": "Operador",
         "notificacao": False
     }, headers=headers_admin)

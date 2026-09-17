@@ -1,14 +1,27 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List
 from datetime import date
 from decimal import Decimal
 from enum import Enum
+
+from schemas.usuario import CargoEnum, AcessoEnum
 
 
 class TipoCliForEnum(str, Enum):
     Cliente = "C"
     Fornecedor = "F"
     Ambos = "A"
+
+
+# ─── Usuário vinculado (subconjunto seguro — NUNCA expõe senha) ────────────────
+
+class UsuarioVinculadoResponse(BaseModel):
+    id_usuario: int
+    nome: str
+    email: str
+    cargo: Optional[CargoEnum] = None
+    perfil_de_acesso: AcessoEnum
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ─── Inline (sem id_clifor_fk — preenchido pela route) ────────────────────────
@@ -45,7 +58,6 @@ class ContatoInlineResponse(ContatoInline):
 # ─── Create ───────────────────────────────────────────────────────────────────
 
 class ClienteFornecedorCreate(BaseModel):
-    id_usuario_fk: Optional[int] = None
     pessoafisica_juridica: bool
     cpf_cnpj: str
     rg_inscricaoestadual: Optional[str] = None
@@ -57,6 +69,7 @@ class ClienteFornecedorCreate(BaseModel):
     ativo: bool = True
     inadimplente: bool = False
     bloqueado: bool = False
+    associado: bool = False
     enderecos: Optional[List[EnderecoInline]] = None
     contatos: Optional[List[ContatoInline]] = None
 
@@ -64,7 +77,6 @@ class ClienteFornecedorCreate(BaseModel):
 # ─── Update ───────────────────────────────────────────────────────────────────
 
 class ClienteFornecedorUpdate(BaseModel):
-    id_usuario_fk: Optional[int] = None
     pessoafisica_juridica: Optional[bool] = None
     cpf_cnpj: Optional[str] = None
     rg_inscricaoestadual: Optional[str] = None
@@ -76,6 +88,7 @@ class ClienteFornecedorUpdate(BaseModel):
     ativo: Optional[bool] = None
     inadimplente: Optional[bool] = None
     bloqueado: Optional[bool] = None
+    associado: Optional[bool] = None
     enderecos: Optional[List[EnderecoInline]] = None
     contatos: Optional[List[ContatoInline]] = None
 
@@ -84,7 +97,6 @@ class ClienteFornecedorUpdate(BaseModel):
 
 class ClienteFornecedorResponse(BaseModel):
     id_clifor: int
-    id_usuario_fk: Optional[int] = None
     pessoafisica_juridica: bool
     cpf_cnpj: str
     rg_inscricaoestadual: Optional[str] = None
@@ -96,8 +108,11 @@ class ClienteFornecedorResponse(BaseModel):
     ativo: bool
     inadimplente: bool
     bloqueado: bool
+    associado: bool
     enderecos: List[EnderecoInlineResponse] = []
     contatos: List[ContatoInlineResponse] = []
+    # Lê a property usuarios_vinculados (já filtra soft-deletados); sai no JSON como "usuarios".
+    usuarios: List[UsuarioVinculadoResponse] = Field(default=[], validation_alias="usuarios_vinculados")
 
     model_config = ConfigDict(from_attributes=True)
 

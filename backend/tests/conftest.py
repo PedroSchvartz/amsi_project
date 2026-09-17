@@ -372,7 +372,7 @@ def usuario_base(client, headers_admin):
     r = client.post("/usuarios/", json={
         "nome": "Usuario Pytest Base",
         "email": "pytest_base@amsi.com",
-        "cargo": "Associado",
+        "cargo": None,
         "perfil_de_acesso": "Consulta",
         "notificacao": False
     }, headers=headers_admin)
@@ -397,7 +397,6 @@ def usuario_base(client, headers_admin):
 @pytest.fixture(scope="session")
 def clifor_base(client, headers_admin, usuario_base):
     r = client.post("/cliente_fornecedor/", json={
-        "id_usuario_fk": usuario_base["id_usuario"],
         "pessoafisica_juridica": True,
         "cpf_cnpj": "111.111.111-11",
         "rg_inscricaoestadual": "1111111",
@@ -409,7 +408,14 @@ def clifor_base(client, headers_admin, usuario_base):
     }, headers=headers_admin)
     assert r.status_code == 200
     data = r.json()
+    # Vínculo na nova direção (1‑n): o usuário aponta para o clifor.
+    client.post(
+        f"/usuarios/{usuario_base['id_usuario']}/clifor/{data['id_clifor']}/associar",
+        headers=headers_admin
+    )
     yield data
+    # Desvincula antes de apagar: a FK usuario.id_clifor_fk bloquearia o delete do clifor.
+    client.delete(f"/usuarios/{usuario_base['id_usuario']}/clifor/desvincular", headers=headers_admin)
     lancamentos = client.get("/lancamento/", headers=headers_admin)
     if lancamentos.is_success:
         for l in lancamentos.json():
