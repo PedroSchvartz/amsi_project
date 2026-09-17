@@ -655,7 +655,7 @@ function ListaLancamentosPage() {
 			if (formEditar.observacao_pagamento !== undefined)
 				payload.observacao_pagamento = formEditar.observacao_pagamento || null;
 			await editarLancamento(modalEditar, payload);
-			if (comprovante) await uploadComprovante(modalEditar, comprovante);
+			if (comprovante) await anexarComprovante(modalEditar, comprovante);
 			mostrarToast('Lançamento editado com sucesso.');
 			setModalEditar(null);
 			buscar();
