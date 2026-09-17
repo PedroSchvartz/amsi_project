@@ -347,7 +347,7 @@ export const getCliforResumo = async (id_clifor) => {
 };
 
 // body: { pessoafisica_juridica, cpf_cnpj, rg_inscricaoestadual, nome, datanascimento,
-//         tipo_clifor ("C"|"F"|"A"), ativo?, inadimplente?, id_usuario_fk? }
+//         tipo_clifor ("C"|"F"|"A"), ativo?, inadimplente?, bloqueado?, associado? }
 export const createClifor = async (data) => {
 	const response = await fetchComLoading(`${BASE_URL}/cliente_fornecedor/`, {
 		method: 'POST',

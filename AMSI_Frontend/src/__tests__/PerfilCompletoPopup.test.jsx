@@ -12,7 +12,7 @@
  * api/auth(isConsulta)/toast são mockados.
  */
 
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import PerfilCompletoPopup from '../components/PerfilCompletoPopup.jsx';
 import * as api from '../services/api.js';
 import * as auth from '../services/auth.js';
@@ -25,11 +25,13 @@ vi.mock('../services/api.js', () => ({
 }));
 
 vi.mock('../services/auth.js', () => ({
-	isConsulta: vi.fn(() => false)
+	isConsulta: vi.fn(() => false),
+	isAdmin: vi.fn(() => true)
 }));
 
+const mostrarToast = vi.fn();
 vi.mock('../components/ToastStack.jsx', () => ({
-	useToast: () => ({ mostrarToast: vi.fn() })
+	useToast: () => ({ mostrarToast })
 }));
 
 const USUARIO = {
@@ -54,7 +56,9 @@ const CLIFOR = {
 };
 
 beforeEach(() => {
+	vi.clearAllMocks();
 	auth.isConsulta.mockReturnValue(false);
+	auth.isAdmin.mockReturnValue(true);
 	api.getCliforDoUsuario.mockResolvedValue(CLIFOR);
 	api.getSugestaoClifor.mockResolvedValue([]);
 });
@@ -143,5 +147,44 @@ describe('PerfilCompletoPopup — callbacks', () => {
 		expect(
 			screen.getByRole('heading', { name: 'Desvincular Cliente/Fornecedor' })
 		).toBeInTheDocument();
+	});
+});
+
+describe('PerfilCompletoPopup — desvincular é admin-only', () => {
+	// gatilho e botão de confirmar da modal têm o mesmo nome; devolve o de confirmar
+	const abrirEConfirmar = () => {
+		const gatilho = screen.getByRole('button', { name: 'Desvincular' });
+		fireEvent.click(gatilho);
+		const confirmar = screen
+			.getAllByRole('button', { name: 'Desvincular' })
+			.find((b) => b !== gatilho);
+		fireEvent.click(confirmar);
+	};
+
+	it('admin: confirmar chama desvincularCliforDoUsuario', async () => {
+		render(<PerfilCompletoPopup usuario={USUARIO} onFechar={() => {}} />);
+		await screen.findByText('Cliente Vinculado');
+		abrirEConfirmar();
+		await waitFor(() =>
+			expect(api.desvincularCliforDoUsuario).toHaveBeenCalledWith(USUARIO.id_usuario)
+		);
+	});
+
+	it('não-admin: botão aparece, mas confirmar mostra mensagem e NÃO desvincula', async () => {
+		auth.isAdmin.mockReturnValue(false);
+		render(<PerfilCompletoPopup usuario={USUARIO} onFechar={() => {}} />);
+		await screen.findByText('Cliente Vinculado');
+		// Operador vê o botão (gate é !isConsulta) e abre a confirmação, mas confirmar aborta
+		abrirEConfirmar();
+
+		expect(mostrarToast).toHaveBeenCalledWith(
+			expect.stringContaining('administrador'),
+			'erro'
+		);
+		expect(api.desvincularCliforDoUsuario).not.toHaveBeenCalled();
+		// modal fechou, nada executado
+		expect(
+			screen.queryByRole('heading', { name: 'Desvincular Cliente/Fornecedor' })
+		).not.toBeInTheDocument();
 	});
 });

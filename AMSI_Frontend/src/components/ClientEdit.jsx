@@ -4,11 +4,13 @@ import {
 	getClifor,
 	getClifors,
 	updateClifor,
-	getUsers,
 	getEnderecosPorClifor,
-	getContatosPorClifor
+	getContatosPorClifor,
+	desvincularCliforDoUsuario
 } from '../services/api';
 import { useToast } from './ToastStack.jsx';
+import ModalConfirm from './ModalConfirm.jsx';
+import { isAdmin } from '../services/auth.js';
 import '../styles/clientForm.css'; /* substitui clientRegister.css — suporte a temas */
 
 /* ════════════════════════════════════════
@@ -127,9 +129,15 @@ function ClientEdit() {
 	const [enderecos, setEnderecos] = useState([]);
 	const [telefones, setTelefones] = useState([]);
 	const [emails, setEmails] = useState([]);
-	const [usuarios, setUsuarios] = useState([]);
 	const [lotesDisponiveis, setLotesDisponiveis] = useState([]);
+	const [usuariosVinculados, setUsuariosVinculados] = useState([]);
 	const [erros, setErros] = useState({});
+	// { index, usuario }: e-mail de usuário vinculado cuja remoção aguarda confirmação
+	// (remover o e-mail também desvincula o usuário — só admin).
+	const [emailParaRemover, setEmailParaRemover] = useState(null);
+	// Usuários marcados para desvincular ao salvar (removeu-se o e-mail deles). Só efetiva
+	// no handleSubmit — nada vai ao backend antes de "Salvar alterações".
+	const [desvincularAoSalvar, setDesvincularAoSalvar] = useState([]);
 
 	useEffect(() => {
 		carregarDados();
@@ -138,11 +146,10 @@ function ClientEdit() {
 	async function carregarDados() {
 		setCarregando(true);
 		try {
-			const [clifor, ends, conts, users, clifors] = await Promise.all([
+			const [clifor, ends, conts, clifors] = await Promise.all([
 				getClifor(id),
 				getEnderecosPorClifor(id),
 				getContatosPorClifor(id),
-				getUsers(),
 				getClifors({}, { silencioso: true })
 			]);
 			// Lotes já cadastrados → sugestões do combo (aceita lote novo também).
@@ -160,10 +167,12 @@ function ClientEdit() {
 				nome_usual: clifor.nome_usual || '',
 				lote: clifor.lote || '',
 				datanascimento: clifor.datanascimento || '',
-				id_usuario_fk: clifor.id_usuario_fk ? String(clifor.id_usuario_fk) : '',
 				ativo: clifor.ativo,
-				bloqueado: clifor.bloqueado
+				bloqueado: clifor.bloqueado,
+				associado: clifor.associado
 			});
+			// Usuários ligados a este clifor (lado N do 1‑n) — exibição read‑only.
+			setUsuariosVinculados(clifor.usuarios || []);
 			setEnderecos(
 				ends.map((e) => ({
 					logradouro: e.logradouro,
@@ -196,7 +205,6 @@ function ClientEdit() {
 						}))
 					: [{ tipo_contato: 'Email', info_do_contato: '', contato_principal: true }]
 			);
-			setUsuarios(users);
 		} catch (err) {
 			mostrarToast(err.message || 'Erro ao carregar dados', 'erro');
 		} finally {
@@ -218,6 +226,45 @@ function ClientEdit() {
 	const togglePrincipal = (list, setList, index) => {
 		if (list[index].contato_principal && list.length === 1) return;
 		setList(list.map((item, i) => ({ ...item, contato_principal: i === index })));
+	};
+
+	// Usuário vinculado cujo e-mail é igual a este contato (o clifor sempre carrega o
+	// e-mail dos vinculados). Remover esse e-mail implica desvincular o usuário.
+	const usuarioDoEmail = (valor) =>
+		usuariosVinculados.find(
+			(u) => (u.email || '').trim().toLowerCase() === (valor || '').trim().toLowerCase()
+		);
+
+	// Remove um e-mail do estado local, promovendo outro a principal se necessário.
+	const removerEmailLocal = (index) => {
+		const novos = emails.filter((_, j) => j !== index);
+		if (novos.length > 0 && !novos.some((e) => e.contato_principal))
+			novos[0] = { ...novos[0], contato_principal: true };
+		setEmails(novos);
+	};
+
+	// Confirmação da remoção de um e-mail que pertence a usuário vinculado. Não envia nada
+	// ao backend agora: remove o e-mail do estado local e enfileira o desvínculo. Tudo se
+	// efetiva junto no "Salvar alterações" (handleSubmit) — se o usuário cancelar ou sair
+	// sem salvar, nada é alterado no banco. Desvincular é admin-only (backend em exige_admin);
+	// não-admin recebe a mensagem e nada é enfileirado nem removido.
+	const confirmarRemocaoEmailVinculado = () => {
+		if (!isAdmin()) {
+			mostrarToast(
+				'Apenas administradores podem desvincular usuários. Você não tem permissão para esta ação.',
+				'erro'
+			);
+			setEmailParaRemover(null);
+			return;
+		}
+		const { index, usuario } = emailParaRemover;
+		removerEmailLocal(index);
+		setUsuariosVinculados((prev) => prev.filter((u) => u.id_usuario !== usuario.id_usuario));
+		setDesvincularAoSalvar((prev) =>
+			prev.some((u) => u.id_usuario === usuario.id_usuario) ? prev : [...prev, usuario]
+		);
+		mostrarToast(`Usuário "${usuario.nome}" será desvinculado ao salvar as alterações.`);
+		setEmailParaRemover(null);
 	};
 
 	const toggleEnderecoPrimario = (index) => {
@@ -298,7 +345,7 @@ function ClientEdit() {
 			datanascimento: form.datanascimento || null,
 			ativo: form.ativo,
 			bloqueado: form.bloqueado,
-			id_usuario_fk: form.id_usuario_fk ? parseInt(form.id_usuario_fk) : null,
+			associado: form.associado,
 			enderecos: enderecos
 				.filter((end) =>
 					['logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'uf', 'cep'].some(
@@ -333,7 +380,14 @@ function ClientEdit() {
 			]
 		};
 		try {
+			// Desvincula antes de gravar: assim o usuário deixa de estar vinculado antes de o
+			// e-mail sumir do clifor, sem violar o invariante "vinculado carrega o e-mail".
+			// Se algum desvínculo falhar, aborta sem gravar o clifor e mantém a fila.
+			for (const u of desvincularAoSalvar) {
+				await desvincularCliforDoUsuario(u.id_usuario);
+			}
 			await updateClifor(id, payload);
+			setDesvincularAoSalvar([]);
 			mostrarToast('Cliente/Fornecedor atualizado com sucesso!');
 			window.scrollTo({ top: 0, behavior: 'smooth' });
 			setTimeout(() => navigate('/cliente_fornecedor'), 1500);
@@ -346,7 +400,18 @@ function ClientEdit() {
 	   RENDER
 	   ════════════════════════════════════════ */
 	return (
-		<div className="client-form-container">
+		<>
+			{emailParaRemover && (
+				<ModalConfirm
+					titulo="Remover e-mail e desvincular usuário"
+					mensagem={`O e-mail "${emails[emailParaRemover.index]?.info_do_contato}" pertence ao usuário "${emailParaRemover.usuario.nome}", vinculado a este cliente/fornecedor. Remover o e-mail vai TAMBÉM desvincular esse usuário — as duas coisas só se aplicam ao clicar em "Salvar alterações". Deseja continuar?`}
+					textoBotaoConfirmar="Remover e desvincular"
+					onConfirmar={confirmarRemocaoEmailVinculado}
+					onCancelar={() => setEmailParaRemover(null)}
+					variante="perigo"
+				/>
+			)}
+			<div className="client-form-container">
 			{/* ── Cabeçalho ── */}
 			<div className="client-form-header">
 				<button
@@ -460,6 +525,18 @@ function ClientEdit() {
 												Bloqueado
 											</label>
 										</div>
+										<div className="form-check">
+											<input
+												className="form-check-input"
+												type="checkbox"
+												id="associado"
+												checked={form.associado}
+												onChange={(e) => setForm({ ...form, associado: e.target.checked })}
+											/>
+											<label className="form-check-label" htmlFor="associado">
+												Associado
+											</label>
+										</div>
 									</div>
 								</div>
 						</div>
@@ -545,22 +622,6 @@ function ClientEdit() {
 								{erros.datanascimento && (
 									<div className="invalid-feedback">{erros.datanascimento}</div>
 								)}
-							</div>
-							<div className="col-12 col-md-5">
-								<label className="form-label">Vincular a Usuário</label>
-								<select
-									className="form-select"
-									name="id_usuario_fk"
-									value={form.id_usuario_fk}
-									onChange={handleChange}
-								>
-									<option value="">Nenhum</option>
-									{usuarios.map((u) => (
-										<option key={u.id_usuario} value={u.id_usuario}>
-											{u.nome} ({u.email})
-										</option>
-									))}
-								</select>
 							</div>
 						</div>
 					</div>
@@ -834,11 +895,23 @@ function ClientEdit() {
 										<button
 											type="button"
 											className="btn btn-sm btn-outline-danger"
+											title="Remover e-mail"
+											aria-label="Remover e-mail"
 											onClick={() => {
-												const novos = emails.filter((_, j) => j !== i);
-												if (novos.length > 0 && !novos.some((e) => e.contato_principal))
-													novos[0] = { ...novos[0], contato_principal: true };
-												setEmails(novos);
+												const vinc = usuarioDoEmail(em.info_do_contato);
+												if (vinc) {
+													// E-mail de usuário vinculado: remover exige desvincular (admin-only).
+													if (!isAdmin()) {
+														mostrarToast(
+															'Este e-mail pertence a um usuário vinculado. Só pode ser removido ao desvinculá-lo, e apenas administradores podem desvincular.',
+															'erro'
+														);
+														return;
+													}
+													setEmailParaRemover({ index: i, usuario: vinc });
+													return;
+												}
+												removerEmailLocal(i);
 											}}
 										>
 											<i className="bi bi-trash" />
@@ -862,6 +935,69 @@ function ClientEdit() {
 					</div>
 				</div>
 
+				{/* ── USUÁRIOS VINCULADOS (read‑only) ── */}
+				<div className="client-form-card">
+					<div className="client-form-card__header">
+						<span className="client-form-card__header-title">
+							<i className="bi bi-people me-2" style={{ color: 'var(--primary)' }} />
+							Usuários vinculados
+						</span>
+					</div>
+					<div className="client-form-card__body">
+						{usuariosVinculados.length === 0 ? (
+							<p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.875rem' }}>
+								Nenhum usuário vinculado a este cliente/fornecedor.
+							</p>
+						) : (
+							<ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+								{usuariosVinculados.map((u) => (
+									<li
+										key={u.id_usuario}
+										style={{
+											display: 'flex',
+											justifyContent: 'space-between',
+											alignItems: 'center',
+											gap: 12,
+											padding: '10px 0',
+											borderBottom: '1px solid var(--border)'
+										}}
+									>
+										<span style={{ minWidth: 0 }}>
+											<span style={{ fontWeight: 600, color: 'var(--text)' }}>{u.nome}</span>
+											<span
+												style={{
+													display: 'block',
+													fontSize: '0.8rem',
+													color: 'var(--text-muted)',
+													overflow: 'hidden',
+													textOverflow: 'ellipsis',
+													whiteSpace: 'nowrap'
+												}}
+											>
+												{u.email}
+											</span>
+										</span>
+										<span
+											style={{
+												flexShrink: 0,
+												fontSize: '0.75rem',
+												fontWeight: 600,
+												color: 'var(--primary)',
+												background: 'var(--input-bg)',
+												border: '1px solid var(--border)',
+												borderRadius: 999,
+												padding: '2px 10px'
+											}}
+										>
+											{u.cargo || '—'}
+										</span>
+									</li>
+								))}
+							</ul>
+						)}
+					</div>
+				</div>
+
 				{/* ── BOTÕES DE AÇÃO ── */}
 				<div className="client-form-actions">
 					<button
@@ -877,7 +1013,8 @@ function ClientEdit() {
 					</button>
 				</div>
 			</form>
-		</div>
+			</div>
+		</>
 	);
 }
 

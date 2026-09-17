@@ -213,6 +213,25 @@ function CliforResumoPopup({ clifor, onFechar }) {
 				)}
 
 				<hr style={s.divider} />
+
+				{/* Usuários vinculados a este clifor (lado N do 1‑n) — vem do próprio objeto da lista. */}
+				<div style={{ ...s.cardLabel, marginBottom: 8 }}>Usuários vinculados</div>
+				{(clifor.usuarios || []).length === 0 ? (
+					<p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>
+						Nenhum usuário vinculado.
+					</p>
+				) : (
+					(clifor.usuarios || []).map((u) => (
+						<div key={u.id_usuario} style={s.row}>
+							<span style={s.label} title={u.email}>
+								{u.nome}
+							</span>
+							<span style={s.value}>{u.cargo || '—'}</span>
+						</div>
+					))
+				)}
+
+				<hr style={s.divider} />
 				<div style={{ display: 'flex', justifyContent: 'flex-end' }}>
 					<button style={s.btnFechar} onClick={onFechar}>
 						Fechar

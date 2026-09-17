@@ -7,7 +7,7 @@ import {
 } from '../services/api.js';
 import ModalConfirm from './ModalConfirm.jsx';
 import { useToast } from './ToastStack.jsx';
-import { isConsulta } from '../services/auth.js';
+import { isConsulta, isAdmin } from '../services/auth.js';
 
 const s = {
 	overlay: {
@@ -221,6 +221,16 @@ function PerfilCompletoPopup({ usuario, onFechar }) {
 	};
 
 	const handleConfirmarDesvincular = async () => {
+		// Botão fica visível a não-Consulta (Admin+Operador), mas desvincular é admin-only
+		// no backend (exige_admin). Operador não executa nada: mensagem e aborta antes da API.
+		if (!isAdmin()) {
+			mostrarToast(
+				'Apenas administradores podem desvincular usuários. Você precisa ser administrador para esta ação.',
+				'erro'
+			);
+			setConfirmandoDesv(false);
+			return;
+		}
 		setDesvinculando(true);
 		try {
 			await desvincularCliforDoUsuario(usuario.id_usuario);
@@ -288,7 +298,7 @@ function PerfilCompletoPopup({ usuario, onFechar }) {
 						</div>
 						<div style={s.fieldRow}>
 							<span style={s.fieldLabel}>Cargo</span>
-							<span style={s.fieldValue}>{usuario.cargo}</span>
+							<span style={s.fieldValue}>{usuario.cargo || '—'}</span>
 						</div>
 						<div style={s.fieldRow}>
 							<span style={s.fieldLabel}>Perfil</span>

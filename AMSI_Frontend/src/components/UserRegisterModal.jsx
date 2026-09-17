@@ -136,7 +136,6 @@ function UserRegisterModal({ onFechar }) {
 								<option value="Tesoureiro">Tesoureiro</option>
 								<option value="Secretário">Secretário</option>
 								<option value="Conselheiro">Conselheiro</option>
-								<option value="Associado">Associado</option>
 								<option value="Desenvolvedor">Desenvolvedor</option>
 							</select>
 						</div>

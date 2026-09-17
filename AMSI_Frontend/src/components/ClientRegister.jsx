@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createClifor, getUsers, getClifors } from '../services/api';
+import { createClifor, getClifors } from '../services/api';
 import { useToast } from './ToastStack.jsx';
 import '../styles/clientForm.css'; /* suporte completo aos dois temas */
 
@@ -29,9 +29,9 @@ const FORM_INICIAL = {
 	nome_usual: '',
 	lote: '',
 	datanascimento: '',
-	id_usuario_fk: '',
 	ativo: true,
-	bloqueado: false
+	bloqueado: false,
+	associado: false
 };
 
 const validarCPF = (cpf) => {
@@ -132,14 +132,10 @@ function ClientRegister() {
 	const [form, setForm] = useState(FORM_INICIAL);
 	const [enderecos, setEnderecos] = useState([{ ...ENDERECO_VAZIO }]);
 	const [contatos, setContatos] = useState([{ ...CONTATO_VAZIO }]);
-	const [usuarios, setUsuarios] = useState([]);
 	const [lotesDisponiveis, setLotesDisponiveis] = useState([]);
 	const [erros, setErros] = useState({});
 
 	useEffect(() => {
-		getUsers()
-			.then(setUsuarios)
-			.catch(() => {});
 		// Lotes já cadastrados → sugestões do combo (o campo continua aceitando lote novo).
 		getClifors({}, { silencioso: true })
 			.then((cs) =>
@@ -156,18 +152,6 @@ function ClientRegister() {
 		const { name, value, type, checked } = e.target;
 		setForm({ ...form, [name]: type === 'checkbox' ? checked : value });
 		setErros((prev) => ({ ...prev, [name]: '' }));
-	};
-
-	const handleUsuarioChange = (e) => {
-		const id = e.target.value;
-		if (!id) {
-			setForm((prev) => ({ ...prev, id_usuario_fk: id }));
-			return;
-		}
-		const u = usuarios.find((u) => String(u.id_usuario) === id);
-		if (!u) return;
-		setForm((prev) => ({ ...prev, id_usuario_fk: id, nome: u.nome }));
-		setContatos([{ tipo_contato: 'Email', info_do_contato: u.email, contato_principal: true }]);
 	};
 
 	/* ── Contatos (telefone + email unificados, uma única estrela) ── */
@@ -307,7 +291,7 @@ function ClientRegister() {
 			datanascimento: form.datanascimento || null,
 			ativo: form.ativo,
 			bloqueado: form.bloqueado,
-			id_usuario_fk: form.id_usuario_fk ? parseInt(form.id_usuario_fk) : null,
+			associado: form.associado,
 			enderecos: enderecosPreenchidos.map((end) => ({
 				logradouro: end.logradouro.trim(),
 				numero: end.numero.trim(),
@@ -455,6 +439,18 @@ function ClientRegister() {
 											Bloqueado
 										</label>
 									</div>
+									<div className="form-check">
+										<input
+											className="form-check-input"
+											type="checkbox"
+											id="associado"
+											checked={form.associado}
+											onChange={(e) => setForm({ ...form, associado: e.target.checked })}
+										/>
+										<label className="form-check-label" htmlFor="associado">
+											Associado
+										</label>
+									</div>
 								</div>
 							</div>
 						</div>
@@ -535,22 +531,6 @@ function ClientRegister() {
 									value={form.datanascimento}
 									onChange={handleChange}
 								/>
-							</div>
-							<div className="col-12 col-md-5">
-								<label className="form-label">Vincular a Usuário</label>
-								<select
-									className="form-select"
-									name="id_usuario_fk"
-									value={form.id_usuario_fk}
-									onChange={handleUsuarioChange}
-								>
-									<option value="">Nenhum</option>
-									{usuarios.map((u) => (
-										<option key={u.id_usuario} value={u.id_usuario}>
-											{u.nome} ({u.email})
-										</option>
-									))}
-								</select>
 							</div>
 						</div>
 					</div>

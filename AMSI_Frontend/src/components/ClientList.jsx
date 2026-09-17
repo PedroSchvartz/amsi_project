@@ -156,6 +156,15 @@ function ClientList() {
 								</th>
 								<th>
 									<span className="cl-th-info">
+										Associado
+										<span className="cl-tooltip-box">
+											"Sim" quando a entidade é associada da AMSI — usado para distingui-la de
+											clientes/fornecedores que não fazem parte do quadro de associados.
+										</span>
+									</span>
+								</th>
+								<th>
+									<span className="cl-th-info">
 										A Receber
 										<span className="cl-tooltip-box">
 											Soma dos créditos em aberto (o que esta entidade deve à associação).
@@ -201,6 +210,13 @@ function ClientList() {
 												className={`cl-badge ${c.bloqueado ? 'cl-badge--bloqueado' : 'cl-badge--ok'}`}
 											>
 												{c.bloqueado ? 'Sim' : 'Não'}
+											</span>
+										</td>
+										<td>
+											<span
+												className={`cl-badge ${c.associado ? 'cl-badge--ativo' : 'cl-badge--ok'}`}
+											>
+												{c.associado ? 'Sim' : 'Não'}
 											</span>
 										</td>
 										<td>

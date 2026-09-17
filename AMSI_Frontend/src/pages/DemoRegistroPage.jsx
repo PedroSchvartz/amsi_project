@@ -18,7 +18,7 @@ function DemoRegistroPage() {
 
 	const [nome, setNome]               = useState('');
 	const [email, setEmail]             = useState('');
-	const [cargo, setCargo]             = useState('Associado');
+	const [cargo, setCargo]             = useState('Conselheiro');
 	const [perfil, setPerfil]           = useState('Administrador');
 	const [senha, setSenha]             = useState('');
 	const [confirmar, setConfirmar]     = useState('');
@@ -32,7 +32,6 @@ function DemoRegistroPage() {
 		'Tesoureiro',
 		'Secretário',
 		'Conselheiro',
-		'Associado',
 		'Desenvolvedor',
 	];
 

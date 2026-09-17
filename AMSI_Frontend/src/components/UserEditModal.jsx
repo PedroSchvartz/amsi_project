@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import { updateUser } from '../services/api';
+import { useState, useEffect } from 'react';
+import { updateUser, getCliforDoUsuario } from '../services/api';
 import ModalConfirm from './ModalConfirm.jsx';
 import { useToast } from './ToastStack.jsx';
 
-const CARGOS = ['Presidente', 'Diretor', 'Tesoureiro', 'Secretário', 'Conselheiro', 'Associado', 'Desenvolvedor'];
+const CARGOS = ['Presidente', 'Diretor', 'Tesoureiro', 'Secretário', 'Conselheiro', 'Desenvolvedor'];
 const PERFIS = ['Administrador', 'Operador', 'Consulta'];
 
 const s = {
@@ -38,7 +38,17 @@ function UserEditModal({ usuario, onFechar, onSalvo }) {
 	const [salvando, setSalvando] = useState(false);
 	const [confirmarNotificacao, setConfirmarNotificacao] = useState(false);
 	const [confirmarBloqueio, setConfirmarBloqueio] = useState(false);
+	const [clifor, setClifor] = useState(null);
+	const [carregandoClifor, setCarregandoClifor] = useState(true);
 	const { mostrarToast } = useToast();
+
+	// Clifor atrelado a este usuário (lado 1 do 1‑n). 404 → null (sem vínculo).
+	useEffect(() => {
+		getCliforDoUsuario(usuario.id_usuario, { silencioso: true })
+			.then(setClifor)
+			.catch(() => setClifor(null))
+			.finally(() => setCarregandoClifor(false));
+	}, [usuario.id_usuario]);
 
 	const handleChange = (e) => {
 		const { name, value, type, checked } = e.target;
@@ -48,7 +58,7 @@ function UserEditModal({ usuario, onFechar, onSalvo }) {
 	const handleRemoverNotificacao = async () => {
 		setSalvando(true);
 		try {
-			await updateUser(usuario.id_usuario, { ...form, notificacao: false });
+			await updateUser(usuario.id_usuario, { ...form, cargo: form.cargo || null, notificacao: false });
 			setConfirmarNotificacao(false);
 			onSalvo();
 			onFechar();
@@ -62,7 +72,7 @@ function UserEditModal({ usuario, onFechar, onSalvo }) {
 	const salvar = async () => {
 		setSalvando(true);
 		try {
-			await updateUser(usuario.id_usuario, form);
+			await updateUser(usuario.id_usuario, { ...form, cargo: form.cargo || null });
 			onSalvo();
 			onFechar();
 		} catch (err) {
@@ -179,9 +189,8 @@ function UserEditModal({ usuario, onFechar, onSalvo }) {
 								name="cargo"
 								value={form.cargo}
 								onChange={handleChange}
-								required
 							>
-								<option value="">Selecione</option>
+								<option value="">— (sem cargo)</option>
 								{CARGOS.map((c) => (
 									<option key={c} value={c}>
 										{c}
@@ -246,6 +255,33 @@ function UserEditModal({ usuario, onFechar, onSalvo }) {
 								/>
 								Bloqueado
 							</label>
+						</div>
+
+						{/* Clifor atrelado (read‑only) */}
+						<div style={s.campo}>
+							<label style={s.label}>Cliente/Fornecedor vinculado</label>
+							<div
+								style={{
+									...s.input,
+									display: 'flex',
+									flexDirection: 'column',
+									gap: 2,
+									cursor: 'default'
+								}}
+							>
+								{carregandoClifor ? (
+									<span style={{ color: 'var(--text-muted)' }}>Carregando...</span>
+								) : clifor ? (
+									<>
+										<span style={{ fontWeight: 600, color: 'var(--text)' }}>{clifor.nome}</span>
+										<span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+											{clifor.cpf_cnpj}
+										</span>
+									</>
+								) : (
+									<span style={{ color: 'var(--text-muted)' }}>Nenhum vínculo.</span>
+								)}
+							</div>
 						</div>
 
 						<div
