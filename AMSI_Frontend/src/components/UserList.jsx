@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getUsers, deleteUser, resetarSenhaUsuario, restaurarUsuario } from '../services/api';
+import { getUsers, deleteUser, resetarSenhaUsuario, restaurarUsuario, getAmbiente } from '../services/api';
+import { dataAtualizacaoFormatada } from '../versao';
 import UserRegisterModal from './UserRegisterModal.jsx';
 import UserEditModal from './UserEditModal.jsx';
 import PerfilCompletoPopup from './PerfilCompletoPopup.jsx';
@@ -18,6 +19,7 @@ function UserList() {
 	const [confirmarRestaurar, setConfirmarRestaurar] = useState(null);
 	const [perfilCompleto, setPerfilCompleto] = useState(null);
 	const [mostrarExcluidos, setMostrarExcluidos] = useState(false);
+	const [ambiente, setAmbiente] = useState(null);
 	const { mostrarToast } = useToast();
 	const navigate = useNavigate();
 	const meuId = parseInt(getUserFromToken()?.sub);
@@ -25,6 +27,10 @@ function UserList() {
 	useEffect(() => {
 		carregarUsuarios();
 	}, [mostrarExcluidos]);
+
+	useEffect(() => {
+		getAmbiente().then(setAmbiente);
+	}, []);
 
 	const carregarUsuarios = async () => {
 		try {
@@ -73,7 +79,12 @@ function UserList() {
 	return (
 		<div className="user-list-container">
 			<div className="d-flex justify-content-between align-items-center mb-4">
-				<h2>Usuários</h2>
+				<h2>
+					Usuários{' '}
+					<span style={{ fontSize: '0.6em', fontWeight: 'normal', color: 'var(--text-muted)' }}>
+						{ambiente ? `${ambiente} ` : ''}{dataAtualizacaoFormatada()}
+					</span>
+				</h2>
 				<div className="d-flex gap-2">
 					<button
 						className="btn-acao-editar"

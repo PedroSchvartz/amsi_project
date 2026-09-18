@@ -89,6 +89,23 @@ async function handleResponse(response, { noLogout = false } = {}) {
 }
 
 // ======================
+// 🌐 AMBIENTE
+// GET / → { status, ambiente }. Rótulo do cabeçalho: qual backend/banco está conectado.
+// APP_ENV 'production' → Produção; qualquer outro (development/demo) → Sandbox.
+// ======================
+
+export const getAmbiente = async () => {
+	try {
+		const response = await fetchComLoading(`${BASE_URL}/`, {}, { silencioso: true });
+		const { ambiente } = await response.json();
+		return ambiente === 'production' ? 'Produção' : 'Sandbox';
+	} catch {
+		// Backend inacessível: não arriscar rotular errado — não exibe nada.
+		return null;
+	}
+};
+
+// ======================
 // 🔐 AUTH
 // response POST /auth/token: { access_token, token_type, primeiro_acesso }
 // ======================
