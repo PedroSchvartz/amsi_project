@@ -370,3 +370,100 @@ def test_ver_lancamento_proibido_consulta(client, headers_consulta, headers_admi
         assert r.status_code == 403
     finally:
         client.delete(f"/lancamento/{id_lanc}", headers=headers_admin)
+
+
+# ================================================
+# ITEM 7 — Consulta só vê os lançamentos do próprio clifor (escopo no backend)
+# ================================================
+
+def _criar_clifor(client, headers_admin, cpf, nome):
+    r = client.post("/cliente_fornecedor/", json={
+        "pessoafisica_juridica": True,
+        "cpf_cnpj": cpf,
+        "rg_inscricaoestadual": cpf.replace(".", "").replace("-", ""),
+        "nome": nome,
+        "datanascimento": "1990-01-01",
+        "tipo_clifor": "C",
+        "ativo": True,
+        "inadimplente": False,
+    }, headers=headers_admin)
+    assert r.status_code == 200, f"Pré-condição: criar clifor falhou: {r.text}"
+    return r.json()["id_clifor"]
+
+
+def _criar_lancamento(client, headers_admin, id_usuario, id_clifor, id_tipo_conta):
+    r = client.post("/lancamento/", json={
+        "id_usuario_fk_lancamento": id_usuario,
+        "id_clifor_relacionado_fk": id_clifor,
+        "id_tipo_conta_fk": id_tipo_conta,
+        "valor": "10.00",
+        "data_vencimento": "2099-12-31",
+        "natureza_lancamento": "Debito",
+    }, headers=headers_admin)
+    assert r.status_code == 200, f"Pré-condição: criar lançamento falhou: {r.text}"
+    return r.json()["id_lancamento"]
+
+
+def test_listar_lancamentos_escopado_consulta(client, headers_admin, headers_consulta, consulta_session, usuario_base, tipo_lancamento_base):
+    """GET /lancamento/ por Consulta só devolve os lançamentos do próprio clifor.
+
+    Vazamento do item 7: o backend precisa ignorar o id_clifor da querystring e forçar
+    o clifor do token. Um Consulta ligado ao clifor A não pode ver nada do clifor B,
+    nem passando ?id_clifor=<B>. Admin continua vendo os dois (não-regressão)."""
+    if not consulta_session["disponivel"]:
+        pytest.skip(consulta_session["motivo"])
+    id_consulta = consulta_session["id_usuario"]
+    id_tipo = tipo_lancamento_base["id_tipo_conta"]
+
+    id_clifor_a = _criar_clifor(client, headers_admin, "444.444.444-44", "CliFor Item7 A")
+    id_clifor_b = _criar_clifor(client, headers_admin, "555.555.555-55", "CliFor Item7 B")
+    id_lanc_a = _criar_lancamento(client, headers_admin, usuario_base["id_usuario"], id_clifor_a, id_tipo)
+    id_lanc_b = _criar_lancamento(client, headers_admin, usuario_base["id_usuario"], id_clifor_b, id_tipo)
+    client.post(f"/usuarios/{id_consulta}/clifor/{id_clifor_a}/associar", headers=headers_admin)
+    try:
+        # Consulta pede B de propósito; o backend tem de ignorar e devolver só A.
+        r = client.get(f"/lancamento/?id_clifor={id_clifor_b}", headers=headers_consulta)
+        assert r.status_code == 200
+        ids = {l["id_lancamento"] for l in r.json()}
+        assert id_lanc_a in ids, "Consulta deveria ver o lançamento do próprio clifor (A)"
+        assert id_lanc_b not in ids, "Consulta NÃO pode ver o lançamento de outro clifor (B)"
+        clifors_vistos = {l["id_clifor_relacionado_fk"] for l in r.json()}
+        assert clifors_vistos <= {id_clifor_a}, f"Consulta vazou clifors: {clifors_vistos}"
+
+        # Não-regressão: Admin vê os dois.
+        r_admin = client.get("/lancamento/", headers=headers_admin)
+        assert r_admin.status_code == 200
+        ids_admin = {l["id_lancamento"] for l in r_admin.json()}
+        assert {id_lanc_a, id_lanc_b} <= ids_admin
+    finally:
+        client.delete(f"/usuarios/{id_consulta}/clifor/desvincular", headers=headers_admin)
+        client.delete(f"/lancamento/{id_lanc_a}", headers=headers_admin)
+        client.delete(f"/lancamento/{id_lanc_b}", headers=headers_admin)
+        client.delete(f"/cliente_fornecedor/{id_clifor_a}", headers=headers_admin)
+        client.delete(f"/cliente_fornecedor/{id_clifor_b}", headers=headers_admin)
+
+
+def test_listar_lancamentos_consulta_sem_clifor_vazio(client, headers_admin, headers_consulta, consulta_session):
+    """Consulta sem clifor vinculado recebe lista vazia (espelha consultaSemClifor do front)."""
+    if not consulta_session["disponivel"]:
+        pytest.skip(consulta_session["motivo"])
+    # Garante o estado desvinculado (tolera qualquer retorno se já estava solto).
+    client.delete(f"/usuarios/{consulta_session['id_usuario']}/clifor/desvincular", headers=headers_admin)
+    r = client.get("/lancamento/", headers=headers_consulta)
+    assert r.status_code == 200
+    assert r.json() == []
+
+
+def test_exportar_proibido_consulta(client, headers_consulta):
+    """POST /lancamento/exportar por Consulta retorna 403 (item 7/8)."""
+    r = client.post("/lancamento/exportar", headers=headers_consulta)
+    assert r.status_code == 403
+
+
+def test_exportar_permitido_operador(client, headers_operador, operador_session):
+    """POST /lancamento/exportar por Operador retorna 200 com job_id (não-regressão)."""
+    if not operador_session["disponivel"]:
+        pytest.skip(operador_session["motivo"])
+    r = client.post("/lancamento/exportar", headers=headers_operador)
+    assert r.status_code == 200
+    assert "job_id" in r.json()

@@ -352,8 +352,15 @@ def listar_lancamentos(
     lote_clifor: Optional[str] = None,
     status_modo: str = "inclusivo",
     db: Session = Depends(get_db),
-    _=Depends(get_current_user)
+    current_user: Usuario = Depends(get_current_user)
 ):
+    # Item 7: Consulta so ve os lancamentos do proprio clifor. Forcamos o escopo aqui
+    # (nao confiamos no id_clifor da querystring) — sem clifor vinculado, ve lista vazia,
+    # espelhando o consultaSemClifor do frontend.
+    if current_user.perfil_de_acesso == AcessoEnum.Consulta:
+        if current_user.id_clifor_fk is None:
+            return []
+        id_clifor = current_user.id_clifor_fk
     return _query_lancamentos_filtrada(
         db,
         id_clifor=id_clifor, id_tipo_conta=id_tipo_conta, natureza=natureza,
@@ -646,6 +653,7 @@ def iniciar_exportacao(
     status_modo: str = "inclusivo",
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(get_current_user),
+    _=Depends(exige_operador_ou_admin),
 ):
     """Inicia a geração de um .xlsx com os lançamentos filtrados (nova consulta ao
     banco). Devolve um job_id para acompanhamento; a entrega (download/e-mail) é
