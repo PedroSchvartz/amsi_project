@@ -8,6 +8,7 @@ import ClientListPage from './pages/ClientListPage';
 import ClientEditPage from './pages/ClientEditPage';
 import ListaLancamentosPage from './pages/ListaLancamentosPage';
 import TrocarSenhaPage from './pages/TrocarSenhaPage';
+import CadastrarEmailPage from './pages/CadastrarEmailPage';
 import DefinirSenhaPage from './pages/DefinirSenhaPage';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 
@@ -247,7 +248,17 @@ function App() {
 						}
 					/>
 
-					{/* Rotas protegidas — com Layout (topbar + menu + footer) */}
+					{/* Convite dispensável para cadastrar e-mail (CPF-only sem e-mail) — sem navbar */}
+						<Route
+							path="/cadastrar-email"
+							element={
+								<PrivateRoute>
+									<CadastrarEmailPage />
+								</PrivateRoute>
+							}
+						/>
+
+						{/* Rotas protegidas — com Layout (topbar + menu + footer) */}
 					<Route
 						element={
 							<PrivateRoute>

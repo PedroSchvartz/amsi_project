@@ -1,7 +1,10 @@
 import logging
+import re
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
+from typing import Optional
 from datetime import datetime, timedelta
 from database import get_db
 from models.usuario import Usuario
@@ -28,7 +31,10 @@ router = APIRouter(
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    # Item 4: o campo carrega e-mail OU login (CPF). Mantemos a chave JSON 'email' para
+    # não quebrar o contrato com o front; por isso o tipo é str, não EmailStr (um CPF
+    # não passa na validação de e-mail).
+    email: str
     senha: str
 
 
@@ -39,11 +45,17 @@ class TokenResponse(BaseModel):
 
 
 class TrocarSenhaRequest(BaseModel):
-    senha_atual: str
+    # No primeiro acesso a senha atual não é reexigida (o login já autenticou), por isso
+    # é opcional. Fora do primeiro acesso continua obrigatória (validada na rota).
+    senha_atual: Optional[str] = None
     senha_nova: str
 
 
 class EsqueciSenhaRequest(BaseModel):
+    email: EmailStr
+
+
+class CadastrarEmailRequest(BaseModel):
     email: EmailStr
 
 
@@ -105,15 +117,29 @@ def _emitir_sessao(db: Session, usuario: Usuario, request: Request, response: Re
 @router.post("/token", response_model=TokenResponse)
 @limiter.limit("10/minute")
 def login(dados: LoginRequest, request: Request, response: Response, db: Session = Depends(get_db)):
+    # Item 4: casa por e-mail OU login (CPF). Precedência de e-mail em caso de empate
+    # (login que coincida com o e-mail de outro usuário) — order_by põe o match de e-mail
+    # primeiro. Valores reais de login são CPFs, que não colidem com e-mail.
+    ident = dados.email.strip()
     usuario = db.query(Usuario).filter(
-        Usuario.email == dados.email,
-        Usuario.exclusao == None  # noqa: E711
-    ).first()
+        Usuario.exclusao == None,  # noqa: E711
+        or_(Usuario.email == ident, Usuario.login == ident)
+    ).order_by((Usuario.email == ident).desc()).first()
+
+    # Item 13: o login por documento é tolerante a máscara. O `login` é gravado só com
+    # dígitos; se o usuário digitou o CPF/CNPJ com pontuação, casa pelos dígitos.
+    if not usuario:
+        ident_digitos = re.sub(r"\D", "", ident)
+        if len(ident_digitos) >= 11:  # CPF(11) ou CNPJ(14) — não colide com e-mail
+            usuario = db.query(Usuario).filter(
+                Usuario.exclusao == None,  # noqa: E711
+                Usuario.login == ident_digitos
+            ).first()
 
     if not usuario or not verificar_senha(dados.senha, usuario.senha):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email ou senha incorretos"
+            detail="Login ou senha incorretos"
         )
 
     if usuario.bloqueado:
@@ -157,17 +183,23 @@ def trocar_senha(
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(get_current_user)
 ):
-    if not verificar_senha(dados.senha_atual, current_user.senha):
-        raise HTTPException(status_code=401, detail="Senha atual incorreta")
+    # Primeiro acesso: o próprio login já autenticou com a senha inicial — não faz sentido
+    # reexigi-la. Fora do primeiro acesso (troca em configurações) a senha atual continua
+    # obrigatória e é conferida.
+    if not current_user.primeiro_acesso:
+        if not dados.senha_atual or not verificar_senha(dados.senha_atual, current_user.senha):
+            raise HTTPException(status_code=401, detail="Senha atual incorreta")
 
     current_user.senha = hash_senha(dados.senha_nova)
     current_user.primeiro_acesso = False
     db.commit()
 
-    try:
-        enviado = enviar_email(
-            current_user.email,
-            "Senha alterada — AMSI Project",
+    # Usuário criado a partir do documento (item 13) pode não ter e-mail — não envia p/ None.
+    if current_user.email:
+        try:
+            enviado = enviar_email(
+                current_user.email,
+                "Senha alterada — AMSI Project",
 f"""
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -197,17 +229,50 @@ f"""
 </body>
 </html>
 """
-        )
-        if not enviado:
-            logging.warning(
-                f"Senha de {current_user.email} alterada, mas e-mail de confirmação falhou."
             )
-    except Exception as e:
-        logging.warning(
-            f"Erro ao enviar e-mail de confirmação para {current_user.email}: {e}"
-        )
+            if not enviado:
+                logging.warning(
+                    f"Senha de {current_user.email} alterada, mas e-mail de confirmação falhou."
+                )
+        except Exception as e:
+            logging.warning(
+                f"Erro ao enviar e-mail de confirmação para {current_user.email}: {e}"
+            )
 
     return {"detail": "Senha alterada com sucesso"}
+
+
+@router.post("/cadastrar-email")
+def cadastrar_email(
+    dados: CadastrarEmailRequest,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user)
+):
+    """Autoatendimento de e-mail para quem entrou só pelo CPF e ainda não tem e-mail.
+    O usuário já está autenticado (CPF + senha), então salva direto — só valida formato
+    (EmailStr) e domínio (MX). Propaga o e-mail ao clifor vinculado."""
+    # Import tardio: evita ciclo de import no carregamento dos routers.
+    from routes.usuario import _validar_dominio_email
+    from utils.vinculo_clifor import sincronizar_email_clifor
+
+    email_novo = dados.email.strip()
+
+    if not _validar_dominio_email(email_novo):
+        raise HTTPException(status_code=400, detail="Domínio de email inválido ou inexistente")
+
+    # 409 se outro usuário ativo já usa esse e-mail — espelha o create.
+    if db.query(Usuario).filter(
+        Usuario.email == email_novo,
+        Usuario.exclusao == None,  # noqa: E711
+        Usuario.id_usuario != current_user.id_usuario
+    ).first():
+        raise HTTPException(status_code=409, detail="Email já cadastrado")
+
+    current_user.email = email_novo
+    sincronizar_email_clifor(current_user, None, db)
+    db.commit()
+
+    return {"email": current_user.email}
 
 
 # ─── Definição de senha por token (cadastro / reset / esqueci a senha) ─────────

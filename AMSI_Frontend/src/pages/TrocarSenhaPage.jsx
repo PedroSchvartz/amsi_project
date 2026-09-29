@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { trocarSenha } from '../services/api';
+import { trocarSenha, cadastrarEmail } from '../services/api';
 import { logout } from '../services/auth';
 import '../styles/login.css'; /* reutiliza o CSS do login — mesma estrutura visual */
 
@@ -9,13 +9,17 @@ import '../styles/login.css'; /* reutiliza o CSS do login — mesma estrutura vi
   Exibida sem navbar (rota independente no App.jsx).
   Reutiliza as classes do login.css para consistência visual.
   O tema aplicado é o verde (padrão do login).
+
+  Primeiro acesso: NÃO pede a senha atual (o login já autenticou com a senha inicial).
+  O e-mail é OPCIONAL — quem entrou só pelo CPF pode cadastrar um aqui, na mesma tela,
+  para receber avisos e poder recuperar a senha. Deixar em branco não bloqueia nada.
 */
 
 function TrocarSenhaPage() {
 	const navigate = useNavigate();
 
 	const [form, setForm] = useState({
-		senha_atual: '',
+		email: '',
 		nova_senha: '',
 		confirmar_senha: ''
 	});
@@ -25,7 +29,6 @@ function TrocarSenhaPage() {
 
 	// Mostra/esconde as senhas individualmente
 	const [mostrar, setMostrar] = useState({
-		senha_atual: false,
 		nova_senha: false,
 		confirmar_senha: false
 	});
@@ -38,10 +41,9 @@ function TrocarSenhaPage() {
 	};
 
 	const validar = () => {
-		if (!form.senha_atual) return 'Informe a senha atual.';
 		if (form.nova_senha.length < 6) return 'A nova senha deve ter pelo menos 6 caracteres.';
 		if (form.nova_senha !== form.confirmar_senha) return 'As senhas não conferem.';
-		if (form.nova_senha === form.senha_atual) return 'A nova senha deve ser diferente da atual.';
+		if (form.email.trim() && !form.email.includes('@')) return 'Informe um e-mail válido ou deixe em branco.';
 		return null;
 	};
 
@@ -55,17 +57,25 @@ function TrocarSenhaPage() {
 
 		setEnviando(true);
 		try {
-			await trocarSenha({ senha_atual: form.senha_atual, nova_senha: form.nova_senha });
+			// E-mail é opcional. Cadastra ANTES de trocar a senha: se o e-mail for inválido
+			// (domínio/duplicado), aborta sem ter mexido na senha — o usuário corrige ou limpa.
+			const emailInformado = form.email.trim();
+			if (emailInformado) {
+				await cadastrarEmail(emailInformado);
+			}
+
+			await trocarSenha({ nova_senha: form.nova_senha });
 			setSucesso(true);
-			// Aguarda 2s para o usuário ler o feedback e redireciona para login com email preenchido
+			// Aguarda 2s para o usuário ler o feedback e redireciona para o login com o
+			// identificador preenchido (o e-mail recém-cadastrado, se houver).
 			setTimeout(() => {
 				const userStr = localStorage.getItem('user');
-				const emailAtual = userStr ? (JSON.parse(userStr)?.email ?? '') : '';
+				const emailAtual = emailInformado || (userStr ? (JSON.parse(userStr)?.email ?? '') : '');
 				logout();
 				navigate(emailAtual ? `/?email=${encodeURIComponent(emailAtual)}` : '/');
 			}, 2000);
 		} catch (err) {
-			setErro(err.message || 'Erro ao trocar a senha.');
+			setErro(err.message || 'Erro ao salvar. Tente novamente.');
 		} finally {
 			setEnviando(false);
 		}
@@ -114,42 +124,6 @@ function TrocarSenhaPage() {
 						</div>
 					) : (
 						<form onSubmit={handleSubmit} autoComplete="off">
-							{/* Senha atual */}
-							<div className="input-group">
-								<label htmlFor="senha_atual">Senha atual</label>
-								<div style={{ position: 'relative', width: '100%' }}>
-									<input
-										id="senha_atual"
-										name="senha_atual"
-										type={mostrar.senha_atual ? 'text' : 'password'}
-										value={form.senha_atual}
-										onChange={handleChange}
-										placeholder="Sua senha atual"
-										autoComplete="current-password"
-										style={{ width: '100%', boxSizing: 'border-box', paddingRight: 42 }}
-									/>
-									<button
-										type="button"
-										onClick={() => toggleMostrar('senha_atual')}
-										style={{
-											position: 'absolute',
-											right: 12,
-											top: '50%',
-											transform: 'translateY(-50%)',
-											background: 'none',
-											border: 'none',
-											cursor: 'pointer',
-											color: 'var(--text-muted)',
-											fontSize: '0.9rem',
-											padding: 0
-										}}
-										tabIndex={-1}
-									>
-										<i className={`bi ${mostrar.senha_atual ? 'bi-eye-slash' : 'bi-eye'}`} />
-									</button>
-								</div>
-							</div>
-
 							{/* Nova senha */}
 							<div className="input-group">
 								<label htmlFor="nova_senha">Nova senha</label>
@@ -246,6 +220,24 @@ function TrocarSenhaPage() {
 										<i className={`bi ${mostrar.confirmar_senha ? 'bi-eye-slash' : 'bi-eye'}`} />
 									</button>
 								</div>
+							</div>
+
+							{/* E-mail (opcional) — quem entrou só pelo CPF pode cadastrar aqui */}
+							<div className="input-group">
+								<label htmlFor="email">E-mail (opcional)</label>
+								<input
+									id="email"
+									name="email"
+									type="email"
+									value={form.email}
+									onChange={handleChange}
+									placeholder="seu@email.com"
+									autoComplete="email"
+									style={{ width: '100%', boxSizing: 'border-box' }}
+								/>
+								<span style={{ marginTop: 6, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+									Cadastre um e-mail para receber avisos e poder recuperar sua senha. Pode deixar em branco.
+								</span>
 							</div>
 
 							{/* Mensagem de erro */}

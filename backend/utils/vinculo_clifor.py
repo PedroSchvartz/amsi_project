@@ -7,13 +7,50 @@ para TODOS os caminhos de vínculo (associar pela aba Usuários, cadastro/ediç�
 clifor) e a sincronização quando o e-mail do usuário muda.
 """
 
+import re
+
 from sqlalchemy.orm import Session
 
 from models.contato import Contato
 from models.cliente_fornecedor import ClienteFornecedor
-from models.usuario import Usuario
+from models.usuario import Usuario, AcessoEnum
+from utils.auth_utils import hash_senha
 
 TIPO_EMAIL = "Email"
+
+
+class AcessoJaExisteError(Exception):
+    """Já existe usuário com o login (documento) do clifor — não se cria outro."""
+
+
+def gerar_acesso_clifor(clifor: ClienteFornecedor, db: Session, marcar_associado: bool = False) -> Usuario:
+    """Cria um usuário CPF-only (login = documento do clifor) a partir do clifor.
+
+    Item 13: usuário nasce sem e-mail, perfil Consulta, sem cargo, com senha inicial =
+    5 primeiros dígitos do documento e primeiro_acesso=True (troca obrigatória no 1º login).
+    `login` guarda só os dígitos do documento (o /auth/token normaliza a máscara na entrada).
+    Não faz commit — quem chama commita. Levanta ValueError (sem documento) ou
+    AcessoJaExisteError (login já usado) para o chamador tratar (400/409 na rota, skip no script).
+    """
+    doc = re.sub(r"\D", "", clifor.cpf_cnpj or "")
+    if not doc:
+        raise ValueError("clifor sem documento")
+    if db.query(Usuario).filter(Usuario.login == doc).first():
+        raise AcessoJaExisteError()
+    usuario = Usuario(
+        nome=clifor.nome,
+        email=None,
+        login=doc,
+        cargo=None,
+        perfil_de_acesso=AcessoEnum.Consulta,
+        primeiro_acesso=True,
+        id_clifor_fk=clifor.id_clifor,
+        senha=hash_senha(doc[:5]),
+    )
+    db.add(usuario)
+    if marcar_associado:
+        clifor.associado = True
+    return usuario
 
 
 def _igual(a: str, b: str) -> bool:

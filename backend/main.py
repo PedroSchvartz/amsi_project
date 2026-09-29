@@ -277,6 +277,32 @@ def _aplicar_migracoes():
                 conn.execute(text("UPDATE usuario SET cargo = NULL WHERE cargo = 'Associado'"))
                 conn.commit()
 
+    # Migration (item 4): coluna 'login' no usuario — identificador alternativo (CPF).
+    # O model a declara, mas create_all não altera tabela existente → sem este ALTER o
+    # SELECT do modelo quebra em produção com UndefinedColumn. Índice ÚNICO (NULLs são
+    # distintos no Postgres, então a equipe sem login convive). Guard pela ausência da
+    # coluna: reentrar é no-op.
+    if "usuario" in insp.get_table_names():
+        cols_usuario = [c["name"] for c in insp.get_columns("usuario")]
+        if "login" not in cols_usuario:
+            with engine.connect() as conn:
+                conn.execute(text("ALTER TABLE usuario ADD COLUMN login VARCHAR(255)"))
+                conn.execute(text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS idx_usuario_login ON usuario(login)"
+                ))
+                conn.commit()
+
+    # Migration (tela de cadastro de e-mail): Email deixa de ser NOT NULL. NULL representa
+    # o usuario CPF-only que ainda nao cadastrou e-mail — ele o define depois via
+    # POST /auth/cadastrar-email. Guard pela PROPRIA nullability: rodar so enquanto Email
+    # e NOT NULL torna a reentrada no-op.
+    if "usuario" in insp.get_table_names():
+        email_col = next((c for c in insp.get_columns("usuario") if c["name"] == "email"), None)
+        if email_col is not None and email_col["nullable"] is False:
+            with engine.connect() as conn:
+                conn.execute(text("ALTER TABLE usuario ALTER COLUMN email DROP NOT NULL"))
+                conn.commit()
+
 
 _aplicar_migracoes()
 

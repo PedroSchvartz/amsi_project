@@ -7,7 +7,13 @@ from schemas.usuario import UsuarioCreate, UsuarioUpdate, UsuarioResponse
 from utils.auth_utils import hash_senha
 from utils.email_sender import enviar_email
 from utils.senha_token import gerar_token_senha, _link_definir_senha, FINALIDADE_CADASTRO, FINALIDADE_RESET
-from utils.vinculo_clifor import garantir_email_no_clifor, sincronizar_email_clifor
+from utils.vinculo_clifor import (
+    garantir_email_no_clifor,
+    sincronizar_email_clifor,
+    gerar_acesso_clifor,
+    AcessoJaExisteError,
+)
+from models.cliente_fornecedor import ClienteFornecedor
 from auth.dependencies import get_current_user, exige_admin, exige_admin_desenvolvedor
 from typing import List
 import secrets
@@ -68,6 +74,11 @@ def criar_usuario(dados: UsuarioCreate, db: Session = Depends(get_db), usuario_a
     ).first():
         raise HTTPException(status_code=409, detail="Email já cadastrado")
 
+    # Login (item 4) é único quando informado — espelha o 409 do e-mail. Excluídos contam:
+    # o índice único do banco não filtra por exclusao, então a validação aqui também não.
+    if dados.login and db.query(Usuario).filter(Usuario.login == dados.login).first():
+        raise HTTPException(status_code=409, detail="Login já cadastrado")
+
     dados_dict = dados.model_dump()
     # Senha inutilizável: ninguém conhece o valor em claro, então nenhum login casa.
     # O usuário define a senha real pelo link enviado por e-mail (token de uso único).
@@ -124,6 +135,30 @@ def criar_usuario(dados: UsuarioCreate, db: Session = Depends(get_db), usuario_a
     return usuario
 
 
+@router.post("/clifor/{id_clifor}", response_model=UsuarioResponse)
+def criar_usuario_de_clifor(id_clifor: int, db: Session = Depends(get_db), _=Depends(exige_admin)):
+    """Gera acesso (usuário com login por documento) a partir de um clifor — item 13.
+
+    Qualquer clifor pode virar usuário (inclusive fornecedor/PJ). Usuário nasce sem e-mail,
+    perfil Consulta, senha inicial = 5 primeiros dígitos do documento, primeiro_acesso=True.
+    Não marca o clifor como associado (isso é só do script one-time).
+    """
+    clifor = db.query(ClienteFornecedor).filter(ClienteFornecedor.id_clifor == id_clifor).first()
+    if not clifor:
+        raise HTTPException(status_code=404, detail="Cliente/Fornecedor não encontrado")
+
+    try:
+        usuario = gerar_acesso_clifor(clifor, db, marcar_associado=False)
+    except AcessoJaExisteError:
+        raise HTTPException(status_code=409, detail="Já existe acesso para este documento")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Cliente/Fornecedor sem documento válido")
+
+    db.commit()
+    db.refresh(usuario)
+    return usuario
+
+
 @router.put("/{id_usuario}", response_model=UsuarioResponse)
 def atualizar_usuario(id_usuario: int, dados: UsuarioUpdate, db: Session = Depends(get_db), _=Depends(exige_admin)):
     usuario = db.query(Usuario).filter(Usuario.id_usuario == id_usuario).first()
@@ -134,6 +169,13 @@ def atualizar_usuario(id_usuario: int, dados: UsuarioUpdate, db: Session = Depen
     dados_dict = dados.model_dump(exclude_unset=True)
     if "senha" in dados_dict:
         dados_dict["senha"] = hash_senha(dados_dict["senha"])
+
+    # Login (item 4) é único quando informado — 409 se outro usuário já o usa.
+    if dados_dict.get("login") and db.query(Usuario).filter(
+        Usuario.login == dados_dict["login"],
+        Usuario.id_usuario != id_usuario
+    ).first():
+        raise HTTPException(status_code=409, detail="Login já cadastrado")
 
     for campo, valor in dados_dict.items():
         setattr(usuario, campo, valor)

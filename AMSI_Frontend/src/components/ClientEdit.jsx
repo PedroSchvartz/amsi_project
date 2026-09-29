@@ -6,7 +6,8 @@ import {
 	updateClifor,
 	getEnderecosPorClifor,
 	getContatosPorClifor,
-	desvincularCliforDoUsuario
+	desvincularCliforDoUsuario,
+	gerarAcessoClifor
 } from '../services/api';
 import { useToast } from './ToastStack.jsx';
 import ModalConfirm from './ModalConfirm.jsx';
@@ -138,6 +139,9 @@ function ClientEdit() {
 	// Usuários marcados para desvincular ao salvar (removeu-se o e-mail deles). Só efetiva
 	// no handleSubmit — nada vai ao backend antes de "Salvar alterações".
 	const [desvincularAoSalvar, setDesvincularAoSalvar] = useState([]);
+	// Item 13: confirmação do botão "Gerar acesso" (cria usuário com login = documento).
+	const [confirmarAcesso, setConfirmarAcesso] = useState(false);
+	const [gerandoAcesso, setGerandoAcesso] = useState(false);
 
 	useEffect(() => {
 		carregarDados();
@@ -396,6 +400,27 @@ function ClientEdit() {
 		}
 	};
 
+	// Item 13: gera acesso (usuário login=documento) para este clifor. Qualquer clifor pode.
+	// Mostra login + senha inicial (5 primeiros dígitos) para o admin repassar ao morador.
+	async function handleGerarAcesso() {
+		setConfirmarAcesso(false);
+		setGerandoAcesso(true);
+		try {
+			const novo = await gerarAcessoClifor(id);
+			const senhaInicial = (novo.login || '').slice(0, 5);
+			mostrarToast(
+				`Acesso criado! Login: ${novo.login} · Senha inicial: ${senhaInicial} (troca obrigatória no 1º acesso).`,
+				'sucesso'
+			);
+			const atualizado = await getClifor(id);
+			setUsuariosVinculados(atualizado.usuarios || []);
+		} catch (err) {
+			mostrarToast(err.message || 'Erro ao gerar acesso', 'erro');
+		} finally {
+			setGerandoAcesso(false);
+		}
+	}
+
 	/* ════════════════════════════════════════
 	   RENDER
 	   ════════════════════════════════════════ */
@@ -409,6 +434,15 @@ function ClientEdit() {
 					onConfirmar={confirmarRemocaoEmailVinculado}
 					onCancelar={() => setEmailParaRemover(null)}
 					variante="perigo"
+				/>
+			)}
+			{confirmarAcesso && (
+				<ModalConfirm
+					titulo="Gerar acesso para este cliente/fornecedor"
+					mensagem={`Será criado um usuário de perfil Consulta com login = documento (${form?.cpf_cnpj || '—'}) e senha inicial = os 5 primeiros dígitos do documento, com troca obrigatória no 1º acesso. Deseja continuar?`}
+					textoBotaoConfirmar="Gerar acesso"
+					onConfirmar={handleGerarAcesso}
+					onCancelar={() => setConfirmarAcesso(false)}
 				/>
 			)}
 			<div className="client-form-container">
@@ -994,6 +1028,18 @@ function ClientEdit() {
 									</li>
 								))}
 							</ul>
+						)}
+						{isAdmin() && (
+							<button
+								type="button"
+								className="client-form-btn-salvar"
+								style={{ marginTop: 16 }}
+								onClick={() => setConfirmarAcesso(true)}
+								disabled={gerandoAcesso}
+							>
+								<i className="bi bi-person-plus me-2" />
+								{gerandoAcesso ? 'Gerando…' : 'Gerar acesso'}
+							</button>
 						)}
 					</div>
 				</div>

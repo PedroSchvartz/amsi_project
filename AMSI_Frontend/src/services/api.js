@@ -162,6 +162,17 @@ export const trocarSenha = async ({ senha_atual, nova_senha }) => {
 	return handleResponse(response, { noLogout: true });
 };
 
+// Autoatendimento de e-mail: usuário que entrou só pelo CPF (sem e-mail) cadastra o
+// próprio e-mail. Salva direto (o backend valida formato + domínio). body: { email }
+export const cadastrarEmail = async (email) => {
+	const response = await fetchComLoading(`${BASE_URL}/auth/cadastrar-email`, {
+		method: 'POST',
+		headers: authHeaders(),
+		body: JSON.stringify({ email })
+	});
+	return handleResponse(response, { noLogout: true });
+};
+
 // ─── Definição / recuperação de senha por token (rotas públicas, sem auth) ──────
 // O backend nunca trafega senha: envia por e-mail um link com token de uso único
 // (#token=). Estes três endpoints consomem esse fluxo. noLogout: true porque o
@@ -304,6 +315,16 @@ export const associarCliforAoUsuario = async (id_usuario, id_clifor) => {
 export const desvincularCliforDoUsuario = async (id_usuario) => {
 	const response = await fetchComLoading(`${BASE_URL}/usuarios/${id_usuario}/clifor/desvincular`, {
 		method: 'DELETE',
+		headers: authHeaders()
+	});
+	return handleResponse(response);
+};
+
+// Item 13: gera acesso (usuário com login = documento do clifor) a partir do clifor.
+// Qualquer clifor pode virar usuário; senha inicial = 5 primeiros dígitos do documento.
+export const gerarAcessoClifor = async (id_clifor) => {
+	const response = await fetchComLoading(`${BASE_URL}/usuarios/clifor/${id_clifor}`, {
+		method: 'POST',
 		headers: authHeaders()
 	});
 	return handleResponse(response);

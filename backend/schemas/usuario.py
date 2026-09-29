@@ -23,6 +23,7 @@ class AcessoEnum(str, Enum):
 class UsuarioCreate(BaseModel):
     nome: str
     email: EmailStr
+    login: Optional[str] = None  # identificador alternativo (CPF); item 4
     cargo: Optional[CargoEnum] = None
     perfil_de_acesso: AcessoEnum
     notificacao: bool = False
@@ -32,6 +33,7 @@ class UsuarioCreate(BaseModel):
 class UsuarioUpdate(BaseModel):
     nome: Optional[str] = None
     email: Optional[EmailStr] = None
+    login: Optional[str] = None  # identificador alternativo (CPF); item 4
     cargo: Optional[CargoEnum] = None
     perfil_de_acesso: Optional[AcessoEnum] = None
     notificacao: Optional[bool] = None
@@ -47,7 +49,8 @@ class UsuarioUpdate(BaseModel):
 class UsuarioResponse(BaseModel):
     id_usuario: int
     nome: str
-    email: str
+    email: Optional[str] = None  # NULL = usuario CPF-only sem e-mail ainda
+    login: Optional[str] = None  # identificador alternativo (CPF); item 4
     cargo: Optional[CargoEnum] = None
     perfil_de_acesso: AcessoEnum
     notificacao: bool

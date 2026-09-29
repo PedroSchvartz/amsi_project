@@ -64,9 +64,14 @@ function Login() {
 			}
 
 			const redirect = searchParams.get('redirect');
+			const usuarioLogado = JSON.parse(localStorage.getItem('user') || '{}');
 			if (data.primeiro_acesso) {
-				// Primeiro acesso (ex.: reset administrativo): trocar a senha logo após entrar.
+				// Primeiro acesso: troca a senha (e, opcionalmente, cadastra e-mail na mesma tela).
 				navigate('/trocar-senha');
+			} else if (!usuarioLogado.email) {
+				// Sem e-mail (entrou só pelo CPF e pulou o cadastro): reconvida a cada login
+				// até cadastrar um. A tela é dispensável ("Pular por agora").
+				navigate('/cadastrar-email');
 			} else {
 				navigate(redirect ?? '/home');
 			}
@@ -214,11 +219,12 @@ function Login() {
 
 								<form onSubmit={handleSubmit}>
 									<div className="input-group">
-										<label htmlFor="email">Email</label>
+										<label htmlFor="email">CPF ou Email</label>
+										{/* type="text" (não "email"): o campo aceita CPF além de e-mail — item 4 */}
 										<input
 											id="email"
-											type="email"
-											placeholder="seu@email.com"
+											type="text"
+											placeholder="CPF ou seu@email.com"
 											value={email}
 											onChange={(e) => setEmail(e.target.value)}
 											required

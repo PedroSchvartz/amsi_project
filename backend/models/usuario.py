@@ -26,7 +26,12 @@ class Usuario(Base):
     senha = Column(String(255), nullable=False)
     nome = Column(String(255), nullable=False)
     data_cadastro = Column(TIMESTAMP, nullable=False, server_default=func.now())
-    email = Column(String(255), nullable=False)
+    # nullable (tela de cadastro de e-mail): NULL = usuario CPF-only sem e-mail ainda.
+    email = Column(String(255), nullable=True)
+    # Login (item 4): identificador alternativo de login (CPF p/ usuarios-clifor). Pode
+    # ser "qualquer coisa"; o email segue p/ notificacao/recuperacao. /auth/token casa
+    # email OU login. Unico: NULLs sao distintos no Postgres, entao a equipe sem login ok.
+    login = Column(String(255), nullable=True, unique=True)
     # values_callable: o cargo_enum no banco guarda os VALORES (ex.: "Secretário"
     # acentuado), nao os nomes dos membros — sem isto, gravar Secretario quebra.
     # nullable (item 15): "Associado" saiu das telas; ex-Associados ficam sem cargo (NULL).

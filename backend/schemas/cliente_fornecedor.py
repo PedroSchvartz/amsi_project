@@ -18,7 +18,7 @@ class TipoCliForEnum(str, Enum):
 class UsuarioVinculadoResponse(BaseModel):
     id_usuario: int
     nome: str
-    email: str
+    email: Optional[str] = None  # item 13: usuário gerado a partir do clifor nasce sem e-mail
     cargo: Optional[CargoEnum] = None
     perfil_de_acesso: AcessoEnum
     model_config = ConfigDict(from_attributes=True)

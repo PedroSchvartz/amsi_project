@@ -110,6 +110,158 @@ def test_login_email_inexistente(client):
     assert r.status_code == 401
 
 
+# ================================================
+# ITEM 4 — LOGIN POR CPF OU E-MAIL (campo usuario.login)
+# ================================================
+
+def test_login_por_cpf(client, headers_admin):
+    """Usuário com 'login' (CPF) autentica por ele no /auth/token."""
+    email = "pytest_login_cpf@amsi.com"
+    senha = "SenhaTest@123"
+    cpf = "999.888.777-66"
+    u = _criar_usuario_com_senha(client, headers_admin, email, senha)
+    id_u = u["id_usuario"]
+    try:
+        r = client.put(f"/usuarios/{id_u}", json={"login": cpf}, headers=headers_admin)
+        assert r.status_code == 200, r.text
+        assert r.json()["login"] == cpf
+
+        r2 = client.post("/auth/token", json={"email": cpf, "senha": senha})
+        assert r2.status_code == 200, r2.text
+        assert "access_token" in r2.json()
+    finally:
+        _limpar_usuario(client, headers_admin, id_u)
+
+
+def test_login_por_email_ainda_funciona(client, headers_admin):
+    """Não-regressão: mesmo com 'login' setado, o e-mail continua autenticando."""
+    email = "pytest_login_email_ok@amsi.com"
+    senha = "SenhaTest@123"
+    u = _criar_usuario_com_senha(client, headers_admin, email, senha)
+    id_u = u["id_usuario"]
+    try:
+        client.put(f"/usuarios/{id_u}", json={"login": "111.222.333-44"}, headers=headers_admin)
+        r = client.post("/auth/token", json={"email": email, "senha": senha})
+        assert r.status_code == 200, r.text
+    finally:
+        _limpar_usuario(client, headers_admin, id_u)
+
+
+def test_login_identificador_inexistente(client):
+    """Identificador (CPF) que não existe → 401, como e-mail inexistente."""
+    r = client.post("/auth/token", json={"email": "000.000.000-00", "senha": "qualquer"})
+    assert r.status_code == 401
+
+
+def test_criar_usuario_login_duplicado(client, headers_admin):
+    """Login é único: criar outro usuário com o mesmo 'login' → 409."""
+    cpf = "555.444.333-22"
+    a = _criar_usuario_com_senha(client, headers_admin, "pytest_login_dup_a@amsi.com", "SenhaTest@123")
+    id_a = a["id_usuario"]
+    try:
+        assert client.put(f"/usuarios/{id_a}", json={"login": cpf}, headers=headers_admin).status_code == 200
+        r = client.post("/usuarios/", json={
+            "nome": "Login Dup B",
+            "email": "pytest_login_dup_b@amsi.com",
+            "login": cpf,
+            "cargo": None,
+            "perfil_de_acesso": "Consulta",
+            "notificacao": False
+        }, headers=headers_admin)
+        assert r.status_code == 409, r.text
+        # B não pode ter sido criado (o 409 acontece antes de persistir/enviar e-mail)
+        todos = client.get("/usuarios/", headers=headers_admin).json()
+        assert not any(x["email"] == "pytest_login_dup_b@amsi.com" for x in todos)
+    finally:
+        _limpar_usuario(client, headers_admin, id_a)
+
+
+def test_atualizar_usuario_login_duplicado(client, headers_admin):
+    """Login é único também no update: PUT com 'login' já usado por outro → 409
+    (converte o IntegrityError do índice único num 409 limpo)."""
+    cpf = "777.666.555-44"
+    a = _criar_usuario_com_senha(client, headers_admin, "pytest_login_upd_a@amsi.com", "SenhaTest@123")
+    b = _criar_usuario_com_senha(client, headers_admin, "pytest_login_upd_b@amsi.com", "SenhaTest@123")
+    id_a, id_b = a["id_usuario"], b["id_usuario"]
+    try:
+        assert client.put(f"/usuarios/{id_a}", json={"login": cpf}, headers=headers_admin).status_code == 200
+        r = client.put(f"/usuarios/{id_b}", json={"login": cpf}, headers=headers_admin)
+        assert r.status_code == 409, r.text
+    finally:
+        _limpar_usuario(client, headers_admin, id_a)
+        _limpar_usuario(client, headers_admin, id_b)
+
+
+# ================================================
+# CADASTRO DE E-MAIL (self-service) — usuário CPF-only sem e-mail
+# ================================================
+
+def test_cadastrar_email_sucesso(client, headers_admin):
+    """Usuário sem e-mail (Email NULL) cadastra o próprio e-mail via /auth/cadastrar-email."""
+    email = "pytest_cad_email@amsi.com"
+    novo = "pytest_cad_email_novo@amsi.com"
+    senha = "SenhaTest@123"
+    u = _criar_usuario_com_senha(client, headers_admin, email, senha)
+    id_u = u["id_usuario"]
+    try:
+        # Token ANTES de zerar o e-mail (nulificar o e-mail não invalida a sessão).
+        token = _login(client, email, senha)
+
+        # Admin zera o e-mail → valida a coluna nullable.
+        r_null = client.put(f"/usuarios/{id_u}", json={"email": None}, headers=headers_admin)
+        assert r_null.status_code == 200, r_null.text
+        assert r_null.json()["email"] is None
+
+        r = client.post("/auth/cadastrar-email", json={"email": novo},
+                        headers={"Authorization": f"Bearer {token}"})
+        assert r.status_code == 200, r.text
+        assert r.json()["email"] == novo
+
+        estado = client.get(f"/usuarios/{id_u}", headers=headers_admin).json()
+        assert estado["email"] == novo
+    finally:
+        _limpar_usuario(client, headers_admin, id_u)
+
+
+def test_cadastrar_email_duplicado(client, headers_admin):
+    """Cadastrar um e-mail que outro usuário ativo já tem → 409."""
+    email_a = "pytest_cad_dup_a@amsi.com"
+    senha = "SenhaTest@123"
+    a = _criar_usuario_com_senha(client, headers_admin, email_a, senha)
+    b = _criar_usuario_com_senha(client, headers_admin, "pytest_cad_dup_b@amsi.com", senha)
+    id_a, id_b = a["id_usuario"], b["id_usuario"]
+    try:
+        token_b = _login(client, "pytest_cad_dup_b@amsi.com", senha)
+        r = client.post("/auth/cadastrar-email", json={"email": email_a},
+                        headers={"Authorization": f"Bearer {token_b}"})
+        assert r.status_code == 409, r.text
+    finally:
+        _limpar_usuario(client, headers_admin, id_a)
+        _limpar_usuario(client, headers_admin, id_b)
+
+
+def test_cadastrar_email_dominio_invalido(client, headers_admin):
+    """E-mail com domínio inexistente (sem MX) → 400."""
+    email = "pytest_cad_dom@amsi.com"
+    senha = "SenhaTest@123"
+    u = _criar_usuario_com_senha(client, headers_admin, email, senha)
+    id_u = u["id_usuario"]
+    try:
+        token = _login(client, email, senha)
+        r = client.post("/auth/cadastrar-email",
+                        json={"email": "usuario@dominio-que-nao-existe-amsi.invalido"},
+                        headers={"Authorization": f"Bearer {token}"})
+        assert r.status_code == 400, r.text
+    finally:
+        _limpar_usuario(client, headers_admin, id_u)
+
+
+def test_cadastrar_email_sem_token(client):
+    """POST /auth/cadastrar-email sem autenticação → 401."""
+    r = client.post("/auth/cadastrar-email", json={"email": "qualquer@amsi.com"})
+    assert r.status_code == 401
+
+
 def test_header_session_expires(client, headers_admin):
     r = client.get("/usuarios/", headers=headers_admin)
     assert r.status_code == 200
@@ -220,6 +372,30 @@ def test_trocar_senha_seta_primeiro_acesso_false(client, headers_admin):
 
     # Limpeza
     _limpar_usuario(client, headers_admin, id_u)
+
+
+def test_trocar_senha_primeiro_acesso_dispensa_senha_atual(client, headers_admin):
+    """No PRIMEIRO acesso a senha atual NÃO é reexigida (o login já autenticou). Enviar só
+    senha_nova → 200; primeiro_acesso vira False e a senha nova passa a valer, a antiga não."""
+    email = "pytest_primeiro_sem_atual@amsi.com"
+    senha = "SenhaTest@123"
+    u = _criar_usuario_com_senha(client, headers_admin, email, senha)
+    id_u = u["id_usuario"]
+    try:
+        client.put(f"/usuarios/{id_u}", json={"primeiro_acesso": True}, headers=headers_admin)
+        token = _login(client, email, senha)
+
+        r = client.post("/auth/trocar-senha", json={
+            "senha_nova": "NovaSenha@456"
+        }, headers={"Authorization": f"Bearer {token}"})
+        assert r.status_code == 200, r.text
+
+        estado = client.get(f"/usuarios/{id_u}", headers=headers_admin).json()
+        assert estado["primeiro_acesso"] is False
+        assert client.post("/auth/token", json={"email": email, "senha": "NovaSenha@456"}).status_code == 200
+        assert client.post("/auth/token", json={"email": email, "senha": senha}).status_code == 401
+    finally:
+        _limpar_usuario(client, headers_admin, id_u)
 
 
 # ================================================
