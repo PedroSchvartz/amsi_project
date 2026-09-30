@@ -22,12 +22,16 @@ class AcessoEnum(str, Enum):
 
 class UsuarioCreate(BaseModel):
     nome: str
-    email: EmailStr
-    login: Optional[str] = None  # identificador alternativo (CPF); item 4
+    # E-mail opcional: sem e-mail, o usuario nasce so com login (CPF) e senha provisoria
+    # digitada pelo admin. Obrigatorio (validado na rota) so quando notificacao=True.
+    email: Optional[EmailStr] = None
+    login: Optional[str] = None  # UNICA credencial que autentica; obrigatorio na pratica (rota + front)
     cargo: Optional[CargoEnum] = None
     perfil_de_acesso: AcessoEnum
     notificacao: bool = False
-    # senha removida — gerada automaticamente pelo sistema
+    # Senha provisoria: usada SO no cadastro sem e-mail (nao ha link para enviar). Com
+    # e-mail, e ignorada — a senha real vem pelo link "defina sua senha".
+    senha: Optional[str] = None
 
 
 class UsuarioUpdate(BaseModel):

@@ -65,35 +65,58 @@ def criar_usuario(dados: UsuarioCreate, db: Session = Depends(get_db), usuario_a
     if cargo_novo == "Desenvolvedor" and cargo_atual != "Desenvolvedor":
         raise HTTPException(status_code=403, detail="Apenas usuários com cargo Desenvolvedor podem cadastrar outros desenvolvedores")
 
-    if not _validar_dominio_email(dados.email):
-        raise HTTPException(status_code=400, detail="Domínio de email inválido ou inexistente")
+    tem_email = bool(dados.email)
 
+    # Login-only: a COLUNA login é a única credencial que autentica. Obrigatório na prática —
+    # sem login E sem e-mail não há como entrar. Com e-mail e sem login informado, o padrão
+    # é o e-mail (compat com o cadastro de equipe).
+    login = (dados.login or "").strip() or (dados.email if tem_email else None)
+    if not login:
+        raise HTTPException(status_code=400, detail="Informe um login para o usuário.")
+
+    # Coerência: notificar por e-mail exige um e-mail (o front também barra).
+    if dados.notificacao and not tem_email:
+        raise HTTPException(status_code=400, detail="Para notificar por e-mail, informe um e-mail.")
+
+    # Validações de e-mail só quando há e-mail.
+    if tem_email:
+        if not _validar_dominio_email(dados.email):
+            raise HTTPException(status_code=400, detail="Domínio de email inválido ou inexistente")
+        if db.query(Usuario).filter(
+            Usuario.email == dados.email,
+            Usuario.exclusao == None  # noqa: E711
+        ).first():
+            raise HTTPException(status_code=409, detail="Email já cadastrado")
+
+    # Login é único entre ATIVOS — espelha o índice parcial idx_usuario_login
+    # (WHERE exclusao IS NULL). Contas excluídas liberam o login.
     if db.query(Usuario).filter(
-        Usuario.email == dados.email,
-        Usuario.exclusao == None  # noqa: E711
-    ).first():
-        raise HTTPException(status_code=409, detail="Email já cadastrado")
-
-    dados_dict = dados.model_dump()
-    # Login-only: equipe autentica pela COLUNA login. Se o admin não informou um login,
-    # o padrão é o e-mail (senão o login-only tranca a conta recém-criada). Se informou,
-    # respeita o que veio (campo Login livre no front).
-    if not dados_dict.get("login"):
-        dados_dict["login"] = dados.email
-
-    # Login é único entre ATIVOS — espelha o 409 do e-mail e o índice parcial
-    # idx_usuario_login (WHERE exclusao IS NULL). Contas excluídas liberam o login.
-    if db.query(Usuario).filter(
-        Usuario.login == dados_dict["login"],
+        Usuario.login == login,
         Usuario.exclusao == None  # noqa: E711
     ).first():
         raise HTTPException(status_code=409, detail="Login já cadastrado")
 
-    # Senha inutilizável: ninguém conhece o valor em claro, então nenhum login casa.
-    # O usuário define a senha real pelo link enviado por e-mail (token de uso único).
-    dados_dict["senha"] = hash_senha(secrets.token_urlsafe(32))
+    dados_dict = dados.model_dump()
+    dados_dict["login"] = login
     dados_dict["primeiro_acesso"] = True
+    dados_dict.pop("senha", None)  # senha é tratada por ramo abaixo
 
+    # ── Cadastro SEM e-mail: senha provisória digitada pelo admin, sem link/e-mail ──
+    # (não há endereço para enviar o link "defina sua senha"). Troca no 1º login.
+    if not tem_email:
+        senha_prov = (dados.senha or "").strip()
+        if len(senha_prov) < 6:
+            raise HTTPException(status_code=400, detail="Informe uma senha provisória de ao menos 6 caracteres.")
+        dados_dict["senha"] = hash_senha(senha_prov)
+        usuario = Usuario(**dados_dict)
+        db.add(usuario)
+        db.commit()
+        db.refresh(usuario)
+        return usuario
+
+    # ── Cadastro COM e-mail: senha inutilizável + link "defina sua senha" por e-mail ──
+    # Ninguém conhece o valor em claro, então nenhum login casa até o usuário definir a senha.
+    dados_dict["senha"] = hash_senha(secrets.token_urlsafe(32))
     usuario = Usuario(**dados_dict)
     db.add(usuario)
     db.flush()  # garante id_usuario sem commitar — rollback total se o e-mail falhar

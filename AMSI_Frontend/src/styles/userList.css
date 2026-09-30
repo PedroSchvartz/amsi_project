@@ -22,6 +22,42 @@
 }
 
 /* ════════════════════════════════════════
+   BARRA DE FILTROS
+   ════════════════════════════════════════ */
+.user-list-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.user-list-filtros input,
+.user-list-filtros select {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--input-bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  outline: none;
+}
+
+.user-list-filtros .user-list-filtro-busca {
+  flex: 1 1 240px;
+  min-width: 180px;
+}
+
+.user-list-filtros select {
+  cursor: pointer;
+}
+
+.user-list-filtros input:focus,
+.user-list-filtros select:focus {
+  border-color: var(--primary);
+}
+
+/* ════════════════════════════════════════
    TABELA
    ════════════════════════════════════════ */
 /* Wrapper de scroll: altura limitada + rolagem interna, com a borda/raio que
@@ -91,6 +127,15 @@
   padding: 12px 16px;
   vertical-align: middle;
   white-space: nowrap;
+}
+
+/* Nome (1ª coluna): pode quebrar em várias linhas em vez de esticar a tabela.
+   max-width limita a coluna para forçar a quebra; overflow-wrap quebra também
+   nomes longos sem espaço. Mesmo padrão da tabela de lançamentos. */
+.user-list-container .table td:first-child {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  max-width: 280px;
 }
 
 /* ════════════════════════════════════════

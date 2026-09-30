@@ -328,6 +328,69 @@ def test_clifor_rg_duplicado_409_e_rg_vazio_ok(client, headers_admin):
         client.delete(f"/cliente_fornecedor/{id_a}", headers=headers_admin)
 
 
+def test_clifor_cpf_duplicado_detalhe_e_put_409(client, headers_admin):
+    """CPF duplicado dispara 409 com o detail exato — no POST e também no PUT (editar B
+    para o CPF de A). É esse texto que o front mostra no toast vermelho."""
+    cpf_a = "612.345.678-90"
+    cpf_b = "698.765.432-10"
+    id_a = _criar_clifor_pf(client, headers_admin, cpf_a, "Clifor CPF Det A")
+    id_b = _criar_clifor_pf(client, headers_admin, cpf_b, "Clifor CPF Det B")
+    try:
+        # POST com CPF de A → 409 + detail exato.
+        r = client.post("/cliente_fornecedor/", json={
+            "pessoafisica_juridica": True,
+            "cpf_cnpj": cpf_a,
+            "rg_inscricaoestadual": "",
+            "nome": "Clifor CPF Det C",
+            "datanascimento": "1990-01-01",
+            "tipo_clifor": "C",
+            "ativo": True,
+            "inadimplente": False,
+        }, headers=headers_admin)
+        assert r.status_code == 409, r.text
+        assert r.json()["detail"] == "CPF/CNPJ já cadastrado", r.text
+
+        # PUT: editar B para o CPF de A → 409 + mesmo detail.
+        r2 = client.put(f"/cliente_fornecedor/{id_b}", json={
+            "pessoafisica_juridica": True,
+            "cpf_cnpj": cpf_a,
+            "rg_inscricaoestadual": "",
+            "nome": "Clifor CPF Det B",
+            "datanascimento": "1990-01-01",
+            "tipo_clifor": "C",
+            "ativo": True,
+            "inadimplente": False,
+        }, headers=headers_admin)
+        assert r2.status_code == 409, r2.text
+        assert r2.json()["detail"] == "CPF/CNPJ já cadastrado", r2.text
+    finally:
+        client.delete(f"/cliente_fornecedor/{id_b}", headers=headers_admin)
+        client.delete(f"/cliente_fornecedor/{id_a}", headers=headers_admin)
+
+
+def test_clifor_rg_duplicado_detalhe_e_put_409(client, headers_admin):
+    """RG duplicado dispara 409 com o detail exato no PUT (editar B para o RG de A)."""
+    rg = "RG-DET-7766"
+    id_a = _criar_clifor_pf(client, headers_admin, "616.161.616-16", "Clifor RG Det A", rg=rg)
+    id_b = _criar_clifor_pf(client, headers_admin, "626.262.626-26", "Clifor RG Det B")
+    try:
+        r = client.put(f"/cliente_fornecedor/{id_b}", json={
+            "pessoafisica_juridica": True,
+            "cpf_cnpj": "626.262.626-26",
+            "rg_inscricaoestadual": rg,
+            "nome": "Clifor RG Det B",
+            "datanascimento": "1990-01-01",
+            "tipo_clifor": "C",
+            "ativo": True,
+            "inadimplente": False,
+        }, headers=headers_admin)
+        assert r.status_code == 409, r.text
+        assert r.json()["detail"] == "RG/Inscrição estadual já cadastrado", r.text
+    finally:
+        client.delete(f"/cliente_fornecedor/{id_b}", headers=headers_admin)
+        client.delete(f"/cliente_fornecedor/{id_a}", headers=headers_admin)
+
+
 def test_atualizar_usuario_login_duplicado(client, headers_admin):
     """Login é único também no update: PUT com 'login' já usado por outro → 409
     (converte o IntegrityError do índice único num 409 limpo)."""
@@ -342,6 +405,95 @@ def test_atualizar_usuario_login_duplicado(client, headers_admin):
     finally:
         _limpar_usuario(client, headers_admin, id_a)
         _limpar_usuario(client, headers_admin, id_b)
+
+
+# ================================================
+# CADASTRO PELO ADMIN — e-mail opcional / login obrigatório / senha provisória
+# ================================================
+
+def test_criar_usuario_sem_email_com_senha_provisoria(client, headers_admin):
+    """Sem e-mail, o admin digita a senha provisória (≥6): usuário nasce com Email NULL e
+    autentica pelo login+senha. Cobre o ramo sem-e-mail de criar_usuario."""
+    login = "pytest_sememail_login1"
+    senha = "SenhaProv1"
+    r = client.post("/usuarios/", json={
+        "nome": "Sem Email Com Senha",
+        "login": login,
+        "cargo": None,
+        "perfil_de_acesso": "Consulta",
+        "notificacao": False,
+        "senha": senha,
+    }, headers=headers_admin)
+    assert r.status_code == 200, r.text
+    u = r.json()
+    id_u = u["id_usuario"]
+    try:
+        assert u["email"] is None, r.text
+        assert u["login"] == login, r.text
+        # A conta autentica pela senha provisória digitada.
+        assert client.post("/auth/token", json={"email": login, "senha": senha}).status_code == 200
+        assert client.post("/auth/token", json={"email": login, "senha": "errada"}).status_code == 401
+    finally:
+        _limpar_usuario(client, headers_admin, id_u)
+
+
+def test_criar_usuario_sem_email_sem_senha_400(client, headers_admin):
+    """Sem e-mail e sem senha não há credencial nem link: 400 (nada é persistido)."""
+    login = "pytest_sememail_semsenha"
+    r = client.post("/usuarios/", json={
+        "nome": "Sem Email Sem Senha",
+        "login": login,
+        "cargo": None,
+        "perfil_de_acesso": "Consulta",
+        "notificacao": False,
+    }, headers=headers_admin)
+    assert r.status_code == 400, r.text
+    todos = client.get("/usuarios/", headers=headers_admin).json()
+    assert not any(x["login"] == login for x in todos), "não deveria ter persistido"
+
+
+def test_criar_usuario_sem_email_senha_curta_400(client, headers_admin):
+    """Senha provisória com menos de 6 caracteres → 400."""
+    login = "pytest_sememail_senhacurta"
+    r = client.post("/usuarios/", json={
+        "nome": "Sem Email Senha Curta",
+        "login": login,
+        "cargo": None,
+        "perfil_de_acesso": "Consulta",
+        "notificacao": False,
+        "senha": "123",
+    }, headers=headers_admin)
+    assert r.status_code == 400, r.text
+    todos = client.get("/usuarios/", headers=headers_admin).json()
+    assert not any(x["login"] == login for x in todos), "não deveria ter persistido"
+
+
+def test_criar_usuario_notificacao_sem_email_400(client, headers_admin):
+    """Notificar por e-mail exige e-mail: notificacao=true sem e-mail → 400."""
+    login = "pytest_notif_sememail"
+    r = client.post("/usuarios/", json={
+        "nome": "Notif Sem Email",
+        "login": login,
+        "cargo": None,
+        "perfil_de_acesso": "Consulta",
+        "notificacao": True,
+        "senha": "SenhaProv1",
+    }, headers=headers_admin)
+    assert r.status_code == 400, r.text
+    todos = client.get("/usuarios/", headers=headers_admin).json()
+    assert not any(x["login"] == login for x in todos), "não deveria ter persistido"
+
+
+def test_criar_usuario_sem_login_e_sem_email_400(client, headers_admin):
+    """Login-only: sem login E sem e-mail não há como entrar → 400."""
+    r = client.post("/usuarios/", json={
+        "nome": "Sem Login Sem Email",
+        "cargo": None,
+        "perfil_de_acesso": "Consulta",
+        "notificacao": False,
+        "senha": "SenhaProv1",
+    }, headers=headers_admin)
+    assert r.status_code == 400, r.text
 
 
 # ================================================

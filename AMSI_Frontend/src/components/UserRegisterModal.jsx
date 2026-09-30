@@ -22,21 +22,44 @@ const input = {
 };
 
 function UserRegisterModal({ onFechar }) {
-	const [form, setForm] = useState({ nome: '', email: '', cargo: '', perfil_de_acesso: '' });
+	const VAZIO = { nome: '', login: '', email: '', senha: '', notificacao: false, cargo: '', perfil_de_acesso: '' };
+	const [form, setForm] = useState(VAZIO);
 	const { mostrarToast } = useToast();
 
-	const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+	const handleChange = (e) => {
+		const { name, type, value, checked } = e.target;
+		setForm({ ...form, [name]: type === 'checkbox' ? checked : value });
+	};
+
+	const emailValido = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
 	const handleSubmit = async (e) => {
 		e.preventDefault();
-		if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+		// Login-only: a coluna login é a única credencial que autentica — sempre obrigatória.
+		if (!form.login.trim()) {
+			mostrarToast('Informe o login.', 'aviso');
+			return;
+		}
+		const temEmail = !!form.email.trim();
+		// Notificar por e-mail exige e-mail (o backend também barra).
+		if (form.notificacao && !temEmail) {
+			mostrarToast('Para notificar por e-mail, informe um e-mail.', 'aviso');
+			return;
+		}
+		// E-mail, se preenchido, tem que ser válido.
+		if (temEmail && !emailValido(form.email)) {
 			mostrarToast('E-mail inválido.', 'aviso');
+			return;
+		}
+		// Sem e-mail não há link "defina sua senha": o admin digita a senha provisória (≥6).
+		if (!temEmail && form.senha.trim().length < 6) {
+			mostrarToast('Sem e-mail, informe uma senha provisória de ao menos 6 caracteres.', 'aviso');
 			return;
 		}
 		try {
 			await createUser(form);
 			mostrarToast('Usuário cadastrado com sucesso!');
-			setForm({ nome: '', email: '', cargo: '', perfil_de_acesso: '' });
+			setForm(VAZIO);
 		} catch (err) {
 			const msg = err.message === 'Failed to fetch'
 				? 'Não foi possível conectar ao servidor.'
@@ -111,16 +134,59 @@ function UserRegisterModal({ onFechar }) {
 							<input style={input} name="nome" value={form.nome} onChange={handleChange} required />
 						</div>
 						<div style={campo}>
-							<label style={label}>Email</label>
+							<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+								<label style={{ ...label, marginBottom: 0 }}>Login</label>
+								<label
+									style={{
+										display: 'flex',
+										alignItems: 'center',
+										gap: 6,
+										fontSize: '0.78rem',
+										color: 'var(--text-muted)',
+										textTransform: 'none',
+										letterSpacing: 'normal',
+										cursor: 'pointer'
+									}}
+								>
+									<input
+										type="checkbox"
+										name="notificacao"
+										checked={form.notificacao}
+										onChange={handleChange}
+									/>
+									Notificar por Email
+								</label>
+							</div>
+							<input style={input} name="login" value={form.login} onChange={handleChange} required />
+						</div>
+						<div style={campo}>
+							<label style={label}>Email{form.notificacao ? '' : ' (opcional)'}</label>
 							<input
 								style={input}
 								type="email"
 								name="email"
 								value={form.email}
 								onChange={handleChange}
-								required
+								required={form.notificacao}
 							/>
 						</div>
+						{!form.email.trim() && (
+							<div style={campo}>
+								<label style={label}>Senha provisória</label>
+								<input
+									style={input}
+									type="password"
+									name="senha"
+									value={form.senha}
+									onChange={handleChange}
+									autoComplete="new-password"
+									required
+								/>
+								<span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 4 }}>
+									Sem e-mail, defina a senha aqui (mín. 6). O usuário troca no 1º acesso.
+								</span>
+							</div>
+						)}
 						<div style={campo}>
 							<label style={label}>Cargo</label>
 							<select

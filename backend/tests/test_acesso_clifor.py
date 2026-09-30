@@ -141,6 +141,44 @@ def test_botao_senha_errada_401(client, headers_admin, clifor_cliente_pf):
         _limpar_acesso(client, headers_admin, u["id_usuario"])
 
 
+def test_fluxo_completo_primeiro_login_troca_senha_e_reloga(client, headers_admin, clifor_cliente_pf):
+    """Ciclo completo do item 13 — do primeiro login até acessar com a nova senha.
+
+    1) acesso nasce com senha = 5 primeiros dígitos do CPF e primeiro_acesso=True;
+    2) troca de senha no primeiro acesso NÃO reexige a senha atual (o login já autenticou);
+    3) a senha inicial (5 dígitos) deixa de funcionar (401);
+    4) a nova senha autentica e o primeiro_acesso já foi consumido (False)."""
+    r = client.post(f"/usuarios/clifor/{clifor_cliente_pf['id_clifor']}", headers=headers_admin)
+    assert r.status_code == 200, r.text
+    u = r.json()
+    try:
+        # 1) Primeiro login: CPF + 5 primeiros dígitos → primeiro_acesso True
+        r_login = client.post("/auth/token", json={"email": "52998224725", "senha": "52998"})
+        assert r_login.status_code == 200, r_login.text
+        assert r_login.json()["primeiro_acesso"] is True
+        token = r_login.json()["access_token"]
+
+        # 2) Troca de senha autenticado pelo token do primeiro acesso (sem senha_atual)
+        nova = "novaSenha123"
+        r_troca = client.post(
+            "/auth/trocar-senha",
+            json={"senha_nova": nova},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert r_troca.status_code == 200, r_troca.text
+
+        # 3) A senha inicial não autentica mais
+        r_old = client.post("/auth/token", json={"email": "52998224725", "senha": "52998"})
+        assert r_old.status_code == 401, r_old.text
+
+        # 4) A nova senha autentica e o primeiro_acesso foi consumido
+        r_new = client.post("/auth/token", json={"email": "52998224725", "senha": nova})
+        assert r_new.status_code == 200, r_new.text
+        assert r_new.json()["primeiro_acesso"] is False
+    finally:
+        _limpar_acesso(client, headers_admin, u["id_usuario"])
+
+
 def test_botao_duplicado_409(client, headers_admin, clifor_cliente_pf):
     """Gerar acesso duas vezes para o mesmo documento → 409 (índice único de login)."""
     r1 = client.post(f"/usuarios/clifor/{clifor_cliente_pf['id_clifor']}", headers=headers_admin)

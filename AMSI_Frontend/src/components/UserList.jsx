@@ -18,15 +18,22 @@ function UserList() {
 	const [confirmarReset, setConfirmarReset] = useState(null);
 	const [confirmarRestaurar, setConfirmarRestaurar] = useState(null);
 	const [perfilCompleto, setPerfilCompleto] = useState(null);
-	const [mostrarExcluidos, setMostrarExcluidos] = useState(false);
+	const [busca, setBusca] = useState('');
+	const [filtroPerfil, setFiltroPerfil] = useState('');
+	const [filtroCargo, setFiltroCargo] = useState('');
+	const [filtroStatus, setFiltroStatus] = useState('ativos');
 	const [ambiente, setAmbiente] = useState(null);
 	const { mostrarToast } = useToast();
 	const navigate = useNavigate();
 	const meuId = parseInt(getUserFromToken()?.sub);
 
+	// Só o backend traz os excluídos (incluir_excluidos): Excluídos/Todos precisam do fetch
+	// ampliado; Ativos/Bloqueados filtram em memória sobre os não-excluídos.
+	const incluirExcluidos = filtroStatus === 'excluidos' || filtroStatus === 'todos';
+
 	useEffect(() => {
 		carregarUsuarios();
-	}, [mostrarExcluidos]);
+	}, [incluirExcluidos]);
 
 	useEffect(() => {
 		getAmbiente().then(setAmbiente);
@@ -34,7 +41,7 @@ function UserList() {
 
 	const carregarUsuarios = async () => {
 		try {
-			const data = await getUsers(mostrarExcluidos);
+			const data = await getUsers(incluirExcluidos);
 			setUsuarios(data.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')));
 		} catch (err) {
 			mostrarToast(err.message || 'Erro ao carregar usuários', 'erro');
@@ -76,6 +83,19 @@ function UserList() {
 		}
 	};
 
+	const termo = busca.trim().toLowerCase();
+	const usuariosFiltrados = usuarios.filter((u) => {
+		const excluido = !!u.exclusao;
+		if (filtroStatus === 'ativos' && (excluido || u.bloqueado)) return false;
+		if (filtroStatus === 'bloqueados' && (excluido || !u.bloqueado)) return false;
+		if (filtroStatus === 'excluidos' && !excluido) return false;
+		// 'todos': não filtra por status
+		if (filtroPerfil && u.perfil_de_acesso !== filtroPerfil) return false;
+		if (filtroCargo && (u.cargo || '') !== filtroCargo) return false;
+		if (termo && !`${u.nome} ${u.email || ''}`.toLowerCase().includes(termo)) return false;
+		return true;
+	});
+
 	return (
 		<div className="user-list-container">
 			<div className="d-flex justify-content-between align-items-center mb-4">
@@ -86,15 +106,6 @@ function UserList() {
 					</span>
 				</h2>
 				<div className="d-flex gap-2">
-					<button
-						className="btn-acao-editar"
-						onClick={() => setMostrarExcluidos((v) => !v)}
-						style={{ padding: '8px 18px', fontSize: '0.875rem' }}
-						title={mostrarExcluidos ? 'Ocultar excluídos' : 'Mostrar excluídos'}
-					>
-						<i className={`bi ${mostrarExcluidos ? 'bi-eye-slash' : 'bi-eye'}`} />
-						{mostrarExcluidos ? ' Ocultar excluídos' : ' Mostrar excluídos'}
-					</button>
 					{isAdmin() && (
 						<button
 							className="btn-acao-editar"
@@ -115,6 +126,38 @@ function UserList() {
 				</div>
 			</div>
 
+			<div className="user-list-filtros">
+				<input
+					className="user-list-filtro-busca"
+					type="search"
+					placeholder="Buscar por nome ou e-mail…"
+					value={busca}
+					onChange={(e) => setBusca(e.target.value)}
+				/>
+				<select value={filtroPerfil} onChange={(e) => setFiltroPerfil(e.target.value)}>
+					<option value="">Todos os perfis</option>
+					<option value="Administrador">Administrador</option>
+					<option value="Operador">Operador</option>
+					<option value="Consulta">Consulta</option>
+				</select>
+				<select value={filtroCargo} onChange={(e) => setFiltroCargo(e.target.value)}>
+					<option value="">Todos os cargos</option>
+					<option value="Presidente">Presidente</option>
+					<option value="Diretor">Diretor</option>
+					<option value="Tesoureiro">Tesoureiro</option>
+					<option value="Secretário">Secretário</option>
+					<option value="Conselheiro">Conselheiro</option>
+					<option value="Associado">Associado</option>
+					<option value="Desenvolvedor">Desenvolvedor</option>
+				</select>
+				<select value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)}>
+					<option value="ativos">Ativos</option>
+					<option value="bloqueados">Bloqueados</option>
+					<option value="excluidos">Excluídos</option>
+					<option value="todos">Todos</option>
+				</select>
+			</div>
+
 			<div className="user-list-table-wrapper">
 			<table className="table">
 				<thead>
@@ -127,7 +170,7 @@ function UserList() {
 					</tr>
 				</thead>
 				<tbody>
-					{usuarios.length === 0 ? (
+					{usuariosFiltrados.length === 0 ? (
 						<tr>
 							<td
 								colSpan="5"
@@ -137,7 +180,7 @@ function UserList() {
 							</td>
 						</tr>
 					) : (
-						usuarios.map((u) => {
+						usuariosFiltrados.map((u) => {
 							const excluido = !!u.exclusao;
 							return (
 								<tr key={u.id_usuario} style={excluido ? { opacity: 0.5 } : undefined}>

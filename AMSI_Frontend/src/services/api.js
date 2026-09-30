@@ -232,18 +232,25 @@ export const getUser = async (id_usuario) => {
 	return handleResponse(response);
 };
 
-// body: { nome, email, cargo, perfil_de_acesso, notificacao? }
+// body: { nome, login, email?, senha?, cargo, perfil_de_acesso, notificacao? }
+// Login-only: login é a credencial. Sem e-mail, o admin manda a senha provisória; com
+// e-mail, a senha é ignorada (o link "defina sua senha" governa). email='' vira null
+// (EmailStr rejeita string vazia).
 export const createUser = async (data) => {
+	const temEmail = !!(data.email && data.email.trim());
+	const body = {
+		nome: data.nome,
+		login: data.login,
+		email: temEmail ? data.email : null,
+		cargo: data.cargo,
+		perfil_de_acesso: data.perfil_de_acesso,
+		notificacao: data.notificacao ?? false
+	};
+	if (!temEmail) body.senha = data.senha;
 	const response = await fetchComLoading(`${BASE_URL}/usuarios/`, {
 		method: 'POST',
 		headers: authHeaders(),
-		body: JSON.stringify({
-			nome: data.nome,
-			email: data.email,
-			cargo: data.cargo,
-			perfil_de_acesso: data.perfil_de_acesso,
-			notificacao: data.notificacao ?? false
-		})
+		body: JSON.stringify(body)
 	});
 	return handleResponse(response);
 };
