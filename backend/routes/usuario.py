@@ -299,6 +299,7 @@ def restaurar_usuario(id_usuario: int, db: Session = Depends(get_db), _=Depends(
           <div style="text-align:center;margin:0 0 20px;">
             <a href="{_link_acesso}" style="display:inline-block;background:#1B4332;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-weight:600;font-size:0.95rem;letter-spacing:0.03em;">Definir minha senha →</a>
           </div>
+          <p style="text-align:center;color:#6b7280;margin:0 0 20px;font-size:0.9rem;">Para entrar depois, use seu login: <strong style="color:#1B4332;">{usuario.login}</strong></p>
           <div style="background:#fef9ec;border-left:4px solid #C9A84C;padding:12px 16px;border-radius:4px;margin:0 0 20px;">
             <p style="margin:0;font-size:0.85rem;color:#92400e;">⚠️ Este link expira em 48 horas.</p>
           </div>
@@ -357,6 +358,7 @@ def resetar_senha(id_usuario: int, db: Session = Depends(get_db), _=Depends(exig
           <div style="text-align:center;margin:0 0 20px;">
             <a href="{_link_acesso}" style="display:inline-block;background:#1B4332;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-weight:600;font-size:0.95rem;letter-spacing:0.03em;">Redefinir minha senha →</a>
           </div>
+          <p style="text-align:center;color:#6b7280;margin:0 0 20px;font-size:0.9rem;">Para entrar depois, use seu login: <strong style="color:#1B4332;">{usuario.login}</strong></p>
           <div style="background:#fef9ec;border-left:4px solid #C9A84C;padding:12px 16px;border-radius:4px;margin:0 0 20px;">
             <p style="margin:0;font-size:0.85rem;color:#92400e;">⚠️ Este link expira em 48 horas. Se você não solicitou, ignore este e-mail — sua senha atual continua valendo.</p>
           </div>
