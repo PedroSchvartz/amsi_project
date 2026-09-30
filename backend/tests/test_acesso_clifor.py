@@ -24,10 +24,10 @@ from gerar_acessos_associados import clifors_elegiveis
 def _limpar_acesso(client, headers_admin, id_usuario):
     """Hard-delete do usuário criado no teste (cascata token/login/clifor/logs).
 
-    Precisa ser HARD e não soft: `usuario.login` tem índice único GLOBAL (não filtra
-    `exclusao`), então um soft-delete deixaria o documento ocupado e o próximo teste que
-    reusa o mesmo CPF colidiria (409/unique). O hard-delete devolve as contagens de
-    usuario/login/token ao baseline do `db_snapshot`."""
+    HARD (e não soft) por causa do `db_snapshot` autouse: o hard-delete devolve as
+    contagens de usuario/login/token ao baseline. (O índice único de `login` hoje é
+    PARCIAL — `WHERE exclusao IS NULL` —, então um soft-delete já liberaria o documento;
+    mas o hard mantém o snapshot limpo, que é o que o teardown precisa garantir.)"""
     client.delete(f"/usuarios/{id_usuario}/hard", headers=headers_admin)
 
 
@@ -227,7 +227,8 @@ def test_selecao_script_inclui_cliente_pf_exclui_ambos_forn_pj(client, headers_a
         r = client.post("/cliente_fornecedor/", json={
             "pessoafisica_juridica": pf,
             "cpf_cnpj": cpf,
-            "rg_inscricaoestadual": "8888888",
+            # RG vazio: RG virou único quando preenchido, e estes 4 clifors coexistem.
+            "rg_inscricaoestadual": "",
             "nome": nome,
             "datanascimento": "1990-01-01",
             "tipo_clifor": tipo,

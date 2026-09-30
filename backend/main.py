@@ -303,6 +303,139 @@ def _aplicar_migracoes():
                 conn.execute(text("ALTER TABLE usuario ALTER COLUMN email DROP NOT NULL"))
                 conn.commit()
 
+    # Migration (reestruturacao login-only): a UNICA credencial que autentica passa a ser
+    # usuario.login. Quem tinha login NULL entrava pelo e-mail (coluna email) e login-only
+    # trancaria essas contas → backfill login = email para elas. E email/cpf/rg viram UNICOS.
+    #
+    # Guard run-once: backfill + indice unico de e-mail rodam so enquanto idx_usuario_email
+    # ainda NAO e unico (o proprio marco do rollout). Indices unicos sao GUARDADOS por
+    # duplicidade: havendo duplicata (dado sujo em prod), NAO cria o indice, loga WARNING e
+    # segue — a API ja barra novos duplicados via 409, o Pedro limpa e um restart finaliza.
+    if "usuario" in insp.get_table_names():
+        with engine.connect() as conn:
+            email_idx_unique = conn.execute(text(
+                "SELECT i.indisunique FROM pg_class c "
+                "JOIN pg_index i ON i.indexrelid = c.oid "
+                "WHERE c.relname = 'idx_usuario_email'"
+            )).scalar()
+
+            if email_idx_unique is not True:
+                # Os indices unicos de usuario sao PARCIAIS (WHERE exclusao IS NULL): so
+                # usuarios ATIVOS sao unicos. O soft-delete mantem email/login na linha, entao
+                # um indice incondicional daria colisao (500) ao re-cadastrar um e-mail/login
+                # de conta excluida — o parcial libera reuso. Casa com o 409 da API (ativos).
+                #
+                # Backfill so onde login NULL, email presente e SEM colisao entre ATIVOS:
+                #  - o e-mail ainda nao e login de nenhum usuario ativo
+                #  - o e-mail nao e compartilhado por dois usuarios ativos sem login
+                conn.execute(text(
+                    "UPDATE usuario u SET login = u.email "
+                    "WHERE u.login IS NULL AND u.email IS NOT NULL AND u.exclusao IS NULL "
+                    "  AND NOT EXISTS (SELECT 1 FROM usuario o "
+                    "                    WHERE o.login = u.email AND o.exclusao IS NULL) "
+                    "  AND (SELECT COUNT(*) FROM usuario o2 "
+                    "         WHERE o2.email = u.email AND o2.login IS NULL "
+                    "           AND o2.exclusao IS NULL) = 1"
+                ))
+                sobra = conn.execute(text(
+                    "SELECT COUNT(*) FROM usuario "
+                    "WHERE login IS NULL AND email IS NOT NULL AND exclusao IS NULL"
+                )).scalar()
+                if sobra:
+                    logging.warning(
+                        "[migracao login-only] %s usuario(s) ativo(s) com e-mail ficaram SEM "
+                        "login (e-mail compartilhado) e nao logam ate receberem login distinto.",
+                        sobra,
+                    )
+
+                # idx_usuario_login ja existe UNICO incondicional (migracao item 4). Converte
+                # para parcial pela mesma razao do e-mail. Duplicatas entre ativos bloqueiam.
+                dup_login = conn.execute(text(
+                    "SELECT COUNT(*) FROM (SELECT login FROM usuario "
+                    "WHERE login IS NOT NULL AND exclusao IS NULL "
+                    "GROUP BY login HAVING COUNT(*) > 1) d"
+                )).scalar()
+                if dup_login:
+                    logging.warning(
+                        "[migracao login-only] %s login(s) duplicado(s) entre usuarios ativos — "
+                        "idx_usuario_login NAO virou parcial. Limpe e reinicie.",
+                        dup_login,
+                    )
+                else:
+                    conn.execute(text("DROP INDEX IF EXISTS idx_usuario_login"))
+                    conn.execute(text(
+                        "CREATE UNIQUE INDEX idx_usuario_login ON usuario(login) "
+                        "WHERE exclusao IS NULL"
+                    ))
+
+                dup_email = conn.execute(text(
+                    "SELECT COUNT(*) FROM (SELECT email FROM usuario "
+                    "WHERE email IS NOT NULL AND exclusao IS NULL "
+                    "GROUP BY email HAVING COUNT(*) > 1) d"
+                )).scalar()
+                if dup_email:
+                    logging.warning(
+                        "[migracao login-only] %s e-mail(s) duplicado(s) entre usuarios ativos — "
+                        "idx_usuario_email NAO virou unico. Limpe as duplicatas e reinicie.",
+                        dup_email,
+                    )
+                else:
+                    conn.execute(text("DROP INDEX IF EXISTS idx_usuario_email"))
+                    conn.execute(text(
+                        "CREATE UNIQUE INDEX idx_usuario_email ON usuario(email) "
+                        "WHERE exclusao IS NULL"
+                    ))
+                conn.commit()
+
+    # Migration (login-only): CPF/CNPJ unico + RG unico PARCIAL (so RG preenchido — '' e NULL
+    # ficam livres, pois RG e frequentemente vazio). Mesma guarda por duplicidade.
+    if "clientefornecedor" in insp.get_table_names():
+        with engine.connect() as conn:
+            cpf_idx_unique = conn.execute(text(
+                "SELECT i.indisunique FROM pg_class c "
+                "JOIN pg_index i ON i.indexrelid = c.oid "
+                "WHERE c.relname = 'idx_clifor_cpf_cnpj'"
+            )).scalar()
+            if cpf_idx_unique is not True:
+                dup_cpf = conn.execute(text(
+                    "SELECT COUNT(*) FROM (SELECT cpf_cnpj FROM clientefornecedor "
+                    "GROUP BY cpf_cnpj HAVING COUNT(*) > 1) d"
+                )).scalar()
+                if dup_cpf:
+                    logging.warning(
+                        "[migracao login-only] %s CPF/CNPJ duplicado(s) em clientefornecedor — "
+                        "idx_clifor_cpf_cnpj NAO virou unico. Limpe e reinicie.",
+                        dup_cpf,
+                    )
+                else:
+                    conn.execute(text("DROP INDEX IF EXISTS idx_clifor_cpf_cnpj"))
+                    conn.execute(text(
+                        "CREATE UNIQUE INDEX idx_clifor_cpf_cnpj ON clientefornecedor(cpf_cnpj)"
+                    ))
+                conn.commit()
+
+            rg_idx_existe = conn.execute(text(
+                "SELECT 1 FROM pg_class WHERE relname = 'idx_clifor_rg'"
+            )).scalar()
+            if not rg_idx_existe:
+                dup_rg = conn.execute(text(
+                    "SELECT COUNT(*) FROM (SELECT rg_inscricaoestadual FROM clientefornecedor "
+                    "WHERE rg_inscricaoestadual IS NOT NULL AND rg_inscricaoestadual <> '' "
+                    "GROUP BY rg_inscricaoestadual HAVING COUNT(*) > 1) d"
+                )).scalar()
+                if dup_rg:
+                    logging.warning(
+                        "[migracao login-only] %s RG duplicado(s) em clientefornecedor — "
+                        "idx_clifor_rg NAO foi criado. Limpe e reinicie.",
+                        dup_rg,
+                    )
+                else:
+                    conn.execute(text(
+                        "CREATE UNIQUE INDEX idx_clifor_rg ON clientefornecedor(rg_inscricaoestadual) "
+                        "WHERE rg_inscricaoestadual IS NOT NULL AND rg_inscricaoestadual <> ''"
+                    ))
+                conn.commit()
+
 
 _aplicar_migracoes()
 

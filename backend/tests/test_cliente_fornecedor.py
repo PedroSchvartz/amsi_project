@@ -99,8 +99,10 @@ def test_criar_e_editar_clifor_associado(client, headers_admin):
 def test_criar_clifor_com_enderecos_e_contatos(client, headers_admin):
     r = client.post("/cliente_fornecedor/", json={
         "pessoafisica_juridica": True,
-        "cpf_cnpj": "111.111.111-11",
-        "rg_inscricaoestadual": "1111111",
+        # CPF/RG únicos e distintos dos reservados ao fixture clifor_base (…-11 / 1111111),
+        # que agora coexiste com este teste sem colidir no índice único.
+        "cpf_cnpj": "191.919.191-91",
+        "rg_inscricaoestadual": "1919191",
         "nome": "CliFor Com Dados Completos",
         "datanascimento": "1990-05-20",
         "tipo_clifor": "C",

@@ -1,7 +1,6 @@
 import logging
 import re
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
-from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
 from typing import Optional
@@ -117,20 +116,19 @@ def _emitir_sessao(db: Session, usuario: Usuario, request: Request, response: Re
 @router.post("/token", response_model=TokenResponse)
 @limiter.limit("10/minute")
 def login(dados: LoginRequest, request: Request, response: Response, db: Session = Depends(get_db)):
-    # Item 4: casa por e-mail OU login (CPF). Precedência de e-mail em caso de empate
-    # (login que coincida com o e-mail de outro usuário) — order_by põe o match de e-mail
-    # primeiro. Valores reais de login são CPFs, que não colidem com e-mail.
+    # Login-only: a UNICA credencial que autentica e usuario.login. O e-mail NAO autentica
+    # (so contato/recuperacao). O `login` guarda CPF (morador) ou e-mail (equipe) — casa a
+    # COLUNA, nao o formato. Tolera CPF/CNPJ mascarado: o login e gravado so com digitos,
+    # entao se o ident tem >=11 digitos e nao casou direto, tenta por <ident so digitos>.
     ident = dados.email.strip()
     usuario = db.query(Usuario).filter(
         Usuario.exclusao == None,  # noqa: E711
-        or_(Usuario.email == ident, Usuario.login == ident)
-    ).order_by((Usuario.email == ident).desc()).first()
+        Usuario.login == ident
+    ).first()
 
-    # Item 13: o login por documento é tolerante a máscara. O `login` é gravado só com
-    # dígitos; se o usuário digitou o CPF/CNPJ com pontuação, casa pelos dígitos.
     if not usuario:
         ident_digitos = re.sub(r"\D", "", ident)
-        if len(ident_digitos) >= 11:  # CPF(11) ou CNPJ(14) — não colide com e-mail
+        if len(ident_digitos) >= 11:
             usuario = db.query(Usuario).filter(
                 Usuario.exclusao == None,  # noqa: E711
                 Usuario.login == ident_digitos

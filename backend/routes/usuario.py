@@ -74,12 +74,21 @@ def criar_usuario(dados: UsuarioCreate, db: Session = Depends(get_db), usuario_a
     ).first():
         raise HTTPException(status_code=409, detail="Email já cadastrado")
 
-    # Login (item 4) é único quando informado — espelha o 409 do e-mail. Excluídos contam:
-    # o índice único do banco não filtra por exclusao, então a validação aqui também não.
-    if dados.login and db.query(Usuario).filter(Usuario.login == dados.login).first():
+    dados_dict = dados.model_dump()
+    # Login-only: equipe autentica pela COLUNA login. Se o admin não informou um login,
+    # o padrão é o e-mail (senão o login-only tranca a conta recém-criada). Se informou,
+    # respeita o que veio (campo Login livre no front).
+    if not dados_dict.get("login"):
+        dados_dict["login"] = dados.email
+
+    # Login é único entre ATIVOS — espelha o 409 do e-mail e o índice parcial
+    # idx_usuario_login (WHERE exclusao IS NULL). Contas excluídas liberam o login.
+    if db.query(Usuario).filter(
+        Usuario.login == dados_dict["login"],
+        Usuario.exclusao == None  # noqa: E711
+    ).first():
         raise HTTPException(status_code=409, detail="Login já cadastrado")
 
-    dados_dict = dados.model_dump()
     # Senha inutilizável: ninguém conhece o valor em claro, então nenhum login casa.
     # O usuário define a senha real pelo link enviado por e-mail (token de uso único).
     dados_dict["senha"] = hash_senha(secrets.token_urlsafe(32))
@@ -170,12 +179,21 @@ def atualizar_usuario(id_usuario: int, dados: UsuarioUpdate, db: Session = Depen
     if "senha" in dados_dict:
         dados_dict["senha"] = hash_senha(dados_dict["senha"])
 
-    # Login (item 4) é único quando informado — 409 se outro usuário já o usa.
+    # Login é único entre ATIVOS quando informado — 409 se outro usuário ativo já o usa.
     if dados_dict.get("login") and db.query(Usuario).filter(
         Usuario.login == dados_dict["login"],
-        Usuario.id_usuario != id_usuario
+        Usuario.id_usuario != id_usuario,
+        Usuario.exclusao == None  # noqa: E711
     ).first():
         raise HTTPException(status_code=409, detail="Login já cadastrado")
+
+    # E-mail também é único entre ATIVOS — 409 se outro usuário ativo já o usa.
+    if dados_dict.get("email") and db.query(Usuario).filter(
+        Usuario.email == dados_dict["email"],
+        Usuario.id_usuario != id_usuario,
+        Usuario.exclusao == None  # noqa: E711
+    ).first():
+        raise HTTPException(status_code=409, detail="Email já cadastrado")
 
     for campo, valor in dados_dict.items():
         setattr(usuario, campo, valor)

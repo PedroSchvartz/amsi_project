@@ -109,10 +109,14 @@ def _upsert_usuario_teste(db: Session, dados: dict):
         existente.suspenso         = None
         existente.exclusao         = None
         existente.primeiro_acesso  = False
+        # Login-only: equipe autentica pela coluna login. Preenche só quando NULL para
+        # não pisar num login manual (ex.: CPF) já configurado.
+        existente.login            = existente.login or email
         print(colorir(cor="azul", texto=f"✔ Usuário de teste atualizado: {email}"))
     else:
         novo = Usuario(
             email=email,
+            login=email,  # login-only: equipe autentica pelo e-mail (= coluna login)
             nome=dados["nome"],
             senha=hash_senha(senha),
             cargo=dados["cargo"],
@@ -149,6 +153,7 @@ def garantir_admins_iniciais():
 
                 novo_admin = Usuario(
                     email=admin_data["email"],
+                    login=admin_data["email"],  # login-only: admin autentica pelo e-mail
                     nome=admin_data["nome"],
                     senha=hash_senha(senha_provisoria),
                     cargo=admin_data["cargo"],

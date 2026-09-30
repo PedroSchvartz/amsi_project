@@ -30,6 +30,9 @@ const s = {
 function UserEditModal({ usuario, onFechar, onSalvo }) {
 	const [form, setForm] = useState({
 		nome: usuario.nome ?? '',
+		// Login: ÚNICA credencial que autentica. Guarda CPF (morador) ou e-mail (equipe) —
+		// campo livre, o que vale é a coluna, não o formato. Branco → null (conta sem login).
+		login: usuario.login ?? '',
 		cargo: usuario.cargo ?? '',
 		perfil_de_acesso: usuario.perfil_de_acesso ?? '',
 		notificacao: usuario.notificacao ?? false,
@@ -55,10 +58,18 @@ function UserEditModal({ usuario, onFechar, onSalvo }) {
 		setForm((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
 	};
 
+	// Login livre (CPF ou e-mail). Branco → null (conta sem login, não autentica).
+	const montarPayload = (extra = {}) => ({
+		...form,
+		cargo: form.cargo || null,
+		login: (form.login || '').trim() || null,
+		...extra
+	});
+
 	const handleRemoverNotificacao = async () => {
 		setSalvando(true);
 		try {
-			await updateUser(usuario.id_usuario, { ...form, cargo: form.cargo || null, notificacao: false });
+			await updateUser(usuario.id_usuario, montarPayload({ notificacao: false }));
 			setConfirmarNotificacao(false);
 			onSalvo();
 			onFechar();
@@ -72,7 +83,7 @@ function UserEditModal({ usuario, onFechar, onSalvo }) {
 	const salvar = async () => {
 		setSalvando(true);
 		try {
-			await updateUser(usuario.id_usuario, { ...form, cargo: form.cargo || null });
+			await updateUser(usuario.id_usuario, montarPayload());
 			onSalvo();
 			onFechar();
 		} catch (err) {
@@ -181,6 +192,21 @@ function UserEditModal({ usuario, onFechar, onSalvo }) {
 								onChange={handleChange}
 								required
 							/>
+						</div>
+						<div style={s.campo}>
+							<label style={s.label}>Login</label>
+							<input
+								style={s.input}
+								name="login"
+								value={form.login}
+								onChange={handleChange}
+								type="text"
+								maxLength={250}
+								placeholder="CPF ou e-mail — é o que autentica no login"
+							/>
+							<span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 4 }}>
+								Única credencial que autentica. Em branco → conta sem login (não entra).
+							</span>
 						</div>
 						<div style={s.campo}>
 							<label style={s.label}>Cargo</label>

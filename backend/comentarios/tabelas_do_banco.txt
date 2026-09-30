@@ -23,13 +23,15 @@ CREATE TABLE Usuario (
     Senha VARCHAR(255) NOT NULL,
     Nome VARCHAR(255) NOT NULL,
     Data_Cadastro TIMESTAMP NOT NULL DEFAULT NOW(),
-    -- Nullable (item 4/tela de e-mail): NULL = usuario CPF-only que ainda nao cadastrou
-    -- e-mail. Ganha e-mail depois via POST /auth/cadastrar-email. idx_usuario_email segue.
+    -- Nullable: NULL = usuario CPF-only que ainda nao cadastrou e-mail. Ganha e-mail
+    -- depois via POST /auth/cadastrar-email. E-mail NAO autentica (so contato/notificacao/
+    -- recuperacao de senha); e UNICO entre ATIVOS (idx_usuario_email parcial abaixo) --
+    -- NULLs distintos no Postgres, entao varios CPF-only sem e-mail convivem.
     Email VARCHAR(255) DEFAULT NULL,
-    -- Login (item 4): identificador alternativo de login (CPF p/ usuarios-clifor).
-    -- Pode ser "qualquer coisa"; o Email SEGUE existindo p/ notificacao/recuperacao.
-    -- /auth/token casa Email OU Login. Unico (indice abaixo); NULLs distintos no
-    -- Postgres, entao a equipe (admin/operador) sem login convive sem conflito.
+    -- Login: UNICA credencial que autentica no /auth/token. Guarda o CPF (morador, gerado
+    -- do clifor) OU o e-mail (equipe, setado = e-mail no cadastro). O que autentica e a
+    -- COLUNA, nao o fato de ser e-mail. Unico entre ATIVOS (idx_usuario_login parcial);
+    -- NULLs distintos, entao conta sem login convive -- mas conta com Login NULL nao loga.
     Login VARCHAR(255) DEFAULT NULL,
     -- Nullable (item 15): o cargo "Associado" saiu das telas; usuarios que eram
     -- Associado ficam com cargo NULL (a migracao no main.py zera os existentes).
@@ -55,8 +57,10 @@ CREATE TABLE Usuario (
 );
 
 -- Usuario
-CREATE INDEX idx_usuario_email ON Usuario(Email);
-CREATE UNIQUE INDEX idx_usuario_login ON Usuario(Login);
+-- Unicos PARCIAIS (so usuarios ativos): o soft-delete mantem Email/Login na linha, entao
+-- um indice incondicional colidiria ao re-cadastrar credencial de conta excluida.
+CREATE UNIQUE INDEX idx_usuario_email ON Usuario(Email) WHERE Exclusao IS NULL;
+CREATE UNIQUE INDEX idx_usuario_login ON Usuario(Login) WHERE Exclusao IS NULL;
 CREATE INDEX idx_usuario_bloqueado ON Usuario(Bloqueado);
 CREATE INDEX idx_usuario_clifor ON Usuario(id_CliFor_FK);
 ALTER TABLE Usuario ADD FOREIGN KEY (id_CliFor_FK) REFERENCES ClienteFornecedor(id_CliFor);
@@ -91,7 +95,12 @@ CREATE TABLE ClienteFornecedor (
 );
 
 -- ClienteFornecedor
-CREATE INDEX idx_clifor_cpf_cnpj ON ClienteFornecedor(CPF_CNPJ);
+-- CPF/CNPJ e RG sao UNICOS (cadastro barra duplicidade: API 409 + indice). O RG e
+-- frequentemente vazio ('') e varios '' colidiriam num unico comum, entao o indice de
+-- RG e PARCIAL (so linhas com RG preenchido) -- '' e NULL ficam livres.
+CREATE UNIQUE INDEX idx_clifor_cpf_cnpj ON ClienteFornecedor(CPF_CNPJ);
+CREATE UNIQUE INDEX idx_clifor_rg ON ClienteFornecedor(RG_InscricaoEstadual)
+    WHERE RG_InscricaoEstadual IS NOT NULL AND RG_InscricaoEstadual <> '';
 CREATE INDEX idx_clifor_nome ON ClienteFornecedor(Nome);
 CREATE INDEX idx_clifor_ativo ON ClienteFornecedor(Ativo);
 CREATE INDEX idx_clifor_inadimplente ON ClienteFornecedor(Inadimplente);

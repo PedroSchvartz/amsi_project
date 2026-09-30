@@ -2,6 +2,8 @@ import pytest
 
 from utils.config import ADMIN_TESTE_EMAIL
 from utils.rate_limit import limiter
+from database import SessionLocal
+from models.usuario import Usuario, AcessoEnum
 
 
 # ================================================
@@ -133,16 +135,23 @@ def test_login_por_cpf(client, headers_admin):
         _limpar_usuario(client, headers_admin, id_u)
 
 
-def test_login_por_email_ainda_funciona(client, headers_admin):
-    """Não-regressão: mesmo com 'login' setado, o e-mail continua autenticando."""
-    email = "pytest_login_email_ok@amsi.com"
+def test_email_nao_autentica_quando_nao_e_login(client, headers_admin):
+    """Login-only: o e-mail NÃO autentica quando não é o login. Ao trocar o login para um
+    CPF, o e-mail original deixa de logar (401); só o login (CPF) autentica."""
+    email = "pytest_email_nao_loga@amsi.com"
     senha = "SenhaTest@123"
+    cpf = "111.222.333-44"
     u = _criar_usuario_com_senha(client, headers_admin, email, senha)
     id_u = u["id_usuario"]
     try:
-        client.put(f"/usuarios/{id_u}", json={"login": "111.222.333-44"}, headers=headers_admin)
-        r = client.post("/auth/token", json={"email": email, "senha": senha})
-        assert r.status_code == 200, r.text
+        # Criado como equipe → login = e-mail: o e-mail autentica.
+        assert u["login"] == email
+        assert client.post("/auth/token", json={"email": email, "senha": senha}).status_code == 200
+
+        # Troca o login para um CPF: agora o e-mail (que não é mais o login) não autentica.
+        assert client.put(f"/usuarios/{id_u}", json={"login": cpf}, headers=headers_admin).status_code == 200
+        assert client.post("/auth/token", json={"email": email, "senha": senha}).status_code == 401
+        assert client.post("/auth/token", json={"email": cpf, "senha": senha}).status_code == 200
     finally:
         _limpar_usuario(client, headers_admin, id_u)
 
@@ -174,6 +183,149 @@ def test_criar_usuario_login_duplicado(client, headers_admin):
         assert not any(x["email"] == "pytest_login_dup_b@amsi.com" for x in todos)
     finally:
         _limpar_usuario(client, headers_admin, id_a)
+
+
+# ================================================
+# LOGIN POR CPF (morador gerado do clifor) — login-only
+# ================================================
+
+def _criar_clifor_pf(client, headers_admin, cpf, nome, rg=""):
+    """Cria um clifor PF. RG vazio por padrão: RG é único quando preenchido, então usar
+    '' evita colisão entre clifors de teste (vários RG vazios convivem)."""
+    r = client.post("/cliente_fornecedor/", json={
+        "pessoafisica_juridica": True,
+        "cpf_cnpj": cpf,
+        "rg_inscricaoestadual": rg,
+        "nome": nome,
+        "datanascimento": "1990-01-01",
+        "tipo_clifor": "C",
+        "ativo": True,
+        "inadimplente": False,
+    }, headers=headers_admin)
+    assert r.status_code == 200, r.text
+    return r.json()["id_clifor"]
+
+
+def test_login_por_cpf_gerado_do_clifor(client, headers_admin):
+    """Morador: acesso gerado do clifor loga pelo CPF (dígitos e com máscara). Senha
+    inicial = 5 primeiros dígitos do documento. O e-mail é NULL e não autentica."""
+    cpf = "390.533.447-05"
+    cpf_digitos = "39053344705"
+    id_clifor = _criar_clifor_pf(client, headers_admin, cpf, "Morador Login CPF")
+    id_u = None
+    try:
+        r = client.post(f"/usuarios/clifor/{id_clifor}", headers=headers_admin)
+        assert r.status_code == 200, r.text
+        id_u = r.json()["id_usuario"]
+        assert r.json()["login"] == cpf_digitos
+        assert r.json()["email"] is None
+
+        senha_ini = cpf_digitos[:5]
+        assert client.post("/auth/token", json={"email": cpf_digitos, "senha": senha_ini}).status_code == 200
+        assert client.post("/auth/token", json={"email": cpf, "senha": senha_ini}).status_code == 200
+        assert client.post("/auth/token", json={"email": cpf_digitos, "senha": "errada"}).status_code == 401
+    finally:
+        if id_u:
+            client.delete(f"/usuarios/{id_u}/clifor/desvincular", headers=headers_admin)
+            _limpar_usuario(client, headers_admin, id_u)
+        client.delete(f"/cliente_fornecedor/{id_clifor}", headers=headers_admin)
+
+
+def test_gerar_acesso_bloqueia_segundo_acesso_no_clifor(client, headers_admin):
+    """Regra B (1 acesso por clifor): se o clifor já tem usuário ativo, gerar acesso de
+    novo → 409. O primeiro acesso é criado; o segundo é barrado."""
+    cpf = "468.593.398-05"
+    id_clifor = _criar_clifor_pf(client, headers_admin, cpf, "Clifor Um Acesso")
+    id_u = None
+    try:
+        r1 = client.post(f"/usuarios/clifor/{id_clifor}", headers=headers_admin)
+        assert r1.status_code == 200, r1.text
+        id_u = r1.json()["id_usuario"]
+
+        r2 = client.post(f"/usuarios/clifor/{id_clifor}", headers=headers_admin)
+        assert r2.status_code == 409, r2.text
+    finally:
+        if id_u:
+            client.delete(f"/usuarios/{id_u}/clifor/desvincular", headers=headers_admin)
+            _limpar_usuario(client, headers_admin, id_u)
+        client.delete(f"/cliente_fornecedor/{id_clifor}", headers=headers_admin)
+
+
+# ================================================
+# UNICIDADE DE CREDENCIAIS (login-only)
+# ================================================
+
+def test_criar_usuario_email_duplicado(client, headers_admin):
+    """E-mail é único: criar outro usuário ativo com o mesmo e-mail → 409."""
+    email = "pytest_email_dup@amsi.com"
+    a = _criar_usuario_com_senha(client, headers_admin, email, "SenhaTest@123")
+    id_a = a["id_usuario"]
+    try:
+        r = client.post("/usuarios/", json={
+            "nome": "Email Dup B",
+            "email": email,
+            "cargo": None,
+            "perfil_de_acesso": "Consulta",
+            "notificacao": False,
+        }, headers=headers_admin)
+        assert r.status_code == 409, r.text
+    finally:
+        _limpar_usuario(client, headers_admin, id_a)
+
+
+def test_clifor_cpf_duplicado_409(client, headers_admin):
+    """CPF/CNPJ do clifor é único: criar/editar outro clifor com o mesmo CPF → 409."""
+    cpf = "512.345.678-90"
+    id_a = _criar_clifor_pf(client, headers_admin, cpf, "Clifor CPF A")
+    id_b = None
+    try:
+        r = client.post("/cliente_fornecedor/", json={
+            "pessoafisica_juridica": True,
+            "cpf_cnpj": cpf,
+            "rg_inscricaoestadual": "",
+            "nome": "Clifor CPF B",
+            "datanascimento": "1990-01-01",
+            "tipo_clifor": "C",
+            "ativo": True,
+            "inadimplente": False,
+        }, headers=headers_admin)
+        assert r.status_code == 409, r.text
+    finally:
+        if id_b:
+            client.delete(f"/cliente_fornecedor/{id_b}", headers=headers_admin)
+        client.delete(f"/cliente_fornecedor/{id_a}", headers=headers_admin)
+
+
+def test_clifor_rg_duplicado_409_e_rg_vazio_ok(client, headers_admin):
+    """RG é único quando preenchido → 409; RG vazio não colide (vários '' convivem)."""
+    rg = "RG-UNICO-9988"
+    # CPF único e distinto do reservado ao fixture clifor_base (111.111.111-11).
+    id_a = _criar_clifor_pf(client, headers_admin, "151.515.151-51", "Clifor RG A", rg=rg)
+    id_vazio1 = _criar_clifor_pf(client, headers_admin, "222.222.222-22", "Clifor RG Vazio 1")
+    id_vazio2 = _criar_clifor_pf(client, headers_admin, "333.333.333-33", "Clifor RG Vazio 2")
+    id_b = None
+    try:
+        # Mesmo RG preenchido → 409.
+        r = client.post("/cliente_fornecedor/", json={
+            "pessoafisica_juridica": True,
+            "cpf_cnpj": "444.444.444-44",
+            "rg_inscricaoestadual": rg,
+            "nome": "Clifor RG B",
+            "datanascimento": "1990-01-01",
+            "tipo_clifor": "C",
+            "ativo": True,
+            "inadimplente": False,
+        }, headers=headers_admin)
+        assert r.status_code == 409, r.text
+        if r.is_success:
+            id_b = r.json()["id_clifor"]
+        # Dois RG vazios coexistem (criados acima sem 409).
+    finally:
+        if id_b:
+            client.delete(f"/cliente_fornecedor/{id_b}", headers=headers_admin)
+        client.delete(f"/cliente_fornecedor/{id_vazio2}", headers=headers_admin)
+        client.delete(f"/cliente_fornecedor/{id_vazio1}", headers=headers_admin)
+        client.delete(f"/cliente_fornecedor/{id_a}", headers=headers_admin)
 
 
 def test_atualizar_usuario_login_duplicado(client, headers_admin):
@@ -219,6 +371,42 @@ def test_cadastrar_email_sucesso(client, headers_admin):
 
         estado = client.get(f"/usuarios/{id_u}", headers=headers_admin).json()
         assert estado["email"] == novo
+    finally:
+        _limpar_usuario(client, headers_admin, id_u)
+
+
+def test_login_por_cpf_continua_apos_cadastrar_email(client, headers_admin):
+    """Regressão (pedido do Pedro): quem entrou só pelo CPF continua logando pelo CPF
+    DEPOIS de cadastrar um e-mail. Cadastrar e-mail NÃO pode zerar/trocar o 'login'."""
+    email_inicial = "pytest_cpf_pos_email@amsi.com"
+    novo_email = "pytest_cpf_pos_email_novo@amsi.com"
+    # Item-13 grava 'login' só com dígitos (gerar_acesso_clifor normaliza o documento).
+    cpf_digitos = "32165498700"
+    cpf_mascara = "321.654.987-00"
+    senha = "SenhaTest@123"
+    u = _criar_usuario_com_senha(client, headers_admin, email_inicial, senha)
+    id_u = u["id_usuario"]
+    try:
+        # Estado inicial: login = dígitos do CPF, sem e-mail (usuário item-13 típico).
+        assert client.put(f"/usuarios/{id_u}", json={"login": cpf_digitos}, headers=headers_admin).status_code == 200
+        token = _login(client, cpf_digitos, senha)  # loga pelo CPF ANTES do e-mail
+        assert client.put(f"/usuarios/{id_u}", json={"email": None}, headers=headers_admin).status_code == 200
+
+        # Cadastra o e-mail pelo próprio usuário.
+        r = client.post("/auth/cadastrar-email", json={"email": novo_email},
+                        headers={"Authorization": f"Bearer {token}"})
+        assert r.status_code == 200, r.text
+
+        # O 'login' (CPF) tem que permanecer intacto.
+        estado = client.get(f"/usuarios/{id_u}", headers=headers_admin).json()
+        assert estado["email"] == novo_email
+        assert estado["login"] == cpf_digitos
+
+        # Login por CPF continua funcionando — dígitos e com máscara. O e-mail (que NÃO é o
+        # login) NÃO autentica: login-only casa só a coluna login (= CPF aqui).
+        assert client.post("/auth/token", json={"email": cpf_digitos, "senha": senha}).status_code == 200
+        assert client.post("/auth/token", json={"email": cpf_mascara, "senha": senha}).status_code == 200
+        assert client.post("/auth/token", json={"email": novo_email, "senha": senha}).status_code == 401
     finally:
         _limpar_usuario(client, headers_admin, id_u)
 

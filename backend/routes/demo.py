@@ -76,6 +76,7 @@ def demo_registro(dados: DemoRegistroRequest, db: Session = Depends(get_db)):
     usuario = Usuario(
         nome=dados.nome,
         email=dados.email,
+        login=dados.email,  # login-only: sem login preenchido a conta não autentica
         senha=hash_senha(dados.senha),
         cargo=dados.cargo,
         perfil_de_acesso=dados.perfil_de_acesso,

@@ -20,7 +20,7 @@ TIPO_EMAIL = "Email"
 
 
 class AcessoJaExisteError(Exception):
-    """Já existe usuário com o login (documento) do clifor — não se cria outro."""
+    """Já existe acesso ligado a este clifor (regra: 1 acesso por clifor) — não se cria outro."""
 
 
 def gerar_acesso_clifor(clifor: ClienteFornecedor, db: Session, marcar_associado: bool = False) -> Usuario:
@@ -35,6 +35,10 @@ def gerar_acesso_clifor(clifor: ClienteFornecedor, db: Session, marcar_associado
     doc = re.sub(r"\D", "", clifor.cpf_cnpj or "")
     if not doc:
         raise ValueError("clifor sem documento")
+    # Regra B (1 acesso por clifor): se o clifor já tem usuário ativo, não gera outro.
+    # CPF compartilhado não é caso real. Cobre também o antigo caso login==doc.
+    if clifor.usuarios_vinculados:
+        raise AcessoJaExisteError()
     if db.query(Usuario).filter(Usuario.login == doc).first():
         raise AcessoJaExisteError()
     usuario = Usuario(

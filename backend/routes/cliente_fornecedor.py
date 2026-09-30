@@ -182,8 +182,28 @@ def buscar_clifor(id_clifor: int, db: Session = Depends(get_db), _=Depends(get_c
     return clifor
 
 
+def _validar_unicidade_clifor(dados, db: Session, id_atual: int | None = None) -> None:
+    """CPF/CNPJ é único; RG é único quando preenchido (vazio/None não colide). 409 se duplicado.
+    id_atual exclui o próprio clifor da checagem (update)."""
+    if dados.cpf_cnpj:
+        q = db.query(ClienteFornecedor).filter(ClienteFornecedor.cpf_cnpj == dados.cpf_cnpj)
+        if id_atual is not None:
+            q = q.filter(ClienteFornecedor.id_clifor != id_atual)
+        if q.first():
+            raise HTTPException(status_code=409, detail="CPF/CNPJ já cadastrado")
+
+    rg = (dados.rg_inscricaoestadual or "").strip()
+    if rg:
+        q = db.query(ClienteFornecedor).filter(ClienteFornecedor.rg_inscricaoestadual == dados.rg_inscricaoestadual)
+        if id_atual is not None:
+            q = q.filter(ClienteFornecedor.id_clifor != id_atual)
+        if q.first():
+            raise HTTPException(status_code=409, detail="RG/Inscrição estadual já cadastrado")
+
+
 @router.post("/", response_model=ClienteFornecedorResponse)
 def criar_clifor(dados: ClienteFornecedorCreate, db: Session = Depends(get_db), _=Depends(exige_operador_ou_admin)):
+    _validar_unicidade_clifor(dados, db)
     clifor_data = dados.model_dump(exclude={"enderecos", "contatos"})
     clifor = ClienteFornecedor(**clifor_data)
     db.add(clifor)
@@ -207,6 +227,8 @@ def atualizar_clifor(id_clifor: int, dados: ClienteFornecedorUpdate, db: Session
     clifor = db.query(ClienteFornecedor).filter(ClienteFornecedor.id_clifor == id_clifor).first()
     if not clifor:
         raise HTTPException(status_code=404, detail="Cliente/Fornecedor não encontrado")
+
+    _validar_unicidade_clifor(dados, db, id_atual=id_clifor)
 
     for campo, valor in dados.model_dump(exclude_unset=True, exclude={"enderecos", "contatos"}).items():
         setattr(clifor, campo, valor)

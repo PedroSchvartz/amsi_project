@@ -26,12 +26,17 @@ class Usuario(Base):
     senha = Column(String(255), nullable=False)
     nome = Column(String(255), nullable=False)
     data_cadastro = Column(TIMESTAMP, nullable=False, server_default=func.now())
-    # nullable (tela de cadastro de e-mail): NULL = usuario CPF-only sem e-mail ainda.
+    # nullable (NULL = usuario CPF-only sem e-mail ainda). E-mail NAO autentica: e so
+    # contato/notificacao/recuperacao. UNICO entre usuarios ATIVOS via indice PARCIAL
+    # (idx_usuario_email WHERE exclusao IS NULL) criado na migracao — nao e unique=True aqui
+    # porque o create_all criaria constraint incondicional, que colidiria no re-cadastro de
+    # e-mail de conta soft-deletada. NULLs sao distintos, entao CPF-only sem e-mail convivem.
     email = Column(String(255), nullable=True)
-    # Login (item 4): identificador alternativo de login (CPF p/ usuarios-clifor). Pode
-    # ser "qualquer coisa"; o email segue p/ notificacao/recuperacao. /auth/token casa
-    # email OU login. Unico: NULLs sao distintos no Postgres, entao a equipe sem login ok.
-    login = Column(String(255), nullable=True, unique=True)
+    # Login: UNICA credencial que autentica no /auth/token. Guarda o CPF (morador) OU o
+    # e-mail (equipe, = e-mail no cadastro). O que autentica e a COLUNA, nao o formato.
+    # UNICO entre ativos via indice PARCIAL idx_usuario_login (mesma razao do e-mail);
+    # NULLs distintos, mas conta com login NULL nao loga.
+    login = Column(String(255), nullable=True)
     # values_callable: o cargo_enum no banco guarda os VALORES (ex.: "Secretário"
     # acentuado), nao os nomes dos membros — sem isto, gravar Secretario quebra.
     # nullable (item 15): "Associado" saiu das telas; ex-Associados ficam sem cargo (NULL).
