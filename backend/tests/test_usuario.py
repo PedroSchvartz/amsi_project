@@ -684,3 +684,115 @@ def test_restaurar_usuario_ja_ativo_retorna_404(client, headers_admin, usuario_b
     (restaurar só faz sentido para usuários que estão excluídos)."""
     r = client.post(f"/usuarios/{usuario_base['id_usuario']}/restaurar", headers=headers_admin)
     assert r.status_code == 404
+
+
+# ================================================
+# RESTAURAR — reativação desacoplada do envio de e-mail
+# ================================================
+
+def _criar_usuario_sem_email(client, headers_admin, login, senha="senha123"):
+    """Cria um usuário CPF-only (sem e-mail): login + senha provisória, perfil Consulta."""
+    r = client.post("/usuarios/", json={
+        "nome": f"Sem Email {login}",
+        "login": login,
+        "perfil_de_acesso": "Consulta",
+        "notificacao": False,
+        "senha": senha,
+    }, headers=headers_admin)
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def test_restaurar_sem_email_nao_notifica(client, headers_admin, monkeypatch):
+    """"Cadastrar depois": usuário sem e-mail volta a ativo (exclusao nulo, email segue nulo)
+    e enviar_email NÃO é chamado."""
+    import routes.usuario as routes_usuario
+    from unittest.mock import Mock
+    mock_email = Mock(return_value=True)
+    monkeypatch.setattr(routes_usuario, "enviar_email", mock_email)
+
+    u = _criar_usuario_sem_email(client, headers_admin, "90900900900")
+    assert u["email"] is None
+    client.delete(f"/usuarios/{u['id_usuario']}", headers=headers_admin)
+
+    # Corpo como o front envia no "Cadastrar depois": {email: null}.
+    r = client.post(f"/usuarios/{u['id_usuario']}/restaurar", json={"email": None}, headers=headers_admin)
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["exclusao"] is None
+    assert data["email"] is None
+    mock_email.assert_not_called()
+
+    # Volta a excluído: db_snapshot checa a contagem de ativos antes do hard-delete dos órfãos.
+    client.delete(f"/usuarios/{u['id_usuario']}", headers=headers_admin)
+
+
+def test_restaurar_com_email_no_body_notifica(client, headers_admin, monkeypatch):
+    """"Salvar": e-mail informado no body é cadastrado e enviar_email é chamado 1× com ele."""
+    import routes.usuario as routes_usuario
+    from unittest.mock import Mock
+    mock_email = Mock(return_value=True)
+    monkeypatch.setattr(routes_usuario, "enviar_email", mock_email)
+
+    u = _criar_usuario_sem_email(client, headers_admin, "90900900901")
+    client.delete(f"/usuarios/{u['id_usuario']}", headers=headers_admin)
+
+    novo_email = "pytest_restaurar_novo@amsi.com"
+    r = client.post(f"/usuarios/{u['id_usuario']}/restaurar", json={"email": novo_email}, headers=headers_admin)
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["exclusao"] is None
+    assert data["email"] == novo_email
+    mock_email.assert_called_once()
+    assert mock_email.call_args.args[0] == novo_email
+
+    client.delete(f"/usuarios/{u['id_usuario']}", headers=headers_admin)
+
+
+def test_restaurar_com_email_existente_notifica(client, headers_admin, monkeypatch):
+    """Usuário que JÁ tinha e-mail: restaurar sem body notifica no e-mail atual."""
+    import routes.usuario as routes_usuario
+    from unittest.mock import Mock
+    mock_email = Mock(return_value=True)
+    monkeypatch.setattr(routes_usuario, "enviar_email", mock_email)
+
+    r = client.post("/usuarios/", json={
+        "nome": "Com Email Restaurar",
+        "email": "pytest_restaurar_existente@amsi.com",
+        "perfil_de_acesso": "Consulta",
+        "notificacao": False,
+    }, headers=headers_admin)
+    assert r.status_code == 200, r.text
+    u = r.json()
+    client.delete(f"/usuarios/{u['id_usuario']}", headers=headers_admin)
+    mock_email.reset_mock()  # ignora o e-mail de boas-vindas disparado na criação
+
+    r2 = client.post(f"/usuarios/{u['id_usuario']}/restaurar", headers=headers_admin)
+    assert r2.status_code == 200, r2.text
+    assert r2.json()["exclusao"] is None
+    mock_email.assert_called_once()
+    assert mock_email.call_args.args[0] == "pytest_restaurar_existente@amsi.com"
+
+    client.delete(f"/usuarios/{u['id_usuario']}", headers=headers_admin)
+
+
+def test_restaurar_com_email_duplicado_retorna_409(client, headers_admin, usuario_base, monkeypatch):
+    """E-mail do body já usado por outro usuário ativo → 409, sem reativar nem notificar."""
+    import routes.usuario as routes_usuario
+    from unittest.mock import Mock
+    mock_email = Mock(return_value=True)
+    monkeypatch.setattr(routes_usuario, "enviar_email", mock_email)
+
+    u = _criar_usuario_sem_email(client, headers_admin, "90900900902")
+    client.delete(f"/usuarios/{u['id_usuario']}", headers=headers_admin)
+
+    r = client.post(
+        f"/usuarios/{u['id_usuario']}/restaurar",
+        json={"email": usuario_base["email"]},
+        headers=headers_admin,
+    )
+    assert r.status_code == 409
+    mock_email.assert_not_called()
+
+    # Segue excluído (409 não reativou): GET dá 404.
+    assert client.get(f"/usuarios/{u['id_usuario']}", headers=headers_admin).status_code == 404

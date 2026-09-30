@@ -1,9 +1,11 @@
 /**
  * Testes unitários para os filtros de src/components/UserList.jsx
  *
- * Filtro client-side: busca (nome/e-mail) + Perfil + Cargo + Status.
- * Status governa também o fetch de excluídos (incluir_excluidos): Ativos/Bloqueados
- * filtram em memória sobre os não-excluídos; Excluídos/Todos disparam o fetch ampliado.
+ * Padrão de Lançamentos (rascunho → aplica): os campos editam um rascunho e NADA filtra
+ * até o clique em "Pesquisar". A lista abre VAZIA até a 1ª busca. O botão "Pesquisar"
+ * pulsa (classe --pendente) enquanto há rascunho não aplicado. Status governa o fetch de
+ * excluídos (incluir_excluidos): Excluídos/Todos disparam o fetch ampliado — mas só quando
+ * a busca é APLICADA.
  *
  * Presença de cada usuário é checada pelo e-mail (único e em td próprio).
  */
@@ -49,56 +51,90 @@ const selectPerfil = () => selects()[0];
 const selectCargo = () => selects()[1];
 const selectStatus = () => selects()[2];
 const inputBusca = () => container.querySelector('.user-list-filtro-busca');
+const botaoPesquisar = () => container.querySelector('.user-list-btn-filtrar');
+const pesquisar = () => fireEvent.click(botaoPesquisar());
 
 beforeEach(async () => {
 	vi.clearAllMocks();
 	api.getUsers.mockImplementation(() => Promise.resolve(USUARIOS.map((u) => ({ ...u }))));
 	container = render(<UserList />).container;
-	await waitFor(() => expect(screen.getByText('ana@x.com')).toBeInTheDocument());
+	// Dados carregam no mount (ainda que não exibidos até Pesquisar).
+	await waitFor(() => expect(api.getUsers).toHaveBeenCalled());
 });
 
-describe('UserList — filtros', () => {
-	it('status padrão "Ativos" esconde bloqueados e excluídos', () => {
-		expect(screen.queryByText('ana@x.com')).toBeInTheDocument();
+describe('UserList — filtros (rascunho → aplica)', () => {
+	it('abre vazia: nenhuma linha até a 1ª Pesquisar', () => {
+		expect(
+			screen.getByText(/Use os filtros e clique em "Pesquisar"/)
+		).toBeInTheDocument();
+		expect(screen.queryByText('ana@x.com')).not.toBeInTheDocument();
+		expect(screen.queryByText('carla@z.com')).not.toBeInTheDocument();
+	});
+
+	it('aplicar com o status padrão "Ativos" mostra ativos e esconde bloqueados', async () => {
+		pesquisar();
+		expect(await screen.findByText('ana@x.com')).toBeInTheDocument();
 		expect(screen.queryByText('carla@z.com')).toBeInTheDocument();
 		expect(screen.queryByText('bruno@y.com')).not.toBeInTheDocument(); // bloqueado
 	});
 
-	it('busca por nome/e-mail filtra em memória', () => {
+	it('digitar NÃO filtra ao vivo; só filtra depois de Pesquisar', async () => {
+		pesquisar();
+		expect(await screen.findByText('ana@x.com')).toBeInTheDocument();
+		// Mexe no rascunho: a lista aplicada não muda.
 		fireEvent.change(inputBusca(), { target: { value: 'carla' } });
-		expect(screen.queryByText('carla@z.com')).toBeInTheDocument();
-		expect(screen.queryByText('ana@x.com')).not.toBeInTheDocument();
-	});
-
-	it('status "Bloqueados" mostra só os bloqueados (sem refetch)', () => {
-		fireEvent.change(selectStatus(), { target: { value: 'bloqueados' } });
-		expect(screen.queryByText('bruno@y.com')).toBeInTheDocument();
-		expect(screen.queryByText('ana@x.com')).not.toBeInTheDocument();
-		expect(api.getUsers).toHaveBeenCalledTimes(1); // não refez o fetch
-	});
-
-	it('status "Todos" refaz o fetch com incluir_excluidos e mostra todos', async () => {
-		fireEvent.change(selectStatus(), { target: { value: 'todos' } });
-		await waitFor(() => expect(api.getUsers).toHaveBeenCalledWith(true));
 		expect(screen.queryByText('ana@x.com')).toBeInTheDocument();
+		// Aplica: agora sim filtra.
+		pesquisar();
+		await waitFor(() => expect(screen.queryByText('ana@x.com')).not.toBeInTheDocument());
+		expect(screen.queryByText('carla@z.com')).toBeInTheDocument();
+	});
+
+	it('status "Bloqueados" filtra em memória, sem refetch', async () => {
+		fireEvent.change(selectStatus(), { target: { value: 'bloqueados' } });
+		pesquisar();
+		expect(await screen.findByText('bruno@y.com')).toBeInTheDocument();
+		expect(screen.queryByText('ana@x.com')).not.toBeInTheDocument();
+		expect(api.getUsers).toHaveBeenCalledTimes(1); // só o fetch do mount
+	});
+
+	it('status "Todos" refaz o fetch (incluir_excluidos) só ao aplicar', async () => {
+		fireEvent.change(selectStatus(), { target: { value: 'todos' } });
+		expect(api.getUsers).not.toHaveBeenCalledWith(true); // ainda não aplicou
+		pesquisar();
+		await waitFor(() => expect(api.getUsers).toHaveBeenCalledWith(true));
+		expect(await screen.findByText('ana@x.com')).toBeInTheDocument();
 		expect(screen.queryByText('bruno@y.com')).toBeInTheDocument();
 		expect(screen.queryByText('carla@z.com')).toBeInTheDocument();
 	});
 
 	it('filtro de Perfil casa por igualdade', async () => {
 		fireEvent.change(selectStatus(), { target: { value: 'todos' } });
-		await waitFor(() => expect(api.getUsers).toHaveBeenCalledWith(true));
 		fireEvent.change(selectPerfil(), { target: { value: 'Administrador' } });
-		expect(screen.queryByText('ana@x.com')).toBeInTheDocument();
+		pesquisar();
+		await waitFor(() => expect(api.getUsers).toHaveBeenCalledWith(true));
+		expect(await screen.findByText('ana@x.com')).toBeInTheDocument();
 		expect(screen.queryByText('bruno@y.com')).not.toBeInTheDocument();
 		expect(screen.queryByText('carla@z.com')).not.toBeInTheDocument();
 	});
 
 	it('filtro de Cargo casa por igualdade', async () => {
 		fireEvent.change(selectStatus(), { target: { value: 'todos' } });
-		await waitFor(() => expect(api.getUsers).toHaveBeenCalledWith(true));
 		fireEvent.change(selectCargo(), { target: { value: 'Diretor' } });
-		expect(screen.queryByText('bruno@y.com')).toBeInTheDocument();
+		pesquisar();
+		expect(await screen.findByText('bruno@y.com')).toBeInTheDocument();
 		expect(screen.queryByText('ana@x.com')).not.toBeInTheDocument();
+	});
+
+	it('o botão pulsa (--pendente) ao mexer e volta ao normal depois de aplicar', async () => {
+		// Sem mexer, rascunho == aplicado → não pendente.
+		expect(botaoPesquisar().className).not.toContain('user-list-btn-filtrar--pendente');
+		fireEvent.change(inputBusca(), { target: { value: 'ana' } });
+		expect(botaoPesquisar().className).toContain('user-list-btn-filtrar--pendente');
+		expect(botaoPesquisar().textContent).toContain('Pesquisar');
+		pesquisar();
+		await waitFor(() =>
+			expect(botaoPesquisar().className).not.toContain('user-list-btn-filtrar--pendente')
+		);
 	});
 });

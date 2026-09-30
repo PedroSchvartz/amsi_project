@@ -2,3 +2,47 @@ body {
   margin: 0;
   font-family: Arial, sans-serif;
 }
+
+/* ════════════════════════════════════════
+   BOTÕES DE AÇÃO — padrão global da aplicação
+   Contorno na cor primária (ou vermelho, no deletar) e preenchimento no hover,
+   cantos arredondados (pílula). Definidos aqui (global) para valer em qualquer
+   tela; as vars de tema vivem no :root, então funcionam sem @import.
+   ════════════════════════════════════════ */
+.btn-acao-editar {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--primary);
+  color: var(--primary);
+  background: transparent;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.btn-acao-editar:hover {
+  background: var(--primary);
+  color: #ffffff;
+}
+
+.btn-acao-deletar {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid #ef4444;
+  color: #ef4444;
+  background: transparent;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.btn-acao-deletar:hover {
+  background: #ef4444;
+  color: #ffffff;
+}

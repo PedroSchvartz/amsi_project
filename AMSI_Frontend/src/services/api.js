@@ -280,10 +280,14 @@ export const resetarSenhaUsuario = async (id_usuario) => {
 	return handleResponse(response);
 };
 
-export const restaurarUsuario = async (id_usuario) => {
+// `email` opcional: quando informado, o backend cadastra o e-mail e notifica o usuário
+// ("Salvar" na modal de conta sem e-mail). Sem e-mail → só reativa (backend notifica um
+// e-mail já existente, se houver).
+export const restaurarUsuario = async (id_usuario, { email } = {}) => {
 	const response = await fetchComLoading(`${BASE_URL}/usuarios/${id_usuario}/restaurar`, {
 		method: 'POST',
-		headers: authHeaders()
+		headers: authHeaders(),
+		body: JSON.stringify({ email: email ?? null })
 	});
 	return handleResponse(response);
 };

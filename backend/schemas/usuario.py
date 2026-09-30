@@ -50,6 +50,13 @@ class UsuarioUpdate(BaseModel):
     id_clifor_fk: Optional[int] = None
 
 
+class RestaurarRequest(BaseModel):
+    # Body OPCIONAL do POST /usuarios/{id}/restaurar. Quando o usuário não tem e-mail, o
+    # admin pode informar um aqui ("Salvar" na modal) para cadastrá-lo e notificar. Sem body
+    # (ou email=None) = "Cadastrar depois": só reativa, sem notificar.
+    email: Optional[EmailStr] = None
+
+
 class UsuarioResponse(BaseModel):
     id_usuario: int
     nome: str

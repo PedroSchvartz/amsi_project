@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy.orm import Session, selectinload
 from database import get_db
 from models.usuario import Usuario
 from models.token_ativo import TokenAtivo
-from schemas.usuario import UsuarioCreate, UsuarioUpdate, UsuarioResponse
+from schemas.usuario import UsuarioCreate, UsuarioUpdate, UsuarioResponse, RestaurarRequest
 from utils.auth_utils import hash_senha
 from utils.email_sender import enviar_email
 from utils.senha_token import gerar_token_senha, _link_definir_senha, FINALIDADE_CADASTRO, FINALIDADE_RESET
@@ -290,7 +290,12 @@ def deletar_usuario_hard(
 
 
 @router.post("/{id_usuario}/restaurar", response_model=UsuarioResponse)
-def restaurar_usuario(id_usuario: int, db: Session = Depends(get_db), _=Depends(exige_admin)):
+def restaurar_usuario(
+    id_usuario: int,
+    dados: RestaurarRequest = Body(default=None),
+    db: Session = Depends(get_db),
+    _=Depends(exige_admin),
+):
     usuario = db.query(Usuario).filter(
         Usuario.id_usuario == id_usuario,
         Usuario.exclusao != None  # noqa: E711
@@ -298,14 +303,37 @@ def restaurar_usuario(id_usuario: int, db: Session = Depends(get_db), _=Depends(
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuário não encontrado ou não está excluído")
 
-    # Reativa a conta. A senha antiga continua válida; ainda assim enviamos um link
-    # para o usuário definir uma nova senha (caso a tenha esquecido).
-    usuario.exclusao = None
-    db.flush()
+    # Fluxo desacoplado do e-mail: reativar NÃO depende do envio. Se o admin informou um
+    # e-mail ("Salvar" na modal de restauração de conta sem e-mail), validamos e cadastramos
+    # ANTES de reativar — e-mail inválido/duplicado barra aqui, sem mexer na conta.
+    email_novo = (dados.email if dados else None)
+    email_antigo = usuario.email
+    if email_novo:
+        if not _validar_dominio_email(email_novo):
+            raise HTTPException(status_code=400, detail="Domínio de email inválido ou inexistente")
+        if db.query(Usuario).filter(
+            Usuario.email == email_novo,
+            Usuario.id_usuario != id_usuario,
+            Usuario.exclusao == None  # noqa: E711
+        ).first():
+            raise HTTPException(status_code=409, detail="Email já cadastrado")
+        usuario.email = email_novo
 
-    token = gerar_token_senha(db, usuario, FINALIDADE_RESET, ttl_horas=48)
-    _link_acesso = _link_definir_senha(token)
-    corpo = f"""
+    # Reativa sempre (o commit único abaixo não depende do e-mail).
+    usuario.exclusao = None
+
+    # Vínculo: se o e-mail mudou, sincroniza o contato no clifor vinculado.
+    if usuario.email != email_antigo:
+        sincronizar_email_clifor(usuario, email_antigo, db)
+
+    # Notificação best-effort: só quando há e-mail ("Cadastrar depois" sem e-mail → não
+    # notifica). A senha antiga continua válida; ainda assim mandamos um link para definir
+    # nova senha (caso a tenha esquecido). Falha no envio NÃO reverte a reativação —
+    # email_sender já loga o motivo; o token órfão expira em 48h.
+    if usuario.email:
+        token = gerar_token_senha(db, usuario, FINALIDADE_RESET, ttl_horas=48)
+        _link_acesso = _link_definir_senha(token)
+        corpo = f"""
 <!DOCTYPE html>
 <html lang="pt-BR">
 <body style="margin:0;padding:0;background:#EFE6DD;font-family:'Segoe UI',Arial,sans-serif;">
@@ -337,13 +365,7 @@ def restaurar_usuario(id_usuario: int, db: Session = Depends(get_db), _=Depends(
 </body>
 </html>
 """
-    enviado = enviar_email(usuario.email, "Conta restaurada — AMSI Project", corpo)
-    if not enviado:
-        db.rollback()  # desfaz exclusao=None e o token → a conta continua excluída
-        raise HTTPException(
-            status_code=502,
-            detail="Falha ao enviar o e-mail de restauração. A conta NÃO foi reativada.",
-        )
+        enviar_email(usuario.email, "Conta restaurada — AMSI Project", corpo)
 
     db.commit()
     db.refresh(usuario)

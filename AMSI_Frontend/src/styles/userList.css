@@ -43,6 +43,8 @@
   outline: none;
 }
 
+/* Busca estica (flex-grow 1): ocupa todo o espaço livre da linha e empurra o "Pesquisar"
+   e os selects de filtro para a direita da tela. */
 .user-list-filtros .user-list-filtro-busca {
   flex: 1 1 240px;
   min-width: 180px;
@@ -55,6 +57,58 @@
 .user-list-filtros input:focus,
 .user-list-filtros select:focus {
   border-color: var(--primary);
+}
+
+/* ── Botão "Pesquisar" ──
+   Fica na própria linha dos filtros (logo após a busca). Aplica os filtros só no
+   submit; pulsa (amarelo) enquanto há rascunho não aplicado. Classe própria do
+   componente (não depende de listaLancamentos.css). */
+.user-list-btn-filtrar {
+  background: var(--primary);
+  color: #ffffff;
+  border: none;
+  padding: 9px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.85rem;
+  transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.user-list-btn-filtrar:hover {
+  background: var(--btn-hover);
+  transform: translateY(-1px);
+}
+
+.user-list-btn-filtrar--pendente {
+  background: var(--primary);
+  border: 2px solid var(--gold);
+  box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.4);
+  animation: user-list-pulso 1.4s ease-in-out infinite;
+}
+
+.user-list-btn-filtrar--pendente:hover {
+  background: var(--btn-hover);
+}
+
+[data-theme="corporativo"] .user-list-btn-filtrar--pendente {
+  background: #d97706;
+  border: 2px solid #fcd34d;
+  box-shadow: 0 0 0 3px rgba(252, 211, 77, 0.4);
+}
+
+[data-theme="corporativo"] .user-list-btn-filtrar--pendente:hover {
+  background: #b45309;
+}
+
+@keyframes user-list-pulso {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 7px rgba(201, 168, 76, 0.15);
+  }
 }
 
 /* ════════════════════════════════════════
@@ -138,48 +192,8 @@
   max-width: 280px;
 }
 
-/* ════════════════════════════════════════
-   BOTÕES DE AÇÃO
-   Nota: usamos classes próprias com prefixo
-   para não conflitar com Bootstrap nativo.
-   ════════════════════════════════════════ */
-.user-list-container .btn-acao-editar {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  border: 1px solid var(--primary);
-  color: var(--primary);
-  background: transparent;
-  border-radius: 6px;
-  padding: 4px 10px;
-  font-size: 0.8rem;
-  cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease;
-}
-
-.user-list-container .btn-acao-editar:hover {
-  background: var(--primary);
-  color: #ffffff;
-}
-
-.user-list-container .btn-acao-deletar {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  border: 1px solid #ef4444;
-  color: #ef4444;
-  background: transparent;
-  border-radius: 6px;
-  padding: 4px 10px;
-  font-size: 0.8rem;
-  cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease;
-}
-
-.user-list-container .btn-acao-deletar:hover {
-  background: #ef4444;
-  color: #ffffff;
-}
+/* Botões de ação (.btn-acao-editar / .btn-acao-deletar): estilo global definido
+   em index.css (padrão da aplicação, cantos em pílula). */
 
 /* ════════════════════════════════════════
    RESPONSIVIDADE
@@ -192,5 +206,23 @@
 
   .user-list-container .table {
     min-width: 650px;
+  }
+}
+
+/* Filtros: abaixo de ~820px a linha única (busca + Pesquisar + 3 selects) não cabe e
+   quebraria de forma torta. Então reempilha num formato de celular: busca e "Pesquisar"
+   ocupam a largura toda e os 3 selects dividem uma linha logo abaixo. */
+@media (max-width: 820px) {
+  .user-list-filtros .user-list-filtro-busca {
+    flex: 1 1 100%;
+  }
+
+  .user-list-btn-filtrar {
+    flex: 1 1 100%;
+  }
+
+  .user-list-filtros select {
+    flex: 1 1 30%;
+    min-width: 90px;
   }
 }

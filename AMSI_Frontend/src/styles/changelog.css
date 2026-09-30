@@ -1,0 +1,97 @@
+.changelog-page {
+	max-width: 1000px;
+	margin: 0 auto;
+	padding: 8px 0 40px;
+}
+
+.changelog-page__head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 16px;
+	margin-bottom: 24px;
+}
+
+.changelog-page__title {
+	font-family: var(--font-display);
+	color: var(--text);
+	margin: 0;
+}
+
+.changelog-page__subtitle {
+	margin: 4px 0 0;
+	font-size: 0.875rem;
+	color: var(--text-muted);
+}
+
+/* Um bloco por deploy: a data é o único carimbo temporal (pontos não têm data). */
+.changelog-deploy {
+	margin-bottom: 28px;
+}
+
+/* Cabeçalho de data é um botão que colapsa/expande o deploy. Reseta o visual
+   nativo do <button> mantendo o sublinhado e a cor primária. */
+.changelog-deploy__data {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	width: 100%;
+	background: none;
+	border: none;
+	border-bottom: 2px solid var(--border);
+	border-radius: 0;
+	text-align: left;
+	cursor: pointer;
+	font-family: var(--font-display);
+	font-weight: 600;
+	font-size: 1.05rem;
+	color: var(--primary);
+	padding: 0 0 8px;
+	margin-bottom: 12px;
+}
+
+.changelog-deploy__data .bi-chevron-right,
+.changelog-deploy__data .bi-chevron-down {
+	font-size: 0.85rem;
+}
+
+.changelog-deploy__pontos {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+/* Cada ponto = um commit daquele deploy. */
+.changelog-ponto {
+	position: relative;
+	padding-left: 20px;
+	color: var(--text);
+}
+
+.changelog-ponto::before {
+	content: '';
+	position: absolute;
+	left: 2px;
+	top: 8px;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: var(--primary);
+}
+
+.changelog-ponto__titulo {
+	display: block;
+	font-weight: 600;
+	font-size: 0.95rem;
+}
+
+.changelog-ponto__detalhe {
+	display: block;
+	margin-top: 2px;
+	font-size: 0.875rem;
+	color: var(--text-muted);
+	line-height: 1.45;
+}

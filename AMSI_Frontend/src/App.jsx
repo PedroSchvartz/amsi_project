@@ -25,6 +25,7 @@ import ParametrizacoesPage from './pages/ParametrizacoesPage';
 import NotFoundPage from './pages/NotFoundPage';
 import DemoRegistroPage from './pages/DemoRegistroPage';
 import BacklogPage from './pages/BacklogPage';
+import ChangelogPage from './pages/ChangelogPage';
 
 /* ════════════════════════════════════════
    SPINNER GLOBAL DE CARREGAMENTO
@@ -291,6 +292,15 @@ function App() {
 							element={
 								<PrivateRoute adminOnly>
 									<BacklogPage />
+								</PrivateRoute>
+							}
+						/>
+
+						<Route
+							path="/changelog"
+							element={
+								<PrivateRoute adminOnly>
+									<ChangelogPage />
 								</PrivateRoute>
 							}
 						/>

@@ -33,6 +33,8 @@ function UserEditModal({ usuario, onFechar, onSalvo }) {
 		// Login: ÚNICA credencial que autentica. Guarda CPF (morador) ou e-mail (equipe) —
 		// campo livre, o que vale é a coluna, não o formato. Branco → null (conta sem login).
 		login: usuario.login ?? '',
+		// E-mail: só contato/notificação (não autentica). Editável; branco → null (sem e-mail).
+		email: usuario.email ?? '',
 		cargo: usuario.cargo ?? '',
 		perfil_de_acesso: usuario.perfil_de_acesso ?? '',
 		notificacao: usuario.notificacao ?? false,
@@ -59,10 +61,12 @@ function UserEditModal({ usuario, onFechar, onSalvo }) {
 	};
 
 	// Login livre (CPF ou e-mail). Branco → null (conta sem login, não autentica).
+	// E-mail branco → null (usuário sem e-mail; o backend ignora unicidade quando null).
 	const montarPayload = (extra = {}) => ({
 		...form,
 		cargo: form.cargo || null,
 		login: (form.login || '').trim() || null,
+		email: (form.email || '').trim() || null,
 		...extra
 	});
 
@@ -206,6 +210,21 @@ function UserEditModal({ usuario, onFechar, onSalvo }) {
 							/>
 							<span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 4 }}>
 								Única credencial que autentica. Em branco → conta sem login (não entra).
+							</span>
+						</div>
+						<div style={s.campo}>
+							<label style={s.label}>E-mail</label>
+							<input
+								style={s.input}
+								name="email"
+								value={form.email}
+								onChange={handleChange}
+								type="email"
+								maxLength={250}
+								placeholder="e-mail de contato (opcional)"
+							/>
+							<span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 4 }}>
+								Só contato e notificação (não autentica). Em branco → sem e-mail.
 							</span>
 						</div>
 						<div style={s.campo}>
