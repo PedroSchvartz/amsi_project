@@ -8,6 +8,41 @@ import '../styles/changelog.css';
 // primeiro) com a data ISO 'AAAA-MM-DD' e um ponto por commit.
 const DEPLOYS = [
 	{
+		data: '2026-10-01',
+		pontos: [
+			{
+				titulo: 'Primeiro acesso vai direto para o painel',
+				detalhe:
+					'Ao entrar com login e senha, você cai direto no painel — a troca de senha deixou de ser ' +
+					'obrigatória no primeiro acesso. O painel já abre carregado com o mês atual.',
+			},
+			{
+				titulo: 'Trocar a senha quando quiser',
+				detalhe:
+					'Um botão "Trocar Senha" ao lado do "Sair" abre uma janela para definir uma nova senha a ' +
+					'qualquer momento. Basta informar a nova senha e confirmá-la (e um e-mail, se ainda não tiver). ' +
+					'Não é mais preciso digitar a senha atual.',
+			},
+			{
+				titulo: 'Esqueci minha senha agora pergunta o Login',
+				detalhe:
+					'A recuperação de senha passa a aceitar o seu Login (CPF ou e-mail). Se o Login for reconhecido e ' +
+					'tiver e-mail, enviamos o link; caso contrário, uma mensagem clara orienta a corrigir ou procurar um administrador.',
+			},
+			{
+				titulo: 'E-mail do usuário e do cliente/fornecedor independentes',
+				detalhe:
+					'Editar ou remover o e-mail de um usuário não altera mais os contatos do cliente/fornecedor vinculado, ' +
+					'e vice-versa. O vínculo entre eles permanece; apenas os e-mails deixaram de ser copiados automaticamente.',
+			},
+			{
+				titulo: 'Visual único',
+				detalhe:
+					'O tema alternativo foi removido — o sistema passa a usar apenas a identidade visual verde da Associação.',
+			},
+		],
+	},
+	{
 		data: '2026-09-30',
 		pontos: [
 			{

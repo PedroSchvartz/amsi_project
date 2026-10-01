@@ -7,8 +7,6 @@ import ClientRegisterPage from './pages/ClientRegisterPage';
 import ClientListPage from './pages/ClientListPage';
 import ClientEditPage from './pages/ClientEditPage';
 import ListaLancamentosPage from './pages/ListaLancamentosPage';
-import TrocarSenhaPage from './pages/TrocarSenhaPage';
-import CadastrarEmailPage from './pages/CadastrarEmailPage';
 import DefinirSenhaPage from './pages/DefinirSenhaPage';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 
@@ -238,26 +236,6 @@ function App() {
 					<Route path="/demo-registro" element={<DemoRegistroPage />} />
 					{/* Definição de senha por token (link do e-mail) — sem sessão */}
 					<Route path="/definir-senha" element={<DefinirSenhaPage />} />
-
-					{/* Primeiro acesso — sem navbar */}
-					<Route
-						path="/trocar-senha"
-						element={
-							<PrivateRoute>
-								<TrocarSenhaPage />
-							</PrivateRoute>
-						}
-					/>
-
-					{/* Convite dispensável para cadastrar e-mail (CPF-only sem e-mail) — sem navbar */}
-						<Route
-							path="/cadastrar-email"
-							element={
-								<PrivateRoute>
-									<CadastrarEmailPage />
-								</PrivateRoute>
-							}
-						/>
 
 						{/* Rotas protegidas — com Layout (topbar + menu + footer) */}
 					<Route

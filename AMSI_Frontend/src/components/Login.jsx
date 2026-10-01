@@ -10,7 +10,6 @@ function Login() {
 	const [email, setEmail] = useState(() => searchParams.get('email') ?? '');
 	const [senha, setSenha] = useState('');
 	const [erro, setErro] = useState('');
-	const [tema, setTema] = useState('verde');
 	const [modoDemo, setModoDemo] = useState(false);
 	// Contador de falhas de credencial (401) por e-mail — controla a dica de senha esquecida
 	const [tentativas, setTentativas] = useState(0);
@@ -24,19 +23,6 @@ function Login() {
 	useEffect(() => {
 		getDemoStatus().then((res) => setModoDemo(res.demo_ativo ?? false));
 	}, []);
-
-	useEffect(() => {
-		if (tema === 'corporativo') {
-			document.documentElement.setAttribute('data-theme', 'corporativo');
-		} else {
-			document.documentElement.removeAttribute('data-theme');
-		}
-		localStorage.setItem('amsi_tema', tema);
-	}, [tema]);
-
-	const toggleTema = () => {
-		setTema((t) => (t === 'verde' ? 'corporativo' : 'verde'));
-	};
 
 	const handleSubmit = async (e) => {
 		e.preventDefault();
@@ -63,18 +49,10 @@ function Login() {
 				}
 			}
 
+			// Login direto: todos os perfis caem no dashboard (sem troca de senha forçada
+			// nem cadastro de e-mail obrigatório). Deep links via ?redirect= são respeitados.
 			const redirect = searchParams.get('redirect');
-			const usuarioLogado = JSON.parse(localStorage.getItem('user') || '{}');
-			if (data.primeiro_acesso) {
-				// Primeiro acesso: troca a senha (e, opcionalmente, cadastra e-mail na mesma tela).
-				navigate('/trocar-senha');
-			} else if (!usuarioLogado.email) {
-				// Sem e-mail (entrou só pelo CPF e pulou o cadastro): reconvida a cada login
-				// até cadastrar um. A tela é dispensável ("Pular por agora").
-				navigate('/cadastrar-email');
-			} else {
-				navigate(redirect ?? '/home');
-			}
+			navigate(redirect ?? '/dashboard');
 		} catch (err) {
 			setErro(err.message || 'Erro ao fazer login');
 			// Só falha de credencial (401) conta para a dica; 403 (bloqueado/suspenso) não incrementa.
@@ -92,24 +70,30 @@ function Login() {
 		}
 	}, [erro]);
 
-	// "Esqueci a senha": dispara o envio do link. A resposta do backend é sempre
-	// neutra (não revela se o e-mail existe), então a mensagem aqui também é.
+	// "Esqueci a senha": busca por Login (aceita login ou e-mail). O backend responde com
+	// mensagem de sucesso quando reconhece o Login E ele tem e-mail cadastrado; caso
+	// contrário (login desconhecido ou sem e-mail) lança erro com a mensagem a corrigir.
 	const handleRecuperar = async (e) => {
 		e.preventDefault();
-		if (!email.trim()) {
-			setErro('Informe seu e-mail para recuperar a senha.');
+		const identificador = email.trim();
+		if (!identificador) {
+			setErro('Informe seu Login para recuperar a senha.');
 			return;
 		}
+		setErro('');
 		setEnviandoRecuperar(true);
 		try {
-			await esqueciSenha(email.trim());
-		} catch {
-			// Mantém a resposta neutra mesmo em falha — não vaza estado da conta.
+			const res = await esqueciSenha(identificador);
+			setMsgRecuperar(
+				res?.detail ||
+					'Enviamos um e-mail para você; confira sua caixa de entrada. Se o problema persistir, contate um administrador.'
+			);
+		} catch (err) {
+			setErro(
+				err.message || 'Não reconhecemos esse Login. Corrija ou contate um administrador.'
+			);
 		} finally {
 			setEnviandoRecuperar(false);
-			setMsgRecuperar(
-				'Se o e-mail estiver cadastrado, enviamos um link para redefinir a senha. Confira sua caixa de entrada.'
-			);
 		}
 	};
 
@@ -126,16 +110,6 @@ function Login() {
 
 	return (
 		<>
-			<button className="theme-toggle" onClick={toggleTema}>
-  <span
-    className="dot"
-    style={{
-      background: tema === 'verde' ? '#38BDF8' : '#1B4332'
-    }}
-  />
-  {tema === 'verde' ? 'Tema Corporativo' : 'Tema Verde'}
-</button>
-
 			<div className="login-container">
 				<div className="login-branding">
 					<img src={logo} alt="AMSI Logo" className="branding-logo" />
@@ -154,7 +128,7 @@ function Login() {
 							<>
 								<h2>Recuperar senha</h2>
 								<p className="login-welcome">
-									Informe seu e-mail e enviaremos um link para você criar uma nova senha.
+									Informe seu Login e enviaremos um link para você criar uma nova senha.
 								</p>
 
 								{msgRecuperar ? (
@@ -174,11 +148,11 @@ function Login() {
 								) : (
 									<form onSubmit={handleRecuperar}>
 										<div className="input-group">
-											<label htmlFor="email">Email</label>
+											<label htmlFor="login-recuperar">Login</label>
 											<input
-												id="email"
-												type="email"
-												placeholder="seu@email.com"
+												id="login-recuperar"
+												type="text"
+												placeholder="seu login ou e-mail"
 												value={email}
 												onChange={(e) => setEmail(e.target.value)}
 												required

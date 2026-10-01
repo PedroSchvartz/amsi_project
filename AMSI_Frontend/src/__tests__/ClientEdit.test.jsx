@@ -1,12 +1,10 @@
 /**
- * Testes de src/components/ClientEdit.jsx — foco na regra:
- * remover o e-mail de um usuário vinculado exige desvincular o usuário, e
- * desvincular é admin-only.
+ * Testes de src/components/ClientEdit.jsx.
  *
- *   - admin: clicar na lixeira do e-mail vinculado abre a confirmação; confirmar
- *     chama desvincularCliforDoUsuario e remove o e-mail
- *   - não-admin: clicar mostra mensagem de permissão, NÃO desvincula e NÃO remove
- *   - e-mail não vinculado: lixeira remove direto, sem confirmação nem desvínculo
+ * Mudança de comportamento (desacoplamento e-mail do clifor): o e-mail de contato do
+ * clifor e o e-mail do usuário vinculado são independentes. Remover um e-mail da lista
+ * de contatos NUNCA desvincula o usuário — só tira o contato do estado local; o vínculo
+ * usuario↔clifor permanece. Não há mais confirmação "Remover e-mail e desvincular".
  *
  * api/auth(isAdmin)/toast/react-router são mockados.
  */
@@ -62,7 +60,8 @@ const CLIFOR = {
 	usuarios: [USUARIO_VINCULADO]
 };
 
-// Dois e-mails: o de índice 0 é o do usuário vinculado; o outro é livre.
+// Dois e-mails: o de índice 0 coincide com o do usuário vinculado; o outro é livre.
+// Após o desacoplamento, essa coincidência não tem mais efeito especial.
 const CONTATOS = [
 	{ tipocontato: 'Email', info_do_contato: 'maria@amsi.org', contato_principal: true },
 	{ tipocontato: 'Email', info_do_contato: 'outro@x.com', contato_principal: false }
@@ -83,49 +82,27 @@ async function renderPronto() {
 	await screen.findByDisplayValue('maria@amsi.org');
 }
 
-describe('ClientEdit — remover e-mail de usuário vinculado', () => {
-	it('admin: confirmar remove o e-mail localmente, mas só desvincula ao Salvar', async () => {
+describe('ClientEdit — remover e-mail não mexe no vínculo', () => {
+	it('remover o e-mail que coincide com o do usuário vinculado só o tira da lista; não desvincula', async () => {
 		await renderPronto();
-		// lixeira do e-mail vinculado (índice 0)
+		// lixeira do e-mail coincidente (índice 0) — sem confirmação
 		fireEvent.click(screen.getAllByRole('button', { name: 'Remover e-mail' })[0]);
 
-		// abre a confirmação, não age ainda
-		expect(
-			await screen.findByRole('heading', { name: 'Remover e-mail e desvincular usuário' })
-		).toBeInTheDocument();
-
-		// confirmar: remove o e-mail do estado local, mas NÃO chama a API ainda
-		fireEvent.click(screen.getByRole('button', { name: 'Remover e desvincular' }));
 		await waitFor(() =>
 			expect(screen.queryByDisplayValue('maria@amsi.org')).not.toBeInTheDocument()
 		);
-		expect(api.desvincularCliforDoUsuario).not.toHaveBeenCalled();
-		expect(api.updateClifor).not.toHaveBeenCalled();
-
-		// só "Salvar Alterações" efetiva: desvincula E grava o clifor
-		fireEvent.click(screen.getByRole('button', { name: /Salvar Altera/i }));
-		await waitFor(() => expect(api.desvincularCliforDoUsuario).toHaveBeenCalledWith(7));
-		expect(api.updateClifor).toHaveBeenCalled();
-	});
-
-	it('não-admin: mostra mensagem de permissão, não desvincula nem remove', async () => {
-		auth.isAdmin.mockReturnValue(false);
-		await renderPronto();
-		fireEvent.click(screen.getAllByRole('button', { name: 'Remover e-mail' })[0]);
-
-		expect(mostrarToast).toHaveBeenCalledWith(
-			expect.stringContaining('administradores'),
-			'erro'
-		);
-		expect(api.desvincularCliforDoUsuario).not.toHaveBeenCalled();
-		// nada foi removido nem aberta confirmação
-		expect(screen.getByDisplayValue('maria@amsi.org')).toBeInTheDocument();
 		expect(
-			screen.queryByRole('heading', { name: 'Remover e-mail e desvincular usuário' })
+			screen.queryByRole('heading', { name: /desvincular usuário/i })
 		).not.toBeInTheDocument();
+		expect(api.desvincularCliforDoUsuario).not.toHaveBeenCalled();
+
+		// salvar grava o clifor e, ainda assim, nunca chama desvincular
+		fireEvent.click(screen.getByRole('button', { name: /Salvar Altera/i }));
+		await waitFor(() => expect(api.updateClifor).toHaveBeenCalled());
+		expect(api.desvincularCliforDoUsuario).not.toHaveBeenCalled();
 	});
 
-	it('e-mail não vinculado: remove direto, sem confirmação nem desvínculo', async () => {
+	it('e-mail livre: remove direto, sem desvínculo', async () => {
 		await renderPronto();
 		// lixeira do e-mail livre (índice 1)
 		fireEvent.click(screen.getAllByRole('button', { name: 'Remover e-mail' })[1]);
@@ -134,8 +111,5 @@ describe('ClientEdit — remover e-mail de usuário vinculado', () => {
 			expect(screen.queryByDisplayValue('outro@x.com')).not.toBeInTheDocument()
 		);
 		expect(api.desvincularCliforDoUsuario).not.toHaveBeenCalled();
-		expect(
-			screen.queryByRole('heading', { name: 'Remover e-mail e desvincular usuário' })
-		).not.toBeInTheDocument();
 	});
 });

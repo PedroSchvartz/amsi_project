@@ -24,9 +24,6 @@ from models.senha_token import SenhaToken
 from utils.senha_token import gerar_token_senha, FINALIDADE_RESET
 
 
-MENSAGEM_NEUTRA = "Se o e-mail estiver cadastrado, enviamos um link para redefinir a senha."
-
-
 # ================================================
 # HELPERS
 # ================================================
@@ -173,25 +170,41 @@ def test_definir_senha_curta_nao_consome_token(client, usuario_token):
 
 
 # ================================================
-# /auth/esqueci-senha  (sem enumeração de e-mail)
+# /auth/esqueci-senha  (busca por Login/e-mail, 2 mensagens distintas)
+# Mudança consciente: abandonou-se a resposta neutra (anti-enumeração) a favor de duas
+# mensagens — sucesso (200) vs Login não reconhecido/sem e-mail (404). Decisão do Pedro.
 # ================================================
 
-def test_esqueci_senha_email_inexistente_resposta_neutra(client):
-    r = client.post("/auth/esqueci-senha", json={"email": "naoexiste@amsi.com"})
-    assert r.status_code == 200
-    assert r.json()["detail"] == MENSAGEM_NEUTRA
+def test_esqueci_senha_login_inexistente_retorna_404(client):
+    r = client.post("/auth/esqueci-senha", json={"login": "naoexiste@amsi.com"})
+    assert r.status_code == 404
+    assert "não reconhecemos" in r.json()["detail"].lower()
 
 
-def test_esqueci_senha_email_existente_resposta_neutra_e_gera_token(client, usuario_token):
+def test_esqueci_senha_por_email_existente_envia_e_gera_token(client, usuario_token, monkeypatch):
     id_u = usuario_token["id_usuario"]
     antes = _conta_tokens_reset_ativos(id_u)
 
-    r = client.post("/auth/esqueci-senha", json={"email": usuario_token["email"]})
-    assert r.status_code == 200
-    # Mesma mensagem do e-mail inexistente — não revela se a conta existe
-    assert r.json()["detail"] == MENSAGEM_NEUTRA
-    # Mas por baixo gerou um token de reset utilizável
+    # Evita depender do provedor real: o envio é simulado com sucesso.
+    monkeypatch.setattr("auth.router.enviar_email", lambda *a, **k: True)
+
+    r = client.post("/auth/esqueci-senha", json={"login": usuario_token["email"]})
+    assert r.status_code == 200, r.text
+    assert "enviamos um e-mail" in r.json()["detail"].lower()
+    # Por baixo gerou um token de reset utilizável
     assert _conta_tokens_reset_ativos(id_u) == antes + 1
+
+
+def test_esqueci_senha_falha_envio_retorna_502_sem_token(client, usuario_token, monkeypatch):
+    """Se o provedor de e-mail falha, a rota devolve 502 e NÃO deixa token órfão (rollback)."""
+    id_u = usuario_token["id_usuario"]
+    antes = _conta_tokens_reset_ativos(id_u)
+
+    monkeypatch.setattr("auth.router.enviar_email", lambda *a, **k: False)
+
+    r = client.post("/auth/esqueci-senha", json={"login": usuario_token["email"]})
+    assert r.status_code == 502, r.text
+    assert _conta_tokens_reset_ativos(id_u) == antes
 
 
 # ================================================

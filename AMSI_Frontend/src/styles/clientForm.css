@@ -77,10 +77,6 @@
   border-radius: 12px 12px 0 0;
 }
 
-[data-theme="corporativo"] .client-form-card__header {
-  background: var(--bg-card);
-}
-
 .client-form-card__header-title {
   font-size: 0.88rem;
   font-weight: 600;
@@ -123,11 +119,6 @@
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(163, 177, 138, 0.15);
   color: var(--text);
-}
-
-[data-theme="corporativo"] .client-form-container .form-control:focus,
-[data-theme="corporativo"] .client-form-container .form-select:focus {
-  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.12);
 }
 
 .client-form-container .form-control::placeholder {
@@ -200,11 +191,6 @@
   /* Endereço/contato marcado como principal */
   border-color: var(--primary);
   background: var(--accent);
-}
-
-[data-theme="corporativo"] .client-form-subsection--destaque {
-  background: rgba(56, 189, 248, 0.06);
-  border-color: rgba(56, 189, 248, 0.4);
 }
 
 /* ── Badge "Principal" dentro das subseções ── */

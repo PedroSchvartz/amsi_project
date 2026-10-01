@@ -6,30 +6,20 @@ import logo from '../assets/AMSI_Logo.png';
 import { getUserFromToken, logout, isAdmin, isOperador, isConsulta } from '../services/auth';
 import { logoutUser } from '../services/api';
 import PerfilPopup from './PerfilCompletoPopup.jsx';
+import TrocarSenhaModal from './TrocarSenhaModal.jsx';
 
 function Layout() {
 	const navigate = useNavigate();
 	const location = useLocation();
 
-	// Tema lido do localStorage; padrão verde
-	const [tema, setTema] = useState(() => localStorage.getItem('amsi_tema') || 'verde');
 	const [menuAberto, setMenuAberto] = useState(false);
+	const [trocarSenhaAberto, setTrocarSenhaAberto] = useState(false);
 	const [perfilAberto, setPerfilAberto] = useState(false);
 	const [paramAberto, setParamAberto] = useState(false); // dropdown "Parâmetros" (desktop)
 	const paramRef = useRef(null);
 	const admin = isAdmin();
 	const operador = isOperador();
 	const consulta = isConsulta();
-
-	// ── Aplica data-theme no <html> e persiste no localStorage ──
-	useEffect(() => {
-		if (tema === 'corporativo') {
-			document.documentElement.setAttribute('data-theme', 'corporativo');
-		} else {
-			document.documentElement.removeAttribute('data-theme');
-		}
-		localStorage.setItem('amsi_tema', tema);
-	}, [tema]);
 
 	// Fecha o menu mobile ao redimensionar para desktop via CSS breakpoint
 	// (não precisamos mais de isMobile via JS para controle visual — usamos CSS)
@@ -42,8 +32,6 @@ function Layout() {
 		window.addEventListener('resize', handleResize);
 		return () => window.removeEventListener('resize', handleResize);
 	}, []);
-
-	const toggleTema = () => setTema((t) => (t === 'verde' ? 'corporativo' : 'verde'));
 
 	const toggleMenu = () => {
 		setMenuAberto((v) => !v);
@@ -97,6 +85,11 @@ function Layout() {
 				<PerfilPopup usuario={usuarioLocal} onFechar={() => setPerfilAberto(false)} />
 			)}
 
+			{/* ── Modal "Trocar Senha" ── */}
+			{trocarSenhaAberto && (
+				<TrocarSenhaModal usuario={usuarioLocal} onFechar={() => setTrocarSenhaAberto(false)} />
+			)}
+
 			{/* ════════════════════════════════════════
 			    TOPBAR
 			    ════════════════════════════════════════ */}
@@ -119,14 +112,6 @@ function Layout() {
 					>
 						<i className="bi bi-person-circle" />
 						<span>{nomeUsuario}</span>
-					</button>
-
-					<span className="layout-topbar__divider" aria-hidden="true" />
-
-					{/* Botão de troca de tema com ícone */}
-					<button className="layout-topbar__theme-btn" onClick={toggleTema} title="Alternar tema">
-						<i className={tema === 'verde' ? 'bi bi-moon-stars' : 'bi bi-sun'} />
-						<span>{tema === 'verde' ? 'Corporativo' : 'Verde'}</span>
 					</button>
 				</div>
 
@@ -198,10 +183,13 @@ function Layout() {
 					{nomeUsuario}
 				</button>
 
-				{/* Troca de tema — disponível também no mobile */}
-				<button className="layout-menu-mobile__item" onClick={toggleTema}>
-					<i className={tema === 'verde' ? 'bi bi-moon-stars' : 'bi bi-sun'} />
-					Tema: {tema === 'verde' ? 'Corporativo' : 'Verde'}
+				{/* Trocar Senha */}
+				<button
+					className="layout-menu-mobile__item"
+					onClick={() => { setMenuAberto(false); setTrocarSenhaAberto(true); }}
+				>
+					<i className="bi bi-key" />
+					Trocar Senha
 				</button>
 
 				{/* Sair */}
@@ -265,10 +253,19 @@ function Layout() {
 					)}
 				</div>
 
-				<button className="layout-menu-desktop__sair" onClick={handleSair}>
-					<i className="bi bi-box-arrow-right" />
-					Sair
-				</button>
+				<div className="layout-menu-desktop__acoes">
+					<button
+						className="layout-menu-desktop__trocar"
+						onClick={() => setTrocarSenhaAberto(true)}
+					>
+						<i className="bi bi-key" />
+						Trocar Senha
+					</button>
+					<button className="layout-menu-desktop__sair" onClick={handleSair}>
+						<i className="bi bi-box-arrow-right" />
+						Sair
+					</button>
+				</div>
 			</nav>
 
 			{/* ════════════════════════════════════════

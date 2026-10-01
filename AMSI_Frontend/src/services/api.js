@@ -178,13 +178,14 @@ export const cadastrarEmail = async (email) => {
 // (#token=). Estes três endpoints consomem esse fluxo. noLogout: true porque o
 // usuário ainda não tem sessão — um 401 eventual não deve limpar o localStorage.
 
-// Autoatendimento "esqueci a senha". Resposta SEMPRE neutra (não revela se o e-mail
-// existe). body: { email }
-export const esqueciSenha = async (email) => {
+// Autoatendimento "esqueci a senha". Busca por Login (aceita login ou e-mail). Responde
+// 200 com mensagem de sucesso quando reconhece o Login e ele tem e-mail; caso contrário
+// retorna erro (handleResponse lança) com a mensagem a corrigir. body: { login }
+export const esqueciSenha = async (login) => {
 	const response = await fetchComLoading(`${BASE_URL}/auth/esqueci-senha`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ email })
+		body: JSON.stringify({ login })
 	});
 	return handleResponse(response, { noLogout: true });
 };

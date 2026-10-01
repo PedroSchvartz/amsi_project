@@ -25,12 +25,13 @@ function ym(offsetMeses = 0) {
 }
 
 const PERIODOS = [
+	{ label: 'Mês atual', de: () => ym(0), ate: () => ym(0) },
 	{ label: 'Último mês', de: () => ym(-1), ate: () => ym(-1) },
 	{ label: 'Últimos 6 meses', de: () => ym(-5), ate: () => ym(0) },
 	{ label: 'Ano atual', de: () => `${new Date().getFullYear()}-01`, ate: () => ym(0) },
 	{ label: 'Desde sempre', de: () => '', ate: () => '' }
 ];
-const PERIODO_PADRAO = 0; // Último mês (mês-calendário anterior)
+const PERIODO_PADRAO = 0; // Mês atual (mês-calendário corrente)
 
 function mesParaDia(mesAno, fim = false) {
 	if (!mesAno) return undefined;
@@ -289,20 +290,31 @@ function Dashboard() {
 		}
 	}, []);
 
-	// Não busca ao abrir: a busca é disparada no botão "Pesquisar". Mas se já houve uma
-	// pesquisa nesta sessão, reidrata o resultado (e a seleção) do cache.
+	// Ao abrir: se já houve pesquisa nesta sessão, reidrata o resultado (e a seleção) do
+	// cache; senão, carrega automaticamente o período padrão (mês atual) — sem exigir o
+	// clique em "Pesquisar". mesDe/mesAte já vêm nos defaults do useState.
 	useEffect(() => {
 		const cache = getCache('dashboard');
-		if (!cache) return;
-		setResumo(cache.resumo);
-		setPorTipoDespesa(cache.porTipoDespesa);
-		setPorTipoReceita(cache.porTipoReceita);
-		setInadimplentes(cache.inadimplentes);
-		setAplicado(cache.aplicado);
-		setMesDe(cache.mesDe);
-		setMesAte(cache.mesAte);
-		setPendente(false);
-		setPopulado(true);
+		if (cache) {
+			setResumo(cache.resumo);
+			setPorTipoDespesa(cache.porTipoDespesa);
+			setPorTipoReceita(cache.porTipoReceita);
+			setInadimplentes(cache.inadimplentes);
+			setAplicado(cache.aplicado);
+			setMesDe(cache.mesDe);
+			setMesAte(cache.mesAte);
+			setPendente(false);
+			setPopulado(true);
+			return;
+		}
+		const params = computarParams(mesDe, mesAte);
+		const aplicadoNovo = {
+			data_pagamento_de: params.data_pagamento_de,
+			data_pagamento_ate: params.data_pagamento_ate
+		};
+		setAplicado(aplicadoNovo);
+		carregarDados(params, { aplicado: aplicadoNovo, mesDe, mesAte });
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
 	// Qual botão rápido corresponde à seleção atual (para destacá-lo). null = intervalo livre.

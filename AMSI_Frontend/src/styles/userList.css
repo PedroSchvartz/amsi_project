@@ -91,16 +91,6 @@
   background: var(--btn-hover);
 }
 
-[data-theme="corporativo"] .user-list-btn-filtrar--pendente {
-  background: #d97706;
-  border: 2px solid #fcd34d;
-  box-shadow: 0 0 0 3px rgba(252, 211, 77, 0.4);
-}
-
-[data-theme="corporativo"] .user-list-btn-filtrar--pendente:hover {
-  background: #b45309;
-}
-
 @keyframes user-list-pulso {
   0%,
   100% {
@@ -155,11 +145,6 @@
   top: 0;
   background: var(--accent);
   z-index: 1;
-}
-
-[data-theme="corporativo"] .user-list-container .table th {
-  color: var(--text-muted);
-  background: var(--bg-card);
 }
 
 /* Linhas do corpo */

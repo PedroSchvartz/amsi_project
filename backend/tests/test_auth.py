@@ -673,9 +673,10 @@ def test_request_sem_token(client):
 # TROCAR SENHA
 # ================================================
 
-def test_trocar_senha_senha_atual_errada(client, headers_admin):
-    """POST /auth/trocar-senha com senha_atual errada deve retornar 401."""
-    email = "pytest_trocar_errada@amsi.com"
+def test_trocar_senha_ignora_senha_atual(client, headers_admin):
+    """Mudança consciente: a troca self-service NÃO reexige a senha atual (a sessão já está
+    autenticada). Enviar uma senha_atual errada não barra — a nova senha passa a valer."""
+    email = "pytest_trocar_ignora@amsi.com"
     senha = "SenhaTest@123"
     u = _criar_usuario_com_senha(client, headers_admin, email, senha)
     id_u = u["id_usuario"]
@@ -685,7 +686,26 @@ def test_trocar_senha_senha_atual_errada(client, headers_admin):
             "senha_atual": "senhaErradaQualquer",
             "senha_nova": "NovaSenha@456"
         }, headers={"Authorization": f"Bearer {token}"})
-        assert r.status_code == 401
+        assert r.status_code == 200, r.text
+        # A nova senha vale; a antiga não.
+        assert client.post("/auth/token", json={"email": email, "senha": "NovaSenha@456"}).status_code == 200
+        assert client.post("/auth/token", json={"email": email, "senha": senha}).status_code == 401
+    finally:
+        _limpar_usuario(client, headers_admin, id_u)
+
+
+def test_trocar_senha_curta_400(client, headers_admin):
+    """senha_nova com menos de 6 caracteres → 400 (validação de fronteira preservada)."""
+    email = "pytest_trocar_curta@amsi.com"
+    senha = "SenhaTest@123"
+    u = _criar_usuario_com_senha(client, headers_admin, email, senha)
+    id_u = u["id_usuario"]
+    token = _login(client, email, senha)
+    try:
+        r = client.post("/auth/trocar-senha", json={
+            "senha_nova": "123"
+        }, headers={"Authorization": f"Bearer {token}"})
+        assert r.status_code == 400, r.text
     finally:
         _limpar_usuario(client, headers_admin, id_u)
 
@@ -833,21 +853,20 @@ def test_rate_limit_login(client):
 
 def test_rate_limit_esqueci_senha(client):
     """POST /auth/esqueci-senha aceita 5/minute por IP; a 6ª tentativa em diante
-    deve retornar 429. Usa email inexistente: a rota responde com a mensagem
-    neutra (_MENSAGEM_NEUTRA_ESQUECI) sem tocar o banco nem enviar e-mail, então
-    é seguro bater várias vezes em sequência."""
+    deve retornar 429. Usa login inexistente: a rota responde 404 (login não
+    reconhecido) sem enviar e-mail, então é seguro bater várias vezes em sequência."""
     limiter.enabled = True
     try:
         respostas = [
             client.post("/auth/esqueci-senha", json={
-                "email": "naoexiste_ratelimit_esqueci@amsi.com"
+                "login": "naoexiste_ratelimit_esqueci@amsi.com"
             }).status_code
             for _ in range(8)
         ]
     finally:
         limiter.enabled = False
 
-    assert respostas[:5] == [200] * 5, f"Esperava 200 nas 5 primeiras tentativas: {respostas}"
+    assert respostas[:5] == [404] * 5, f"Esperava 404 nas 5 primeiras tentativas: {respostas}"
     assert all(codigo == 429 for codigo in respostas[5:]), (
         f"Esperava 429 a partir da 6ª tentativa: {respostas}"
     )

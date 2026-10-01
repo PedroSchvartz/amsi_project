@@ -6,7 +6,6 @@ import {
 	updateClifor,
 	getEnderecosPorClifor,
 	getContatosPorClifor,
-	desvincularCliforDoUsuario,
 	gerarAcessoClifor
 } from '../services/api';
 import { useToast } from './ToastStack.jsx';
@@ -133,12 +132,6 @@ function ClientEdit() {
 	const [lotesDisponiveis, setLotesDisponiveis] = useState([]);
 	const [usuariosVinculados, setUsuariosVinculados] = useState([]);
 	const [erros, setErros] = useState({});
-	// { index, usuario }: e-mail de usuário vinculado cuja remoção aguarda confirmação
-	// (remover o e-mail também desvincula o usuário — só admin).
-	const [emailParaRemover, setEmailParaRemover] = useState(null);
-	// Usuários marcados para desvincular ao salvar (removeu-se o e-mail deles). Só efetiva
-	// no handleSubmit — nada vai ao backend antes de "Salvar alterações".
-	const [desvincularAoSalvar, setDesvincularAoSalvar] = useState([]);
 	// Item 13: confirmação do botão "Gerar acesso" (cria usuário com login = documento).
 	const [confirmarAcesso, setConfirmarAcesso] = useState(false);
 	const [gerandoAcesso, setGerandoAcesso] = useState(false);
@@ -232,43 +225,14 @@ function ClientEdit() {
 		setList(list.map((item, i) => ({ ...item, contato_principal: i === index })));
 	};
 
-	// Usuário vinculado cujo e-mail é igual a este contato (o clifor sempre carrega o
-	// e-mail dos vinculados). Remover esse e-mail implica desvincular o usuário.
-	const usuarioDoEmail = (valor) =>
-		usuariosVinculados.find(
-			(u) => (u.email || '').trim().toLowerCase() === (valor || '').trim().toLowerCase()
-		);
-
 	// Remove um e-mail do estado local, promovendo outro a principal se necessário.
+	// E-mail do clifor e e-mail do usuário vinculado são independentes: remover um contato
+	// aqui não mexe no usuário nem no vínculo.
 	const removerEmailLocal = (index) => {
 		const novos = emails.filter((_, j) => j !== index);
 		if (novos.length > 0 && !novos.some((e) => e.contato_principal))
 			novos[0] = { ...novos[0], contato_principal: true };
 		setEmails(novos);
-	};
-
-	// Confirmação da remoção de um e-mail que pertence a usuário vinculado. Não envia nada
-	// ao backend agora: remove o e-mail do estado local e enfileira o desvínculo. Tudo se
-	// efetiva junto no "Salvar alterações" (handleSubmit) — se o usuário cancelar ou sair
-	// sem salvar, nada é alterado no banco. Desvincular é admin-only (backend em exige_admin);
-	// não-admin recebe a mensagem e nada é enfileirado nem removido.
-	const confirmarRemocaoEmailVinculado = () => {
-		if (!isAdmin()) {
-			mostrarToast(
-				'Apenas administradores podem desvincular usuários. Você não tem permissão para esta ação.',
-				'erro'
-			);
-			setEmailParaRemover(null);
-			return;
-		}
-		const { index, usuario } = emailParaRemover;
-		removerEmailLocal(index);
-		setUsuariosVinculados((prev) => prev.filter((u) => u.id_usuario !== usuario.id_usuario));
-		setDesvincularAoSalvar((prev) =>
-			prev.some((u) => u.id_usuario === usuario.id_usuario) ? prev : [...prev, usuario]
-		);
-		mostrarToast(`Usuário "${usuario.nome}" será desvinculado ao salvar as alterações.`);
-		setEmailParaRemover(null);
 	};
 
 	const toggleEnderecoPrimario = (index) => {
@@ -384,14 +348,7 @@ function ClientEdit() {
 			]
 		};
 		try {
-			// Desvincula antes de gravar: assim o usuário deixa de estar vinculado antes de o
-			// e-mail sumir do clifor, sem violar o invariante "vinculado carrega o e-mail".
-			// Se algum desvínculo falhar, aborta sem gravar o clifor e mantém a fila.
-			for (const u of desvincularAoSalvar) {
-				await desvincularCliforDoUsuario(u.id_usuario);
-			}
 			await updateClifor(id, payload);
-			setDesvincularAoSalvar([]);
 			mostrarToast('Cliente/Fornecedor atualizado com sucesso!');
 			window.scrollTo({ top: 0, behavior: 'smooth' });
 			setTimeout(() => navigate('/cliente_fornecedor'), 1500);
@@ -426,16 +383,6 @@ function ClientEdit() {
 	   ════════════════════════════════════════ */
 	return (
 		<>
-			{emailParaRemover && (
-				<ModalConfirm
-					titulo="Remover e-mail e desvincular usuário"
-					mensagem={`O e-mail "${emails[emailParaRemover.index]?.info_do_contato}" pertence ao usuário "${emailParaRemover.usuario.nome}", vinculado a este cliente/fornecedor. Remover o e-mail vai TAMBÉM desvincular esse usuário — as duas coisas só se aplicam ao clicar em "Salvar alterações". Deseja continuar?`}
-					textoBotaoConfirmar="Remover e desvincular"
-					onConfirmar={confirmarRemocaoEmailVinculado}
-					onCancelar={() => setEmailParaRemover(null)}
-					variante="perigo"
-				/>
-			)}
 			{confirmarAcesso && (
 				<ModalConfirm
 					titulo="Gerar acesso para este cliente/fornecedor"
@@ -931,22 +878,7 @@ function ClientEdit() {
 											className="btn btn-sm btn-outline-danger"
 											title="Remover e-mail"
 											aria-label="Remover e-mail"
-											onClick={() => {
-												const vinc = usuarioDoEmail(em.info_do_contato);
-												if (vinc) {
-													// E-mail de usuário vinculado: remover exige desvincular (admin-only).
-													if (!isAdmin()) {
-														mostrarToast(
-															'Este e-mail pertence a um usuário vinculado. Só pode ser removido ao desvinculá-lo, e apenas administradores podem desvincular.',
-															'erro'
-														);
-														return;
-													}
-													setEmailParaRemover({ index: i, usuario: vinc });
-													return;
-												}
-												removerEmailLocal(i);
-											}}
+											onClick={() => removerEmailLocal(i)}
 										>
 											<i className="bi bi-trash" />
 										</button>

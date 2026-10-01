@@ -1,6 +1,7 @@
 import logging
 import re
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
 from typing import Optional
@@ -44,14 +45,15 @@ class TokenResponse(BaseModel):
 
 
 class TrocarSenhaRequest(BaseModel):
-    # No primeiro acesso a senha atual não é reexigida (o login já autenticou), por isso
-    # é opcional. Fora do primeiro acesso continua obrigatória (validada na rota).
+    # Troca self-service: a senha atual não é mais exigida (o login já autenticou a sessão).
+    # Mantido opcional só por compatibilidade de corpo; é ignorado.
     senha_atual: Optional[str] = None
     senha_nova: str
 
 
 class EsqueciSenhaRequest(BaseModel):
-    email: EmailStr
+    # Identificador de recuperação: aceita o login OU o e-mail do usuário.
+    login: str
 
 
 class CadastrarEmailRequest(BaseModel):
@@ -181,12 +183,11 @@ def trocar_senha(
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(get_current_user)
 ):
-    # Primeiro acesso: o próprio login já autenticou com a senha inicial — não faz sentido
-    # reexigi-la. Fora do primeiro acesso (troca em configurações) a senha atual continua
-    # obrigatória e é conferida.
-    if not current_user.primeiro_acesso:
-        if not dados.senha_atual or not verificar_senha(dados.senha_atual, current_user.senha):
-            raise HTTPException(status_code=401, detail="Senha atual incorreta")
+    # Troca self-service (modal "Trocar Senha"): a sessão já está autenticada pelo login,
+    # então a senha atual não é reexigida. Só validamos o tamanho mínimo da nova senha
+    # (mesma regra do /definir-senha) — validação de fronteira não entra no corte do YAGNI.
+    if len(dados.senha_nova) < 6:
+        raise HTTPException(status_code=400, detail="A senha deve ter pelo menos 6 caracteres.")
 
     current_user.senha = hash_senha(dados.senha_nova)
     current_user.primeiro_acesso = False
@@ -248,10 +249,9 @@ def cadastrar_email(
 ):
     """Autoatendimento de e-mail para quem entrou só pelo CPF e ainda não tem e-mail.
     O usuário já está autenticado (CPF + senha), então salva direto — só valida formato
-    (EmailStr) e domínio (MX). Propaga o e-mail ao clifor vinculado."""
+    (EmailStr) e domínio (MX). O e-mail do usuário é independente dos contatos do clifor."""
     # Import tardio: evita ciclo de import no carregamento dos routers.
     from routes.usuario import _validar_dominio_email
-    from utils.vinculo_clifor import sincronizar_email_clifor
 
     email_novo = dados.email.strip()
 
@@ -267,7 +267,6 @@ def cadastrar_email(
         raise HTTPException(status_code=409, detail="Email já cadastrado")
 
     current_user.email = email_novo
-    sincronizar_email_clifor(current_user, None, db)
     db.commit()
 
     return {"email": current_user.email}
@@ -275,22 +274,31 @@ def cadastrar_email(
 
 # ─── Definição de senha por token (cadastro / reset / esqueci a senha) ─────────
 
-_MENSAGEM_NEUTRA_ESQUECI = {
-    "detail": "Se o e-mail estiver cadastrado, enviamos um link para redefinir a senha."
-}
+_MSG_ESQUECI_SUCESSO = (
+    "Enviamos um e-mail para você; confira sua caixa de entrada. "
+    "Se o problema persistir, contate um administrador."
+)
+# Login desconhecido OU usuário sem e-mail cadastrado colapsam na mesma mensagem (decisão
+# do Pedro — abre mão da anti-enumeração a favor de uma orientação clara ao usuário).
+_MSG_ESQUECI_FALHA = (
+    "Não reconhecemos esse Login. Corrija ou contate um administrador."
+)
 
 
 @router.post("/esqueci-senha")
 @limiter.limit("5/minute")
 def esqueci_senha(dados: EsqueciSenhaRequest, request: Request, db: Session = Depends(get_db)):
-    """Autoatendimento de 'esqueci a senha'. Resposta SEMPRE 200 e neutra — não revela se o
-    e-mail existe (sem enumeração). Se houver usuário ativo, gera token de reset e envia o link."""
+    """Autoatendimento de 'esqueci a senha'. Busca por login OU e-mail. Se achar um usuário
+    ativo COM e-mail, gera token de reset, envia o link e devolve 200 com mensagem de sucesso.
+    Login desconhecido ou sem e-mail → 404 com mensagem distinta (sem anti-enumeração, por
+    decisão do Pedro). Rate limit de 5/min preservado contra abuso."""
+    identificador = dados.login.strip()
     usuario = db.query(Usuario).filter(
-        Usuario.email == dados.email,
+        or_(Usuario.login == identificador, Usuario.email == identificador),
         Usuario.exclusao == None  # noqa: E711
     ).first()
-    if not usuario:
-        return _MENSAGEM_NEUTRA_ESQUECI
+    if not usuario or not usuario.email:
+        raise HTTPException(status_code=404, detail=_MSG_ESQUECI_FALHA)
 
     token = gerar_token_senha(db, usuario, FINALIDADE_RESET, ttl_horas=48)
     _link_acesso = _link_definir_senha(token)
@@ -328,12 +336,15 @@ def esqueci_senha(dados: EsqueciSenhaRequest, request: Request, db: Session = De
 """
     enviado = enviar_email(usuario.email, "Redefinição de senha — AMSI Project", corpo)
     if not enviado:
-        # Mesmo em falha de envio mantemos a resposta neutra (não vazar estado).
+        # Falha no provedor de e-mail: desfaz o token e sinaliza erro de dependência (502).
         db.rollback()
-        return _MENSAGEM_NEUTRA_ESQUECI
+        raise HTTPException(
+            status_code=502,
+            detail="Não foi possível enviar o e-mail agora. Tente novamente ou contate um administrador."
+        )
 
     db.commit()
-    return _MENSAGEM_NEUTRA_ESQUECI
+    return {"detail": _MSG_ESQUECI_SUCESSO}
 
 
 @router.post("/definir-senha", response_model=TokenResponse)

@@ -7,12 +7,7 @@ from schemas.usuario import UsuarioCreate, UsuarioUpdate, UsuarioResponse, Resta
 from utils.auth_utils import hash_senha
 from utils.email_sender import enviar_email
 from utils.senha_token import gerar_token_senha, _link_definir_senha, FINALIDADE_CADASTRO, FINALIDADE_RESET
-from utils.vinculo_clifor import (
-    garantir_email_no_clifor,
-    sincronizar_email_clifor,
-    gerar_acesso_clifor,
-    AcessoJaExisteError,
-)
+from utils.vinculo_clifor import gerar_acesso_clifor, AcessoJaExisteError
 from models.cliente_fornecedor import ClienteFornecedor
 from auth.dependencies import get_current_user, exige_admin, exige_admin_desenvolvedor
 from typing import List
@@ -197,7 +192,6 @@ def atualizar_usuario(id_usuario: int, dados: UsuarioUpdate, db: Session = Depen
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
 
-    email_antigo = usuario.email
     dados_dict = dados.model_dump(exclude_unset=True)
     if "senha" in dados_dict:
         dados_dict["senha"] = hash_senha(dados_dict["senha"])
@@ -221,10 +215,7 @@ def atualizar_usuario(id_usuario: int, dados: UsuarioUpdate, db: Session = Depen
     for campo, valor in dados_dict.items():
         setattr(usuario, campo, valor)
 
-    # Vínculo: se o e-mail mudou, sincroniza o contato no clifor vinculado.
-    if usuario.email != email_antigo:
-        sincronizar_email_clifor(usuario, email_antigo, db)
-
+    # E-mail do usuário e contatos do clifor são independentes: editar um não mexe no outro.
     db.commit()
     db.refresh(usuario)
     return usuario
@@ -307,7 +298,6 @@ def restaurar_usuario(
     # e-mail ("Salvar" na modal de restauração de conta sem e-mail), validamos e cadastramos
     # ANTES de reativar — e-mail inválido/duplicado barra aqui, sem mexer na conta.
     email_novo = (dados.email if dados else None)
-    email_antigo = usuario.email
     if email_novo:
         if not _validar_dominio_email(email_novo):
             raise HTTPException(status_code=400, detail="Domínio de email inválido ou inexistente")
@@ -321,10 +311,6 @@ def restaurar_usuario(
 
     # Reativa sempre (o commit único abaixo não depende do e-mail).
     usuario.exclusao = None
-
-    # Vínculo: se o e-mail mudou, sincroniza o contato no clifor vinculado.
-    if usuario.email != email_antigo:
-        sincronizar_email_clifor(usuario, email_antigo, db)
 
     # Notificação best-effort: só quando há e-mail ("Cadastrar depois" sem e-mail → não
     # notifica). A senha antiga continua válida; ainda assim mandamos um link para definir
@@ -532,9 +518,8 @@ def associar_clifor_ao_usuario(
         raise HTTPException(status_code=404, detail="Cliente/Fornecedor não encontrado")
 
     # Um clifor pode ter varios usuarios; um usuario tem no maximo um clifor.
+    # O vínculo não injeta mais o e-mail do usuário nos contatos do clifor (independentes).
     usuario.id_clifor_fk = id_clifor
-    # Vínculo: garante o e-mail do usuário entre os contatos do clifor.
-    garantir_email_no_clifor(clifor, usuario, db)
     db.commit()
     db.refresh(clifor)
     return clifor

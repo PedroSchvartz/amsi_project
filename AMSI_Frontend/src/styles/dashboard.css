@@ -5,135 +5,10 @@
 
 @import './theme.css';
 
-/* ════════════════════════════════════════
-   CONTAINER PRINCIPAL
-   ════════════════════════════════════════ */
-.dash-container {
-	max-width: 1200px;
-	margin: 0 auto;
-	display: flex;
-	flex-direction: column;
-	gap: 28px;
-}
-
-/* ── Cabeçalho da página ── */
-.dash-header {
-	display: flex;
-	align-items: flex-end;
-	justify-content: space-between;
-	flex-wrap: wrap;
-	gap: 12px;
-	padding-bottom: 20px;
-	border-bottom: 1px solid var(--border);
-}
-
-.dash-header__title {
-	font-family: var(--font-display);
-	font-size: 1.8rem;
-	font-weight: 700;
-	color: var(--text);
-	margin: 0;
-	line-height: 1.1;
-}
-
-.dash-header__subtitle {
-	font-size: 0.82rem;
-	color: var(--text-muted);
-	margin: 4px 0 0;
-}
-
-/* ════════════════════════════════════════
-   CARDS DE INDICADORES (KPI)
-   Grid responsivo: 4 colunas → 2 → 1
-   ════════════════════════════════════════ */
-.dash-kpi-grid {
-	display: grid;
-	grid-template-columns: repeat(4, 1fr);
-	gap: 16px;
-}
-
-.dash-kpi-card {
-	background: var(--bg-card);
-	border: 1px solid var(--border);
-	border-radius: 12px;
-	padding: 20px 22px;
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-	transition:
-		box-shadow 0.2s ease,
-		transform 0.2s ease;
-	box-shadow: 0 1px 4px var(--shadow);
-}
-
-.dash-kpi-card:hover {
-	box-shadow: 0 4px 16px var(--shadow);
-	transform: translateY(-2px);
-}
-
-/* Ícone do card KPI */
-.dash-kpi-card__icon {
-	width: 40px;
-	height: 40px;
-	border-radius: 10px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	font-size: 1.1rem;
-	flex-shrink: 0;
-}
-
-/* Variantes de cor do ícone */
-.dash-kpi-card__icon--receita {
-	background: rgba(34, 197, 94, 0.12);
-	color: #16a34a;
-}
-
-.dash-kpi-card__icon--despesa {
-	background: rgba(239, 68, 68, 0.1);
-	color: #b91c1c;
-}
-
-.dash-kpi-card__icon--saldo {
-	background: rgba(59, 130, 246, 0.1);
-	color: #1d4ed8;
-}
-
-.dash-kpi-card__icon--inadimplente {
-	background: rgba(234, 179, 8, 0.1);
-	color: #92400e;
-}
-
-/* Adaptação das cores no tema corporativo (fundo escuro) */
-[data-theme='corporativo'] .dash-kpi-card__icon--receita {
-	background: rgba(34, 197, 94, 0.18);
-	color: #4ade80;
-}
-
-[data-theme='corporativo'] .dash-kpi-card__icon--despesa {
-	background: rgba(239, 68, 68, 0.18);
-	color: #f87171;
-}
-
-[data-theme='corporativo'] .dash-kpi-card__icon--saldo {
-	background: rgba(56, 189, 248, 0.15);
-	color: #38bdf8;
-}
-
-[data-theme='corporativo'] .dash-kpi-card__icon--inadimplente {
-	background: rgba(250, 204, 21, 0.12);
-	color: #fbbf24;
-}
-
 /* Em análise — laranja, o mesmo tom do badge "Em análise" da listagem. */
 .dash-kpi-card__icon--analise {
 	background: rgba(249, 115, 22, 0.12);
 	color: #ea580c;
-}
-
-[data-theme='corporativo'] .dash-kpi-card__icon--analise {
-	background: rgba(249, 115, 22, 0.18);
-	color: #fdba74;
 }
 
 .dash-kpi-card__label {
@@ -165,14 +40,6 @@
 
 .dash-kpi-card__value--negativo {
 	color: #b91c1c;
-}
-
-[data-theme='corporativo'] .dash-kpi-card__value--positivo {
-	color: #4ade80;
-}
-
-[data-theme='corporativo'] .dash-kpi-card__value--negativo {
-	color: #f87171;
 }
 
 /* ════════════════════════════════════════
@@ -291,11 +158,6 @@
 	border-bottom: 2px solid var(--border);
 }
 
-[data-theme='corporativo'] .dash-table thead tr {
-	background: var(--bg-card);
-	border-bottom: 2px solid var(--border);
-}
-
 /* Wrapper que dá teto de altura às tabelas Despesas/Receitas (agora completas,
    sem slice) e as rola por dentro, com o cabeçalho fixo no topo. Escopo só no
    wrapper: a tabela de Inadimplentes, fora dele, fica intocada. O fundo do sticky
@@ -310,9 +172,6 @@
 	z-index: 1;
 	background: var(--accent);
 }
-[data-theme='corporativo'] .dash-table-scroll thead th {
-	background: var(--bg-card);
-}
 
 .dash-table th {
 	padding: 10px 14px;
@@ -323,10 +182,6 @@
 	letter-spacing: 0.08em;
 	color: var(--primary);
 	white-space: nowrap;
-}
-
-[data-theme='corporativo'] .dash-table th {
-	color: var(--text-muted);
 }
 
 .dash-table td {
@@ -366,13 +221,6 @@
 	font-weight: 600;
 }
 
-[data-theme='corporativo'] .dash-valor--positivo {
-	color: #4ade80;
-}
-[data-theme='corporativo'] .dash-valor--negativo {
-	color: #f87171;
-}
-
 /* ── Badge inadimplente ── */
 .dash-badge-inadimplente {
 	display: inline-flex;
@@ -385,11 +233,6 @@
 	background: rgba(239, 68, 68, 0.1);
 	color: #b91c1c;
 	border: 1px solid rgba(239, 68, 68, 0.18);
-}
-
-[data-theme='corporativo'] .dash-badge-inadimplente {
-	background: rgba(239, 68, 68, 0.18);
-	color: #f87171;
 }
 
 /* ════════════════════════════════════════
@@ -497,11 +340,6 @@
 	color: #7c3aed;
 }
 
-[data-theme='corporativo'] .dash-kpi-card__icon--reembolso {
-	background: rgba(139, 92, 246, 0.18);
-	color: #a78bfa;
-}
-
 /* ── KPI card interativo ── */
 .dash-kpi-card--interativo:hover {
 	transform: translateY(-2px);
@@ -571,11 +409,6 @@
 	display: flex;
 	align-items: center;
 	gap: 10px;
-}
-
-[data-theme='corporativo'] .dash-erro {
-	background: rgba(239, 68, 68, 0.12);
-	color: #f87171;
 }
 
 /* ════════════════════════════════════════

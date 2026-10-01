@@ -76,12 +76,6 @@
 	box-shadow: 0 0 0 3px rgba(163, 177, 138, 0.2);
 }
 
-[data-theme='corporativo'] .box input:focus,
-[data-theme='corporativo'] .box select:focus,
-[data-theme='corporativo'] .box textarea:focus {
-	box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
-}
-
 .box textarea {
 	resize: vertical;
 	min-height: 80px;

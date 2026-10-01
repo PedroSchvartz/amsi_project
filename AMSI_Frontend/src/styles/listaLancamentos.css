@@ -112,12 +112,6 @@
 	box-shadow: 0 0 0 3px rgba(163, 177, 138, 0.15);
 }
 
-[data-theme='corporativo'] .ll-field input:focus,
-[data-theme='corporativo'] .ll-field select:focus,
-[data-theme='corporativo'] .ll-field textarea:focus {
-	box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.12);
-}
-
 /* Faixa de data inválida (de > até): linha vermelha fina abaixo do campo infrator.
    Seletor mais específico que ".ll-field input" para vencer a borda padrão. */
 .ll-field input.ll-input-erro {
@@ -211,16 +205,6 @@
 
 .ll-btn-filtrar--pendente:hover {
 	background: var(--btn-hover);
-}
-
-[data-theme='corporativo'] .ll-btn-filtrar--pendente {
-	background: #d97706;
-	border: 2px solid #fcd34d;
-	box-shadow: 0 0 0 3px rgba(252, 211, 77, 0.4);
-}
-
-[data-theme='corporativo'] .ll-btn-filtrar--pendente:hover {
-	background: #b45309;
 }
 
 @keyframes ll-pulso {
@@ -457,6 +441,12 @@
 	white-space: normal;
 	overflow-wrap: anywhere; /* quebra também nomes/tokens sem espaços */
 	max-width: 280px;
+}
+
+/* Tipo de Conta (col. 2): texto à esquerda, como o Nome. */
+.ll-table th:nth-child(2),
+.ll-table td:nth-child(2) {
+	text-align: left;
 }
 
 /* Valores monetários alinhados à direita (padrão de leitura de números).
@@ -700,27 +690,7 @@
 	border: 1px solid #7dd3fc;
 }
 
-[data-theme='corporativo'] .badge-origem--manual {
-	background: rgba(148, 163, 184, 0.20);
-	color: #cbd5e1;
-	border-color: rgba(148, 163, 184, 0.45);
-}
-
-[data-theme='corporativo'] .badge-origem--lote {
-	background: rgba(167, 139, 250, 0.22);
-	color: #c4b5fd;
-	border-color: rgba(167, 139, 250, 0.45);
-}
-
-[data-theme='corporativo'] .badge-origem--auto {
-	background: rgba(56, 189, 248, 0.22);
-	color: #7dd3fc;
-	border-color: rgba(56, 189, 248, 0.45);
-}
-
-/* Adaptação dos badges no tema corporativo (fundo escuro) */
-/* Os badges de situação não têm override aqui: as cores dos dois temas vivem em
-   theme.css, nas vars --badge-*-bg/fg/border. */
+/* Os badges de situação usam as vars --badge-*-bg/fg/border de theme.css. */
 
 /* ════════════════════════════════════════
    BOTÕES DE AÇÃO NA TABELA
@@ -781,21 +751,6 @@
 
 .ll-btn-acao.deletar:hover {
 	background: rgba(239, 68, 68, 0.2);
-}
-
-[data-theme='corporativo'] .ll-btn-acao.fechar {
-	background: rgba(34, 197, 94, 0.15);
-	color: #4ade80;
-}
-
-[data-theme='corporativo'] .ll-btn-acao.aprovar {
-	background: rgba(249, 115, 22, 0.15);
-	color: #fdba74;
-}
-
-[data-theme='corporativo'] .ll-btn-acao.deletar {
-	background: rgba(239, 68, 68, 0.15);
-	color: #f87171;
 }
 
 /* ════════════════════════════════════════
