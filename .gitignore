@@ -51,6 +51,10 @@ docs/testes_web/prints/
 # Build do frontend
 AMSI_Frontend/dist/
 
+# Dumps de banco (dados de producao) e cliente PostgreSQL portatil — nunca versionar
+*.dump
+scripts/db/pgsql18/
+
 # Artefatos do Playwright — traces/screenshots capturam tokens JWT e senhas
 AMSI_Frontend/test-results/
 AMSI_Frontend/playwright-report/
