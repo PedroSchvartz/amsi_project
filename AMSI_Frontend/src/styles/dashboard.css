@@ -1,9 +1,108 @@
 /* ============================================================
    AMSI — Dashboard
-   Temas: Verde Associação | Corporativo
+   Tema único: Verde Associação
    ============================================================ */
 
 @import './theme.css';
+
+/* ════════════════════════════════════════
+   CONTAINER PRINCIPAL
+   ════════════════════════════════════════ */
+.dash-container {
+	max-width: 1200px;
+	margin: 0 auto;
+	display: flex;
+	flex-direction: column;
+	gap: 28px;
+}
+
+/* ── Cabeçalho da página ── */
+.dash-header {
+	display: flex;
+	align-items: flex-end;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 12px;
+	padding-bottom: 20px;
+	border-bottom: 1px solid var(--border);
+}
+
+.dash-header__title {
+	font-family: var(--font-display);
+	font-size: 1.8rem;
+	font-weight: 700;
+	color: var(--text);
+	margin: 0;
+	line-height: 1.1;
+}
+
+.dash-header__subtitle {
+	font-size: 0.82rem;
+	color: var(--text-muted);
+	margin: 4px 0 0;
+}
+
+/* ════════════════════════════════════════
+   CARDS DE INDICADORES (KPI)
+   Grid responsivo: 4 colunas → 2 → 1
+   ════════════════════════════════════════ */
+.dash-kpi-grid {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: 16px;
+}
+
+.dash-kpi-card {
+	background: var(--bg-card);
+	border: 1px solid var(--border);
+	border-radius: 12px;
+	padding: 20px 22px;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	transition:
+		box-shadow 0.2s ease,
+		transform 0.2s ease;
+	box-shadow: 0 1px 4px var(--shadow);
+}
+
+.dash-kpi-card:hover {
+	box-shadow: 0 4px 16px var(--shadow);
+	transform: translateY(-2px);
+}
+
+/* Ícone do card KPI */
+.dash-kpi-card__icon {
+	width: 40px;
+	height: 40px;
+	border-radius: 10px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 1.1rem;
+	flex-shrink: 0;
+}
+
+/* Variantes de cor do ícone */
+.dash-kpi-card__icon--receita {
+	background: rgba(34, 197, 94, 0.12);
+	color: #16a34a;
+}
+
+.dash-kpi-card__icon--despesa {
+	background: rgba(239, 68, 68, 0.1);
+	color: #b91c1c;
+}
+
+.dash-kpi-card__icon--saldo {
+	background: rgba(59, 130, 246, 0.1);
+	color: #1d4ed8;
+}
+
+.dash-kpi-card__icon--inadimplente {
+	background: rgba(234, 179, 8, 0.1);
+	color: #92400e;
+}
 
 /* Em análise — laranja, o mesmo tom do badge "Em análise" da listagem. */
 .dash-kpi-card__icon--analise {
