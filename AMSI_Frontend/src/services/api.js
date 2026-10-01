@@ -242,7 +242,7 @@ export const createUser = async (data) => {
 		nome: data.nome,
 		login: data.login,
 		email: temEmail ? data.email : null,
-		cargo: data.cargo,
+		cargo: data.cargo || null,
 		perfil_de_acesso: data.perfil_de_acesso,
 		notificacao: data.notificacao ?? false
 	};

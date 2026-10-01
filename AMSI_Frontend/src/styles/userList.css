@@ -199,13 +199,86 @@
    RESPONSIVIDADE
    ════════════════════════════════════════ */
 @media (max-width: 768px) {
-  /* Scroll horizontal na tabela */
   .user-list-container {
-    overflow-x: auto;
+    overflow-x: visible;
   }
 
+  /* Cabeçalho empilha: título numa linha (o "Sandbox + data" volta para o mesmo eixo
+     de "Usuários") e os botões descem para a linha de baixo, em vez de espremer o h2. */
+  .user-list-header {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  /* Layout fixo: cada coluna respeita a largura definida e o conteúdo quebra DENTRO
+     dela — a tabela nunca passa de 100% da largura da tela (logo, sem barra de scroll
+     horizontal, nem na tabela nem no wrapper). */
   .user-list-container .table {
-    min-width: 650px;
+    table-layout: fixed;
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* Padding menor para sobrar largura ao conteúdo; todas as colunas podem descer linha. */
+  .user-list-container .table th,
+  .user-list-container .table td {
+    padding: 8px 6px;
+    white-space: normal;
+    overflow-wrap: break-word;
+  }
+
+  /* Cabeçalho compacto no mobile: letter-spacing/padding menores e fonte levemente
+     reduzida — o mínimo para "CARGO"/"PERFIL" caberem em 1 linha na coluna estreita,
+     inclusive em telas de ~360px. */
+  .user-list-container .table th {
+    font-size: 0.62rem;
+    letter-spacing: 0;
+    padding: 8px 4px;
+  }
+
+  /* E-mail quebra em qualquer ponto (não tem espaços para a quebra natural). */
+  .user-list-container .table td:nth-child(2) {
+    overflow-wrap: anywhere;
+  }
+
+  /* Larguras por coluna: Cargo e Perfil ficam pequenos; Nome, E-mail e Ações herdam
+     o resto do espaço (Ações larga o bastante para 2 botões por linha = 2x2). */
+  .user-list-container .table th:nth-child(1) {
+    width: 26%;
+  }
+  .user-list-container .table th:nth-child(2) {
+    width: 22%;
+  }
+  .user-list-container .table th:nth-child(3) {
+    width: 14%;
+  }
+  .user-list-container .table th:nth-child(4) {
+    width: 14%;
+  }
+  .user-list-container .table th:nth-child(5) {
+    width: 24%;
+  }
+
+  /* Nome: sem o teto de largura do desktop (a coluna já é limitada pelo layout fixo). */
+  .user-list-container .table td:first-child {
+    max-width: none;
+  }
+
+  /* Ações no mobile: botões compactos e só-ícone (o rótulo "Restaurar" some, mas o
+     title/tooltip continua); os ícones quebram em até 2 linhas (2x2) dentro da coluna.
+     Gap menor para os 2 botões caberem lado a lado na largura da coluna. */
+  .user-list-container .table td:last-child .d-flex {
+    flex-wrap: wrap;
+    gap: 5px !important;
+  }
+
+  .user-list-container .table td:last-child .btn-acao-editar,
+  .user-list-container .table td:last-child .btn-acao-deletar {
+    padding: 4px 6px;
+  }
+
+  .user-list-container .acao-texto {
+    display: none;
   }
 }
 

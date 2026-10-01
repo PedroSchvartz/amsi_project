@@ -91,4 +91,18 @@ describe('UserRegisterModal — login-only + e-mail opcional', () => {
 			expect.objectContaining({ login: 'equipe@amsi.com', email: 'equipe@amsi.com' })
 		);
 	});
+
+	it('cargo é opcional: o select não é required e o cadastro segue sem cargo', async () => {
+		const cargo = campo('cargo');
+		expect(cargo).not.toBeNull();
+		expect(cargo.required).toBe(false); // sem `required`, o navegador não barra o envio vazio
+		fireEvent.change(campo('nome'), { target: { value: 'Morador' } });
+		fireEvent.change(campo('login'), { target: { value: 'moradorcpf' } });
+		fireEvent.change(campo('senha'), { target: { value: 'SenhaProv1' } });
+		// cargo deixado em branco de propósito
+		submeter();
+		await waitFor(() => expect(api.createUser).toHaveBeenCalled());
+		// O componente entrega cargo vazio; a normalização '' → null vive em api.createUser.
+		expect(api.createUser).toHaveBeenCalledWith(expect.objectContaining({ cargo: '' }));
+	});
 });

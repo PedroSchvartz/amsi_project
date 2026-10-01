@@ -132,7 +132,7 @@ function UserList() {
 
 	return (
 		<div className="user-list-container">
-			<div className="d-flex justify-content-between align-items-center mb-4">
+			<div className="d-flex justify-content-between align-items-center mb-4 user-list-header">
 				<h2>
 					Usuários{' '}
 					<span style={{ fontSize: '0.6em', fontWeight: 'normal', color: 'var(--text-muted)' }}>
@@ -261,7 +261,7 @@ function UserList() {
 													title="Restaurar usuário"
 													style={{ color: 'var(--primary)' }}
 												>
-													<i className="bi bi-arrow-counterclockwise" /> Restaurar
+													<i className="bi bi-arrow-counterclockwise" /> <span className="acao-texto">Restaurar</span>
 												</button>
 											) : (
 												<>

@@ -194,9 +194,8 @@ function UserRegisterModal({ onFechar }) {
 								name="cargo"
 								value={form.cargo}
 								onChange={handleChange}
-								required
 							>
-								<option value="">Selecione</option>
+								<option value="">Sem cargo</option>
 								<option value="Presidente">Presidente</option>
 								<option value="Diretor">Diretor</option>
 								<option value="Tesoureiro">Tesoureiro</option>
