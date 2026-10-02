@@ -224,12 +224,47 @@ Capturar a URL do deployment na saída do comando. Se falhar, mostrar o erro com
 
 ### 5.1 Testar backend
 
+> ⚠️ **ARMADILHA QUE JÁ NOS PEGOU (2026-10-01): `GET / → 200` NÃO prova que o deploy novo
+> subiu.** Quando o build/deploy do Railway **falha**, o Railway mantém a **imagem anterior no
+> ar**, servindo `200` normalmente. Um `curl 200` em cima da imagem velha dá "verde" falso — foi
+> o que me fez reportar "deployado e verificado" com o backend rodando código de semanas antes
+> (login e esqueci-senha quebrados em prod). **200 é condição necessária, não suficiente.** Faça
+> os TRÊS passos abaixo, nesta ordem, e só declare sucesso se os três passarem.
+
+**(a) O deploy mais recente SUCEDEU?** (pega build/deploy falho que deixou a imagem velha no ar)
+
 ```bash
-# Substituir URL_RAILWAY pela URL capturada na Fase 3
-curl -s -o /dev/null -w "%{http_code}" https://URL_RAILWAY/ 2>&1
+cd "C:\Codigos\AMSI_Project_Desenvolvimento\backend" && railway status 2>&1 | grep -A2 "All resources"
 ```
 
-Esperado: `200`. Se retornar outro código, pode ser que o Railway ainda esteja inicializando — aguardar 30s e tentar novamente.
+A linha do serviço `AMSI_Project` **não** pode conter `Deploy failed` nem `Crashed`, e o tempo
+entre parênteses tem de ser **recente** (minutos, compatível com este deploy) — se disser
+`Deploy failed (10h ...)` ou um tempo velho, o build novo **não** entrou. Nesse caso puxe o
+motivo e corrija **antes** de qualquer outra coisa:
+
+```bash
+railway logs --build 2>&1 | tail -40   # erro do build; e confira o timestamp da imagem ativa
+```
+
+**(b) Processo no ar** (necessário, não suficiente):
+
+```bash
+curl -s -o /dev/null -w "%{http_code}" https://URL_RAILWAY/ 2>&1   # espera 200; se não, aguardar 30s e repetir
+```
+
+**(c) O código NOVO está mesmo servindo?** (a prova que o 200 não dá) — confirme no `/openapi.json`
+de prod um elemento de contrato que **este** deploy mudou e compare com o código commitado. Ex.
+real do pacote 2026-10 (o campo de recuperação virou `login`): em prod velho vinha `email`.
+
+```bash
+curl -s https://URL_RAILWAY/openapi.json \
+  | python -c "import sys,json; print(json.load(sys.stdin)['components']['schemas']['EsqueciSenhaRequest'])"
+# tem de refletir o schema do backend/auth/router.py commitado; se vier o campo antigo, prod está defasada
+```
+
+Se a mudança do deploy não for de schema, use um request que **só o código novo** responde certo
+(ex.: um corpo que daria `422 Field required` no contrato antigo e `200`/esperado no novo). Só
+passe para 5.2 quando (a), (b) e (c) baterem.
 
 ### 5.2 Testar frontend
 
@@ -259,14 +294,20 @@ railway variables --service "AMSI_Project" 2>/dev/null | grep -E "JWT_EXPIRE_MIN
 
 Backend (Railway):
   URL: https://[url-railway]
-  Status: [✓ 200 OK | ✗ ERRO]
+  Deploy: [✓ sucesso recente | ✗ FALHOU/velho]   <- 5.1(a): se falhou, imagem velha no ar
+  HTTP /: [✓ 200 | ✗ ERRO]                        <- 5.1(b)
+  Código novo servindo: [✓ contrato confere | ✗ defasado]  <- 5.1(c): o 200 não prova isto
 
 Frontend (Vercel):
   URL: https://[url-vercel]
-  Status: [✓ 200 OK | ✗ ERRO]
+  HTTP /: [✓ 200 | ✗ ERRO]
+  Carimbo no bundle: [✓ data de hoje | ✗ velho]
 
 VITE_API_URL configurada: https://[url-railway]
 ```
+
+> Só escreva "CONCLUÍDO" se **Deploy** e **Código novo servindo** estiverem ✓. HTTP 200 sozinho
+> é o sinal falso da armadilha 5.1 — nunca declare sucesso só com ele.
 
 ---
 
@@ -283,6 +324,8 @@ VITE_API_URL configurada: https://[url-railway]
 | Mudança em `VITE_` não reflete no site | Vite inlina em build time → refazer `vercel --prod` (rebuild) |
 | `vercel env add ... preview` → "no connected Git repository" | Projeto é CLI-only (sem Git) → Preview é inacessível; **pular** Preview, usar só Production+Development |
 | `railway up` falha | Mostrar `railway logs --tail 30`, identificar causa, orientar correção |
+| `railway status` → `Deploy failed`/`Crashed` porém `curl /` dá 200 | Imagem ANTERIOR no ar (falso verde). Código novo NÃO está servindo → `railway logs --build` p/ a causa, corrigir e resubir. Ver 5.1(a)/(c) |
+| Deploy de backend bloqueado pelo classificador (`Production Deploy`) | Claude não roda `railway up`/`redeploy` em prod — o Pedro roda o comando, ou adiciona regra Bash de permissão |
 | `vercel --prod` falha no build | Verificar output de erro — geralmente `VITE_API_URL` não configurada ou conflito de deps |
 | Token Vercel/Railway expirado | Orientar `vercel login` ou `railway login` antes de continuar |
 | Mudanças não commitadas | Alertar antes da Fase 1, mas não bloquear se o usuário quiser continuar |
