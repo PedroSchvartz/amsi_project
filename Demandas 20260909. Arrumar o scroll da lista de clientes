@@ -1,0 +1,18 @@
+Demandas 20260909
+
+1. Arrumar o scroll da lista de clientes
+2. Retirar a coluna de CPF e CNPJ da tela de lançamentos
+3. API de envio de Email
+4. Permitir Login através de CPF ou Email. No front lugar de "Email" fica "CPF ou Email", no banco troca para "login" e pode ser qualquer coisa.
+5. No dashboard: Top despesas e receitas passam a ser lista completa
+6. No dashboard: Usuario perfil consulta só visualiza sessão "No período"
+7. Na tela de lançamentos o Usuario perfil consulta só visualiza os próprios dados  ✅ CONCLUÍDO (backend escopado + testes, commit 514b613) — falta execução real + deploy
+8. Usuario perfil consulta não pode criar lançamentos nem exportar planilhas nem tem a coluna "ações"
+9. Lançamentos automáticos não são gerados para Clifor com status inativo, manual pode ser gerado.
+10. na tela clifor o botão "editar" perde o texto "editar" e deixa apenas o icone e o tooltip
+11. na tela clifor a modal de exibição de lista ganha o filtro por tipo.
+12. Na tela de cadastro/edição de clifor, deve exibir quais tipo de conta em massa trazem eles. (Permitindo também a edição)
+13. Incluir usuarios a partir do clifor com login por CPF, somente entre os selecionados do Marcio.
+14. Tela clifor: novo bool no clifor (tela e tabela) "associado",  ✅ CONCLUÍDO E EM PRODUÇÃO (deploy 2026-09-18, perda-zero confirmada)
+15. Tela usuário: "cargo" perde "associado", foi para tela clifor.  ✅ CONCLUÍDO E EM PRODUÇÃO (deploy 2026-09-18, perda-zero confirmada)
+16. O relacionamento da tabela clifor com usuários (email e id) deixa de ser clifor -1 1- usuários para clifor -1 n- usuários  ✅ CONCLUÍDO E EM PRODUÇÃO (deploy 2026-09-18, perda-zero confirmada)

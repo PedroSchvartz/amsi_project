@@ -35,9 +35,20 @@
   parametros: []
   request_body:
     senha_atual:
+      tipo: desconhecido
+      obrigatorio: false
+    senha_nova:
       tipo: string
       obrigatorio: true
-    senha_nova:
+  response_200: null
+  respostas:
+  - '200'
+  - '422'
+- endpoint: POST /auth/cadastrar-email
+  descricao: Cadastrar Email
+  parametros: []
+  request_body:
+    email:
       tipo: string
       obrigatorio: true
   response_200: null
@@ -48,7 +59,7 @@
   descricao: Esqueci Senha
   parametros: []
   request_body:
-    email:
+    login:
       tipo: string
       obrigatorio: true
   response_200: null
@@ -107,11 +118,14 @@
       tipo: string
       obrigatorio: true
     email:
-      tipo: string
-      obrigatorio: true
+      tipo: desconhecido
+      obrigatorio: false
+    login:
+      tipo: desconhecido
+      obrigatorio: false
     cargo:
-      tipo: CargoEnum
-      obrigatorio: true
+      tipo: desconhecido
+      obrigatorio: false
     perfil_de_acesso:
       tipo: AcessoEnum
       obrigatorio: true
@@ -136,6 +150,9 @@
     primeiro_acesso:
       tipo: boolean
       obrigatorio: true
+    id_clifor_fk:
+      tipo: desconhecido
+      obrigatorio: false
   respostas:
   - '200'
   - '422'
@@ -147,11 +164,14 @@
       tipo: string
       obrigatorio: true
     email:
-      tipo: string
-      obrigatorio: true
+      tipo: desconhecido
+      obrigatorio: false
+    login:
+      tipo: desconhecido
+      obrigatorio: false
     cargo:
-      tipo: CargoEnum
-      obrigatorio: true
+      tipo: desconhecido
+      obrigatorio: false
     perfil_de_acesso:
       tipo: AcessoEnum
       obrigatorio: true
@@ -159,6 +179,9 @@
       tipo: boolean
       obrigatorio: false
       default: false
+    senha:
+      tipo: desconhecido
+      obrigatorio: false
   response_200:
     id_usuario:
       tipo: integer
@@ -167,11 +190,14 @@
       tipo: string
       obrigatorio: true
     email:
-      tipo: string
-      obrigatorio: true
+      tipo: desconhecido
+      obrigatorio: false
+    login:
+      tipo: desconhecido
+      obrigatorio: false
     cargo:
-      tipo: CargoEnum
-      obrigatorio: true
+      tipo: desconhecido
+      obrigatorio: false
     perfil_de_acesso:
       tipo: AcessoEnum
       obrigatorio: true
@@ -196,6 +222,9 @@
     primeiro_acesso:
       tipo: boolean
       obrigatorio: true
+    id_clifor_fk:
+      tipo: desconhecido
+      obrigatorio: false
   respostas:
   - '200'
   - '422'
@@ -215,11 +244,14 @@
       tipo: string
       obrigatorio: true
     email:
-      tipo: string
-      obrigatorio: true
+      tipo: desconhecido
+      obrigatorio: false
+    login:
+      tipo: desconhecido
+      obrigatorio: false
     cargo:
-      tipo: CargoEnum
-      obrigatorio: true
+      tipo: desconhecido
+      obrigatorio: false
     perfil_de_acesso:
       tipo: AcessoEnum
       obrigatorio: true
@@ -244,6 +276,9 @@
     primeiro_acesso:
       tipo: boolean
       obrigatorio: true
+    id_clifor_fk:
+      tipo: desconhecido
+      obrigatorio: false
   respostas:
   - '200'
   - '422'
@@ -259,6 +294,9 @@
       tipo: desconhecido
       obrigatorio: false
     email:
+      tipo: desconhecido
+      obrigatorio: false
+    login:
       tipo: desconhecido
       obrigatorio: false
     cargo:
@@ -288,6 +326,9 @@
     primeiro_acesso:
       tipo: desconhecido
       obrigatorio: false
+    id_clifor_fk:
+      tipo: desconhecido
+      obrigatorio: false
   response_200:
     id_usuario:
       tipo: integer
@@ -296,11 +337,14 @@
       tipo: string
       obrigatorio: true
     email:
-      tipo: string
-      obrigatorio: true
+      tipo: desconhecido
+      obrigatorio: false
+    login:
+      tipo: desconhecido
+      obrigatorio: false
     cargo:
-      tipo: CargoEnum
-      obrigatorio: true
+      tipo: desconhecido
+      obrigatorio: false
     perfil_de_acesso:
       tipo: AcessoEnum
       obrigatorio: true
@@ -325,6 +369,9 @@
     primeiro_acesso:
       tipo: boolean
       obrigatorio: true
+    id_clifor_fk:
+      tipo: desconhecido
+      obrigatorio: false
   respostas:
   - '200'
   - '422'
@@ -340,10 +387,10 @@
   respostas:
   - '200'
   - '422'
-- endpoint: POST /usuarios/{id_usuario}/restaurar
-  descricao: Restaurar Usuario
+- endpoint: POST /usuarios/clifor/{id_clifor}
+  descricao: Criar Usuario De Clifor
   parametros:
-  - nome: id_usuario
+  - nome: id_clifor
     local: path
     obrigatorio: true
     tipo: integer
@@ -356,11 +403,14 @@
       tipo: string
       obrigatorio: true
     email:
-      tipo: string
-      obrigatorio: true
+      tipo: desconhecido
+      obrigatorio: false
+    login:
+      tipo: desconhecido
+      obrigatorio: false
     cargo:
-      tipo: CargoEnum
-      obrigatorio: true
+      tipo: desconhecido
+      obrigatorio: false
     perfil_de_acesso:
       tipo: AcessoEnum
       obrigatorio: true
@@ -385,6 +435,66 @@
     primeiro_acesso:
       tipo: boolean
       obrigatorio: true
+    id_clifor_fk:
+      tipo: desconhecido
+      obrigatorio: false
+  respostas:
+  - '200'
+  - '422'
+- endpoint: POST /usuarios/{id_usuario}/restaurar
+  descricao: Restaurar Usuario
+  parametros:
+  - nome: id_usuario
+    local: path
+    obrigatorio: true
+    tipo: integer
+  request_body:
+    email:
+      tipo: desconhecido
+      obrigatorio: false
+  response_200:
+    id_usuario:
+      tipo: integer
+      obrigatorio: true
+    nome:
+      tipo: string
+      obrigatorio: true
+    email:
+      tipo: desconhecido
+      obrigatorio: false
+    login:
+      tipo: desconhecido
+      obrigatorio: false
+    cargo:
+      tipo: desconhecido
+      obrigatorio: false
+    perfil_de_acesso:
+      tipo: AcessoEnum
+      obrigatorio: true
+    notificacao:
+      tipo: boolean
+      obrigatorio: true
+    suspenso:
+      tipo: desconhecido
+      obrigatorio: false
+    qtd_suspensao:
+      tipo: integer
+      obrigatorio: true
+    bloqueado:
+      tipo: boolean
+      obrigatorio: true
+    exclusao:
+      tipo: desconhecido
+      obrigatorio: false
+    data_cadastro:
+      tipo: string
+      obrigatorio: true
+    primeiro_acesso:
+      tipo: boolean
+      obrigatorio: true
+    id_clifor_fk:
+      tipo: desconhecido
+      obrigatorio: false
   respostas:
   - '200'
   - '422'
@@ -412,9 +522,6 @@
     id_clifor:
       tipo: integer
       obrigatorio: true
-    id_usuario_fk:
-      tipo: desconhecido
-      obrigatorio: false
     pessoafisica_juridica:
       tipo: boolean
       obrigatorio: true
@@ -427,6 +534,12 @@
     nome:
       tipo: string
       obrigatorio: true
+    nome_usual:
+      tipo: desconhecido
+      obrigatorio: false
+    lote:
+      tipo: desconhecido
+      obrigatorio: false
     datanascimento:
       tipo: desconhecido
       obrigatorio: false
@@ -439,6 +552,12 @@
     inadimplente:
       tipo: boolean
       obrigatorio: true
+    bloqueado:
+      tipo: boolean
+      obrigatorio: true
+    associado:
+      tipo: boolean
+      obrigatorio: true
     enderecos:
       tipo: array
       obrigatorio: false
@@ -447,6 +566,10 @@
       tipo: array
       obrigatorio: false
       default: &id002 []
+    usuarios:
+      tipo: array
+      obrigatorio: false
+      default: &id003 []
   respostas:
   - '200'
   - '422'
@@ -466,9 +589,6 @@
     id_clifor:
       tipo: integer
       obrigatorio: true
-    id_usuario_fk:
-      tipo: desconhecido
-      obrigatorio: false
     pessoafisica_juridica:
       tipo: boolean
       obrigatorio: true
@@ -481,6 +601,12 @@
     nome:
       tipo: string
       obrigatorio: true
+    nome_usual:
+      tipo: desconhecido
+      obrigatorio: false
+    lote:
+      tipo: desconhecido
+      obrigatorio: false
     datanascimento:
       tipo: desconhecido
       obrigatorio: false
@@ -493,6 +619,12 @@
     inadimplente:
       tipo: boolean
       obrigatorio: true
+    bloqueado:
+      tipo: boolean
+      obrigatorio: true
+    associado:
+      tipo: boolean
+      obrigatorio: true
     enderecos:
       tipo: array
       obrigatorio: false
@@ -501,6 +633,10 @@
       tipo: array
       obrigatorio: false
       default: *id002
+    usuarios:
+      tipo: array
+      obrigatorio: false
+      default: *id003
   respostas:
   - '200'
   - '422'
@@ -520,9 +656,6 @@
     id_clifor:
       tipo: integer
       obrigatorio: true
-    id_usuario_fk:
-      tipo: desconhecido
-      obrigatorio: false
     pessoafisica_juridica:
       tipo: boolean
       obrigatorio: true
@@ -535,6 +668,12 @@
     nome:
       tipo: string
       obrigatorio: true
+    nome_usual:
+      tipo: desconhecido
+      obrigatorio: false
+    lote:
+      tipo: desconhecido
+      obrigatorio: false
     datanascimento:
       tipo: desconhecido
       obrigatorio: false
@@ -547,6 +686,12 @@
     inadimplente:
       tipo: boolean
       obrigatorio: true
+    bloqueado:
+      tipo: boolean
+      obrigatorio: true
+    associado:
+      tipo: boolean
+      obrigatorio: true
     enderecos:
       tipo: array
       obrigatorio: false
@@ -555,6 +700,10 @@
       tipo: array
       obrigatorio: false
       default: *id002
+    usuarios:
+      tipo: array
+      obrigatorio: false
+      default: *id003
   respostas:
   - '200'
   - '422'
@@ -901,6 +1050,10 @@
     local: query
     obrigatorio: false
     tipo: desconhecido
+  - nome: bloqueado
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
   - nome: apenas_pendentes
     local: query
     obrigatorio: false
@@ -914,9 +1067,6 @@
     id_clifor:
       tipo: integer
       obrigatorio: true
-    id_usuario_fk:
-      tipo: desconhecido
-      obrigatorio: false
     pessoafisica_juridica:
       tipo: boolean
       obrigatorio: true
@@ -929,6 +1079,12 @@
     nome:
       tipo: string
       obrigatorio: true
+    nome_usual:
+      tipo: desconhecido
+      obrigatorio: false
+    lote:
+      tipo: desconhecido
+      obrigatorio: false
     datanascimento:
       tipo: desconhecido
       obrigatorio: false
@@ -941,6 +1097,12 @@
     inadimplente:
       tipo: boolean
       obrigatorio: true
+    bloqueado:
+      tipo: boolean
+      obrigatorio: true
+    associado:
+      tipo: boolean
+      obrigatorio: true
     enderecos:
       tipo: array
       obrigatorio: false
@@ -949,6 +1111,10 @@
       tipo: array
       obrigatorio: false
       default: *id002
+    usuarios:
+      tipo: array
+      obrigatorio: false
+      default: *id003
   respostas:
   - '200'
   - '422'
@@ -956,9 +1122,6 @@
   descricao: Criar Clifor
   parametros: []
   request_body:
-    id_usuario_fk:
-      tipo: desconhecido
-      obrigatorio: false
     pessoafisica_juridica:
       tipo: boolean
       obrigatorio: true
@@ -971,6 +1134,12 @@
     nome:
       tipo: string
       obrigatorio: true
+    nome_usual:
+      tipo: desconhecido
+      obrigatorio: false
+    lote:
+      tipo: desconhecido
+      obrigatorio: false
     datanascimento:
       tipo: desconhecido
       obrigatorio: false
@@ -985,6 +1154,14 @@
       tipo: boolean
       obrigatorio: false
       default: false
+    bloqueado:
+      tipo: boolean
+      obrigatorio: false
+      default: false
+    associado:
+      tipo: boolean
+      obrigatorio: false
+      default: false
     enderecos:
       tipo: desconhecido
       obrigatorio: false
@@ -995,9 +1172,6 @@
     id_clifor:
       tipo: integer
       obrigatorio: true
-    id_usuario_fk:
-      tipo: desconhecido
-      obrigatorio: false
     pessoafisica_juridica:
       tipo: boolean
       obrigatorio: true
@@ -1010,6 +1184,12 @@
     nome:
       tipo: string
       obrigatorio: true
+    nome_usual:
+      tipo: desconhecido
+      obrigatorio: false
+    lote:
+      tipo: desconhecido
+      obrigatorio: false
     datanascimento:
       tipo: desconhecido
       obrigatorio: false
@@ -1022,6 +1202,12 @@
     inadimplente:
       tipo: boolean
       obrigatorio: true
+    bloqueado:
+      tipo: boolean
+      obrigatorio: true
+    associado:
+      tipo: boolean
+      obrigatorio: true
     enderecos:
       tipo: array
       obrigatorio: false
@@ -1030,6 +1216,10 @@
       tipo: array
       obrigatorio: false
       default: *id002
+    usuarios:
+      tipo: array
+      obrigatorio: false
+      default: *id003
   respostas:
   - '200'
   - '422'
@@ -1047,6 +1237,13 @@
     total_a_pagar:
       tipo: string
       obrigatorio: true
+  respostas:
+  - '200'
+- endpoint: GET /cliente_fornecedor/lotes
+  descricao: Listar Lotes
+  parametros: []
+  request_body: null
+  response_200: null
   respostas:
   - '200'
 - endpoint: GET /cliente_fornecedor/{id_clifor}/resumo
@@ -1100,9 +1297,6 @@
     id_clifor:
       tipo: integer
       obrigatorio: true
-    id_usuario_fk:
-      tipo: desconhecido
-      obrigatorio: false
     pessoafisica_juridica:
       tipo: boolean
       obrigatorio: true
@@ -1115,6 +1309,12 @@
     nome:
       tipo: string
       obrigatorio: true
+    nome_usual:
+      tipo: desconhecido
+      obrigatorio: false
+    lote:
+      tipo: desconhecido
+      obrigatorio: false
     datanascimento:
       tipo: desconhecido
       obrigatorio: false
@@ -1127,6 +1327,12 @@
     inadimplente:
       tipo: boolean
       obrigatorio: true
+    bloqueado:
+      tipo: boolean
+      obrigatorio: true
+    associado:
+      tipo: boolean
+      obrigatorio: true
     enderecos:
       tipo: array
       obrigatorio: false
@@ -1135,6 +1341,10 @@
       tipo: array
       obrigatorio: false
       default: *id002
+    usuarios:
+      tipo: array
+      obrigatorio: false
+      default: *id003
   respostas:
   - '200'
   - '422'
@@ -1146,9 +1356,6 @@
     obrigatorio: true
     tipo: integer
   request_body:
-    id_usuario_fk:
-      tipo: desconhecido
-      obrigatorio: false
     pessoafisica_juridica:
       tipo: desconhecido
       obrigatorio: false
@@ -1161,6 +1368,12 @@
     nome:
       tipo: desconhecido
       obrigatorio: false
+    nome_usual:
+      tipo: desconhecido
+      obrigatorio: false
+    lote:
+      tipo: desconhecido
+      obrigatorio: false
     datanascimento:
       tipo: desconhecido
       obrigatorio: false
@@ -1171,6 +1384,12 @@
       tipo: desconhecido
       obrigatorio: false
     inadimplente:
+      tipo: desconhecido
+      obrigatorio: false
+    bloqueado:
+      tipo: desconhecido
+      obrigatorio: false
+    associado:
       tipo: desconhecido
       obrigatorio: false
     enderecos:
@@ -1183,9 +1402,6 @@
     id_clifor:
       tipo: integer
       obrigatorio: true
-    id_usuario_fk:
-      tipo: desconhecido
-      obrigatorio: false
     pessoafisica_juridica:
       tipo: boolean
       obrigatorio: true
@@ -1198,6 +1414,12 @@
     nome:
       tipo: string
       obrigatorio: true
+    nome_usual:
+      tipo: desconhecido
+      obrigatorio: false
+    lote:
+      tipo: desconhecido
+      obrigatorio: false
     datanascimento:
       tipo: desconhecido
       obrigatorio: false
@@ -1210,6 +1432,12 @@
     inadimplente:
       tipo: boolean
       obrigatorio: true
+    bloqueado:
+      tipo: boolean
+      obrigatorio: true
+    associado:
+      tipo: boolean
+      obrigatorio: true
     enderecos:
       tipo: array
       obrigatorio: false
@@ -1218,6 +1446,10 @@
       tipo: array
       obrigatorio: false
       default: *id002
+    usuarios:
+      tipo: array
+      obrigatorio: false
+      default: *id003
   respostas:
   - '200'
   - '422'
@@ -1713,6 +1945,18 @@
     total_vencido_a_pagar:
       tipo: string
       obrigatorio: true
+    total_em_analise_receber:
+      tipo: string
+      obrigatorio: false
+      default: '0'
+    total_em_analise_pagar:
+      tipo: string
+      obrigatorio: false
+      default: '0'
+    quantidade_em_analise:
+      tipo: integer
+      obrigatorio: false
+      default: 0
     quantidade_abertos:
       tipo: integer
       obrigatorio: true
@@ -1783,6 +2027,10 @@
     local: query
     obrigatorio: false
     tipo: desconhecido
+  - nome: apenas_em_analise
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
   - nome: apenas_quitados
     local: query
     obrigatorio: false
@@ -1835,6 +2083,14 @@
     local: query
     obrigatorio: false
     tipo: desconhecido
+  - nome: lote_clifor
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: status_modo
+    local: query
+    obrigatorio: false
+    tipo: string
   request_body: null
   response_200:
     id_lancamento:
@@ -1864,7 +2120,22 @@
     juros:
       tipo: desconhecido
       obrigatorio: false
+    id_usuario_fk_efetivacao:
+      tipo: desconhecido
+      obrigatorio: false
+    data_efetivacao:
+      tipo: desconhecido
+      obrigatorio: false
     id_usuario_fk_aprovacao:
+      tipo: desconhecido
+      obrigatorio: false
+    data_aprovacao:
+      tipo: desconhecido
+      obrigatorio: false
+    id_usuario_fk_edicao:
+      tipo: desconhecido
+      obrigatorio: false
+    data_edicao:
       tipo: desconhecido
       obrigatorio: false
     data_pagamento:
@@ -1888,6 +2159,9 @@
     lote:
       tipo: desconhecido
       obrigatorio: false
+    situacao:
+      tipo: SituacaoEnum
+      obrigatorio: true
     tem_comprovante:
       tipo: boolean
       obrigatorio: false
@@ -1905,6 +2179,15 @@
       tipo: desconhecido
       obrigatorio: false
     nome_usuario_lancamento:
+      tipo: desconhecido
+      obrigatorio: false
+    nome_usuario_efetivacao:
+      tipo: desconhecido
+      obrigatorio: false
+    nome_usuario_aprovacao:
+      tipo: desconhecido
+      obrigatorio: false
+    nome_usuario_edicao:
       tipo: desconhecido
       obrigatorio: false
   respostas:
@@ -1963,7 +2246,22 @@
     juros:
       tipo: desconhecido
       obrigatorio: false
+    id_usuario_fk_efetivacao:
+      tipo: desconhecido
+      obrigatorio: false
+    data_efetivacao:
+      tipo: desconhecido
+      obrigatorio: false
     id_usuario_fk_aprovacao:
+      tipo: desconhecido
+      obrigatorio: false
+    data_aprovacao:
+      tipo: desconhecido
+      obrigatorio: false
+    id_usuario_fk_edicao:
+      tipo: desconhecido
+      obrigatorio: false
+    data_edicao:
       tipo: desconhecido
       obrigatorio: false
     data_pagamento:
@@ -1987,6 +2285,9 @@
     lote:
       tipo: desconhecido
       obrigatorio: false
+    situacao:
+      tipo: SituacaoEnum
+      obrigatorio: true
     tem_comprovante:
       tipo: boolean
       obrigatorio: false
@@ -2006,6 +2307,155 @@
     nome_usuario_lancamento:
       tipo: desconhecido
       obrigatorio: false
+    nome_usuario_efetivacao:
+      tipo: desconhecido
+      obrigatorio: false
+    nome_usuario_aprovacao:
+      tipo: desconhecido
+      obrigatorio: false
+    nome_usuario_edicao:
+      tipo: desconhecido
+      obrigatorio: false
+  respostas:
+  - '200'
+  - '422'
+- endpoint: POST /lancamento/exportar
+  descricao: Iniciar Exportacao
+  parametros:
+  - nome: id_clifor
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: id_tipo_conta
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: natureza
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: apenas_abertos
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: apenas_vencidos
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: apenas_em_analise
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: apenas_quitados
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: apenas_com_comprovante
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: apenas_sem_comprovante
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: data_vencimento_de
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: data_vencimento_ate
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: data_lancamento_de
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: data_lancamento_ate
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: data_pagamento_de
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: data_pagamento_ate
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: estorno
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: valor_minimo
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: valor_maximo
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: lote
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: lote_clifor
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  - nome: status_modo
+    local: query
+    obrigatorio: false
+    tipo: string
+  request_body: null
+  response_200: null
+  respostas:
+  - '200'
+  - '422'
+- endpoint: GET /lancamento/exportar/{job_id}
+  descricao: Status Exportacao
+  parametros:
+  - nome: job_id
+    local: path
+    obrigatorio: true
+    tipo: string
+  request_body: null
+  response_200: null
+  respostas:
+  - '200'
+  - '422'
+- endpoint: DELETE /lancamento/exportar/{job_id}
+  descricao: Cancelar Exportacao
+  parametros:
+  - nome: job_id
+    local: path
+    obrigatorio: true
+    tipo: string
+  request_body: null
+  response_200: null
+  respostas:
+  - '200'
+  - '422'
+- endpoint: GET /lancamento/exportar/{job_id}/download
+  descricao: Baixar Exportacao
+  parametros:
+  - nome: job_id
+    local: path
+    obrigatorio: true
+    tipo: string
+  request_body: null
+  response_200: null
+  respostas:
+  - '200'
+  - '422'
+- endpoint: POST /lancamento/exportar/{job_id}/enviar-email
+  descricao: Enviar Exportacao Email
+  parametros:
+  - nome: job_id
+    local: path
+    obrigatorio: true
+    tipo: string
+  request_body: null
+  response_200: null
   respostas:
   - '200'
   - '422'
@@ -2045,7 +2495,22 @@
     juros:
       tipo: desconhecido
       obrigatorio: false
+    id_usuario_fk_efetivacao:
+      tipo: desconhecido
+      obrigatorio: false
+    data_efetivacao:
+      tipo: desconhecido
+      obrigatorio: false
     id_usuario_fk_aprovacao:
+      tipo: desconhecido
+      obrigatorio: false
+    data_aprovacao:
+      tipo: desconhecido
+      obrigatorio: false
+    id_usuario_fk_edicao:
+      tipo: desconhecido
+      obrigatorio: false
+    data_edicao:
       tipo: desconhecido
       obrigatorio: false
     data_pagamento:
@@ -2069,6 +2534,9 @@
     lote:
       tipo: desconhecido
       obrigatorio: false
+    situacao:
+      tipo: SituacaoEnum
+      obrigatorio: true
     tem_comprovante:
       tipo: boolean
       obrigatorio: false
@@ -2088,20 +2556,26 @@
     nome_usuario_lancamento:
       tipo: desconhecido
       obrigatorio: false
+    nome_usuario_efetivacao:
+      tipo: desconhecido
+      obrigatorio: false
+    nome_usuario_aprovacao:
+      tipo: desconhecido
+      obrigatorio: false
+    nome_usuario_edicao:
+      tipo: desconhecido
+      obrigatorio: false
   respostas:
   - '200'
   - '422'
 - endpoint: PUT /lancamento/{id_lancamento}
-  descricao: Fechar Lancamento
+  descricao: Efetivar Lancamento
   parametros:
   - nome: id_lancamento
     local: path
     obrigatorio: true
     tipo: integer
   request_body:
-    id_usuario_fk_aprovacao:
-      tipo: desconhecido
-      obrigatorio: false
     data_pagamento:
       tipo: desconhecido
       obrigatorio: false
@@ -2148,7 +2622,22 @@
     juros:
       tipo: desconhecido
       obrigatorio: false
+    id_usuario_fk_efetivacao:
+      tipo: desconhecido
+      obrigatorio: false
+    data_efetivacao:
+      tipo: desconhecido
+      obrigatorio: false
     id_usuario_fk_aprovacao:
+      tipo: desconhecido
+      obrigatorio: false
+    data_aprovacao:
+      tipo: desconhecido
+      obrigatorio: false
+    id_usuario_fk_edicao:
+      tipo: desconhecido
+      obrigatorio: false
+    data_edicao:
       tipo: desconhecido
       obrigatorio: false
     data_pagamento:
@@ -2172,6 +2661,9 @@
     lote:
       tipo: desconhecido
       obrigatorio: false
+    situacao:
+      tipo: SituacaoEnum
+      obrigatorio: true
     tem_comprovante:
       tipo: boolean
       obrigatorio: false
@@ -2189,6 +2681,15 @@
       tipo: desconhecido
       obrigatorio: false
     nome_usuario_lancamento:
+      tipo: desconhecido
+      obrigatorio: false
+    nome_usuario_efetivacao:
+      tipo: desconhecido
+      obrigatorio: false
+    nome_usuario_aprovacao:
+      tipo: desconhecido
+      obrigatorio: false
+    nome_usuario_edicao:
       tipo: desconhecido
       obrigatorio: false
   respostas:
@@ -2242,7 +2743,22 @@
     juros:
       tipo: desconhecido
       obrigatorio: false
+    id_usuario_fk_efetivacao:
+      tipo: desconhecido
+      obrigatorio: false
+    data_efetivacao:
+      tipo: desconhecido
+      obrigatorio: false
     id_usuario_fk_aprovacao:
+      tipo: desconhecido
+      obrigatorio: false
+    data_aprovacao:
+      tipo: desconhecido
+      obrigatorio: false
+    id_usuario_fk_edicao:
+      tipo: desconhecido
+      obrigatorio: false
+    data_edicao:
       tipo: desconhecido
       obrigatorio: false
     data_pagamento:
@@ -2266,6 +2782,9 @@
     lote:
       tipo: desconhecido
       obrigatorio: false
+    situacao:
+      tipo: SituacaoEnum
+      obrigatorio: true
     tem_comprovante:
       tipo: boolean
       obrigatorio: false
@@ -2283,6 +2802,15 @@
       tipo: desconhecido
       obrigatorio: false
     nome_usuario_lancamento:
+      tipo: desconhecido
+      obrigatorio: false
+    nome_usuario_efetivacao:
+      tipo: desconhecido
+      obrigatorio: false
+    nome_usuario_aprovacao:
+      tipo: desconhecido
+      obrigatorio: false
+    nome_usuario_edicao:
       tipo: desconhecido
       obrigatorio: false
   respostas:
@@ -2324,7 +2852,22 @@
     juros:
       tipo: desconhecido
       obrigatorio: false
+    id_usuario_fk_efetivacao:
+      tipo: desconhecido
+      obrigatorio: false
+    data_efetivacao:
+      tipo: desconhecido
+      obrigatorio: false
     id_usuario_fk_aprovacao:
+      tipo: desconhecido
+      obrigatorio: false
+    data_aprovacao:
+      tipo: desconhecido
+      obrigatorio: false
+    id_usuario_fk_edicao:
+      tipo: desconhecido
+      obrigatorio: false
+    data_edicao:
       tipo: desconhecido
       obrigatorio: false
     data_pagamento:
@@ -2348,6 +2891,9 @@
     lote:
       tipo: desconhecido
       obrigatorio: false
+    situacao:
+      tipo: SituacaoEnum
+      obrigatorio: true
     tem_comprovante:
       tipo: boolean
       obrigatorio: false
@@ -2365,6 +2911,15 @@
       tipo: desconhecido
       obrigatorio: false
     nome_usuario_lancamento:
+      tipo: desconhecido
+      obrigatorio: false
+    nome_usuario_efetivacao:
+      tipo: desconhecido
+      obrigatorio: false
+    nome_usuario_aprovacao:
+      tipo: desconhecido
+      obrigatorio: false
+    nome_usuario_edicao:
       tipo: desconhecido
       obrigatorio: false
   respostas:
@@ -2405,6 +2960,115 @@
     ids:
       tipo: array
       obrigatorio: true
+  respostas:
+  - '200'
+  - '422'
+- endpoint: POST /lancamento/{id_lancamento}/aprovar
+  descricao: Aprovar Lancamento
+  parametros:
+  - nome: id_lancamento
+    local: path
+    obrigatorio: true
+    tipo: integer
+  request_body: null
+  response_200:
+    id_lancamento:
+      tipo: integer
+      obrigatorio: true
+    id_usuario_fk_lancamento:
+      tipo: integer
+      obrigatorio: true
+    id_clifor_relacionado_fk:
+      tipo: integer
+      obrigatorio: true
+    id_tipo_conta_fk:
+      tipo: integer
+      obrigatorio: true
+    data_lancamento:
+      tipo: string
+      obrigatorio: true
+    valor:
+      tipo: string
+      obrigatorio: true
+    data_vencimento:
+      tipo: string
+      obrigatorio: true
+    multa:
+      tipo: desconhecido
+      obrigatorio: false
+    juros:
+      tipo: desconhecido
+      obrigatorio: false
+    id_usuario_fk_efetivacao:
+      tipo: desconhecido
+      obrigatorio: false
+    data_efetivacao:
+      tipo: desconhecido
+      obrigatorio: false
+    id_usuario_fk_aprovacao:
+      tipo: desconhecido
+      obrigatorio: false
+    data_aprovacao:
+      tipo: desconhecido
+      obrigatorio: false
+    id_usuario_fk_edicao:
+      tipo: desconhecido
+      obrigatorio: false
+    data_edicao:
+      tipo: desconhecido
+      obrigatorio: false
+    data_pagamento:
+      tipo: desconhecido
+      obrigatorio: false
+    valor_pago:
+      tipo: desconhecido
+      obrigatorio: false
+    observacao:
+      tipo: desconhecido
+      obrigatorio: false
+    observacao_pagamento:
+      tipo: desconhecido
+      obrigatorio: false
+    natureza_lancamento:
+      tipo: NaturezaEnum
+      obrigatorio: true
+    estorno:
+      tipo: boolean
+      obrigatorio: true
+    lote:
+      tipo: desconhecido
+      obrigatorio: false
+    situacao:
+      tipo: SituacaoEnum
+      obrigatorio: true
+    tem_comprovante:
+      tipo: boolean
+      obrigatorio: false
+      default: false
+    comprovante_nome:
+      tipo: desconhecido
+      obrigatorio: false
+    nome_clifor:
+      tipo: desconhecido
+      obrigatorio: false
+    cpf_cnpj_clifor:
+      tipo: desconhecido
+      obrigatorio: false
+    descricao_tipo_conta:
+      tipo: desconhecido
+      obrigatorio: false
+    nome_usuario_lancamento:
+      tipo: desconhecido
+      obrigatorio: false
+    nome_usuario_efetivacao:
+      tipo: desconhecido
+      obrigatorio: false
+    nome_usuario_aprovacao:
+      tipo: desconhecido
+      obrigatorio: false
+    nome_usuario_edicao:
+      tipo: desconhecido
+      obrigatorio: false
   respostas:
   - '200'
   - '422'
@@ -2452,6 +3116,9 @@
     estorno:
       tipo: desconhecido
       obrigatorio: false
+    reverter_para:
+      tipo: desconhecido
+      obrigatorio: false
   response_200:
     id_lancamento:
       tipo: integer
@@ -2480,7 +3147,22 @@
     juros:
       tipo: desconhecido
       obrigatorio: false
+    id_usuario_fk_efetivacao:
+      tipo: desconhecido
+      obrigatorio: false
+    data_efetivacao:
+      tipo: desconhecido
+      obrigatorio: false
     id_usuario_fk_aprovacao:
+      tipo: desconhecido
+      obrigatorio: false
+    data_aprovacao:
+      tipo: desconhecido
+      obrigatorio: false
+    id_usuario_fk_edicao:
+      tipo: desconhecido
+      obrigatorio: false
+    data_edicao:
       tipo: desconhecido
       obrigatorio: false
     data_pagamento:
@@ -2504,6 +3186,9 @@
     lote:
       tipo: desconhecido
       obrigatorio: false
+    situacao:
+      tipo: SituacaoEnum
+      obrigatorio: true
     tem_comprovante:
       tipo: boolean
       obrigatorio: false
@@ -2521,6 +3206,15 @@
       tipo: desconhecido
       obrigatorio: false
     nome_usuario_lancamento:
+      tipo: desconhecido
+      obrigatorio: false
+    nome_usuario_efetivacao:
+      tipo: desconhecido
+      obrigatorio: false
+    nome_usuario_aprovacao:
+      tipo: desconhecido
+      obrigatorio: false
+    nome_usuario_edicao:
       tipo: desconhecido
       obrigatorio: false
   respostas:
@@ -2585,7 +3279,7 @@
     cargo:
       tipo: CargoEnum
       obrigatorio: false
-      default: Associado
+      default: Conselheiro
     perfil_de_acesso:
       tipo: AcessoEnum
       obrigatorio: false
@@ -2598,11 +3292,14 @@
       tipo: string
       obrigatorio: true
     email:
-      tipo: string
-      obrigatorio: true
+      tipo: desconhecido
+      obrigatorio: false
+    login:
+      tipo: desconhecido
+      obrigatorio: false
     cargo:
-      tipo: CargoEnum
-      obrigatorio: true
+      tipo: desconhecido
+      obrigatorio: false
     perfil_de_acesso:
       tipo: AcessoEnum
       obrigatorio: true
@@ -2627,6 +3324,9 @@
     primeiro_acesso:
       tipo: boolean
       obrigatorio: true
+    id_clifor_fk:
+      tipo: desconhecido
+      obrigatorio: false
   respostas:
   - '200'
   - '422'
@@ -2711,6 +3411,145 @@
     status_code:
       tipo: integer
       obrigatorio: true
+  respostas:
+  - '200'
+  - '422'
+- endpoint: GET /parametrizacao/
+  descricao: Listar Parametrizacoes
+  parametros:
+  - nome: id_tipo_conta
+    local: query
+    obrigatorio: false
+    tipo: desconhecido
+  request_body: null
+  response_200:
+    id_parametrizacao:
+      tipo: integer
+      obrigatorio: true
+    nome:
+      tipo: string
+      obrigatorio: true
+    id_tipo_conta_fk:
+      tipo: integer
+      obrigatorio: true
+    descricao_tipo_conta:
+      tipo: desconhecido
+      obrigatorio: false
+    valor:
+      tipo: desconhecido
+      obrigatorio: false
+    ids_clifor:
+      tipo: array
+      obrigatorio: false
+      default: &id004 []
+    total:
+      tipo: integer
+      obrigatorio: false
+      default: 0
+  respostas:
+  - '200'
+  - '422'
+- endpoint: POST /parametrizacao/
+  descricao: Criar Parametrizacao
+  parametros: []
+  request_body:
+    nome:
+      tipo: string
+      obrigatorio: true
+    id_tipo_conta_fk:
+      tipo: integer
+      obrigatorio: true
+    valor:
+      tipo: desconhecido
+      obrigatorio: false
+    ids_clifor:
+      tipo: array
+      obrigatorio: false
+      default: []
+  response_200:
+    id_parametrizacao:
+      tipo: integer
+      obrigatorio: true
+    nome:
+      tipo: string
+      obrigatorio: true
+    id_tipo_conta_fk:
+      tipo: integer
+      obrigatorio: true
+    descricao_tipo_conta:
+      tipo: desconhecido
+      obrigatorio: false
+    valor:
+      tipo: desconhecido
+      obrigatorio: false
+    ids_clifor:
+      tipo: array
+      obrigatorio: false
+      default: *id004
+    total:
+      tipo: integer
+      obrigatorio: false
+      default: 0
+  respostas:
+  - '200'
+  - '422'
+- endpoint: PUT /parametrizacao/{id_parametrizacao}
+  descricao: Atualizar Parametrizacao
+  parametros:
+  - nome: id_parametrizacao
+    local: path
+    obrigatorio: true
+    tipo: integer
+  request_body:
+    nome:
+      tipo: string
+      obrigatorio: true
+    id_tipo_conta_fk:
+      tipo: integer
+      obrigatorio: true
+    valor:
+      tipo: desconhecido
+      obrigatorio: false
+    ids_clifor:
+      tipo: array
+      obrigatorio: false
+      default: []
+  response_200:
+    id_parametrizacao:
+      tipo: integer
+      obrigatorio: true
+    nome:
+      tipo: string
+      obrigatorio: true
+    id_tipo_conta_fk:
+      tipo: integer
+      obrigatorio: true
+    descricao_tipo_conta:
+      tipo: desconhecido
+      obrigatorio: false
+    valor:
+      tipo: desconhecido
+      obrigatorio: false
+    ids_clifor:
+      tipo: array
+      obrigatorio: false
+      default: *id004
+    total:
+      tipo: integer
+      obrigatorio: false
+      default: 0
+  respostas:
+  - '200'
+  - '422'
+- endpoint: DELETE /parametrizacao/{id_parametrizacao}
+  descricao: Deletar Parametrizacao
+  parametros:
+  - nome: id_parametrizacao
+    local: path
+    obrigatorio: true
+    tipo: integer
+  request_body: null
+  response_200: null
   respostas:
   - '200'
   - '422'

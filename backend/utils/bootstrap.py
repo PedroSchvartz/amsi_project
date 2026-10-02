@@ -9,6 +9,20 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from sqlalchemy.orm import Session
 from sqlalchemy.engine import make_url
 from database import SessionLocal
+
+# Registra TODOS os mappers do SQLAlchemy antes de consultar Usuario: o Usuario tem
+# relationship("ClienteFornecedor") (item 16), que só resolve com o model do clifor — e os
+# demais que ele referencia por nome — importado. Sem isto, rodar o bootstrap standalone
+# (o próprio comando que o conftest manda executar) quebra com
+# "failed to locate a name 'ClienteFornecedor'".
+import models.usuario  # noqa: F401
+import models.cliente_fornecedor  # noqa: F401
+import models.contato  # noqa: F401
+import models.endereco  # noqa: F401
+import models.login  # noqa: F401
+import models.lancamento  # noqa: F401
+import models.tipo_conta  # noqa: F401
+
 from models.usuario import Usuario, CargoEnum, AcessoEnum
 from utils.auth_utils import hash_senha
 from utils.email_sender import enviar_email

@@ -409,7 +409,8 @@ function ListaLancamentosPage() {
 		setFiltros(base);
 		setAncoraData({ vencimento: null, lancamento: null, pagamento: null });
 		setUltimoCampoTocado(null);
-		buscar(base);
+		// Não busca automaticamente: só limpa os campos. O usuário clica em "Pesquisar"
+		// para reaplicar (o botão pulsa como pendente enquanto filtros != filtrosAplicados).
 	};
 
 	// Inicia a exportação (nova pesquisa no banco com os filtros já aplicados) e abre a

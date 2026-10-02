@@ -40,11 +40,6 @@ const DEPLOYS = [
 				detalhe:
 					'O tema alternativo foi removido — o sistema passa a usar apenas a identidade visual verde da Associação.',
 			},
-		],
-	},
-	{
-		data: '2026-09-30',
-		pontos: [
 			{
 				titulo: 'Restaurar sem e-mail e editar contato na tela de usuários',
 				detalhe:
