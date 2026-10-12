@@ -12,7 +12,8 @@ import pytest
 
 from database import SessionLocal
 from models.cliente_fornecedor import ClienteFornecedor
-from models.usuario import Usuario
+from models.usuario import Usuario, AcessoEnum
+from utils.auth_utils import hash_senha
 from utils.vinculo_clifor import gerar_acesso_clifor, AcessoJaExisteError
 from gerar_acessos_associados import clifors_elegiveis
 
@@ -189,6 +190,47 @@ def test_botao_duplicado_409(client, headers_admin, clifor_cliente_pf):
         assert r2.status_code == 409, r2.text
     finally:
         _limpar_acesso(client, headers_admin, u["id_usuario"])
+
+
+def test_botao_gera_acesso_mesmo_com_vinculo_por_email(client, headers_admin, clifor_cliente_pf):
+    """Clifor que já tem usuário vinculado por E-MAIL (login != documento) ainda gera o
+    acesso CPF-only: a unicidade é do LOGIN (documento), não 'um acesso por clifor'.
+
+    Regressão do caso real: um clifor da equipe com acessos que logam por e-mail não podia
+    ter o acesso pelo CPF gerado — o botão barrava achando que já havia acesso."""
+    id_clifor = clifor_cliente_pf["id_clifor"]
+    db = SessionLocal()
+    id_email = None
+    try:
+        existente = Usuario(
+            nome="Vinculo por Email Pytest",
+            email="vinculo.email.pytest@amsi.com",
+            login="vinculo.email.pytest@amsi.com",  # login é o e-mail, NÃO o documento
+            cargo=None,
+            perfil_de_acesso=AcessoEnum.Consulta,
+            primeiro_acesso=False,
+            id_clifor_fk=id_clifor,
+            senha=hash_senha("123"),
+        )
+        db.add(existente)
+        db.commit()
+        db.refresh(existente)
+        id_email = existente.id_usuario
+    finally:
+        db.close()
+
+    u = None
+    try:
+        r = client.post(f"/usuarios/clifor/{id_clifor}", headers=headers_admin)
+        assert r.status_code == 200, r.text  # não barra mesmo com o vínculo por e-mail
+        u = r.json()
+        assert u["login"] == "52998224725"  # gerou o acesso CPF-only
+        assert u["id_clifor_fk"] == id_clifor
+    finally:
+        if u is not None:
+            _limpar_acesso(client, headers_admin, u["id_usuario"])
+        if id_email is not None:
+            _limpar_acesso(client, headers_admin, id_email)
 
 
 def test_botao_clifor_inexistente_404(client, headers_admin):

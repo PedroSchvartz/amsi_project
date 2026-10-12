@@ -15,7 +15,7 @@ from utils.auth_utils import hash_senha
 
 
 class AcessoJaExisteError(Exception):
-    """Já existe acesso ligado a este clifor (regra: 1 acesso por clifor) — não se cria outro."""
+    """Já existe um usuário cujo login é este documento — não se cria um login duplicado."""
 
 
 def gerar_acesso_clifor(clifor: ClienteFornecedor, db: Session, marcar_associado: bool = False) -> Usuario:
@@ -30,10 +30,9 @@ def gerar_acesso_clifor(clifor: ClienteFornecedor, db: Session, marcar_associado
     doc = re.sub(r"\D", "", clifor.cpf_cnpj or "")
     if not doc:
         raise ValueError("clifor sem documento")
-    # Regra B (1 acesso por clifor): se o clifor já tem usuário ativo, não gera outro.
-    # CPF compartilhado não é caso real. Cobre também o antigo caso login==doc.
-    if clifor.usuarios_vinculados:
-        raise AcessoJaExisteError()
+    # A unicidade é do LOGIN (o documento), não do clifor: um clifor pode ter vários acessos
+    # (ex.: a equipe logando por e-mail + o morador logando pelo CPF). Só barra se já existe
+    # um usuário cujo login é este documento — que é exatamente o acesso que este botão criaria.
     if db.query(Usuario).filter(Usuario.login == doc).first():
         raise AcessoJaExisteError()
     usuario = Usuario(
