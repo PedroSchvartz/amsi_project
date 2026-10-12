@@ -168,17 +168,17 @@ describe('reverter (undo do fluxo)', () => {
 		expect(screen.queryByRole('button', { name: /Voltar para/ })).not.toBeInTheDocument();
 	});
 
-	it('Pago mostra "Voltar para Em análise" e o Confirmar começa desabilitado', () => {
+	it('Pago mostra "Voltar para Em análise" e ainda não há "Confirmar"', () => {
 		render(<TimelineLancamentoModal lancamento={PAGO} onFechar={() => {}} podeReverter onReverter={vi.fn()} />);
 		expect(screen.getByRole('button', { name: /Voltar para Em análise/ })).toBeInTheDocument();
-		expect(screen.getByRole('button', { name: 'Confirmar' })).toBeDisabled();
+		expect(screen.queryByRole('button', { name: 'Confirmar' })).not.toBeInTheDocument();
 	});
 
-	it('armar pelo Voltar habilita o Confirmar (texto não muda)', () => {
+	it('o 1º clique arma: o rótulo vira "Confirmar" e o "Voltar" some', () => {
 		render(<TimelineLancamentoModal lancamento={PAGO} onFechar={() => {}} podeReverter onReverter={vi.fn()} />);
-		expect(screen.getByRole('button', { name: 'Confirmar' })).toBeDisabled();
 		fireEvent.click(screen.getByRole('button', { name: /Voltar para Em análise/ }));
-		expect(screen.getByRole('button', { name: 'Confirmar' })).toBeEnabled();
+		expect(screen.getByRole('button', { name: 'Confirmar' })).toBeInTheDocument();
+		expect(screen.queryByRole('button', { name: /Voltar para Em análise/ })).not.toBeInTheDocument();
 	});
 
 	it('Em análise oferece voltar para Aberto (um passo por vez)', () => {
@@ -197,5 +197,42 @@ describe('reverter (undo do fluxo)', () => {
 		const aberto = { id_lancamento: 1, data_lancamento: '2026-06-17T13:00:00', situacao: 'Aberto' };
 		render(<TimelineLancamentoModal lancamento={aberto} onFechar={() => {}} podeReverter onReverter={vi.fn()} />);
 		expect(screen.queryByRole('button', { name: /Voltar para/ })).not.toBeInTheDocument();
+	});
+
+	// Dois cliques: o 1º arma, o 2º (passada a janela anti-clique-duplo) dispara a reversão.
+	// performance.now é espionado para controlar o tempo entre armar e confirmar.
+	it('armar e confirmar no 2º clique dispara onReverter com o destino (Pago → Em análise)', () => {
+		const nowSpy = vi.spyOn(performance, 'now');
+		try {
+			const onReverter = vi.fn();
+			render(<TimelineLancamentoModal lancamento={PAGO} onFechar={() => {}} podeReverter onReverter={onReverter} />);
+			nowSpy.mockReturnValue(1000);
+			fireEvent.click(screen.getByRole('button', { name: /Voltar para Em análise/ }));
+			nowSpy.mockReturnValue(1500); // 500ms depois: passa os 350ms da trava
+			fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }));
+			expect(onReverter).toHaveBeenCalledWith('em_analise');
+		} finally {
+			nowSpy.mockRestore();
+		}
+	});
+
+	// Regressão da proteção anti-acidente: o clique-duplo reflexo (arma e confirma no mesmo
+	// instante) NÃO reverte; o clique deliberado depois da janela mínima, sim.
+	it('clique-duplo reflexo (< 350ms) não confirma; o deliberado depois confirma', () => {
+		const nowSpy = vi.spyOn(performance, 'now');
+		try {
+			const onReverter = vi.fn();
+			render(<TimelineLancamentoModal lancamento={PAGO} onFechar={() => {}} podeReverter onReverter={onReverter} />);
+			nowSpy.mockReturnValue(1000);
+			fireEvent.click(screen.getByRole('button', { name: /Voltar para Em análise/ }));
+			nowSpy.mockReturnValue(1100); // 100ms: reflexo, dentro da trava
+			fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }));
+			expect(onReverter).not.toHaveBeenCalled();
+			nowSpy.mockReturnValue(1500); // 500ms do armar: clique deliberado
+			fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }));
+			expect(onReverter).toHaveBeenCalledWith('em_analise');
+		} finally {
+			nowSpy.mockRestore();
+		}
 	});
 });

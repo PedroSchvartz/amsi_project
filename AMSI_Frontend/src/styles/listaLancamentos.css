@@ -284,40 +284,12 @@
 	background: var(--input-bg);
 }
 
+/* Armado = o próximo clique confirma: vira cor primária para ler como botão de confirmação. */
 .ll-btn-voltar.is-armado {
-	font-weight: 600;
-	box-shadow: inset 0 0 0 1px var(--gold);
-}
-
-.ll-btn-confirmar-hold {
-	position: relative;
-	overflow: hidden;
-	background: transparent;
-	color: var(--text-muted);
-	border: 1px solid var(--border);
-	padding: 7px 14px;
-	border-radius: 8px;
-	font-size: 0.85rem;
-	font-weight: 600;
-	cursor: not-allowed;
-	touch-action: none; /* no touch, segurar não deve rolar a tela */
-	user-select: none;
-}
-
-.ll-btn-confirmar-hold.is-armado {
 	color: var(--primary);
 	border-color: var(--primary);
-	cursor: pointer;
-}
-
-/* Barra de preenchimento do hold — a largura (0..100%) vem inline via style. */
-.ll-hold-progresso {
-	position: absolute;
-	left: 0;
-	bottom: 0;
-	height: 3px;
-	background: var(--primary);
-	pointer-events: none;
+	font-weight: 600;
+	box-shadow: inset 0 0 0 1px var(--primary);
 }
 
 /* ── Feedback de erro/sucesso ── */
@@ -800,10 +772,22 @@
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
+	min-width: 0; /* grid item: deixa a coluna 1fr encolher no celular em vez de estourar */
 }
 
 .ll-efetiva-col .ll-row {
 	margin-bottom: 0;
+}
+
+/* Controles do modal preenchem a coluna em vez de herdar a largura intrínseca do conteúdo:
+   um <select> com opção longa (nome de cliente) inflava o grid e estourava o modal no
+   celular. min-width:0 permite encolher abaixo do min-content do conteúdo. */
+.ll-modal .ll-field input,
+.ll-modal .ll-field select,
+.ll-modal .ll-field textarea {
+	width: 100%;
+	min-width: 0;
+	box-sizing: border-box;
 }
 
 .ll-col-titulo {

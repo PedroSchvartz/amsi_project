@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 
 // Os quatro eventos do lançamento que carregam ator + carimbo de servidor.
 // `ordem` é o desempate: quando o admin efetiva, o backend carimba data_efetivacao e
@@ -83,10 +83,12 @@ export const ultimaInteracao = (l) => {
 //
 // zIndex abaixo do PerfilCompletoPopup (10001), que abre POR CIMA deste, e acima da
 // modal de Editar/Efetivar (1000), sobre a qual este abre.
-// Quanto tempo o "Confirmar" precisa ficar segurado antes de disparar. Reverter apaga
-// carimbos e some com a data de pagamento — segurar evita o clique acidental sem prender
-// o usuário num modal de confirmação.
-const HOLD_MS = 1000;
+// Reverter apaga carimbos e some com a data de pagamento. Em vez de segurar (que confundiu
+// o usuário no celular), o botão age em dois cliques: o 1º arma — o rótulo vira "Confirmar" —
+// e o 2º executa. Esta janela mínima entre armar e confirmar descarta o clique-duplo reflexo,
+// que senão armaria e confirmaria de uma vez; é a proteção anti-clique-acidental que antes
+// vinha do hold.
+const MIN_CONFIRMAR_MS = 350;
 
 function TimelineLancamentoModal({ lancamento, onFechar, onAbrirPerfil, podeReverter, onReverter }) {
 	const eventos = eventosDoLancamento(lancamento);
@@ -100,50 +102,20 @@ function TimelineLancamentoModal({ lancamento, onFechar, onAbrirPerfil, podeReve
 	const mostrarReverter = !!podeReverter && !!alvoRevert;
 	const rotuloDestino = alvoRevert === 'em_analise' ? 'Em análise' : 'Aberto';
 
-	// "Voltar" arma a ação; "Confirmar" só fica ativo (e segurável) enquanto armado.
+	// Dois cliques no mesmo botão: o 1º arma (o rótulo vira "Confirmar"), o 2º executa.
 	const [armado, setArmado] = useState(false);
-	const [progresso, setProgresso] = useState(0); // 0..1, preenchimento do hold
-	const rafRef = useRef(null);
-	const inicioRef = useRef(0);
+	const armadoEmRef = useRef(0);
 
-	const pararRaf = () => {
-		if (rafRef.current) cancelAnimationFrame(rafRef.current);
-		rafRef.current = null;
-	};
-
-	// Limpa o rAF se a modal desmontar no meio de um hold (ex.: revert dispara e a
-	// página fecha a modal).
-	useEffect(() => () => pararRaf(), []);
-
-	const cancelarHold = () => {
-		pararRaf();
-		setProgresso(0);
-	};
-
-	const alternarArmado = () => {
-		setArmado((a) => {
-			if (a) cancelarHold();
-			return !a;
-		});
-	};
-
-	const iniciarHold = () => {
-		if (!armado) return;
-		inicioRef.current = performance.now();
-		pararRaf();
-		const tick = (agora) => {
-			const p = Math.min(1, (agora - inicioRef.current) / HOLD_MS);
-			setProgresso(p);
-			if (p >= 1) {
-				pararRaf();
-				setProgresso(0);
-				setArmado(false);
-				onReverter?.(alvoRevert);
-			} else {
-				rafRef.current = requestAnimationFrame(tick);
-			}
-		};
-		rafRef.current = requestAnimationFrame(tick);
+	const aoClicarReverter = () => {
+		if (!armado) {
+			setArmado(true);
+			armadoEmRef.current = performance.now();
+			return;
+		}
+		// Já armado: confirma — mas ignora o clique-duplo reflexo que acabou de armar.
+		if (performance.now() - armadoEmRef.current < MIN_CONFIRMAR_MS) return;
+		setArmado(false);
+		onReverter?.(alvoRevert);
 	};
 
 	return (
@@ -180,29 +152,16 @@ function TimelineLancamentoModal({ lancamento, onFechar, onAbrirPerfil, podeReve
 				<div className="ll-buttons" style={{ justifyContent: 'space-between' }}>
 					<div className="ll-reverter-grupo">
 						{mostrarReverter && (
-							<>
-								<button
-									type="button"
-									className={`ll-btn-voltar ${armado ? 'is-armado' : ''}`}
-									onClick={alternarArmado}
-									aria-pressed={armado}
-								>
-									<i className="bi bi-arrow-counterclockwise" /> Voltar para {rotuloDestino}
-								</button>
-								<button
-									type="button"
-									className={`ll-btn-confirmar-hold ${armado ? 'is-armado' : ''}`}
-									disabled={!armado}
-									onPointerDown={iniciarHold}
-									onPointerUp={cancelarHold}
-									onPointerLeave={cancelarHold}
-									onPointerCancel={cancelarHold}
-									title={armado ? 'Segure para confirmar a reversão' : 'Selecione "Voltar" primeiro'}
-								>
-									<span>Confirmar</span>
-									<span className="ll-hold-progresso" style={{ width: `${progresso * 100}%` }} />
-								</button>
-							</>
+							<button
+								type="button"
+								className={`ll-btn-voltar ${armado ? 'is-armado' : ''}`}
+								onClick={aoClicarReverter}
+								aria-pressed={armado}
+								title={armado ? 'Clique de novo para confirmar a reversão' : `Reverter para ${rotuloDestino}`}
+							>
+								<i className={`bi ${armado ? 'bi-check-lg' : 'bi-arrow-counterclockwise'}`} />{' '}
+								{armado ? 'Confirmar' : `Voltar para ${rotuloDestino}`}
+							</button>
 						)}
 					</div>
 					<button type="button" className="ll-btn-limpar" onClick={onFechar}>

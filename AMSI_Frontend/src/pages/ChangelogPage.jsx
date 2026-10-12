@@ -8,6 +8,31 @@ import '../styles/changelog.css';
 // primeiro) com a data ISO 'AAAA-MM-DD' e um ponto por commit.
 const DEPLOYS = [
 	{
+		data: '2026-10-12',
+		pontos: [
+			{
+				titulo: 'Desfazer uma etapa do lançamento em dois cliques',
+				detalhe:
+					'No histórico do lançamento, voltar uma etapa (de Pago para Em análise, ou de Em análise ' +
+					'para Aberto) agora é em dois cliques: o primeiro troca o botão para "Confirmar" e o segundo ' +
+					'conclui. Antes era preciso segurar o botão, o que confundia no celular.',
+			},
+			{
+				titulo: 'Campos da edição de lançamento não estouram mais no celular',
+				detalhe:
+					'Na janela de editar lançamento, os campos deixaram de ultrapassar a borda no celular — ' +
+					'tudo cabe dentro da janela e continua legível.',
+			},
+			{
+				titulo: 'Gerar acesso por documento quando já há acesso por e-mail',
+				detalhe:
+					'No cadastro de cliente/fornecedor, o botão "Gerar acesso" passa a criar o acesso pelo ' +
+					'documento (CPF/CNPJ) mesmo quando já existe um usuário vinculado que entra por e-mail. ' +
+					'O bloqueio agora é só quando já há um acesso com aquele mesmo documento.',
+			},
+		],
+	},
+	{
 		data: '2026-10-01',
 		pontos: [
 			{
