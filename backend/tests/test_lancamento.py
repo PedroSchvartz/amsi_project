@@ -856,6 +856,40 @@ def test_resumo_por_tipo_estorno_excluido(client, headers_admin, usuario_base, c
     client.delete(f"/lancamento/{id_estorno}", headers=headers_admin)
 
 
+def test_resumo_por_tipo_estorno_incluido(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base):
+    """Com ?estorno=true, o resumo passa a trazer os estornos aprovados agrupados por tipo."""
+    from datetime import datetime, date
+    hoje = date.today().isoformat()
+    id_tipo = tipo_lancamento_base["id_tipo_conta"]
+
+    r = client.post("/lancamento/", json={
+        "id_usuario_fk_lancamento": usuario_base["id_usuario"],
+        "id_clifor_relacionado_fk": clifor_base["id_clifor"],
+        "id_tipo_conta_fk": id_tipo,
+        "valor": "77.00",
+        "data_vencimento": hoje,
+        "natureza_lancamento": "Credito"
+    }, headers=headers_admin)
+    id_estorno = r.json()["id_lancamento"]
+
+    # Admin no PUT seta estorno=True e já aprova (data_aprovacao) na mesma transição.
+    client.put(f"/lancamento/{id_estorno}", json={
+        "data_pagamento": datetime.now().isoformat(),
+        "valor_pago": "77.00",
+        "estorno": True
+    }, headers=headers_admin)
+
+    # Com estorno=true: o estorno aparece, agrupado no seu tipo.
+    # (O default — estorno excluído — é guardado por test_resumo_por_tipo_estorno_excluido;
+    # aqui não dá pra afirmar ausência no default porque tipo_lancamento_base é session-scoped
+    # e outros testes criam lançamentos não-estorno do mesmo tipo pagos hoje.)
+    r_com = client.get(f"/lancamento/resumo-por-tipo?data_pagamento_de={hoje}&estorno=true", headers=headers_admin)
+    assert r_com.status_code == 200
+    assert id_tipo in {item["id_tipo_conta"] for item in r_com.json()}
+
+    client.delete(f"/lancamento/{id_estorno}", headers=headers_admin)
+
+
 # ================================================
 # FILTROS — COMBINADOS NOVOS
 # ================================================

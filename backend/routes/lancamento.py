@@ -181,9 +181,11 @@ def resumo_por_tipo(
     data_pagamento_de: Optional[date] = None,
     data_pagamento_ate: Optional[date] = None,
     natureza: Optional[str] = None,
+    estorno: Optional[bool] = None,
     db: Session = Depends(get_db),
     _=Depends(get_current_user)
 ):
+    # estorno=None (default) → só não-estornados (receitas/despesas); estorno=True → só estornos.
     q = (
         db.query(
             tipo_conta.id_tipo_conta,
@@ -193,7 +195,10 @@ def resumo_por_tipo(
             func.count(Lancamento.id_lancamento).label("quantidade")
         )
         .join(Lancamento, Lancamento.id_tipo_conta_fk == tipo_conta.id_tipo_conta)
-        .filter(Lancamento.data_aprovacao != None, Lancamento.estorno == False)   # dinheiro: só aprovado
+        .filter(
+            Lancamento.data_aprovacao != None,   # dinheiro: só aprovado
+            Lancamento.estorno == (estorno if estorno is not None else False),
+        )
     )
     if data_pagamento_de is not None:
         q = q.filter(func.date(Lancamento.data_pagamento) >= data_pagamento_de)

@@ -52,6 +52,15 @@
 	gap: 16px;
 }
 
+/* Trio (Receitas/Despesas/Saldo) fica SEMPRE em 3 colunas, até no celular.
+   Dupla classe (0,2,0) vence as media queries de .dash-kpi-grid (0,1,0) sem !important. */
+.dash-kpi-grid.dash-kpi-grid--trio {
+	grid-template-columns: repeat(3, 1fr);
+}
+.dash-kpi-grid--trio .dash-kpi-card {
+	min-width: 0; /* deixa o card encolher dentro da coluna em vez de estourar */
+}
+
 .dash-kpi-card {
 	background: var(--bg-card);
 	border: 1px solid var(--border);
@@ -289,6 +298,18 @@
 	vertical-align: middle;
 }
 
+/* Sem scroll horizontal: a 1ª coluna (Tipo/Nome) absorve a quebra; as demais
+   (Total/Qtd/Status) ficam estreitas e numa linha só. width:1% encolhe a coluna
+   ao conteúdo e sobra toda a largura restante para a primeira. */
+.dash-table td:first-child {
+	word-break: break-word;
+}
+.dash-table th:not(:first-child),
+.dash-table td:not(:first-child) {
+	white-space: nowrap;
+	width: 1%;
+}
+
 .dash-table tbody tr {
 	background: var(--bg-card);
 	transition: background 0.15s ease;
@@ -358,13 +379,6 @@
 	box-shadow: 0 1px 4px var(--shadow);
 }
 
-.dash-periodo__rapido {
-	display: flex;
-	gap: 8px;
-	flex-wrap: wrap;
-	align-items: center;
-}
-
 .dash-periodo__label {
 	font-size: 0.72rem;
 	font-weight: 600;
@@ -431,12 +445,6 @@
 .dash-periodo__sep {
 	font-size: 0.8rem;
 	color: var(--text-muted);
-}
-
-/* ── Ícone reembolso ── */
-.dash-kpi-card__icon--reembolso {
-	background: rgba(139, 92, 246, 0.1);
-	color: #7c3aed;
 }
 
 /* ── KPI card interativo ── */
@@ -536,18 +544,67 @@
 		font-size: 1.4rem;
 	}
 
-	/* Scroll horizontal nas tabelas do dashboard */
-	.dash-section {
-		overflow-x: auto;
+	/* Período no celular: o Pesquisar sobe para a MESMA linha do rótulo, alinhado à
+	   direita; os inputs De–Até descem para a linha de baixo, ocupando a largura toda
+	   e encolhendo (flex + min-width:0) em vez de rolar. Ordem via `order` porque o
+	   botão vem depois dos inputs no DOM (para o desktop). */
+	.dash-periodo__label {
+		order: 0;
+	}
+	.dash-periodo__btn {
+		order: 1;
+		margin-left: auto;
+	}
+	.dash-periodo__livre {
+		order: 2;
+		margin-left: 0;
+		width: 100%;
+		flex-wrap: wrap;
+	}
+	.dash-periodo__input {
+		flex: 1 1 120px;
+		min-width: 0;
 	}
 
+	/* Trio continua 3-em-linha; encolhe para caber sem estourar nem rolar. */
+	.dash-kpi-grid--trio {
+		gap: 8px;
+	}
+	.dash-kpi-grid--trio .dash-kpi-card {
+		padding: 14px 12px;
+		gap: 6px;
+	}
+	.dash-kpi-grid--trio .dash-kpi-card__value {
+		font-size: 1.05rem;
+		word-break: break-word;
+	}
+	.dash-kpi-grid--trio .dash-kpi-card__label {
+		font-size: 0.6rem;
+		letter-spacing: 0.04em;
+	}
+
+	/* Tabelas sem scroll horizontal: a fonte menor + a quebra na 1ª coluna dão conta. */
 	.dash-table {
-		min-width: 500px;
+		font-size: 0.8rem;
+	}
+	.dash-table th,
+	.dash-table td {
+		padding: 8px 8px;
 	}
 }
 
 @media (max-width: 400px) {
 	.dash-kpi-grid {
 		grid-template-columns: 1fr;
+	}
+
+	.dash-kpi-grid--trio .dash-kpi-card {
+		padding: 10px 7px;
+	}
+	.dash-kpi-grid--trio .dash-kpi-card__value {
+		font-size: 0.9rem;
+	}
+	.dash-kpi-grid--trio .dash-kpi-card__label {
+		font-size: 0.55rem;
 	}
 }

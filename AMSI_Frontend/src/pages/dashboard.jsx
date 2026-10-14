@@ -13,10 +13,9 @@ function formatarValor(v) {
 		.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
 
-// ── Períodos rápidos, alinhados a mês-calendário ────────────────────────────
-// A fonte única de verdade do seletor é o par (mesDe, mesAte) — dois <input type="month">.
-// Cada botão apenas PREENCHE esse par; assim o intervalo aplicado fica sempre visível,
-// nunca escondido atrás de um rótulo. `mesParaDia` resolve o mês no 1º/último dia.
+// ── Seletor de período (data de pagamento) ──────────────────────────────────
+// A fonte única de verdade é o par (mesDe, mesAte) — dois <input type="month">.
+// `mesParaDia` resolve o mês no 1º/último dia; o padrão de abertura é o mês corrente.
 function ym(offsetMeses = 0) {
 	const d = new Date();
 	d.setDate(1); // trava no dia 1 antes de deslocar, senão 31→mês seguinte
@@ -24,14 +23,7 @@ function ym(offsetMeses = 0) {
 	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
-const PERIODOS = [
-	{ label: 'Mês atual', de: () => ym(0), ate: () => ym(0) },
-	{ label: 'Último mês', de: () => ym(-1), ate: () => ym(-1) },
-	{ label: 'Últimos 6 meses', de: () => ym(-5), ate: () => ym(0) },
-	{ label: 'Ano atual', de: () => `${new Date().getFullYear()}-01`, ate: () => ym(0) },
-	{ label: 'Desde sempre', de: () => '', ate: () => '' }
-];
-const PERIODO_PADRAO = 0; // Mês atual (mês-calendário corrente)
+const MES_PADRAO = () => ym(0); // mês-calendário corrente (De = Até)
 
 function mesParaDia(mesAno, fim = false) {
 	if (!mesAno) return undefined;
@@ -81,12 +73,6 @@ const KPI_INFO = {
 		descricao:
 			'Resultado líquido do período: Total Receitas menos Total Despesas, considerando apenas lançamentos aprovados. Positivo indica superávit (entrou mais do que saiu); negativo, déficit. Ignora estornos e tudo que ainda não foi aprovado.'
 	},
-	reembolsos: {
-		tooltip: 'Estornos aprovados no período (natureza inversa).',
-		titulo: 'Estornos / Reembolsos',
-		descricao:
-			'Soma dos lançamentos marcados como estorno já aprovados no período, respeitando a natureza inversa: Crédito subtrai (devolução ao associado) e Débito soma (ressarcimento recebido). Ex.: reembolso de mensalidade (Crédito) = −100,00; reembolso de energia (Débito) = +50,00.'
-	},
 	a_receber: {
 		tooltip: 'Créditos em aberto, ainda não efetivados.',
 		titulo: 'A Receber',
@@ -121,7 +107,6 @@ const KPI_FILTROS = {
 	receita_recebida: { natureza: 'Credito', apenas_quitados: 'true', estorno: 'false', usarData: true },
 	despesa_paga:     { natureza: 'Debito',  apenas_quitados: 'true', estorno: 'false', usarData: true },
 	saldo_periodo:    { natureza: '',        apenas_quitados: 'true', estorno: 'false', usarData: true },
-	reembolsos:       { natureza: '',        apenas_quitados: 'true', estorno: 'true',  usarData: true },
 	a_receber:        { natureza: 'Credito', apenas_abertos: 'true',    estorno: 'false', usarData: false },
 	a_pagar:          { natureza: 'Debito',  apenas_abertos: 'true',    estorno: 'false', usarData: false },
 	em_analise:       { natureza: '',        apenas_em_analise: 'true', estorno: 'false', usarData: false },
@@ -247,14 +232,15 @@ function Dashboard() {
 	const [resumo, setResumo] = useState(null);
 	const [porTipoDespesa, setPorTipoDespesa] = useState([]);
 	const [porTipoReceita, setPorTipoReceita] = useState([]);
+	const [porTipoEstorno, setPorTipoEstorno] = useState([]); // só Admin/Operador
 	const [inadimplentes, setInadimplentes] = useState([]);
 	const [carregando, setCarregando] = useState(false);
 	const [erro, setErro] = useState('');
 	const [populado, setPopulado] = useState(false); // true após a 1ª busca
 
 	// Seleção do período (rascunho) — dois inputs de mês, fonte única de verdade.
-	const [mesDe, setMesDe] = useState(PERIODOS[PERIODO_PADRAO].de());
-	const [mesAte, setMesAte] = useState(PERIODOS[PERIODO_PADRAO].ate());
+	const [mesDe, setMesDe] = useState(MES_PADRAO());
+	const [mesAte, setMesAte] = useState(MES_PADRAO());
 	// Range efetivamente carregado (dias) — usado pelo cabeçalho e pelo "Discriminar".
 	const [aplicado, setAplicado] = useState({ data_pagamento_de: undefined, data_pagamento_ate: undefined });
 	const [pendente, setPendente] = useState(false);
@@ -264,21 +250,28 @@ function Dashboard() {
 		setCarregando(true);
 		setErro('');
 		try {
-			const [res, despesas, receitas, clifors] = await Promise.all([
+			// Estornos só interessam a Admin/Operador — Consulta não vê a lista nem dispara a busca.
+			const buscaEstorno = isConsulta()
+				? Promise.resolve([])
+				: getResumoPorTipo({ ...params, estorno: true });
+			const [res, despesas, receitas, clifors, estornos] = await Promise.all([
 				getLancamentosResumo(params),
 				getResumoPorTipo({ ...params, natureza: 'Debito' }),
 				getResumoPorTipo({ ...params, natureza: 'Credito' }),
-				getClifors({ inadimplente: true })
+				getClifors({ inadimplente: true }),
+				buscaEstorno
 			]);
 			setResumo(res);
 			setPorTipoDespesa(despesas);
 			setPorTipoReceita(receitas);
+			setPorTipoEstorno(estornos);
 			setInadimplentes(clifors);
 			setPopulado(true);
 			setCache('dashboard', {
 				resumo: res,
 				porTipoDespesa: despesas,
 				porTipoReceita: receitas,
+				porTipoEstorno: estornos,
 				inadimplentes: clifors,
 				...meta
 			});
@@ -299,6 +292,7 @@ function Dashboard() {
 			setResumo(cache.resumo);
 			setPorTipoDespesa(cache.porTipoDespesa);
 			setPorTipoReceita(cache.porTipoReceita);
+			setPorTipoEstorno(cache.porTipoEstorno || []);
 			setInadimplentes(cache.inadimplentes);
 			setAplicado(cache.aplicado);
 			setMesDe(cache.mesDe);
@@ -316,16 +310,6 @@ function Dashboard() {
 		carregarDados(params, { aplicado: aplicadoNovo, mesDe, mesAte });
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
-
-	// Qual botão rápido corresponde à seleção atual (para destacá-lo). null = intervalo livre.
-	const periodoAtivo = PERIODOS.findIndex((p) => p.de() === mesDe && p.ate() === mesAte);
-
-	const handlePeriodoRapido = (idx) => {
-		const p = PERIODOS[idx];
-		setMesDe(p.de());
-		setMesAte(p.ate());
-		setPendente(true);
-	};
 
 	const handleDataChange = (campo, valor) => {
 		if (campo === 'de') setMesDe(valor);
@@ -373,18 +357,7 @@ function Dashboard() {
 			</div>
 
 			<div className="dash-periodo">
-				<div className="dash-periodo__rapido">
-					<span className="dash-periodo__label">Período (data de pagamento)</span>
-					{PERIODOS.map((p, i) => (
-						<button
-							key={i}
-							className={`dash-periodo__btn${periodoAtivo === i ? ' dash-periodo__btn--ativo' : ''}`}
-							onClick={() => handlePeriodoRapido(i)}
-						>
-							{p.label}
-						</button>
-					))}
-				</div>
+				<span className="dash-periodo__label">Período (data de pagamento)</span>
 				<div className="dash-periodo__livre">
 					<input
 						type="month"
@@ -401,14 +374,14 @@ function Dashboard() {
 						className="dash-periodo__input"
 						aria-label="Mês final"
 					/>
-					<button
-						onClick={aplicar}
-						className={`dash-periodo__btn${botaoPendente ? ' dash-periodo__btn--pendente' : ' dash-periodo__btn--ativo'}`}
-						title="Aplicar filtros"
-					>
-						{rotuloAplicar}
-					</button>
 				</div>
+				<button
+					onClick={aplicar}
+					className={`dash-periodo__btn${botaoPendente ? ' dash-periodo__btn--pendente' : ' dash-periodo__btn--ativo'}`}
+					title="Aplicar filtros"
+				>
+					{rotuloAplicar}
+				</button>
 			</div>
 
 			{erro && (
@@ -437,7 +410,7 @@ function Dashboard() {
 								<i className="bi bi-calendar3" /> {faixaTexto(aplicado.data_pagamento_de, aplicado.data_pagamento_ate)}
 							</span>
 						</div>
-						<div className="dash-kpi-grid">
+						<div className="dash-kpi-grid dash-kpi-grid--trio">
 							<KpiCard
 								infoKey="receita_recebida"
 								icon="bi-arrow-down-circle"
@@ -468,14 +441,6 @@ function Dashboard() {
 										: 'dash-kpi-card__value--negativo'
 								}
 								onDiscriminar={isConsulta() ? undefined : () => discriminar('saldo_periodo')}
-							/>
-							<KpiCard
-								infoKey="reembolsos"
-								icon="bi-arrow-left-right"
-								iconClass="dash-kpi-card__icon--reembolso"
-								label="Estornos / Reembolsos"
-								value={formatarValor(resumo?.total_reembolsado)}
-								onDiscriminar={isConsulta() ? undefined : () => discriminar('reembolsos')}
 							/>
 						</div>
 
@@ -612,6 +577,46 @@ function Dashboard() {
 								sub="aguardando aprovação"
 								onDiscriminar={() => discriminar('em_analise')}
 							/>
+						</div>
+
+						{/* ── Estornos / Reembolsos (lista por tipo; filtrada pelo período De–Até). ── */}
+						<div className="dash-section">
+							<div className="dash-section__header">
+								<h2 className="dash-section__title">
+									<i className="bi bi-arrow-left-right me-2" style={{ color: 'var(--primary)' }} />
+									Estornos / Reembolsos
+								</h2>
+								{porTipoEstorno.length > 0 && (
+									<span className="dash-section__badge">{porTipoEstorno.length}</span>
+								)}
+							</div>
+							{porTipoEstorno.length === 0 ? (
+								<p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', margin: 0 }}>
+									<i className="bi bi-check-circle me-2" style={{ color: '#16a34a' }} />
+									Nenhum estorno no período.
+								</p>
+							) : (
+								<table className="dash-table">
+									<thead>
+										<tr>
+											<th>Tipo</th>
+											<th>Total</th>
+											<th>Qtd</th>
+										</tr>
+									</thead>
+									<tbody>
+										{porTipoEstorno.map((t) => (
+											<tr key={t.id_tipo_conta}>
+												<td style={{ fontWeight: 500 }}>{t.descricao_conta}</td>
+												<td style={{ fontWeight: 600 }}>{formatarValor(t.total)}</td>
+												<td style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+													{t.quantidade}
+												</td>
+											</tr>
+										))}
+									</tbody>
+								</table>
+							)}
 						</div>
 
 						{/* ── Inadimplentes ── */}

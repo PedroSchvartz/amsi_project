@@ -1984,6 +1984,10 @@
     local: query
     obrigatorio: false
     tipo: desconhecido
+  - nome: estorno
+    local: query
+    obrigatorio: false
+    tipo: boolean
   request_body: null
   response_200:
     id_tipo_conta:

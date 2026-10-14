@@ -8,6 +8,32 @@ import '../styles/changelog.css';
 // primeiro) com a data ISO 'AAAA-MM-DD' e um ponto por commit.
 const DEPLOYS = [
 	{
+		data: '2026-10-14',
+		pontos: [
+			{
+				titulo: 'Painel mais limpo e sem rolar de lado no celular',
+				detalhe:
+					'O painel foi reorganizado para caber na tela do celular sem rolagem horizontal. Os totais de ' +
+					'Receitas, Despesas e Saldo do período ficam sempre lado a lado, e as listas quebram em linhas ' +
+					'em vez de esticar para o lado.',
+			},
+			{
+				titulo: 'Filtro de período em uma linha',
+				detalhe:
+					'O seletor de período ficou mais enxuto: um único campo De–Até com o botão Pesquisar. Os atalhos ' +
+					'de período (mês atual, último mês, etc.) foram removidos. No celular o botão Pesquisar fica na ' +
+					'linha do título e os campos de data descem logo abaixo.',
+			},
+			{
+				titulo: 'Estornos / Reembolsos viram lista na Posição atual',
+				detalhe:
+					'A informação de estornos/reembolsos deixou de ser um cartão de total e passou a ser uma lista ' +
+					'por tipo (como Receitas e Despesas), agora dentro do bloco "Posição atual". Continua visível ' +
+					'apenas para a equipe (Administrador e Operador).',
+			},
+		],
+	},
+	{
 		data: '2026-10-12',
 		pontos: [
 			{

@@ -698,6 +698,7 @@ export const getResumoPorTipo = async (filtros = {}) => {
 	if (filtros.data_pagamento_de) params.append('data_pagamento_de', filtros.data_pagamento_de);
 	if (filtros.data_pagamento_ate) params.append('data_pagamento_ate', filtros.data_pagamento_ate);
 	if (filtros.natureza) params.append('natureza', filtros.natureza);
+	if (filtros.estorno != null) params.append('estorno', filtros.estorno);
 	const query = params.toString() ? `?${params.toString()}` : '';
 	const response = await fetchComLoading(`${BASE_URL}/lancamento/resumo-por-tipo${query}`, {
 		method: 'GET',
