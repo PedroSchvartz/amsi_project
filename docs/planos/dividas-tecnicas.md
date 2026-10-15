@@ -170,6 +170,38 @@ mudou quando o lazy-load + Pesquisar subiu. Ao puxar o 3.11, adotar **este** con
 
 ---
 
+## 2026-10-15 — Consulta no mobile: tabela densa (entregue)
+
+> ✅ Continuação do redesign mobile-first (commit `a81f637`, já no ar). Entregue e
+> verificado em 2026-10-15 (Consulta real a 375px, 153/153, build limpo); **não commitado
+> ao ar ainda — deploy é sob demanda**. Só visualização: desktop e Admin/Operador intactos.
+
+- **Consulta — lista enxuta** — ao abrir, pesquisa sozinho e some o card de filtros; a
+  tabela cai para 5 colunas (sem "Nome / Razão Social", "Natureza" e "Vl. Pagamento"), com
+  o alinhamento corrigido para essa nova ordem via classe `.ll-table--consulta` (commit
+  `3cf5da8`).
+- **Consulta no celular — sem scroll horizontal** — a tabela de 5 colunas passa a caber nos
+  ~327px úteis (mesmo idioma de encolhimento do dashboard: `font-size`/`padding` menores +
+  cabeçalho que quebra); `scrollWidth == clientWidth` (commit `3cf5da8`). Admin/Operador
+  (9 colunas) **seguem rolando** no celular — demanda à parte (ver seção de pendências).
+- **Status em bolinha + legenda** — no mobile a coluna Status vira uma bolinha na cor do
+  status, cabeçalho "S", e uma legenda cor→nome fica na mesma linha do título "TRANSAÇÕES
+  (N)", alinhada à direita (só dos status presentes no resultado). `SituacaoBadge` passa a
+  exportar `CLASSE_SITUACAO` (fonte única do mapa) e ganha `title={situacao}` para a bolinha
+  não ser "só cor" (commit `3cf5da8`).
+- **Datas e Tipo de Conta compactos** — no mobile, Vencimento/Pagamento viram `dd/mm/aa` e
+  o Tipo de Conta perde o prefixo `"<id> - "`; ambas as formas (longa/curta) ficam no DOM e
+  o `@media` escolhe — reversível ao crescer a tela, sem JS de resize (commit `3cf5da8`).
+- **Dashboard — rótulos** — KPIs renomeados ("Receitas/Despesas/Saldo do Período" →
+  "Receitas/Despesas/Saldo") em cards, popup e tooltips; removido o título "No período" e
+  encurtado o subtítulo (commit `3cf5da8`).
+- **Teste** — `ListaLancamentosPage.consulta.test.jsx` cobre o perfil Consulta (busca
+  automática, colunas escondidas, variantes curtas de data/tipo, "S" e legenda); como o jsdom
+  não aplica `@media`, as asserções olham o **conteúdo** das variantes, não a visibilidade
+  (commit `3cf5da8`).
+
+---
+
 ## Reunião 2026-09-09 — refinamentos de UI/RBAC (entregues)
 
 > ✅ Evoluções pequenas do que já roda, entregues em 2026-09-09 (não commitadas ao
