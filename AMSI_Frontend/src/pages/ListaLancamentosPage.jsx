@@ -1,10 +1,10 @@
-﻿import { useState, useEffect } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import LancamentoModal from '../components/LancamentoModal.jsx';
 import LoteLancamentosModal from '../components/LoteLancamentosModal.jsx';
 import { useSearchParams } from 'react-router-dom';
 import ModalConfirm from '../components/ModalConfirm.jsx';
 import PerfilCompletoPopup from '../components/PerfilCompletoPopup.jsx';
-import SituacaoBadge from '../components/SituacaoBadge.jsx';
+import SituacaoBadge, { CLASSE_SITUACAO } from '../components/SituacaoBadge.jsx';
 import TimelineLancamentoModal, {
 	ultimaInteracao,
 	formatarCarimbo
@@ -205,6 +205,17 @@ function ListaLancamentosPage() {
 		setFiltros((f) => ({ ...f, id_clifor: id }));
 		setFiltrosAplicados((f) => ({ ...f, id_clifor: id }));
 	}, [meuClifor]);
+
+	// Consulta: a tela pesquisa sozinha ao abrir (não tem card de filtros nem botão
+	// "Pesquisar"). Dispara UMA vez, assim que o vínculo resolve (meuClifor) ou se confirma
+	// que não há clifor vinculado (consultaSemClifor → buscar curto-circuita para vazio).
+	const buscaInicialConsulta = useRef(false);
+	useEffect(() => {
+		if (!isConsulta() || buscaInicialConsulta.current) return;
+		if (meuClifor == null && !consultaSemClifor) return;
+		buscaInicialConsulta.current = true;
+		buscar(meuClifor != null ? { ...FILTROS_INICIAL, id_clifor: String(meuClifor) } : FILTROS_INICIAL);
+	}, [meuClifor, consultaSemClifor]);
 
 	// Dados dos selects de filtro (clifors + tipos de conta). Carrega em silêncio (sem o
 	// overlay de "carregando") e guarda no cache: abrir a tela não deve mostrar loading —
@@ -711,6 +722,17 @@ function ListaLancamentosPage() {
 		return iso.split('T')[0].split('-').reverse().join('/');
 	};
 
+	// Versão curta (mobile Consulta): dd/mm/aa — ano com 2 dígitos.
+	const formatarDataCurta = (iso) => {
+		if (!iso) return '—';
+		const [dia, mes, ano] = formatarData(iso).split('/');
+		return `${dia}/${mes}/${ano.slice(-2)}`;
+	};
+
+	// Remove só o 1º prefixo "<id> - " do início (mobile Consulta). Nome sem o padrão
+	// fica intacto; traços internos do nome (ex.: "...rua - R$ 30,00") são preservados.
+	const stripPrefixoIdTipo = (s) => String(s).replace(/^\s*\S+\s*-\s*/, '');
+
 	const formatarValor = (v) => {
 		if (v == null) return '—';
 		return parseFloat(v).toFixed(2).replace('.', ',');
@@ -808,7 +830,9 @@ function ListaLancamentosPage() {
 	return (
 		<>
 			<div className="ll-container">
-				{/* FILTROS */}
+				{/* FILTROS — ocultos para o perfil Consulta: a tela pesquisa sozinha e não
+				    oferece filtros (vê só os próprios lançamentos). */}
+				{!isConsulta() && (
 				<div className="ll-card">
 					<div
 						style={{
@@ -1173,6 +1197,7 @@ function ListaLancamentosPage() {
 						</div>
 					</form>
 				</div>
+				)}
 
 				{/* TABELA */}
 				<div className="ll-card">
@@ -1206,24 +1231,43 @@ function ListaLancamentosPage() {
 								Exportar
 							</button>
 						)}
+						{isConsulta() && lancamentos.length > 0 && (
+							<div className="ll-legenda-status">
+								{Object.keys(CLASSE_SITUACAO)
+									.filter((s) => lancamentos.some((l) => l.situacao === s))
+									.map((s) => (
+										<span key={s} className="ll-legenda-item">
+											<span className={`badge ${CLASSE_SITUACAO[s]} ll-legenda-dot`} />
+											{s}
+										</span>
+									))}
+							</div>
+						)}
 					</div>
 					<div className="ll-table-wrapper" style={{ marginTop: 12 }}>
-						<table className="ll-table">
+						<table className={`ll-table${isConsulta() ? ' ll-table--consulta' : ''}`}>
 							<thead>
 								<tr>
-									<th data-tooltip="Nome do cliente ou razão social do fornecedor">
-										Nome / Razão Social
-									</th>
+									{!isConsulta() && (
+										<th data-tooltip="Nome do cliente ou razão social do fornecedor">
+											Nome / Razão Social
+										</th>
+									)}
 									<th data-tooltip="Categoria do lançamento">Tipo de Conta</th>
-									<th data-tooltip="Crédito (entrada) ou Débito (saída)">Natureza</th>
+									{!isConsulta() && (
+										<th data-tooltip="Crédito (entrada) ou Débito (saída)">Natureza</th>
+									)}
 									<th data-tooltip="Data limite para pagamento">Vencimento</th>
 									<th data-tooltip="Data em que o pagamento foi efetivado">Pagamento</th>
 									<th data-tooltip="Valor original registrado no lançamento">Vl. Lançamento</th>
-									<th data-tooltip="Total efetivamente pago: valor pago + multa + juros">
-										Vl. Pagamento
-									</th>
+									{!isConsulta() && (
+										<th data-tooltip="Total efetivamente pago: valor pago + multa + juros">
+											Vl. Pagamento
+										</th>
+									)}
 									<th data-tooltip="Situação do lançamento: Pago, Em análise, Em aberto ou Vencido">
-										Status
+										<span className="ll-th-longo">Status</span>
+										<span className="ll-th-curto">S</span>
 									</th>
 									{!isConsulta() && (
 										<th data-tooltip="Ações disponíveis: editar, comprovante, efetivar">Ações</th>
@@ -1233,7 +1277,7 @@ function ListaLancamentosPage() {
 							<tbody>
 								{lancamentos.length === 0 ? (
 									<tr>
-										<td colSpan={isConsulta() ? 8 : 9} className="ll-empty">
+										<td colSpan={isConsulta() ? 5 : 9} className="ll-empty">
 											{populado
 												? 'Nenhum lançamento encontrado'
 												: 'Clique em "Pesquisar" para buscar os lançamentos.'}
@@ -1242,13 +1286,22 @@ function ListaLancamentosPage() {
 								) : (
 									lancamentos.map((l) => (
 										<tr key={l.id_lancamento}>
-											<td>{nomeClifor(l)}</td>
-											<td>{nomeTipo(l)}</td>
-											<td>{l.natureza_lancamento}</td>
-											<td>{formatarData(l.data_vencimento)}</td>
-											<td>{formatarData(l.data_pagamento)}</td>
+											{!isConsulta() && <td>{nomeClifor(l)}</td>}
+											<td>
+												{isConsulta() ? (
+													<>
+														<span className="ll-tipo-longo">{nomeTipo(l)}</span>
+														<span className="ll-tipo-curto">{stripPrefixoIdTipo(nomeTipo(l))}</span>
+													</>
+												) : (
+													nomeTipo(l)
+												)}
+											</td>
+											{!isConsulta() && <td>{l.natureza_lancamento}</td>}
+											<td><span className="ll-data-longa">{formatarData(l.data_vencimento)}</span><span className="ll-data-curta">{formatarDataCurta(l.data_vencimento)}</span></td>
+											<td><span className="ll-data-longa">{formatarData(l.data_pagamento)}</span><span className="ll-data-curta">{formatarDataCurta(l.data_pagamento)}</span></td>
 											<td>{formatarValor(l.valor)}</td>
-											<td>{formatarTotal(l)}</td>
+											{!isConsulta() && <td>{formatarTotal(l)}</td>}
 											<td>{statusLabel(l)}</td>
 											{!isConsulta() && (
 											<td>

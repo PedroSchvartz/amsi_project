@@ -431,6 +431,21 @@
 	text-align: right;
 }
 
+/* Perfil Consulta: 5 colunas (Tipo de Conta, Vencimento, Pagamento, Vl. Lançamento,
+   Status). As regras posicionais acima assumem as 9 colunas do Admin/Operador, então
+   na ordem reduzida a col. 2 (Vencimento) herdava o left do "Tipo de Conta" e a col. 4
+   (Vl. Lançamento) ficava sem o right dos valores. Corrige só para esta variante — mesma
+   especificidade das regras acima, por isso vem DEPOIS. */
+.ll-table--consulta th:nth-child(2),
+.ll-table--consulta td:nth-child(2) {
+	text-align: center;
+}
+
+.ll-table--consulta th:nth-child(4),
+.ll-table--consulta td:nth-child(4) {
+	text-align: right;
+}
+
 .ll-table tbody tr {
 	background: var(--bg-card);
 	transition: background 0.15s ease;
@@ -810,6 +825,45 @@
 	align-self: stretch;
 }
 
+/* ── Variantes compactas da tabela de lançamentos (Consulta) ──
+   Formas curtas escondidas por padrão; a forma longa/original é o default e
+   reaparece sozinha quando a tela cresce (só o @media abaixo as revela). É
+   efeito de visualização — o dado não muda. */
+.ll-th-curto,
+.ll-tipo-curto,
+.ll-data-curta,
+.ll-legenda-status {
+	display: none;
+}
+
+/* Legenda de cores do Status: fica na mesma linha-flex do título "TRANSAÇÕES (N)",
+   empurrada à direita pelo justify-content: space-between do cabeçalho. Só visível no
+   mobile (via @media). Sem margin-bottom — alinha ao centro vertical do título. */
+.ll-legenda-status {
+	flex-wrap: wrap;
+	gap: 8px 16px;
+	align-items: center;
+	font-size: 0.78rem;
+	color: var(--text);
+}
+.ll-legenda-item {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+/* O dot da legenda é um <span> vazio com as classes .badge.badge-* (reusa a cor via var).
+   O Bootstrap carrega depois no bundle e, com especificidade igual, venceria: seu `.badge`
+   (border-radius ~6px, padding) achataria o círculo e seu `.badge:empty { display:none }`
+   (0,2,0) o esconderia. (0,3,0) aqui vence sempre — mesmo idioma do `.badge.badge-*`. */
+.ll-legenda-item .badge.ll-legenda-dot {
+	display: inline-block;
+	width: 12px;
+	height: 12px;
+	min-width: 12px;
+	padding: 0;
+	border-radius: 50%;
+}
+
 @media (max-width: 640px) {
 	.ll-efetiva-layout {
 		grid-template-columns: 1fr;
@@ -818,6 +872,58 @@
 		width: auto;
 		height: 1px;
 		margin: 12px 0;
+	}
+
+	/* Tabela sem scroll horizontal no celular (mesmo idioma do dashboard): fonte e
+	   padding menores + cabeçalho podendo quebrar. Vale para as 5 colunas do Consulta —
+	   o layout de 9 colunas (Admin/Operador) continua rolando, por ora.
+
+	   Os cabeçalhos ("VENCIMENTO", "PAGAMENTO", "VL. LANÇAMENTO") são palavras longas e
+	   com letter-spacing: no celular eram eles — não os dados — que fixavam a largura
+	   mínima das colunas. Daí fonte do th menor ainda, sem spacing e com quebra livre. */
+	.ll-card:has(.ll-table-wrapper) {
+		padding-left: 12px;
+		padding-right: 12px;
+	}
+	.ll-table {
+		font-size: 0.7rem;
+	}
+	.ll-table th,
+	.ll-table td {
+		padding: 7px 4px;
+	}
+	.ll-table th {
+		font-size: 0.58rem;
+		letter-spacing: 0;
+		white-space: normal;
+	}
+
+	/* Mobile + Consulta: Status vira bolinha de cor; datas, Tipo de Conta e o
+	   cabeçalho do Status trocam para a versão curta; a legenda aparece. Tudo
+	   reversível ao crescer a tela (CSS ao vivo), sem tocar nos dados. */
+	.ll-table--consulta .ll-th-longo,
+	.ll-table--consulta .ll-tipo-longo,
+	.ll-table--consulta .ll-data-longa {
+		display: none;
+	}
+	.ll-table--consulta .ll-th-curto,
+	.ll-table--consulta .ll-tipo-curto,
+	.ll-table--consulta .ll-data-curta {
+		display: inline;
+	}
+	.ll-legenda-status {
+		display: flex;
+	}
+	/* Bolinha: a cor (bg + borda) vem das regras .badge.badge-* já existentes. */
+	.ll-table--consulta td .badge {
+		font-size: 0;
+		padding: 0;
+		width: 14px;
+		height: 14px;
+		min-width: 14px;
+		border-radius: 50%;
+		display: inline-block;
+		vertical-align: middle;
 	}
 }
 

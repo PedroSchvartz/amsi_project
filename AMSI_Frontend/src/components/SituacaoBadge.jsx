@@ -7,7 +7,9 @@
  * e no LoteLancamentosModal, e as duas cópias precisavam aprender qualquer mudança
  * em sincronia.
  */
-const CLASSE_SITUACAO = {
+// Exportado: a legenda de cores (mobile) reusa este mapa como fonte única.
+// A ordem das chaves é a de prioridade e serve para ordenar a legenda.
+export const CLASSE_SITUACAO = {
 	'Estorno': 'badge-estorno',
 	'Pago': 'badge-pago',
 	'Em análise': 'badge-analise',
@@ -16,7 +18,13 @@ const CLASSE_SITUACAO = {
 };
 
 function SituacaoBadge({ situacao }) {
-	return <span className={`badge ${CLASSE_SITUACAO[situacao] || 'badge-aberto'}`}>{situacao}</span>;
+	// title: no mobile o badge vira só uma bolinha de cor (CSS) — o title nomeia o
+	// status para não ficar "só cor" (acessibilidade). Inofensivo no desktop.
+	return (
+		<span className={`badge ${CLASSE_SITUACAO[situacao] || 'badge-aberto'}`} title={situacao}>
+			{situacao}
+		</span>
+	);
 }
 
 export default SituacaoBadge;

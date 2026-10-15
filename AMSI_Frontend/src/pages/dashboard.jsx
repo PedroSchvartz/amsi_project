@@ -57,21 +57,21 @@ function faixaTexto(de, ate) {
 const KPI_INFO = {
 	receita_recebida: {
 		tooltip: 'Créditos aprovados cujo pagamento caiu no período.',
-		titulo: 'Total Receitas',
+		titulo: 'Receitas',
 		descricao:
 			'Soma dos lançamentos de natureza Crédito já APROVADOS pelo administrador, com pagamento dentro do período selecionado (recorte pela data de pagamento). Só o que o admin aprovou conta como caixa — lançamentos ainda "Em análise" não entram aqui. Estornos/reembolsos são contabilizados à parte.'
 	},
 	despesa_paga: {
 		tooltip: 'Débitos aprovados cujo pagamento caiu no período.',
-		titulo: 'Total Despesas',
+		titulo: 'Despesas',
 		descricao:
 			'Soma dos lançamentos de natureza Débito já APROVADOS pelo administrador, com pagamento dentro do período selecionado. Só o que foi aprovado conta como saída de caixa — lançamentos "Em análise" não entram. Estornos/reembolsos são contabilizados à parte.'
 	},
 	saldo_periodo: {
-		tooltip: 'Total Receitas menos Total Despesas no período.',
-		titulo: 'Saldo do Período',
+		tooltip: 'Receitas menos Despesas no período.',
+		titulo: 'Saldo',
 		descricao:
-			'Resultado líquido do período: Total Receitas menos Total Despesas, considerando apenas lançamentos aprovados. Positivo indica superávit (entrou mais do que saiu); negativo, déficit. Ignora estornos e tudo que ainda não foi aprovado.'
+			'Resultado líquido do período: Receitas menos Despesas, considerando apenas lançamentos aprovados. Positivo indica superávit (entrou mais do que saiu); negativo, déficit. Ignora estornos e tudo que ainda não foi aprovado.'
 	},
 	a_receber: {
 		tooltip: 'Créditos em aberto, ainda não efetivados.',
@@ -352,7 +352,7 @@ function Dashboard() {
 			<div className="dash-header">
 				<div>
 					<h1 className="dash-header__title">Dashboard</h1>
-					<p className="dash-header__subtitle">Visão geral financeira da associação</p>
+					<p className="dash-header__subtitle">Visão geral financeira</p>
 				</div>
 			</div>
 
@@ -402,10 +402,9 @@ function Dashboard() {
 				</div>
 			) : (
 				<>
-					{/* ── No período (dinheiro realizado = aprovado) ── */}
+					{/* ── Primeira seção (dinheiro realizado = aprovado) — sem título na tela ── */}
 					<section className="dash-bloco">
 						<div className="dash-bloco__head">
-							<h2 className="dash-bloco__titulo">No período</h2>
 							<span className="dash-bloco__faixa">
 								<i className="bi bi-calendar3" /> {faixaTexto(aplicado.data_pagamento_de, aplicado.data_pagamento_ate)}
 							</span>
@@ -415,7 +414,7 @@ function Dashboard() {
 								infoKey="receita_recebida"
 								icon="bi-arrow-down-circle"
 								iconClass="dash-kpi-card__icon--receita"
-								label="Total Receitas"
+								label="Receitas"
 								value={formatarValor(resumo?.total_recebido)}
 								valueClass="dash-kpi-card__value--positivo"
 								onDiscriminar={isConsulta() ? undefined : () => discriminar('receita_recebida')}
@@ -424,7 +423,7 @@ function Dashboard() {
 								infoKey="despesa_paga"
 								icon="bi-arrow-up-circle"
 								iconClass="dash-kpi-card__icon--despesa"
-								label="Total Despesas"
+								label="Despesas"
 								value={formatarValor(resumo?.total_pago)}
 								valueClass="dash-kpi-card__value--negativo"
 								onDiscriminar={isConsulta() ? undefined : () => discriminar('despesa_paga')}
@@ -433,7 +432,7 @@ function Dashboard() {
 								infoKey="saldo_periodo"
 								icon="bi-wallet2"
 								iconClass="dash-kpi-card__icon--saldo"
-								label="Saldo do Período"
+								label="Saldo"
 								value={formatarValor(resumo?.saldo_total)}
 								valueClass={
 									parseFloat(resumo?.saldo_total ?? 0) >= 0
@@ -531,7 +530,7 @@ function Dashboard() {
 					</section>
 
 					{/* ── Posição atual (fotografia de hoje; independe do período) —
-					     oculta para o perfil Consulta (só vê o bloco "No período"). ── */}
+					     oculta para o perfil Consulta (só vê a primeira seção). ── */}
 					{!isConsulta() && (
 					<section className="dash-bloco">
 						<div className="dash-bloco__head">
