@@ -42,25 +42,27 @@
   /* Badges de situação do lançamento (Aberto → Em análise → Pago; + Vencido/Estorno).
      Trio bg/fg/border por situação: o tema escolhe as cores, o CSS do badge só
      as consome — antes cada badge era declarado duas vezes, uma por tema. */
-  --badge-aberto-bg:      #86efac;
-  --badge-aberto-fg:      #14532d;
-  --badge-aberto-border:  #22c55e;
+  /* Cores por status (decisão 2026-10-20): Pago=verde, Em análise=amarelo,
+     Vencido=vermelho, Aberto=azul, Estorno=cinza (só da equipe). */
+  --badge-aberto-bg:      #bfdbfe;
+  --badge-aberto-fg:      #1e3a8a;
+  --badge-aberto-border:  #60a5fa;
 
-  --badge-analise-bg:     #fed7aa;
-  --badge-analise-fg:     #9a3412;
-  --badge-analise-border: #fb923c;
+  --badge-analise-bg:     #fef08a;
+  --badge-analise-fg:     #713f12;
+  --badge-analise-border: #eab308;
 
-  --badge-pago-bg:        #bfdbfe;
-  --badge-pago-fg:        #1e3a8a;
-  --badge-pago-border:    #60a5fa;
+  --badge-pago-bg:        #86efac;
+  --badge-pago-fg:        #14532d;
+  --badge-pago-border:    #22c55e;
 
   --badge-vencido-bg:     #fca5a5;
   --badge-vencido-fg:     #7f1d1d;
   --badge-vencido-border: #ef4444;
 
-  --badge-estorno-bg:     #fde68a;
-  --badge-estorno-fg:     #78350f;
-  --badge-estorno-border: #fbbf24;
+  --badge-estorno-bg:     #e5e7eb;
+  --badge-estorno-fg:     #374151;
+  --badge-estorno-border: #9ca3af;
 }
 
 /* ════════════════════════════════════════
