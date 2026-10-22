@@ -70,6 +70,7 @@ class ClienteFornecedorCreate(BaseModel):
     inadimplente: bool = False
     bloqueado: bool = False
     associado: bool = False
+    observacao: Optional[str] = None
     enderecos: Optional[List[EnderecoInline]] = None
     contatos: Optional[List[ContatoInline]] = None
 
@@ -89,6 +90,7 @@ class ClienteFornecedorUpdate(BaseModel):
     inadimplente: Optional[bool] = None
     bloqueado: Optional[bool] = None
     associado: Optional[bool] = None
+    observacao: Optional[str] = None
     enderecos: Optional[List[EnderecoInline]] = None
     contatos: Optional[List[ContatoInline]] = None
 
@@ -109,6 +111,7 @@ class ClienteFornecedorResponse(BaseModel):
     inadimplente: bool
     bloqueado: bool
     associado: bool
+    observacao: Optional[str] = None
     enderecos: List[EnderecoInlineResponse] = []
     contatos: List[ContatoInlineResponse] = []
     # Lê a property usuarios_vinculados (já filtra soft-deletados); sai no JSON como "usuarios".

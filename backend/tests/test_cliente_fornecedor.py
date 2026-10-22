@@ -395,6 +395,52 @@ def test_atualizar_clifor_nome_usual_e_lote(client, headers_admin, clifor):
 
 
 # ================================================
+# OBSERVAÇÃO (anotação interna livre, TEXT opcional)
+# ================================================
+
+def test_criar_clifor_com_observacao(client, headers_admin, usuario_base):
+    r = client.post("/cliente_fornecedor/", json={
+        "pessoafisica_juridica": True,
+        "cpf_cnpj": "151.515.151-51",
+        "rg_inscricaoestadual": "1515151",
+        "nome": "CliFor Com Observacao",
+        "observacao": "Mora nos fundos; cobrar sempre no dia 5.",
+        "datanascimento": "1970-02-02",
+        "tipo_clifor": "C",
+    }, headers=headers_admin)
+    assert r.status_code == 200
+    data = r.json()
+    assert data["observacao"] == "Mora nos fundos; cobrar sempre no dia 5."
+    client.delete(f"/cliente_fornecedor/{data['id_clifor']}", headers=headers_admin)
+
+
+def test_criar_clifor_sem_observacao_fica_none(client, headers_admin, usuario_base):
+    r = client.post("/cliente_fornecedor/", json={
+        "pessoafisica_juridica": True,
+        "cpf_cnpj": "161.616.161-61",
+        "rg_inscricaoestadual": "1616161",
+        "nome": "CliFor Sem Observacao",
+        "datanascimento": "1970-02-02",
+        "tipo_clifor": "C",
+    }, headers=headers_admin)
+    assert r.status_code == 200
+    data = r.json()
+    assert data["observacao"] is None
+    client.delete(f"/cliente_fornecedor/{data['id_clifor']}", headers=headers_admin)
+
+
+def test_atualizar_clifor_observacao(client, headers_admin, clifor):
+    r = client.put(f"/cliente_fornecedor/{clifor['id_clifor']}",
+                   json={"observacao": "Anotação adicionada na edição."},
+                   headers=headers_admin)
+    assert r.status_code == 200
+    assert r.json()["observacao"] == "Anotação adicionada na edição."
+
+    r2 = client.get(f"/cliente_fornecedor/{clifor['id_clifor']}", headers=headers_admin)
+    assert r2.json()["observacao"] == "Anotação adicionada na edição."
+
+
+# ================================================
 # FILTROS — ISOLADOS
 # ================================================
 

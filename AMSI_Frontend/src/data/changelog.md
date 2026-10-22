@@ -13,6 +13,17 @@
   Não precisa mexer em código para publicar um novo deploy: basta editar este arquivo.
 -->
 
+## 2026-10-22
+
+### Painel de quem só consulta: basta escolher o mês
+No painel de quem acessa apenas para consulta, o filtro de período deixou de pedir início e fim. Agora é um único seletor de mês: o sistema mostra do primeiro ao último dia do mês escolhido. Para a equipe (Administrador e Operador), o filtro De–Até continua igual.
+
+### Receitas antes de Despesas no painel
+As duas listas por tipo na parte de baixo do painel trocaram de lado para seguir a ordem dos totais do topo: Receitas à esquerda, Despesas à direita.
+
+### Campo de observação no cadastro de cliente/fornecedor
+O cadastro e a edição de cliente/fornecedor ganharam um campo "Observação" para anotações livres. O texto fica guardado no cadastro e aparece somente nessa tela.
+
 ## 2026-10-14
 
 ### Painel mais limpo e sem rolar de lado no celular

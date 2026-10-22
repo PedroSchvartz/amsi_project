@@ -29,6 +29,7 @@ const FORM_INICIAL = {
 	nome_usual: '',
 	lote: '',
 	datanascimento: '',
+	observacao: '',
 	ativo: true,
 	bloqueado: false,
 	associado: false
@@ -289,6 +290,7 @@ function ClientRegister() {
 			nome_usual: form.nome_usual.trim() || null,
 			lote: form.lote.trim() || null,
 			datanascimento: form.datanascimento || null,
+			observacao: form.observacao.trim() || null,
 			ativo: form.ativo,
 			bloqueado: form.bloqueado,
 			associado: form.associado,
@@ -529,6 +531,16 @@ function ClientRegister() {
 									className="form-control"
 									name="datanascimento"
 									value={form.datanascimento}
+									onChange={handleChange}
+								/>
+							</div>
+							<div className="col-12">
+								<label className="form-label">Observação</label>
+								<textarea
+									className="form-control"
+									name="observacao"
+									rows={3}
+									value={form.observacao}
 									onChange={handleChange}
 								/>
 							</div>

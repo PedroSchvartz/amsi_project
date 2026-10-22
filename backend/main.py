@@ -84,6 +84,17 @@ def _aplicar_migracoes():
                 ))
                 conn.commit()
 
+        # Migration: coluna 'observacao' (anotacao interna livre do clifor).
+        # Mesmo motivo das anteriores: o model a declara, mas create_all nao altera
+        # tabela existente → sem este ALTER o SELECT quebra em producao com
+        # UndefinedColumn. TEXT nullable sem default (mesmo padrao de tipo_conta).
+        if "observacao" not in cols:
+            with engine.connect() as conn:
+                conn.execute(text(
+                    "ALTER TABLE clientefornecedor ADD COLUMN observacao TEXT"
+                ))
+                conn.commit()
+
     # Migration: índices nas FKs de endereco/contato (id_clifor_fk).
     # Postgres não indexa FK automaticamente; a listagem de clifor faz selectinload
     # dessas duas coleções (WHERE id_clifor_fk IN (...)), então sem índice é seq scan.

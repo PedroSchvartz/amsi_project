@@ -317,6 +317,13 @@ function Dashboard() {
 		setPendente(true);
 	};
 
+	// Consulta: seletor de mês único → de e até recebem o mesmo mês (dia 1 ao último).
+	const handleMesUnico = (valor) => {
+		setMesDe(valor);
+		setMesAte(valor);
+		setPendente(true);
+	};
+
 	const aplicar = () => {
 		const params = computarParams(mesDe, mesAte);
 		const aplicadoNovo = {
@@ -357,23 +364,39 @@ function Dashboard() {
 			</div>
 
 			<div className="dash-periodo">
-				<span className="dash-periodo__label">Período (data de pagamento)</span>
+				<span className="dash-periodo__label">
+					{isConsulta() ? 'Mês de referência' : 'Período (data de pagamento)'}
+				</span>
 				<div className="dash-periodo__livre">
-					<input
-						type="month"
-						value={mesDe}
-						onChange={(e) => handleDataChange('de', e.target.value)}
-						className="dash-periodo__input"
-						aria-label="Mês inicial"
-					/>
-					<span className="dash-periodo__sep">até</span>
-					<input
-						type="month"
-						value={mesAte}
-						onChange={(e) => handleDataChange('ate', e.target.value)}
-						className="dash-periodo__input"
-						aria-label="Mês final"
-					/>
+					{isConsulta() ? (
+						// Consulta: um único mês. Seta de/até com o mesmo valor → computarParams
+						// gera 1º→último dia daquele mês.
+						<input
+							type="month"
+							value={mesDe}
+							onChange={(e) => handleMesUnico(e.target.value)}
+							className="dash-periodo__input"
+							aria-label="Mês de referência"
+						/>
+					) : (
+						<>
+							<input
+								type="month"
+								value={mesDe}
+								onChange={(e) => handleDataChange('de', e.target.value)}
+								className="dash-periodo__input"
+								aria-label="Mês inicial"
+							/>
+							<span className="dash-periodo__sep">até</span>
+							<input
+								type="month"
+								value={mesAte}
+								onChange={(e) => handleDataChange('ate', e.target.value)}
+								className="dash-periodo__input"
+								aria-label="Mês final"
+							/>
+						</>
+					)}
 				</div>
 				<button
 					onClick={aplicar}
@@ -448,47 +471,6 @@ function Dashboard() {
 							<div className="dash-section">
 								<div className="dash-section__header">
 									<h2 className="dash-section__title">
-										<i className="bi bi-arrow-up-circle me-2" style={{ color: '#b91c1c' }} />
-										Despesas
-									</h2>
-									{porTipoDespesa.length > 0 && (
-										<span className="dash-section__badge">{porTipoDespesa.length}</span>
-									)}
-								</div>
-								{porTipoDespesa.length === 0 ? (
-									<p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', margin: 0 }}>
-										<i className="bi bi-check-circle me-2" style={{ color: '#16a34a' }} />
-										Nenhuma despesa no período.
-									</p>
-								) : (
-									<div className="dash-table-scroll">
-									<table className="dash-table">
-										<thead>
-											<tr>
-												<th>Tipo</th>
-												<th>Total</th>
-												<th>Qtd</th>
-											</tr>
-										</thead>
-										<tbody>
-											{porTipoDespesa.map((t) => (
-												<tr key={t.id_tipo_conta}>
-													<td style={{ fontWeight: 500 }}>{t.descricao_conta}</td>
-													<td className="dash-valor--negativo">{formatarValor(t.total)}</td>
-													<td style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-														{t.quantidade}
-													</td>
-												</tr>
-											))}
-										</tbody>
-									</table>
-									</div>
-								)}
-							</div>
-
-							<div className="dash-section">
-								<div className="dash-section__header">
-									<h2 className="dash-section__title">
 										<i className="bi bi-arrow-down-circle me-2" style={{ color: '#16a34a' }} />
 										Receitas
 									</h2>
@@ -516,6 +498,47 @@ function Dashboard() {
 												<tr key={t.id_tipo_conta}>
 													<td style={{ fontWeight: 500 }}>{t.descricao_conta}</td>
 													<td className="dash-valor--positivo">{formatarValor(t.total)}</td>
+													<td style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+														{t.quantidade}
+													</td>
+												</tr>
+											))}
+										</tbody>
+									</table>
+									</div>
+								)}
+							</div>
+
+							<div className="dash-section">
+								<div className="dash-section__header">
+									<h2 className="dash-section__title">
+										<i className="bi bi-arrow-up-circle me-2" style={{ color: '#b91c1c' }} />
+										Despesas
+									</h2>
+									{porTipoDespesa.length > 0 && (
+										<span className="dash-section__badge">{porTipoDespesa.length}</span>
+									)}
+								</div>
+								{porTipoDespesa.length === 0 ? (
+									<p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', margin: 0 }}>
+										<i className="bi bi-check-circle me-2" style={{ color: '#16a34a' }} />
+										Nenhuma despesa no período.
+									</p>
+								) : (
+									<div className="dash-table-scroll">
+									<table className="dash-table">
+										<thead>
+											<tr>
+												<th>Tipo</th>
+												<th>Total</th>
+												<th>Qtd</th>
+											</tr>
+										</thead>
+										<tbody>
+											{porTipoDespesa.map((t) => (
+												<tr key={t.id_tipo_conta}>
+													<td style={{ fontWeight: 500 }}>{t.descricao_conta}</td>
+													<td className="dash-valor--negativo">{formatarValor(t.total)}</td>
 													<td style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
 														{t.quantidade}
 													</td>

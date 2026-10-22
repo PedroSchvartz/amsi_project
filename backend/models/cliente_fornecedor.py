@@ -1,4 +1,4 @@
-from sqlalchemy import Column, BigInteger, String, Boolean, Date
+from sqlalchemy import Column, BigInteger, String, Boolean, Date, Text
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import relationship
 from database import Base
@@ -28,6 +28,8 @@ class ClienteFornecedor(Base):
     inadimplente = Column(Boolean, nullable=False, default=False)
     bloqueado = Column(Boolean, nullable=False, default=False)
     associado = Column(Boolean, nullable=False, default=False)
+    # Anotacao interna livre; exibida so no form de criacao/edicao do clifor.
+    observacao = Column(Text, nullable=True)
 
     # O vinculo com usuario agora vive em Usuario.id_clifor_fk (um clifor -> N usuarios);
     # o backref "usuarios" (lista) e definido la, em models/usuario.py.

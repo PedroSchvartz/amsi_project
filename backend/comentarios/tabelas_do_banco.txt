@@ -91,6 +91,9 @@ CREATE TABLE ClienteFornecedor (
     Inadimplente BOOLEAN NOT NULL DEFAULT FALSE,
     Bloqueado BOOLEAN NOT NULL DEFAULT FALSE,
     Associado BOOLEAN NOT NULL DEFAULT FALSE,
+    -- Anotacao interna livre do clifor, visivel so no form de criacao/edicao (equipe).
+    -- Opcional; TEXT sem limite (mesmo padrao de tipo_conta.Observacao).
+    Observacao TEXT DEFAULT NULL,
     PRIMARY KEY (id_CliFor)
 );
 

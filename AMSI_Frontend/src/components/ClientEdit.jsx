@@ -164,6 +164,7 @@ function ClientEdit() {
 				nome_usual: clifor.nome_usual || '',
 				lote: clifor.lote || '',
 				datanascimento: clifor.datanascimento || '',
+				observacao: clifor.observacao || '',
 				ativo: clifor.ativo,
 				bloqueado: clifor.bloqueado,
 				associado: clifor.associado
@@ -311,6 +312,7 @@ function ClientEdit() {
 			nome_usual: (form.nome_usual || '').trim() || null,
 			lote: (form.lote || '').trim() || null,
 			datanascimento: form.datanascimento || null,
+			observacao: (form.observacao || '').trim() || null,
 			ativo: form.ativo,
 			bloqueado: form.bloqueado,
 			associado: form.associado,
@@ -603,6 +605,16 @@ function ClientEdit() {
 								{erros.datanascimento && (
 									<div className="invalid-feedback">{erros.datanascimento}</div>
 								)}
+							</div>
+							<div className="col-12">
+								<label className="form-label">Observação</label>
+								<textarea
+									className="form-control"
+									name="observacao"
+									rows={3}
+									value={form.observacao}
+									onChange={handleChange}
+								/>
 							</div>
 						</div>
 					</div>
