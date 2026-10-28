@@ -1028,6 +1028,17 @@ def editar_lancamento_admin(
     if dados.id_tipo_conta_fk is not None:
         if not db.query(tipo_conta).filter(tipo_conta.id_tipo_conta == dados.id_tipo_conta_fk).first():
             raise HTTPException(status_code=404, detail="Tipo de conta não encontrado")
+    # Pagamento só nasce da efetivação: gravar estes campos num lançamento não efetivado
+    # deixa a linha com cara de paga mas Aberto/Vencido (a situação deriva dos carimbos).
+    if lancamento.data_efetivacao is None:
+        campos_pagamento = {"data_pagamento", "valor_pago", "multa", "juros", "observacao_pagamento"}
+        enviados = {c for c, v in dados.model_dump(exclude_unset=True).items() if c in campos_pagamento and v is not None}
+        if enviados:
+            raise HTTPException(
+                status_code=400,
+                detail="Lançamento não efetivado: para registrar pagamento, efetive-o antes",
+            )
+
     for campo, valor in dados.model_dump(exclude_unset=True).items():
         setattr(lancamento, campo, valor)
 

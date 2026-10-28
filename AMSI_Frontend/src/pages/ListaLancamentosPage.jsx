@@ -1826,6 +1826,16 @@ function ListaLancamentosPage() {
 												{statusLabel(lancamentoSelecionado)}
 											</span>
 										</div>
+										{/* Pagamento só nasce da efetivação (botão "Efetivar"); o backend recusa com 400. */}
+										<fieldset
+											disabled={!lancamentoSelecionado?.data_efetivacao}
+											style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}
+										>
+										{!lancamentoSelecionado?.data_efetivacao && (
+											<p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 8px' }}>
+												Lançamento não efetivado: para registrar o pagamento, use o botão Efetivar.
+											</p>
+										)}
 										<div className="ll-field">
 											<label>Data de Pagamento</label>
 											<input
@@ -1896,6 +1906,7 @@ function ListaLancamentosPage() {
 												rows="2"
 											/>
 										</div>
+										</fieldset>
 										{lancamentoSelecionado?.tem_comprovante && (
 											<div className="ll-field">
 												<label>Comprovante Atual</label>

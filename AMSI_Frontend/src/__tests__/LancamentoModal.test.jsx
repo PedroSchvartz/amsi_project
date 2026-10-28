@@ -113,6 +113,33 @@ describe('LancamentoModal — seletor de clifor em massa', () => {
 	});
 });
 
+describe('LancamentoModal — troca de Tipo de Conta com/sem parametrização', () => {
+	it('trocar para um tipo sem parametrização limpa clifors e valor herdados', async () => {
+		api.getTiposConta.mockResolvedValue([
+			...TIPOS,
+			{ id_tipo_conta: 11, descricao_conta: 'Avulsa', natureza_conta: 'Credito' }
+		]);
+		api.getParametrizacoes.mockImplementation(({ id_tipo_conta }) =>
+			Promise.resolve(
+				id_tipo_conta === 10
+					? [{ id_parametrizacao: 1, ids_clifor: [1, 2], valor: '100.00' }]
+					: []
+			)
+		);
+		render(<LancamentoModal onFechar={() => {}} />);
+		await screen.findByRole('heading', { name: 'Novo Lançamento' });
+		const select = document.querySelector('select[name="id_tipo_conta_fk"]');
+
+		await screen.findByRole('option', { name: /Avulsa/ });
+		fireEvent.change(select, { target: { value: '10' } });
+		expect(await screen.findByRole('heading', { name: 'Novo Lançamento em Massa' })).toBeInTheDocument();
+
+		fireEvent.change(select, { target: { value: '11' } });
+		expect(await screen.findByRole('heading', { name: 'Novo Lançamento' })).toBeInTheDocument();
+		expect(document.querySelector('input[name="valor"]').value).toBe('');
+	});
+});
+
 describe('LancamentoModal — fechar', () => {
 	it('clicar no ✕ chama onFechar', async () => {
 		const onFechar = vi.fn();

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useToast } from '../components/ToastStack.jsx';
 import { createLancamento, createLancamentoMassa, getClifors, getTiposConta, getParametrizacoes } from '../services/api';
@@ -33,6 +33,7 @@ function LancamentoModal({ onFechar }) {
 	const [cpfRevelado, setCpfRevelado] = useState({});
 	const [parametrizacoes, setParametrizacoes] = useState([]);
 	const [paramSelecionadaId, setParamSelecionadaId] = useState('');
+	const veioDeParametrizacao = useRef(false);
 
 	useEffect(() => {
 		carregarDados();
@@ -60,8 +61,19 @@ function LancamentoModal({ onFechar }) {
 			.then((lista) => {
 				if (!ativo) return;
 				setParametrizacoes(lista);
-				if (lista.length > 0) aplicarParametrizacao(lista[0]);
-				else setParamSelecionadaId('');
+				if (lista.length > 0) {
+					aplicarParametrizacao(lista[0]);
+					veioDeParametrizacao.current = true;
+				} else {
+					setParamSelecionadaId('');
+					// Tipo sem parametrização: descarta o que o tipo anterior trouxe
+					// (escolha manual do usuário é preservada).
+					if (veioDeParametrizacao.current) {
+						setClifforsSelecionados([]);
+						setForm((f) => ({ ...f, valor: '' }));
+						veioDeParametrizacao.current = false;
+					}
+				}
 			})
 			.catch(() => {
 				if (ativo) setParametrizacoes([]);

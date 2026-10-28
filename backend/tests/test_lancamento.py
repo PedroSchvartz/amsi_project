@@ -1753,6 +1753,19 @@ def test_editar_admin_clifor_invalido_404(client, headers_admin, lancamento):
     assert r.status_code == 404
 
 
+def test_editar_admin_pagamento_em_nao_efetivado_400(client, headers_admin, lancamento):
+    """Pagamento só nasce da efetivação: gravar data_pagamento/valor_pago num lançamento
+    Aberto o deixaria 'pago' na tela mas Aberto/Vencido na situação."""
+    id_l = lancamento["id_lancamento"]
+    for campo in ({"data_pagamento": "2026-10-23"}, {"valor_pago": "16.66"}, {"multa": "1.00"}):
+        r = client.patch(f"/lancamento/{id_l}/editar", json=campo, headers=headers_admin)
+        assert r.status_code == 400, campo
+    # observacao_pagamento nulo (o que o modal sempre manda) não é pagamento
+    r = client.patch(f"/lancamento/{id_l}/editar", json={"valor": "10.00", "observacao_pagamento": None},
+                     headers=headers_admin)
+    assert r.status_code == 200
+
+
 def test_editar_admin_tipo_invalido_404(client, headers_admin, lancamento):
     """Trocar para um tipo de conta inexistente → 404."""
     r = client.patch(f"/lancamento/{lancamento['id_lancamento']}/editar", json={
