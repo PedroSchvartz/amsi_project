@@ -13,6 +13,31 @@
   Não precisa mexer em código para publicar um novo deploy: basta editar este arquivo.
 -->
 
+## 2026-11-12
+
+### Lista de lançamentos agora é paginada
+A lista de lançamentos passou a ser dividida em páginas de 50, com navegação numerada no rodapé e o total do conjunto filtrado no cabeçalho. As ações na linha (efetivar, aprovar, editar, excluir ou reverter) mantêm você na mesma página, em vez de voltar para a primeira.
+
+### Tipos de conta "Resultado": registros que ficam fora do painel
+Os tipos de conta agora podem ter a natureza "Resultado", além de Crédito e Débito. Lançamentos de um tipo "Resultado" aparecem normalmente na lista e na planilha, e o filtro de Natureza ganhou a opção "Resultado" — mas eles não entram em nenhum número do painel (receitas, despesas, saldo, a receber/pagar ou inadimplência). Como são neutros, não têm reembolso: ao lançar por um tipo "Resultado", o campo de reembolso aparece como "Não aplicável".
+
+### Coluna "Lote do Associado" na planilha
+A exportação de lançamentos ganhou a coluna "Lote do Associado" (o terreno do cliente/fornecedor), logo após o Nome/Razão Social, para os dois perfis.
+
+### Último acesso na tela de Usuários
+A lista de usuários passou a mostrar o último acesso de cada um — a data do login mais recente.
+
+### Consulta vê contato e endereço apenas do próprio cadastro
+Quem acessa apenas para consulta passa a ver os contatos e endereços somente do seu próprio cliente/fornecedor.
+
+## 2026-10-28
+
+### Editar lançamento não marca mais pagamento sem efetivar
+Na edição de um lançamento (Administrador), os campos de pagamento ficam bloqueados até o lançamento ser efetivado. Antes era possível gravar data e valor de pagamento numa linha que continuava Aberta ou Vencida, com cara de paga.
+
+### Novo lançamento começa limpo ao trocar o tipo
+Ao trocar o Tipo de Conta na janela de novo lançamento, os clientes/fornecedores e o valor que vinham do tipo anterior são limpos, evitando herdar dados de uma seleção que não vale mais.
+
 ## 2026-10-22
 
 ### Painel de quem só consulta: basta escolher o mês
