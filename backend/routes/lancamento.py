@@ -358,7 +358,7 @@ def listar_lancamentos(
     lote_clifor: Optional[str] = None,
     status_modo: str = "inclusivo",
     skip: int = 0,
-    limit: int = 100,
+    limit: Optional[int] = None,
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(get_current_user)
 ):
@@ -370,10 +370,10 @@ def listar_lancamentos(
             response.headers["X-Total-Count"] = "0"
             return []
         id_clifor = current_user.id_clifor_fk
-    # Paginacao (3.9): teto de 1000 linhas por request, default 100 — clamp defensivo para
-    # nao materializar a tabela inteira. O total do conjunto FILTRADO (independente da pagina)
-    # vai no header X-Total-Count, para o front montar o paginador.
-    limit = max(1, min(limit, 1000))
+    # Paginacao (3.9): opt-in. Sem `limit`, devolve o conjunto filtrado inteiro — comportamento
+    # historico, porque o front ainda nao envia skip/limit (truncar em prod seria regressao).
+    # Com `limit`, clampa em [1, 1000] como teto defensivo para nao materializar a tabela toda.
+    # X-Total-Count = total do conjunto FILTRADO (independe da pagina), para o front paginar depois.
     skip = max(0, skip)
     query = _query_lancamentos_filtrada(
         db,
@@ -389,7 +389,10 @@ def listar_lancamentos(
         status_modo=status_modo,
     )
     response.headers["X-Total-Count"] = str(query.count())
-    return query.offset(skip).limit(limit).all()
+    query = query.offset(skip)
+    if limit is not None:
+        query = query.limit(max(1, min(limit, 1000)))
+    return query.all()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
