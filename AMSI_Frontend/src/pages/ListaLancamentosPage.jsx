@@ -15,7 +15,7 @@ import { useExportacao } from '../services/exportacaoContext.jsx';
 import { getCache, setCache } from '../services/cache';
 import '../styles/listaLancamentos.css';
 import {
-	getLancamentos,
+	getLancamentosPaginado,
 	fecharLancamento,
 	aprovarLancamento,
 	editarLancamento,
@@ -119,6 +119,9 @@ const EDITAR_INICIAL = {
 	observacao_pagamento: ''
 };
 
+// Tamanho fixo da página na listagem (paginação server-side via skip/limit).
+const POR_PAGINA = 50;
+
 function ListaLancamentosPage() {
 	const [searchParams] = useSearchParams();
 	const [modalAberto, setModalAberto] = useState(false);
@@ -129,6 +132,8 @@ function ListaLancamentosPage() {
 	// quando um modal de detalhe foi aberto a partir de uma linha do lote.
 	const [loteAcima, setLoteAcima] = useState(false);
 	const [lancamentos, setLancamentos] = useState([]);
+	const [pagina, setPagina] = useState(1); // página atual (1-based) da listagem
+	const [total, setTotal] = useState(0); // total do conjunto filtrado (X-Total-Count)
 	const [clifors, setClifors] = useState([]);
 	const [tiposConta, setTiposConta] = useState([]);
 	// Consulta: id_clifor do próprio usuário (trava o filtro). null = ainda não resolvido / não é Consulta.
@@ -194,6 +199,8 @@ function ListaLancamentosPage() {
 			setFiltros(cache.filtros);
 			setFiltrosAplicados(cache.filtros);
 			setPopulado(true);
+			setPagina(cache.pagina ?? 1);
+			setTotal(cache.total ?? cache.lancamentos.length);
 		}
 	}, []);
 
@@ -270,29 +277,80 @@ function ListaLancamentosPage() {
 		}
 	};
 
-	const buscar = async (f = filtros) => {
+	// `pag` 1-based. Toda busca nova (trocar filtro / Pesquisar) chama sem `pag` → volta à
+	// página 1; a navegação entre páginas passa `pag` explícito reusando os filtros aplicados.
+	const buscar = async (f = filtros, pag = 1) => {
 		// Consulta sem clifor vinculado: nunca lista nada (nem a base inteira). Curto-circuito
 		// local — não chega a chamar o backend.
 		if (consultaSemClifor) {
 			setLancamentos([]);
+			setTotal(0);
+			setPagina(1);
 			setPopulado(true);
-			setCache('lancamentos', { lancamentos: [], filtros: f });
+			setCache('lancamentos', { lancamentos: [], filtros: f, pagina: 1, total: 0 });
 			return;
 		}
 		// Consulta: força o escopo no próprio clifor mesmo se algum caminho disparar buscar
 		// antes do effect travar o filtro (ex.: drill-down do Dashboard).
 		const fEfetivo = meuClifor != null ? { ...f, id_clifor: String(meuClifor) } : f;
 		try {
-			const data = await getLancamentos(filtrosParaParams(fEfetivo));
-			setLancamentos(data);
+			const skip = (pag - 1) * POR_PAGINA;
+			const { itens, total: tot } = await getLancamentosPaginado({
+				...filtrosParaParams(fEfetivo),
+				skip,
+				limit: POR_PAGINA
+			});
+			setLancamentos(itens);
+			setTotal(tot);
+			setPagina(pag);
 			setFiltrosAplicados(fEfetivo);
 			setPopulado(true);
-			setCache('lancamentos', { lancamentos: data, filtros: fEfetivo });
+			setCache('lancamentos', { lancamentos: itens, filtros: fEfetivo, pagina: pag, total: tot });
 		} catch (err) {
 			if (err.message !== 'sessao-expirada')
 				mostrarToast(err.message || 'Erro ao buscar lançamentos', 'erro');
 		}
 	};
+
+	// Total de páginas do conjunto filtrado (mín. 1).
+	const totalPaginas = Math.max(1, Math.ceil(total / POR_PAGINA));
+
+	// Navega para a página p reusando os filtros JÁ aplicados (não os do formulário, que
+	// podem ter sido mexidos sem "Pesquisar"). Clampa ao intervalo válido.
+	const irParaPagina = (p) => {
+		const destino = Math.min(Math.max(1, p), totalPaginas);
+		if (destino === pagina) return;
+		buscar(filtrosAplicados, destino);
+	};
+
+	// Janela de páginas visível: até 7 mostra todas; acima disso compacta com reticências
+	// (1 … atual-1 atual atual+1 … última).
+	const paginasVisiveis = (() => {
+		if (totalPaginas <= 7) return Array.from({ length: totalPaginas }, (_, i) => i + 1);
+		const nums = [...new Set([1, pagina - 1, pagina, pagina + 1, totalPaginas])]
+			.filter((n) => n >= 1 && n <= totalPaginas)
+			.sort((a, b) => a - b);
+		const out = [];
+		for (let i = 0; i < nums.length; i++) {
+			if (i > 0 && nums[i] - nums[i - 1] > 1) out.push('…');
+			out.push(nums[i]);
+		}
+		return out;
+	})();
+
+	const estiloBotaoPagina = (ativo, desabilitado) => ({
+		minWidth: 34,
+		height: 34,
+		padding: '0 10px',
+		borderRadius: 8,
+		border: '1px solid var(--border)',
+		background: ativo ? 'var(--primary)' : 'var(--input-bg)',
+		color: ativo ? '#fff' : 'var(--text)',
+		fontWeight: ativo ? 700 : 500,
+		fontSize: '0.85rem',
+		cursor: desabilitado ? 'not-allowed' : 'pointer',
+		opacity: desabilitado ? 0.5 : 1
+	});
 
 	const handleFiltroChange = (e) => {
 		const { name, value } = e.target;
@@ -1202,7 +1260,7 @@ function ListaLancamentosPage() {
 				{/* TABELA */}
 				<div className="ll-card">
 					<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-						<h4 style={{ margin: 0 }}>TRANSAÇÕES ({lancamentos.length})</h4>
+						<h4 style={{ margin: 0 }}>TRANSAÇÕES ({total})</h4>
 						{hasPerfilMinimo('Operador') && (
 							<button
 								type="button"
@@ -1362,6 +1420,53 @@ function ListaLancamentosPage() {
 							</tbody>
 						</table>
 					</div>
+					{totalPaginas > 1 && (
+						<div
+							style={{
+								display: 'flex',
+								justifyContent: 'center',
+								alignItems: 'center',
+								gap: 6,
+								marginTop: 14,
+								flexWrap: 'wrap'
+							}}
+						>
+							<button
+								type="button"
+								onClick={() => irParaPagina(pagina - 1)}
+								disabled={pagina === 1}
+								title="Página anterior"
+								style={estiloBotaoPagina(false, pagina === 1)}
+							>
+								‹
+							</button>
+							{paginasVisiveis.map((p, i) =>
+								p === '…' ? (
+									<span key={`e${i}`} style={{ padding: '0 4px', color: 'var(--text-muted)' }}>
+										…
+									</span>
+								) : (
+									<button
+										key={p}
+										type="button"
+										onClick={() => irParaPagina(p)}
+										style={estiloBotaoPagina(p === pagina, false)}
+									>
+										{p}
+									</button>
+								)
+							)}
+							<button
+								type="button"
+								onClick={() => irParaPagina(pagina + 1)}
+								disabled={pagina === totalPaginas}
+								title="Próxima página"
+								style={estiloBotaoPagina(false, pagina === totalPaginas)}
+							>
+								›
+							</button>
+						</div>
+					)}
 				</div>
 
 				{/* MODAL FECHAR — serve Efetivar e Aprovar; ver abrirModalAprovar. */}

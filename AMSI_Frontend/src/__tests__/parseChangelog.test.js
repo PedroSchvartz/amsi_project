@@ -42,27 +42,31 @@ describe('parseChangelog — parser', () => {
 describe('parseChangelog — conteúdo real (src/data/changelog.md)', () => {
 	const deploys = parseChangelog(changelogMd);
 
-	it('traz os 3 deploys na ordem da tela (mais recente primeiro)', () => {
-		expect(deploys.map((d) => d.data)).toEqual(['2026-10-14', '2026-10-12', '2026-10-01']);
+	// Invariantes agnósticas de conteúdo: o changelog.md é editado a cada deploy, então
+	// cravar datas/contagens/strings aqui re-quebra o teste sem o parser ter mudado. A
+	// extração EXATA de {titulo, detalhe} já fica pinada no describe sintético acima.
+	it('tem ao menos um deploy e todos com data ISO', () => {
+		expect(deploys.length).toBeGreaterThan(0);
+		for (const d of deploys) expect(d.data).toMatch(/^\d{4}-\d{2}-\d{2}$/);
 	});
 
-	it('conta os pontos de cada deploy', () => {
-		expect(deploys.map((d) => d.pontos.length)).toEqual([3, 3, 10]);
+	it('datas em ordem decrescente e sem repetição (mais recente primeiro)', () => {
+		const datas = deploys.map((d) => d.data);
+		// Contrato da tela: o arquivo lista do mais novo ao mais antigo (ISO ordena
+		// lexicograficamente = cronologicamente), sem data repetida.
+		expect(datas).toEqual([...datas].sort().reverse());
+		expect(new Set(datas).size).toBe(datas.length);
 	});
 
-	it('preserva título e detalhe exatos do primeiro ponto', () => {
-		expect(deploys[0].pontos[0]).toEqual({
-			titulo: 'Painel mais limpo e sem rolar de lado no celular',
-			detalhe:
-				'O painel foi reorganizado para caber na tela do celular sem rolagem horizontal. Os totais de ' +
-				'Receitas, Despesas e Saldo do período ficam sempre lado a lado, e as listas quebram em linhas ' +
-				'em vez de esticar para o lado.',
-		});
+	it('todo deploy tem ao menos um ponto', () => {
+		for (const d of deploys) expect(d.pontos.length).toBeGreaterThan(0);
 	});
 
-	it('nenhum detalhe fica vazio, com espaço duplo ou sobra nas pontas', () => {
+	it('todo ponto: título e detalhe não-vazios, trimados e sem espaço duplo', () => {
 		for (const d of deploys)
 			for (const p of d.pontos) {
+				expect(p.titulo).toBeTruthy();
+				expect(p.titulo).toBe(p.titulo.trim());
 				expect(p.detalhe).toBeTruthy();
 				expect(p.detalhe).toBe(p.detalhe.trim());
 				expect(p.detalhe).not.toMatch(/ {2}/);

@@ -53,7 +53,11 @@ const LANCAMENTOS = [
 ];
 
 vi.mock('../services/api.js', () => ({
-	getLancamentos: vi.fn(() => Promise.resolve(LANCAMENTOS.map((l) => ({ ...l })))),
+	// A tela passou a usar getLancamentosPaginado → { itens, total } (lê o X-Total-Count).
+	// Contrato atualizado de propósito; getLancamentos puro segue existindo p/ o LoteModal.
+	getLancamentosPaginado: vi.fn(() =>
+		Promise.resolve({ itens: LANCAMENTOS.map((l) => ({ ...l })), total: LANCAMENTOS.length })
+	),
 	getCliforDoUsuario: vi.fn(() => Promise.resolve({ ...MEU_CLIFOR })),
 	getTiposConta: vi.fn(() => Promise.resolve([])),
 	getClifors: vi.fn(() => Promise.resolve([])),
@@ -121,19 +125,19 @@ beforeEach(() => {
 describe('ListaLancamentosPage — perfil Consulta', () => {
 	it('pesquisa sozinho ao abrir (sem clicar em nada)', async () => {
 		render(<ListaLancamentosPage />);
-		await waitFor(() => expect(api.getLancamentos).toHaveBeenCalled());
+		await waitFor(() => expect(api.getLancamentosPaginado).toHaveBeenCalled());
 	});
 
 	it('não mostra o card de filtros (título "Lista de Lançamentos" nem botão "Pesquisar")', async () => {
 		render(<ListaLancamentosPage />);
-		await waitFor(() => expect(api.getLancamentos).toHaveBeenCalled());
+		await waitFor(() => expect(api.getLancamentosPaginado).toHaveBeenCalled());
 		expect(screen.queryByRole('heading', { name: 'Lista de Lançamentos' })).not.toBeInTheDocument();
 		expect(screen.queryByRole('button', { name: /Pesquisar/ })).not.toBeInTheDocument();
 	});
 
 	it('esconde as colunas Nome/Razão Social, Natureza e Vl. Pagamento; mantém as demais', async () => {
 		render(<ListaLancamentosPage />);
-		await waitFor(() => expect(api.getLancamentos).toHaveBeenCalled());
+		await waitFor(() => expect(api.getLancamentosPaginado).toHaveBeenCalled());
 
 		const cabecalhos = () => screen.getAllByRole('columnheader').map((th) => th.textContent.trim());
 		await waitFor(() => expect(cabecalhos()).toContain('Tipo de Conta'));

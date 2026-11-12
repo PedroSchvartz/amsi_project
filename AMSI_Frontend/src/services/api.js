@@ -52,7 +52,7 @@ function authHeaders() {
 	};
 }
 
-async function handleResponse(response, { noLogout = false } = {}) {
+async function handleResponse(response, { noLogout = false, comTotal = false } = {}) {
 	// Atualiza expiresAt com o header do backend (sliding session)
 	const sessionExpires = response.headers.get('X-Session-Expires');
 	if (sessionExpires) {
@@ -85,7 +85,15 @@ async function handleResponse(response, { noLogout = false } = {}) {
 		};
 		throw new Error(fallbacks[response.status] ?? `Erro ${response.status}.`);
 	}
-	return response.json();
+	const dados = await response.json();
+	if (comTotal) {
+		// X-Total-Count: total do conjunto filtrado (sem o limite da página). Exposto no CORS
+		// pelo backend. Ausente/ inválido → cai no tamanho da página (degrada sem quebrar).
+		const raw = response.headers.get('X-Total-Count');
+		const total = raw != null ? Number(raw) : dados.length;
+		return { itens: dados, total: Number.isFinite(total) ? total : dados.length };
+	}
+	return dados;
 }
 
 // ======================
@@ -605,6 +613,8 @@ function montarParamsLancamentos(filtros = {}) {
 	if (filtros.valor_maximo != null) params.append('valor_maximo', filtros.valor_maximo);
 	if (filtros.lote != null) params.append('lote', filtros.lote);
 	if (filtros.lote_clifor != null) params.append('lote_clifor', filtros.lote_clifor);
+	if (filtros.skip != null) params.append('skip', filtros.skip);
+	if (filtros.limit != null) params.append('limit', filtros.limit);
 	return params.toString() ? `?${params.toString()}` : '';
 }
 
@@ -614,6 +624,17 @@ export const getLancamentos = async (filtros = {}) => {
 		headers: authHeaders()
 	});
 	return handleResponse(response);
+};
+
+// Paginada: devolve { itens, total } lendo o X-Total-Count. Separada de getLancamentos de
+// propósito — o LoteLancamentosModal e seus testes esperam o array puro, então o contrato
+// antigo não muda. A tela de listagem usa esta.
+export const getLancamentosPaginado = async (filtros = {}) => {
+	const response = await fetchComLoading(`${BASE_URL}/lancamento/${montarParamsLancamentos(filtros)}`, {
+		method: 'GET',
+		headers: authHeaders()
+	});
+	return handleResponse(response, { comTotal: true });
 };
 
 // ─── Exportação de lançamentos em .xlsx (assíncrona; ver exportacaoContext) ──────
