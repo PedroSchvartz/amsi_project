@@ -984,6 +984,7 @@ function ListaLancamentosPage() {
 									<option value="">Todas</option>
 									<option value="Debito">Débito</option>
 									<option value="Credito">Crédito</option>
+									<option value="Resultado">Resultado</option>
 								</select>
 							</div>
 
@@ -1853,6 +1854,7 @@ function ListaLancamentosPage() {
 												>
 													<option value="Credito">Crédito</option>
 													<option value="Debito">Débito</option>
+													<option value="Resultado">Resultado</option>
 												</select>
 											</div>
 										</div>

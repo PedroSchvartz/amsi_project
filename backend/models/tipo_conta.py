@@ -8,6 +8,7 @@ import enum
 class NaturezaEnum(enum.Enum):
     Debito = "Debito"
     Credito = "Credito"
+    Resultado = "Resultado"
 
 
 class tipo_conta(Base):

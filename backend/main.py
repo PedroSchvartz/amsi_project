@@ -38,6 +38,14 @@ def _aplicar_migracoes():
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
         conn.commit()
 
+    # Migration: natureza_enum ganha 'Resultado' (tipos de conta neutros — viram lançamentos
+    # mas ficam fora do dashboard, que fixa Credito/Debito no /resumo). ADD VALUE IF NOT EXISTS
+    # é idempotente e puramente aditivo (perda-zero); PG 12+ aceita em transação, e o valor só
+    # é usável após o commit — o que basta, nada o consome no startup.
+    with engine.connect() as conn:
+        conn.execute(text("ALTER TYPE natureza_enum ADD VALUE IF NOT EXISTS 'Resultado'"))
+        conn.commit()
+
     # Migration: id_login_fk em token_ativo
     if "token_ativo" in insp.get_table_names():
         cols = [c["name"] for c in insp.get_columns("token_ativo")]

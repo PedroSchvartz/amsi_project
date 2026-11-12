@@ -57,3 +57,18 @@ def test_atualizar_tipo(client, headers_admin, tipo):
 def test_deletar_tipo_sem_token(client, tipo):
     r = client.delete(f"/tipo_conta/{tipo['id_tipo_conta']}")
     assert r.status_code == 401
+
+
+def test_criar_tipo_resultado(client, headers_admin):
+    """Natureza 'Resultado' (neutra) é aceita no cadastro e faz round-trip.
+
+    Depende da migração natureza_enum ADD VALUE 'Resultado' (main._aplicar_migracoes),
+    aplicada ao importar o app. Garante as duas pontas: schema aceita e o banco grava."""
+    r = client.post("/tipo_conta/", json={
+        "descricao_conta": "Tipo Resultado Pytest",
+        "natureza_conta": "Resultado"
+    }, headers=headers_admin)
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["natureza_conta"] == "Resultado"
+    client.delete(f"/tipo_conta/{data['id_tipo_conta']}", headers=headers_admin)

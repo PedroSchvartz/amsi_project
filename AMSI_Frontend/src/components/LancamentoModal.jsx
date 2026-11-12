@@ -83,6 +83,15 @@ function LancamentoModal({ onFechar }) {
 		};
 	}, [form.id_tipo_conta_fk]);
 
+	// Trocar para um Tipo de Conta 'Resultado' (neutro) zera o flag de reembolso, para não
+	// gravar estorno=true órfão — o checkbox também fica travado no JSX.
+	useEffect(() => {
+		const t = tiposConta.find((x) => x.id_tipo_conta === parseInt(form.id_tipo_conta_fk));
+		if (t?.natureza_conta === 'Resultado' && form.estorno) {
+			setForm((f) => ({ ...f, estorno: false }));
+		}
+	}, [form.id_tipo_conta_fk, tiposConta]);
+
 	const carregarDados = () => {
 		// Selects independentes: o Tipo de Conta (rápido) não espera os clifors.
 		getTiposConta()
@@ -109,7 +118,9 @@ function LancamentoModal({ onFechar }) {
 			(t) => t.id_tipo_conta === parseInt(form.id_tipo_conta_fk)
 		);
 		let natureza = tipoSelecionado?.natureza_conta;
-		if (form.estorno) natureza = natureza === 'Debito' ? 'Credito' : 'Debito';
+		// Resultado é neutro (não reembolsável) → nunca inverte; o checkbox fica travado e o
+		// estorno é zerado ao trocar para um tipo Resultado (efeito abaixo).
+		if (form.estorno && natureza !== 'Resultado') natureza = natureza === 'Debito' ? 'Credito' : 'Debito';
 		return natureza;
 	};
 
@@ -203,13 +214,16 @@ function LancamentoModal({ onFechar }) {
 	const tipoSelecionado = tiposConta.find(
 		(t) => t.id_tipo_conta === parseInt(form.id_tipo_conta_fk)
 	);
-	const naturezaExibida = tipoSelecionado
-		? form.estorno
-			? tipoSelecionado.natureza_conta === 'Debito'
-				? 'Crédito (reembolso)'
-				: 'Débito (reembolso)'
-			: tipoSelecionado.natureza_conta
-		: '—';
+	const tipoEhResultado = tipoSelecionado?.natureza_conta === 'Resultado';
+	const naturezaExibida = !tipoSelecionado
+		? '—'
+		: tipoEhResultado
+			? 'Resultado'
+			: form.estorno
+				? tipoSelecionado.natureza_conta === 'Debito'
+					? 'Crédito (reembolso)'
+					: 'Débito (reembolso)'
+				: tipoSelecionado.natureza_conta;
 
 	const clifsSelecionados = clifforsSelecionados.map((id) => {
 		const c = clifors.find((x) => x.id_clifor === id);
@@ -354,16 +368,23 @@ function LancamentoModal({ onFechar }) {
 						</div>
 						<div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
 							<label>Reembolso</label>
-							<label style={{ textTransform: 'none', letterSpacing: 0, fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: 6 }}>
-								<input
-									type="checkbox"
-									name="estorno"
-									checked={form.estorno}
-									onChange={handleChange}
-									style={{ width: 'auto', accentColor: 'var(--primary)' }}
-								/>
-								Inverte natureza
-							</label>
+							{tipoEhResultado ? (
+								// Natureza 'Resultado' é neutra: não inverte, logo não é reembolsável.
+								<span style={{ fontSize: '0.875rem', color: 'var(--text-muted)', paddingBottom: 6 }}>
+									Não aplicável
+								</span>
+							) : (
+								<label style={{ textTransform: 'none', letterSpacing: 0, fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+									<input
+										type="checkbox"
+										name="estorno"
+										checked={form.estorno}
+										onChange={handleChange}
+										style={{ width: 'auto', accentColor: 'var(--primary)' }}
+									/>
+									Inverte natureza
+								</label>
+							)}
 						</div>
 					</div>
 

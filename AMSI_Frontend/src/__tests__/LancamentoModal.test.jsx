@@ -140,6 +140,46 @@ describe('LancamentoModal — troca de Tipo de Conta com/sem parametrização', 
 	});
 });
 
+describe('LancamentoModal — natureza Resultado (neutra, não reembolsável)', () => {
+	const TIPOS_COM_RESULTADO = [
+		...TIPOS,
+		{ id_tipo_conta: 20, descricao_conta: 'Ajuste Resultado', natureza_conta: 'Resultado' }
+	];
+
+	it('tipo Resultado: natureza = "Resultado" e o Reembolso vira "Não aplicável" (sem checkbox)', async () => {
+		api.getTiposConta.mockResolvedValue(TIPOS_COM_RESULTADO);
+		render(<LancamentoModal onFechar={() => {}} />);
+		await screen.findByRole('heading', { name: 'Novo Lançamento' });
+		const select = document.querySelector('select[name="id_tipo_conta_fk"]');
+		await screen.findByRole('option', { name: /Ajuste Resultado/ });
+
+		// Um tipo Crédito mostra o checkbox "Inverte natureza".
+		fireEvent.change(select, { target: { value: '10' } });
+		expect(screen.getByText('Inverte natureza')).toBeInTheDocument();
+
+		// Trocar para o tipo Resultado: natureza fixa em 'Resultado' e o checkbox some.
+		fireEvent.change(select, { target: { value: '20' } });
+		expect(await screen.findByDisplayValue('Resultado')).toBeInTheDocument();
+		expect(screen.queryByText('Inverte natureza')).not.toBeInTheDocument();
+		expect(screen.getByText('Não aplicável')).toBeInTheDocument();
+	});
+
+	it('reembolso marcado + troca para tipo Resultado zera o estorno (natureza volta a "Resultado")', async () => {
+		api.getTiposConta.mockResolvedValue(TIPOS_COM_RESULTADO);
+		render(<LancamentoModal onFechar={() => {}} />);
+		await screen.findByRole('heading', { name: 'Novo Lançamento' });
+		const select = document.querySelector('select[name="id_tipo_conta_fk"]');
+		await screen.findByRole('option', { name: /Ajuste Resultado/ });
+
+		fireEvent.change(select, { target: { value: '10' } }); // Crédito
+		fireEvent.click(document.querySelector('input[name="estorno"]')); // marca reembolso
+		expect(screen.getByDisplayValue('Débito (reembolso)')).toBeInTheDocument();
+
+		fireEvent.change(select, { target: { value: '20' } }); // Resultado → zera estorno
+		expect(await screen.findByDisplayValue('Resultado')).toBeInTheDocument();
+	});
+});
+
 describe('LancamentoModal — fechar', () => {
 	it('clicar no ✕ chama onFechar', async () => {
 		const onFechar = vi.fn();

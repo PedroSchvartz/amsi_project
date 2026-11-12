@@ -11,6 +11,7 @@ import enum
 class NaturezaLancamentoEnum(enum.Enum):
     Debito = "Debito"
     Credito = "Credito"
+    Resultado = "Resultado"
 
 
 class SituacaoLancamentoEnum(str, enum.Enum):

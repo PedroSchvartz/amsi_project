@@ -102,6 +102,15 @@ beforeEach(() => {
 	api.editarLancamento.mockResolvedValue({});
 });
 
+describe('ListaLancamentosPage — filtro de Natureza', () => {
+	it('o filtro de Natureza oferece a opção "Resultado" (natureza neutra)', async () => {
+		render(<ListaLancamentosPage />);
+		// Card de filtros do Admin já está na tela (tem o botão Pesquisar).
+		await screen.findByRole('button', { name: /Pesquisar/ });
+		expect(screen.getByRole('option', { name: 'Resultado' })).toBeInTheDocument();
+	});
+});
+
 describe('ListaLancamentosPage — ação preserva a página', () => {
 	it('editar na página 2 recarrega a página 2 (skip=50), não a 1', async () => {
 		render(<ListaLancamentosPage />);

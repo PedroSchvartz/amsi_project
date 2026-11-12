@@ -136,18 +136,31 @@ function TipoContaPage() {
 									<td style={{ padding: '10px 14px', color: 'var(--text-muted)' }}>{t.id_tipo_conta}</td>
 									<td style={{ padding: '10px 14px', fontWeight: 500 }}>{t.descricao_conta}</td>
 									<td style={{ padding: '10px 14px' }}>
-										<span
-											style={{
-												padding: '2px 10px',
-												borderRadius: 12,
-												fontSize: '0.78rem',
-												fontWeight: 600,
-												background: t.natureza_conta === 'Credito' ? '#dcfce7' : '#fee2e2',
-												color: t.natureza_conta === 'Credito' ? '#16a34a' : '#b91c1c'
-											}}
-										>
-											{t.natureza_conta === 'Credito' ? 'Crédito' : 'Débito'}
-										</span>
+										{(() => {
+											// Resultado é neutro (fora do dashboard) → badge cinza por token; Crédito/Débito
+											// mantêm as cores pré-existentes (fora de escopo). Antes era binário e um tipo
+											// Resultado cairia errado no vermelho "Débito".
+											const estilo =
+												t.natureza_conta === 'Credito'
+													? { bg: '#dcfce7', fg: '#16a34a', rotulo: 'Crédito' }
+													: t.natureza_conta === 'Debito'
+														? { bg: '#fee2e2', fg: '#b91c1c', rotulo: 'Débito' }
+														: { bg: 'var(--badge-estorno-bg)', fg: 'var(--badge-estorno-fg)', rotulo: 'Resultado' };
+											return (
+												<span
+													style={{
+														padding: '2px 10px',
+														borderRadius: 12,
+														fontSize: '0.78rem',
+														fontWeight: 600,
+														background: estilo.bg,
+														color: estilo.fg
+													}}
+												>
+													{estilo.rotulo}
+												</span>
+											);
+										})()}
 									</td>
 									<td style={{ padding: '10px 14px', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
 										{t.observacao || '—'}
@@ -237,6 +250,7 @@ function TipoContaPage() {
 								>
 									<option value="Credito">Crédito</option>
 									<option value="Debito">Débito</option>
+									<option value="Resultado">Resultado</option>
 								</select>
 							</div>
 

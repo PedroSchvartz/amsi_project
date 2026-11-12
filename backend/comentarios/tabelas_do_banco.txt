@@ -3,13 +3,17 @@
 -- TIPOS ENUM
 -- ================================================
 
--- ATENCAO: nao existe migracao de ALTER TYPE em main._aplicar_migracoes(). Os valores
--- 'Presidente' e 'Operador' foram acrescentados a mao nas bases existentes; este script
--- ja os cria para uma base do zero. Ao acrescentar valor a um enum, lembre das DUAS
+-- ATENCAO: nao existe migracao de ALTER TYPE em main._aplicar_migracoes() para cargo_enum.
+-- Os valores 'Presidente' e 'Operador' foram acrescentados a mao nas bases existentes; este
+-- script ja os cria para uma base do zero. Ao acrescentar valor a um enum, lembre das DUAS
 -- pontas: o model (models/usuario.py) e o banco.
+-- EXCECAO: 'Resultado' em natureza_enum E aplicado por _aplicar_migracoes() (ALTER TYPE
+-- ADD VALUE IF NOT EXISTS, idempotente) — nao precisa ser feito a mao. Natureza neutra:
+-- tipos de conta 'Resultado' viram lancamentos mas ficam fora do dashboard (o /resumo fixa
+-- Credito/Debito). Pontas: models/tipo_conta.py, models/lancamento.py e os schemas.
 CREATE TYPE cargo_enum AS ENUM ('Presidente','Diretor','Tesoureiro','Secretário','Conselheiro','Associado','Desenvolvedor');
 CREATE TYPE acesso_enum AS ENUM ('Administrador','Operador','Consulta');
-CREATE TYPE natureza_enum AS ENUM ('Debito','Credito');
+CREATE TYPE natureza_enum AS ENUM ('Debito','Credito','Resultado');
 CREATE TYPE tipo_clifor_enum AS ENUM ('C','F','A');
 
 CREATE EXTENSION IF NOT EXISTS pg_trgm;

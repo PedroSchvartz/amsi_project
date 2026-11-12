@@ -916,6 +916,48 @@ def test_resumo_por_tipo_estorno_excluido(client, headers_admin, usuario_base, c
     client.delete(f"/lancamento/{id_estorno}", headers=headers_admin)
 
 
+def test_resumo_ignora_natureza_resultado(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base):
+    """Invariante do pedido: um lançamento de natureza 'Resultado' (neutra), mesmo
+    efetivado/pago no período, NÃO entra em nenhuma soma do /resumo — o dashboard fixa
+    Credito/Debito. Baseline × delta, igual ao teste do reembolso."""
+    from datetime import datetime, date
+    hoje = date.today().isoformat()
+
+    url = f"/lancamento/resumo?data_pagamento_de={hoje}&data_pagamento_ate={hoje}"
+    monitorados = [
+        "total_recebido", "total_pago", "total_reembolsado", "saldo_total",
+        "total_a_receber", "total_a_pagar",
+    ]
+    base = client.get(url, headers=headers_admin).json()
+
+    r = client.post("/lancamento/", json={
+        "id_usuario_fk_lancamento": usuario_base["id_usuario"],
+        "id_clifor_relacionado_fk": clifor_base["id_clifor"],
+        "id_tipo_conta_fk": tipo_lancamento_base["id_tipo_conta"],
+        "valor": "77.00",
+        "data_vencimento": hoje,
+        "natureza_lancamento": "Resultado"
+    }, headers=headers_admin)
+    assert r.status_code == 200, r.text
+    id_resultado = r.json()["id_lancamento"]
+    assert r.json()["natureza_lancamento"] == "Resultado"
+
+    try:
+        # Efetivar+aprovar (Admin) e pagar hoje — se fosse Credito/Debito, entraria no resumo.
+        client.put(f"/lancamento/{id_resultado}", json={
+            "data_pagamento": datetime.now().isoformat(),
+            "valor_pago": "77.00"
+        }, headers=headers_admin)
+
+        depois = client.get(url, headers=headers_admin).json()
+        for campo in monitorados:
+            assert float(depois[campo]) - float(base[campo]) == 0.0, (
+                f"{campo} mudou com um lançamento Resultado: {base[campo]} -> {depois[campo]}"
+            )
+    finally:
+        client.delete(f"/lancamento/{id_resultado}", headers=headers_admin)
+
+
 def test_resumo_por_tipo_estorno_incluido(client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base):
     """Com ?estorno=true, o resumo passa a trazer os estornos aprovados agrupados por tipo."""
     from datetime import datetime, date

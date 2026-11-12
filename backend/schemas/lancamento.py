@@ -8,6 +8,7 @@ from enum import Enum
 class NaturezaEnum(str, Enum):
     Debito = "Debito"
     Credito = "Credito"
+    Resultado = "Resultado"
 
 
 class SituacaoEnum(str, Enum):

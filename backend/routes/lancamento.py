@@ -453,7 +453,7 @@ def _mascarar_cpf_cnpj(doc: Optional[str]) -> str:
     return doc
 
 
-_NATUREZA_LABEL = {"Debito": "Débito", "Credito": "Crédito"}
+_NATUREZA_LABEL = {"Debito": "Débito", "Credito": "Crédito", "Resultado": "Resultado"}
 
 
 def _valor_enum(v) -> str:
