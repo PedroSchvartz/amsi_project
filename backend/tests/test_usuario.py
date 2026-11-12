@@ -131,6 +131,38 @@ def test_buscar_usuario_inexistente(client, headers_admin):
     assert r.status_code == 404
 
 
+def test_listar_usuarios_inclui_ultimo_acesso(client, headers_admin, usuario_base):
+    """2.6: a listagem traz 'ultimo_acesso' = MAX(Data_Login) por usuário.
+    - admin (autenticado pela fixture) já tem login -> não-nulo e em ISO parseável;
+    - usuario_base nunca autenticou -> None ('Nunca acessou' no front)."""
+    from datetime import datetime
+    from utils.config import ADMIN_TESTE_EMAIL
+
+    r = client.get("/usuarios/", headers=headers_admin)
+    assert r.status_code == 200
+    linhas = r.json()
+    # o campo existe em toda linha (mesmo quando None)
+    assert all("ultimo_acesso" in u for u in linhas)
+
+    por_email = {u["email"]: u for u in linhas}
+
+    admin = por_email.get(ADMIN_TESTE_EMAIL)
+    assert admin is not None, f"admin de teste {ADMIN_TESTE_EMAIL} não veio na listagem"
+    assert admin["ultimo_acesso"] is not None  # autenticou nesta sessão de testes
+    datetime.fromisoformat(admin["ultimo_acesso"])  # formato ISO parseável
+
+    base = por_email.get(usuario_base["email"])
+    assert base is not None
+    assert base["ultimo_acesso"] is None  # nunca autenticou
+
+
+def test_buscar_usuario_inclui_ultimo_acesso(client, headers_admin, usuario_base):
+    """2.6: GET /usuarios/{id} também traz 'ultimo_acesso', coerente com a listagem."""
+    r = client.get(f"/usuarios/{usuario_base['id_usuario']}", headers=headers_admin)
+    assert r.status_code == 200
+    assert r.json()["ultimo_acesso"] is None  # usuario_base nunca autenticou
+
+
 def test_atualizar_usuario(client, headers_admin, usuario_base):
     r = client.put(f"/usuarios/{usuario_base['id_usuario']}",
                    json={"nome": "Nome Atualizado Pytest"},

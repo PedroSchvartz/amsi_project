@@ -60,19 +60,6 @@ Com 8 threads paralelas e latência de 100ms por query:
   - Se passar, aciona `railway up` automaticamente
   - Notifica resultado via email ou Slack
 
-### 3.8 Corrigir N+1 query na listagem de lançamentos
-
-> Identificado revisando um vídeo curto sobre erros comuns de performance em apps "vibe-coded" (2026-07-09) e conferido contra o código real do projeto — não é hipotético, o bug existe hoje.
-
-**Problema:** `GET /lancamento/` ([`routes/lancamento.py`](../../backend/routes/lancamento.py), listagem principal — a mais usada, alimenta a tela de lançamentos) faz `.join(ClienteFornecedor, ...)` só para filtrar, mas não dá `joinedload(Lancamento.cliente_fornecedor)`. O `model_validator` de `LancamentoResponse` ([`schemas/lancamento.py`](../../backend/schemas/lancamento.py)) acessa `values.cliente_fornecedor.nome`/`.cpf_cnpj` na serialização — sem eager load, isso dispara uma query extra por linha retornada (N+1 clássico). O mesmo bug está em `GET /lancamento/por-usuario/{id}`.
-
-**Prova de que é acidental, não intencional:** `GET /lancamento/por-clifor/{id}` faz o `joinedload(Lancamento.cliente_fornecedor)` certo — só não foi replicado nos outros dois endpoints.
-
-**Sugestão de correção:**
-- Adicionar `joinedload(Lancamento.cliente_fornecedor)` nas options de `listar_lancamentos` e `listar_lancamentos_por_usuario`, igual já é feito em `listar_lancamentos_por_clifor`.
-- Fix pontual, sem mudança de contrato de API — pode entrar isolado, sem esperar os itens abaixo.
-- Vale considerar um teste que conte queries emitidas (ex.: listener de evento do SQLAlchemy) para pegar regressão desse tipo automaticamente, já que passou despercebido numa revisão manual.
-
 ### 3.9 Paginação em `GET /lancamento/`
 
 > Mesma origem do 3.8 — vídeo sobre erros comuns de performance, conferido contra o código.
@@ -100,20 +87,6 @@ Com 8 threads paralelas e latência de 100ms por query:
 - Manter o spinner global só para transição entre rotas, reservando skeleton para dentro do conteúdo já montado (mistura os dois padrões, não substitui um pelo outro).
 - Menor prioridade que 3.8/3.9 — é polimento de UX percebida, não corrige uma query real rodando a mais.
 
-### 3.11 Cache de sessão no frontend — carregar uma vez, recarregar sob demanda
-
-> 📋 **Plano técnico detalhado e fechado (pronto para execução):** [`cache-sessao-frontend.md`](./cache-sessao-frontend.md)
-
-Mesma origem do 3.8/3.9/3.10 — vídeo sobre erros comuns de performance (ponto "sem cache, nem no browser"). Diferente dos três anteriores, este item já tem todas as decisões de design fechadas e não é backlog aberto — é um plano pronto para ser puxado direto para implementação.
-
-**Resumo:** hoje toda tela de listagem (lançamentos, clientes/fornecedores, usuários, tipos de conta, dashboard) busca os dados no backend toda vez que é montada, mesmo revisitada segundos depois sem nada ter mudado. O plano introduz um cache de sessão em memória (`services/cache.js`, sem `sessionStorage`): a primeira visita a uma tela busca do banco normalmente; visitas seguintes na mesma sessão reaproveitam o cache; um botão "Recarregar" em cada tela força busca nova; mutações (criar/editar/excluir) invalidam o cache do recurso automaticamente; logout limpa tudo.
-
-> ⚠️ **Premissa desatualizada desde o commit `0bbdcf7`:** lançamentos, dashboard e
-> clientes/fornecedores **não buscam mais ao montar** — carregam só no botão "Pesquisar".
-> Ao puxar este item, seguir o contrato do [3.13](#313-persistência-dos-resultados-de-busca-na-sessão-regressão-do-pesquisar):
-> sem auto-load na primeira visita; persistir o resultado da última busca até nova busca
-> ou logout. As demais telas (usuários, tipos de conta) seguem buscando ao montar.
-
 ### 3.12 N+1 (pior que o 3.8) e falta de paginação em `GET /cliente_fornecedor/`
 
 > Reportado pelo Pedro (2026-07-09): "tela de Clientes/Fornecedores demorando tanto para carregar". Diagnóstico feito na hora — causa raiz já identificada, fix ainda não aplicado (fica para quando este item for puxado).
@@ -124,7 +97,7 @@ Mesma origem do 3.8/3.9/3.10 — vídeo sobre erros comuns de performance (ponto
 > `Index` nos models + migração `CREATE INDEX IF NOT EXISTS` em `main._aplicar_migracoes()` +
 > `tabelas_do_banco.txt`. **Resta só a paginação** (ponto 3 — decisões abertas, ver 3.9).
 
-**Causa raiz:** `listar_clifors` ([`routes/cliente_fornecedor.py:29-60`](../../backend/routes/cliente_fornecedor.py)) roda `db.query(ClienteFornecedor)...all()` sem eager load nenhum. `ClienteFornecedorResponse` ([`schemas/cliente_fornecedor.py:90-91`](../../backend/schemas/cliente_fornecedor.py)) inclui `enderecos` e `contatos` — duas relações lazy-loaded (`models/cliente_fornecedor.py:30-31`). Sem `joinedload`/`selectinload`, cada clifor da lista dispara **2 queries extras** (uma para endereços, uma para contatos) na hora de serializar. É o mesmo padrão de bug do [3.8](#38-corrigir-n1-query-na-listagem-de-lançamentos), só que aqui são 2 relações em vez de 1 — até **2N+1 queries** numa única resposta.
+**Causa raiz:** `listar_clifors` ([`routes/cliente_fornecedor.py:29-60`](../../backend/routes/cliente_fornecedor.py)) roda `db.query(ClienteFornecedor)...all()` sem eager load nenhum. `ClienteFornecedorResponse` ([`schemas/cliente_fornecedor.py:90-91`](../../backend/schemas/cliente_fornecedor.py)) inclui `enderecos` e `contatos` — duas relações lazy-loaded (`models/cliente_fornecedor.py:30-31`). Sem `joinedload`/`selectinload`, cada clifor da lista dispara **2 queries extras** (uma para endereços, uma para contatos) na hora de serializar. É o mesmo padrão de bug do 3.8 (já entregue — ver [Entregues](#2026-10-21--reconciliação-do-backlog-entregues)), só que aqui são 2 relações em vez de 1 — até **2N+1 queries** numa única resposta.
 
 **Agravante:** `endereco.id_clifor_fk` e `contato.id_clifor_fk` ([`models/endereco.py:10`](../../backend/models/endereco.py), [`models/contato.py:9`](../../backend/models/contato.py)) não têm `index=True`. Postgres não indexa FK automaticamente — cada uma dessas N queries extras por lazy-load pode estar rodando sequential scan em vez de usar índice, o que piora conforme as tabelas crescem.
 
@@ -135,38 +108,6 @@ Mesma origem do 3.8/3.9/3.10 — vídeo sobre erros comuns de performance (ponto
 2. Adicionar `index=True` nas duas colunas de FK (migração simples, sem quebra de compatibilidade).
 3. Paginação segue o mesmo racional do 3.9 — pode ser resolvido junto, no mesmo padrão de contrato (skip/limit + `X-Total-Count`), para não implementar dois formatos de paginação diferentes no backend.
 4. Medir antes/depois com `EXPLAIN ANALYZE` ou contagem de queries emitidas (mesma sugestão de teste do 3.8) para confirmar o ganho.
-
-### 3.13 Persistência dos resultados de busca na sessão (regressão do "Pesquisar")
-
-> Reportado pelo Pedro (2026-07-26), logo após subir o comportamento "telas não
-> carregam ao abrir; botão Pesquisar" (commit `0bbdcf7`). É o outro lado da mesma
-> moeda do [3.11](#311-cache-de-sessão-no-frontend--carregar-uma-vez-recarregar-sob-demanda).
-
-**Comportamento atual (esquisito):** lançamentos, dashboard e clientes/fornecedores
-guardam o resultado da busca em **estado do componente** (`useState`). Ao navegar para
-outra tela e voltar, o componente desmonta/remonta, o estado zera e a tela volta vazia
-("Clique em Pesquisar") — os resultados da última busca somem, mesmo sem nada ter
-mudado. O usuário é obrigado a pesquisar de novo a cada ida-e-volta.
-
-**Comportamento desejado:** a tela só busca quando o usuário clica em "Pesquisar", e o
-resultado da última busca (com os filtros que a geraram) **permanece carregado** ao sair
-e voltar à tela. Só é descartado quando:
-- o usuário pesquisa de novo naquela tela (sobrescreve), ou
-- faz logout/login.
-
-**Implementação sugerida:**
-- Mover o par `{ filtros aplicados, resultado }` de cada tela do `useState` local para
-  um store de sessão **em memória, fora do componente** (o `services/cache.js` do 3.11
-  ou um contexto React). Ao montar, se houver cache da tela, reidratar sem refazer a
-  requisição.
-- "Pesquisar" sobrescreve o cache daquela tela; logout limpa tudo (mesmo gancho do
-  `localStorage.clear()` já existente no `auth.logout`).
-- Não usar `sessionStorage`/`localStorage` para o resultado (dado sensível + volume) —
-  memória da aba basta, alinhado ao 3.11.
-
-**Relação com 3.11:** o 3.11 assume "primeira visita busca do banco normalmente"; isso
-mudou quando o lazy-load + Pesquisar subiu. Ao puxar o 3.11, adotar **este** contrato
-(sem auto-load; persistir por busca até nova busca ou logout) em vez do texto original.
 
 ---
 
@@ -229,6 +170,37 @@ mudou quando o lazy-load + Pesquisar subiu. Ao puxar o 3.11, adotar **este** con
 
 ---
 
+## 2026-10-21 — reconciliação do backlog (entregues)
+
+> ✅ Itens movidos do backlog ativo nesta data, **conferidos contra o código** (as seções de
+> "estado/pendências" dos `contexto_macro*` desatualizam). Registro, não backlog.
+
+- **3.8 N+1 de clifor na listagem de lançamentos** — `joinedload(Lancamento.cliente_fornecedor)`
+  agora nos **dois** endpoints que faltavam: `listar_lancamentos` (lista principal) e
+  `listar_lancamentos_por_usuario` (`backend/routes/lancamento.py`); `por-clifor` já tinha. O
+  último faltava e foi fechado em 2026-10-21 com um teste anti-regressão comparativo que conta
+  SELECTs avulsos de clifor (`test_por_usuario_nao_faz_n1_de_clifor` em
+  `backend/tests/test_lancamento.py`) — falha antes do fix (1→2), passa depois. Paginação (3.9) e
+  o N+1 de `cliente_fornecedor` (3.12) seguem abertos.
+- **3.11 Cache de sessão no frontend** + **3.13 Persistência dos resultados de busca na sessão** —
+  entregues juntos em `AMSI_Frontend/src/services/cache.js` (um `Map` em memória, zerado no
+  `auth.logout`), usado em `ListaLancamentosPage.jsx`, `dashboard.jsx` e `ClientList.jsx`. Vale o
+  contrato do 3.13 (sem auto-load; persiste a última busca até nova busca ou logout), que
+  substituiu o texto original do 3.11 ("carregar uma vez / botão Recarregar").
+- **Escopo de dados do perfil `Consulta` em `GET /lancamento/` (reunião 2026-09-09, item 7)** —
+  `listar_lancamentos` força o escopo ao `id_clifor_fk` do usuário Consulta
+  (`backend/routes/lancamento.py`). Deixou de devolver a base inteira via API.
+- **Escopo de dados do perfil `Consulta` em `endereco`/`contato` (gap que sobrou da Seção 10)** —
+  fechado em 2026-10-21 espelhando o item 7. Os 3 GETs de `backend/routes/endereco.py` e
+  `backend/routes/contato.py` agora escopam o Consulta ao `id_clifor_fk` vinculado: `GET /`
+  filtra à própria linha (lista vazia sem clifor), `GET /{id}` devolve **403** em linha de outro
+  clifor e `GET /por-clifor/{id}` devolve **403** para clifor que não o próprio. Admin/Operador
+  seguem vendo tudo; POST/PUT/DELETE já exigiam Operador+. Teste anti-regressão
+  `backend/tests/test_escopo_consulta.py` (6 casos) — falhava antes do fix (API devolvia 200 em
+  dado alheio), passa depois. **Era o último gap de dados do perfil Consulta.**
+
+---
+
 ## 4. Deploy e Operação
 
 ### 4.1 Variável `APP_ENV` obrigatória no checklist de deploy
@@ -258,15 +230,7 @@ mudou quando o lazy-load + Pesquisar subiu. Ao puxar o 3.11, adotar **este** con
 > (gitignored)** por descrever falhas exploráveis de um sistema em produção. Não
 > detalhar vetores aqui (arquivo versionado).
 
-**Ainda pendente (a confirmar contra o código antes de fechar):**
-- **Alinhamento do escopo de perfil `Consulta` nas rotas de endereço e contato** —
-  garantir que a verificação de permissão nessas rotas seja consistente com o
-  resto da aplicação. Ver detalhe no doc 12 e em [`../09_seguranca.md`](../09_seguranca.md).
-- **Escopo de dados do perfil `Consulta` em `GET /lancamento/` (reunião 2026-09-09,
-  item 7)** — hoje `listar_lancamentos` ([`routes/lancamento.py`](../../backend/routes/lancamento.py))
-  só faz `Depends(get_current_user)` e **não filtra por perfil/usuário**: devolve a base
-  inteira para qualquer autenticado, inclusive Consulta. A restrição entregue em
-  2026-09-09 é **só de UI** (esconde coluna/botões) — o dado continua acessível via API.
-  Fechar exige escopar a query ao clifor vinculado do usuário Consulta (casa com o
-  [7.1 Portal do Associado](./demandas-novas.md#71-visualização-do-próprio-clifor) /
-  `GET /minha-conta`).
+**Status (2026-10-21):** sem pendência de escopo de dados. O último gap — escopo de perfil
+`Consulta` nos GETs de `endereco.py`/`contato.py` — foi fechado nesta data (ver
+[Entregues](#2026-10-21--reconciliação-do-backlog-entregues)). Os demais itens médios de
+hardening (ver doc 12, gitignored) seguem no laudo.

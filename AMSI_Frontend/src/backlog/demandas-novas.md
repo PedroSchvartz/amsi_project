@@ -35,6 +35,8 @@ esses códigos.
 
 ### 2.6 Exibir "último acesso" do usuário
 
+> ✅ **Implementado em 2026-10-21** (local; aguardando deploy): a listagem de usuários passou a trazer `ultimo_acesso` = `MAX(Data_Login)` (`backend/routes/usuario.py`), e o `PerfilCompletoPopup` exibe "Último acesso: dd/mm/aaaa às HH:MM" ou "Nunca acessou". Decisão de UX: aparece **só no Perfil Completo** (a lista não ganhou coluna, e não foi no menu de Ações nem no PerfilPopup do próprio usuário). Permanece aqui até subir em prod.
+
 Na página de gerenciamento de usuários (menu de Ações de cada linha) e no `PerfilPopup` (informações do próprio usuário logado), exibir quando o usuário acessou o sistema pela última vez.
 
 **Comportamento esperado:**

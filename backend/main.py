@@ -479,7 +479,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["X-Session-Expires"],
+    expose_headers=["X-Session-Expires", "X-Total-Count"],
 )
 app.add_middleware(ActivityLogMiddleware)
 app.add_middleware(RequestLoggerMiddleware)

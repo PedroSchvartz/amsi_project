@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Body, Depends, HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session, selectinload
 from database import get_db
 from models.usuario import Usuario
+from models.login import Login
 from models.token_ativo import TokenAtivo
 from schemas.usuario import UsuarioCreate, UsuarioUpdate, UsuarioResponse, RestaurarRequest
 from utils.auth_utils import hash_senha
@@ -39,7 +41,18 @@ def listar_usuarios(
     q = db.query(Usuario)
     if not incluir_excluidos:
         q = q.filter(Usuario.exclusao == None)  # noqa: E711
-    return q.all()
+    usuarios = q.all()
+    # 2.6 "ultimo acesso": MAX(Data_Login) por usuario numa unica query agrupada (sem N+1).
+    # Atributo transitorio em cada instancia (nao e coluna mapeada); UsuarioResponse, com
+    # from_attributes, le via getattr. None = usuario que nunca logou.
+    ultimos = dict(
+        db.query(Login.id_usuario_fk, func.max(Login.data_login))
+        .group_by(Login.id_usuario_fk)
+        .all()
+    )
+    for u in usuarios:
+        u.ultimo_acesso = ultimos.get(u.id_usuario)
+    return usuarios
 
 
 @router.get("/{id_usuario}", response_model=UsuarioResponse)
@@ -50,6 +63,10 @@ def buscar_usuario(id_usuario: int, db: Session = Depends(get_db), _=Depends(get
     ).first()
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    # 2.6: mesmo "ultimo acesso" da listagem, coerente neste endpoint (MAX de um usuario so).
+    usuario.ultimo_acesso = db.query(func.max(Login.data_login)).filter(
+        Login.id_usuario_fk == id_usuario
+    ).scalar()
     return usuario
 
 

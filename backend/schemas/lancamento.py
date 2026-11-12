@@ -121,6 +121,7 @@ class LancamentoResponse(BaseModel):
     comprovante_nome: Optional[str] = None
     nome_clifor: Optional[str] = None
     cpf_cnpj_clifor: Optional[str] = None
+    lote_clifor: Optional[str] = None
     descricao_tipo_conta: Optional[str] = None
     nome_usuario_lancamento: Optional[str] = None
     nome_usuario_efetivacao: Optional[str] = None
@@ -136,6 +137,7 @@ class LancamentoResponse(BaseModel):
             if cf:
                 values.__dict__['nome_clifor'] = cf.nome
                 values.__dict__['cpf_cnpj_clifor'] = cf.cpf_cnpj
+                values.__dict__['lote_clifor'] = cf.lote
             tc = getattr(values, 'tipo_conta_rel', None)
             if tc:
                 values.__dict__['descricao_tipo_conta'] = tc.descricao_conta

@@ -301,6 +301,66 @@ def test_sem_lote_clifor_nao_filtra(client, headers_admin, usuario_base, tipo_la
 
 
 # ================================================
+# EXPORTAÇÃO — COLUNA "Lote do Associado"
+# ================================================
+
+def test_lote_clifor_no_response(client, headers_admin, usuario_base, tipo_lancamento_base):
+    """O LancamentoResponse expõe o lote (terreno) do clifor relacionado.
+    Filtra por lote_clifor para não depender do cap de paginação da listagem."""
+    cli = _clifor_com_lote(client, headers_admin, usuario_base, "616.161.616-16", "Quadra 9 Lote Z")
+    lanc = _lancamento_de(client, headers_admin, usuario_base, cli["id_clifor"], tipo_lancamento_base["id_tipo_conta"])
+    try:
+        r = client.get("/lancamento/", params={"lote_clifor": "Quadra 9 Lote Z"}, headers=headers_admin)
+        assert r.status_code == 200
+        alvo = next((l for l in r.json() if l["id_lancamento"] == lanc["id_lancamento"]), None)
+        assert alvo is not None
+        assert alvo["lote_clifor"] == "Quadra 9 Lote Z"
+    finally:
+        client.delete(f"/lancamento/{lanc['id_lancamento']}", headers=headers_admin)
+        client.delete(f"/cliente_fornecedor/{cli['id_clifor']}", headers=headers_admin)
+
+
+class _RegStub:
+    """Registro falso para _colunas: qualquer atributo não setado vira None
+    (mesmo contrato do stub de _colunas_vazia)."""
+    def __getattr__(self, _):
+        return None
+
+
+def _reg(**kw):
+    r = _RegStub()
+    for k, v in kw.items():
+        setattr(r, k, v)
+    return r
+
+
+@pytest.mark.parametrize("perfil_completo", [True, False])
+def test_coluna_lote_associado_presente(perfil_completo):
+    """A coluna 'Lote do Associado' existe nos dois perfis, logo após o nome,
+    traz o lote do clifor e não remove nenhuma coluna anterior."""
+    from routes.lancamento import _colunas
+    base = [h for h, _, _ in _colunas(_reg(), perfil_completo)]
+
+    cols = _colunas(_reg(lote_clifor="Q1-L5", nome_clifor="Fulano"), perfil_completo)
+    headers = [h for h, _, _ in cols]
+    valores = {h: v for h, v, _ in cols}
+
+    assert "Lote do Associado" in headers
+    assert valores["Lote do Associado"] == "Q1-L5"
+    assert headers[headers.index("Nome / Razão Social") + 1] == "Lote do Associado"
+    # Sem remover nada: todas as colunas que já existiam continuam presentes.
+    assert set(base) >= {"CPF/CNPJ", "Nome / Razão Social", "Tipo de Conta", "Status"}
+
+
+def test_coluna_lote_associado_vazia_sem_lote():
+    """Clifor sem lote → célula vazia, não None (evita 'None' na planilha)."""
+    from routes.lancamento import _colunas
+    cols = _colunas(_reg(lote_clifor=None), perfil_completo=True)
+    valores = {h: v for h, v, _ in cols}
+    assert valores["Lote do Associado"] == ""
+
+
+# ================================================
 # FILTROS — COMBINADOS
 # ================================================
 
@@ -2364,3 +2424,186 @@ def test_status_modo_inclusivo_reembolso_entra_na_uniao(client, headers_admin, u
 
     client.delete(f"/lancamento/{id_aberto}", headers=headers_admin)
     client.delete(f"/lancamento/{id_reemb}", headers=headers_admin)
+
+
+# ================================================
+# ANTI-REGRESSÃO — N+1 do clifor em /lancamento/por-usuario (dívida 3.8)
+# ================================================
+
+from contextlib import contextmanager
+
+
+@contextmanager
+def _capturar_sql():
+    """Captura os statements SQL emitidos no engine durante o bloco."""
+    from sqlalchemy import event
+    from database import engine
+
+    statements = []
+
+    def _after(conn, cursor, statement, params, context, executemany):
+        statements.append(statement)
+
+    event.listen(engine, "after_cursor_execute", _after)
+    try:
+        yield statements
+    finally:
+        event.remove(engine, "after_cursor_execute", _after)
+
+
+def _selects_avulsos_de_clifor(statements):
+    """Lazy-loads do clifor: SELECTs que tocam `clientefornecedor` SEM o `lancamento`
+    junto. O SELECT principal da listagem referencia as duas tabelas (JOIN) e não entra;
+    cada lazy-load por linha é um SELECT isolado por PK — esses são o N+1."""
+    return [
+        s for s in statements
+        if "clientefornecedor" in s.lower() and "lancamento" not in s.lower()
+    ]
+
+
+def test_por_usuario_nao_faz_n1_de_clifor(
+    client, headers_admin, usuario_base, clifor_base, tipo_lancamento_base
+):
+    """Dívida 3.8: `GET /lancamento/por-usuario/{id}` não pode disparar uma query de
+    clifor por linha. Teste comparativo (robusto a qualquer query constante de auth):
+    o nº de SELECTs avulsos de clifor NÃO pode crescer quando os lançamentos do usuário
+    passam a cobrir mais clifors distintos. Sem `joinedload(cliente_fornecedor)` ele
+    cresce (1→2); com eager-load fica constante."""
+    id_usuario = usuario_base["id_usuario"]
+    criados_lanc = []
+    id_clifor2 = None
+    try:
+        # Lançamento 1 — no clifor_base (já vinculado ao usuário_base).
+        r = client.post("/lancamento/", json={
+            "id_usuario_fk_lancamento": id_usuario,
+            "id_clifor_relacionado_fk": clifor_base["id_clifor"],
+            "id_tipo_conta_fk": tipo_lancamento_base["id_tipo_conta"],
+            "valor": "10.00", "data_vencimento": "2026-12-31",
+            "natureza_lancamento": "Debito", "observacao": "n+1 teste A",
+        }, headers=headers_admin)
+        assert r.status_code == 200
+        criados_lanc.append(r.json()["id_lancamento"])
+
+        # Medição 1: lançamentos do usuário cobrem 1 clifor distinto.
+        with _capturar_sql() as sql1:
+            r1 = client.get(f"/lancamento/por-usuario/{id_usuario}", headers=headers_admin)
+        assert r1.status_code == 200
+        m1 = len(_selects_avulsos_de_clifor(sql1))
+
+        # Segundo clifor, distinto — um lançamento do mesmo usuário aponta para ele.
+        r = client.post("/cliente_fornecedor/", json={
+            "pessoafisica_juridica": True,
+            "cpf_cnpj": "222.222.222-22",
+            "rg_inscricaoestadual": "2222222",
+            "nome": "CliFor N+1 Teste",
+            "datanascimento": "1990-01-01",
+            "tipo_clifor": "A", "ativo": True, "inadimplente": False,
+        }, headers=headers_admin)
+        assert r.status_code == 200
+        id_clifor2 = r.json()["id_clifor"]
+
+        r = client.post("/lancamento/", json={
+            "id_usuario_fk_lancamento": id_usuario,
+            "id_clifor_relacionado_fk": id_clifor2,
+            "id_tipo_conta_fk": tipo_lancamento_base["id_tipo_conta"],
+            "valor": "20.00", "data_vencimento": "2026-12-31",
+            "natureza_lancamento": "Debito", "observacao": "n+1 teste B",
+        }, headers=headers_admin)
+        assert r.status_code == 200
+        criados_lanc.append(r.json()["id_lancamento"])
+
+        # Medição 2: agora cobrem 2 clifors distintos.
+        with _capturar_sql() as sql2:
+            r2 = client.get(f"/lancamento/por-usuario/{id_usuario}", headers=headers_admin)
+        assert r2.status_code == 200
+        m2 = len(_selects_avulsos_de_clifor(sql2))
+
+        # O dado continua correto (nome do clifor resolvido em ambas as linhas)...
+        nomes = {l["id_lancamento"]: l["nome_clifor"] for l in r2.json()}
+        for id_lanc in criados_lanc:
+            assert nomes.get(id_lanc), "nome_clifor deveria vir preenchido"
+
+        # ...e o custo de query não escala com o nº de clifors distintos.
+        assert m2 == m1, (
+            f"N+1 de clifor em /por-usuario: SELECTs avulsos de clifor subiram de {m1} "
+            f"para {m2} ao cobrir mais um clifor distinto (esperado: constante)."
+        )
+    finally:
+        for id_lanc in criados_lanc:
+            client.delete(f"/lancamento/{id_lanc}", headers=headers_admin)
+        if id_clifor2 is not None:
+            client.delete(f"/cliente_fornecedor/{id_clifor2}", headers=headers_admin)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGINAÇÃO em GET /lancamento/ (dívida técnica 3.9)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _clifor_isolado(client, headers_admin, nome="CliFor Paginacao Teste"):
+    """Cria um clifor com documento único (regra de credencial única do item 13) para
+    isolar um conjunto conhecido de lançamentos e medir paginação com total exato."""
+    import uuid
+    doc = lambda: str(uuid.uuid4().int)[:11]
+    r = client.post("/cliente_fornecedor/", json={
+        "pessoafisica_juridica": True, "cpf_cnpj": doc(), "rg_inscricaoestadual": doc(),
+        "nome": nome, "datanascimento": "1990-01-01",
+        "tipo_clifor": "A", "ativo": True, "inadimplente": False,
+    }, headers=headers_admin)
+    assert r.status_code == 200, r.text
+    return r.json()["id_clifor"]
+
+
+def test_paginacao_limit_skip_total_e_cap(client, headers_admin, usuario_base, tipo_lancamento_base):
+    """C1–C4 + C12: skip/limit paginam um conjunto filtrado, X-Total-Count é o total do
+    filtro (independe da página), limit é clampado a 1000 e o SQL usa LIMIT."""
+    cli = _clifor_isolado(client, headers_admin)
+    ids = []
+    try:
+        # 3 lançamentos no mesmo clifor, vencimentos distintos → ordem determinística.
+        for i in range(3):
+            r = client.post("/lancamento/", json={
+                "id_usuario_fk_lancamento": usuario_base["id_usuario"],
+                "id_clifor_relacionado_fk": cli,
+                "id_tipo_conta_fk": tipo_lancamento_base["id_tipo_conta"],
+                "valor": f"{(i + 1) * 10}.00",
+                "data_vencimento": f"2026-12-0{i + 1}",
+                "natureza_lancamento": "Debito", "observacao": f"paginacao {i}",
+            }, headers=headers_admin)
+            assert r.status_code == 200, r.text
+            ids.append(r.json()["id_lancamento"])
+
+        base = f"/lancamento/?id_clifor={cli}"
+
+        # C2/C4: sem skip/limit, corpo é lista pura e X-Total-Count = total do filtro (3).
+        r_all = client.get(base, headers=headers_admin)
+        assert r_all.status_code == 200
+        assert isinstance(r_all.json(), list)
+        assert r_all.headers.get("X-Total-Count") == "3"
+        assert len(r_all.json()) == 3  # default (100) >= 3
+
+        # C1/C2: limit=2 → 2 itens, mas o total permanece 3 (independe do limit).
+        r1 = client.get(f"{base}&limit=2", headers=headers_admin)
+        assert len(r1.json()) == 2
+        assert r1.headers.get("X-Total-Count") == "3"
+
+        # C1: skip=2&limit=2 → os restantes (1), disjuntos da 1ª página e cobrindo o total.
+        r2 = client.get(f"{base}&skip=2&limit=2", headers=headers_admin)
+        assert len(r2.json()) == 1
+        set1 = {x["id_lancamento"] for x in r1.json()}
+        set2 = {x["id_lancamento"] for x in r2.json()}
+        assert set1.isdisjoint(set2)
+        assert set1 | set2 == set(ids)
+
+        # C3: limit acima do teto é clampado (≤1000) e não dá 500; limit=0 não quebra.
+        assert client.get(f"{base}&limit=5000", headers=headers_admin).status_code == 200
+        assert client.get(f"{base}&limit=0", headers=headers_admin).status_code == 200
+
+        # C12: o SELECT principal materializa no máximo `limit` linhas (SQL com LIMIT).
+        with _capturar_sql() as sql:
+            client.get(f"{base}&limit=2", headers=headers_admin)
+        assert any("limit" in s.lower() for s in sql), \
+            "a listagem paginada deveria emitir SQL com LIMIT"
+    finally:
+        for lid in ids:
+            client.delete(f"/lancamento/{lid}", headers=headers_admin)
+        client.delete(f"/cliente_fornecedor/{cli}", headers=headers_admin)

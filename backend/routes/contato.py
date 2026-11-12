@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models.contato import Contato
 from models.cliente_fornecedor import ClienteFornecedor
+from models.usuario import Usuario, AcessoEnum
 from schemas.contato import ContatoCreate, ContatoUpdate, ContatoResponse
 from auth.dependencies import get_current_user, exige_operador_ou_admin
 from typing import List
@@ -13,18 +14,29 @@ router = APIRouter(
 )
 
 @router.get("/", response_model=List[ContatoResponse])
-def listar_contatos(db: Session = Depends(get_db), _=Depends(get_current_user)):
-    return db.query(Contato).all()
+def listar_contatos(db: Session = Depends(get_db), current_user: Usuario = Depends(get_current_user)):
+    # Consulta so enxerga os contatos do proprio clifor (espelha o item 7 em /lancamento/);
+    # sem clifor vinculado, lista vazia. Admin/Operador veem tudo.
+    q = db.query(Contato)
+    if current_user.perfil_de_acesso == AcessoEnum.Consulta:
+        if current_user.id_clifor_fk is None:
+            return []
+        q = q.filter(Contato.id_clifor_fk == current_user.id_clifor_fk)
+    return q.all()
 
 @router.get("/{id_contato}", response_model=ContatoResponse)
-def buscar_contato(id_contato: int, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def buscar_contato(id_contato: int, db: Session = Depends(get_db), current_user: Usuario = Depends(get_current_user)):
     contato = db.query(Contato).filter(Contato.id_contato == id_contato).first()
     if not contato:
         raise HTTPException(status_code=404, detail="Contato não encontrado")
+    if current_user.perfil_de_acesso == AcessoEnum.Consulta and contato.id_clifor_fk != current_user.id_clifor_fk:
+        raise HTTPException(status_code=403, detail="Sem permissão para este contato")
     return contato
 
 @router.get("/por-clifor/{id_clifor}", response_model=List[ContatoResponse])
-def listar_contatos_por_clifor(id_clifor: int, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def listar_contatos_por_clifor(id_clifor: int, db: Session = Depends(get_db), current_user: Usuario = Depends(get_current_user)):
+    if current_user.perfil_de_acesso == AcessoEnum.Consulta and id_clifor != current_user.id_clifor_fk:
+        raise HTTPException(status_code=403, detail="Sem permissão para este cliente/fornecedor")
     return db.query(Contato).filter(Contato.id_clifor_fk == id_clifor).all()
 
 @router.post("/", response_model=ContatoResponse)

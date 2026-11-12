@@ -335,6 +335,7 @@ def _query_lancamentos_filtrada(
 
 @router.get("/", response_model=List[LancamentoResponse])
 def listar_lancamentos(
+    response: Response,
     id_clifor: Optional[int] = None,
     id_tipo_conta: Optional[int] = None,
     natureza: Optional[str] = None,
@@ -356,6 +357,8 @@ def listar_lancamentos(
     lote: Optional[int] = None,
     lote_clifor: Optional[str] = None,
     status_modo: str = "inclusivo",
+    skip: int = 0,
+    limit: int = 100,
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(get_current_user)
 ):
@@ -364,9 +367,15 @@ def listar_lancamentos(
     # espelhando o consultaSemClifor do frontend.
     if current_user.perfil_de_acesso == AcessoEnum.Consulta:
         if current_user.id_clifor_fk is None:
+            response.headers["X-Total-Count"] = "0"
             return []
         id_clifor = current_user.id_clifor_fk
-    return _query_lancamentos_filtrada(
+    # Paginacao (3.9): teto de 1000 linhas por request, default 100 — clamp defensivo para
+    # nao materializar a tabela inteira. O total do conjunto FILTRADO (independente da pagina)
+    # vai no header X-Total-Count, para o front montar o paginador.
+    limit = max(1, min(limit, 1000))
+    skip = max(0, skip)
+    query = _query_lancamentos_filtrada(
         db,
         id_clifor=id_clifor, id_tipo_conta=id_tipo_conta, natureza=natureza,
         apenas_abertos=apenas_abertos, apenas_vencidos=apenas_vencidos,
@@ -378,7 +387,9 @@ def listar_lancamentos(
         estorno=estorno, valor_minimo=valor_minimo, valor_maximo=valor_maximo, lote=lote,
         lote_clifor=lote_clifor,
         status_modo=status_modo,
-    ).all()
+    )
+    response.headers["X-Total-Count"] = str(query.count())
+    return query.offset(skip).limit(limit).all()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -501,6 +512,7 @@ def _colunas(r, perfil_completo: bool) -> list[tuple[str, object, Optional[str]]
         return [
             ("CPF/CNPJ", _mascarar_cpf_cnpj(r.cpf_cnpj_clifor), None),
             ("Nome / Razão Social", r.nome_clifor or "", None),
+            ("Lote do Associado", r.lote_clifor or "", None),
             ("Tipo de Conta", tipo, None),
             ("Natureza", natureza, None),
             ("Vencimento", _data_cel(r.data_vencimento), FMT_DATA),
@@ -515,6 +527,7 @@ def _colunas(r, perfil_completo: bool) -> list[tuple[str, object, Optional[str]]
         ("ID", r.id_lancamento, None),
         ("CPF/CNPJ", r.cpf_cnpj_clifor or "", None),
         ("Nome / Razão Social", r.nome_clifor or "", None),
+        ("Lote do Associado", r.lote_clifor or "", None),
         ("Tipo de Conta", tipo, None),
         ("Natureza", natureza, None),
         ("Status", _valor_enum(r.situacao), None),
@@ -797,6 +810,7 @@ def listar_lancamentos_por_usuario(id_usuario: int, db: Session = Depends(get_db
         ClienteFornecedor,
         Lancamento.id_clifor_relacionado_fk == ClienteFornecedor.id_clifor
     ).options(
+        joinedload(Lancamento.cliente_fornecedor),
         joinedload(Lancamento.usuario_lancamento),
         joinedload(Lancamento.usuario_efetivacao),
         joinedload(Lancamento.usuario_aprovacao),

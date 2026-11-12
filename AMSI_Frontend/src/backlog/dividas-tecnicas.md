@@ -65,6 +65,8 @@ Com 8 threads paralelas e latência de 100ms por query:
 
 ### 3.8 Corrigir N+1 query na listagem de lançamentos
 
+> ✅ **Entregue em 2026-10-21:** `joinedload(Lancamento.cliente_fornecedor)` agora nos dois endpoints que faltavam — `listar_lancamentos` (lista principal) e `listar_lancamentos_por_usuario` (`backend/routes/lancamento.py`); `por-clifor` já tinha. Fechado com teste anti-regressão comparativo (`test_por_usuario_nao_faz_n1_de_clifor`): falha antes do fix (1→2 SELECTs de clifor), passa depois. Paginação (3.9) e o 2N+1 do clifor (3.12) seguem abertos.
+
 > Identificado revisando um vídeo curto sobre erros comuns de performance em apps "vibe-coded" (2026-07-09) e conferido contra o código real do projeto — não é hipotético, o bug existe hoje.
 
 **Problema:** `GET /lancamento/` ([`routes/lancamento.py`](../../backend/routes/lancamento.py), listagem principal — a mais usada, alimenta a tela de lançamentos) faz `.join(ClienteFornecedor, ...)` só para filtrar, mas não dá `joinedload(Lancamento.cliente_fornecedor)`. O `model_validator` de `LancamentoResponse` ([`schemas/lancamento.py`](../../backend/schemas/lancamento.py)) acessa `values.cliente_fornecedor.nome`/`.cpf_cnpj` na serialização — sem eager load, isso dispara uma query extra por linha retornada (N+1 clássico). O mesmo bug está em `GET /lancamento/por-usuario/{id}`.
@@ -107,6 +109,8 @@ Com 8 threads paralelas e latência de 100ms por query:
 - Menor prioridade que 3.8/3.9 — é polimento de UX percebida, não corrige uma query real rodando a mais.
 
 ### 3.11 Cache de sessão no frontend — carregar uma vez, recarregar sob demanda
+
+> ✅ **Entregue (confirmado no código em 2026-10-21):** existe `src/services/cache.js` (um `Map` em memória, zerado no `auth.logout`), usado em `ListaLancamentosPage.jsx`, `dashboard.jsx` e `ClientList.jsx`. Vale o contrato "persiste a última busca até nova busca ou logout" (sem auto-load na primeira visita), que substituiu o texto original abaixo ("carregar uma vez / botão Recarregar").
 
 > 📋 **Plano técnico detalhado e fechado (pronto para execução):** [`cache-sessao-frontend.md`](./cache-sessao-frontend.md)
 
@@ -170,8 +174,11 @@ Mesma origem do 3.8/3.9/3.10 — vídeo sobre erros comuns de performance (ponto
 > (gitignored)** por descrever falhas exploráveis de um sistema em produção. Não
 > detalhar vetores aqui (arquivo versionado).
 
-**Ainda pendente (a confirmar contra o código antes de fechar):**
+**Status (2026-10-21): sem pendência de escopo de dados.**
 
-- **Alinhamento do escopo de perfil `Consulta` nas rotas de endereço e contato** —
-  garantir que a verificação de permissão nessas rotas seja consistente com o
-  resto da aplicação. Ver detalhe no doc 12 e em [`../09_seguranca.md`](../09_seguranca.md).
+- ✅ **Escopo de perfil `Consulta` nas rotas de endereço e contato** — fechado em 2026-10-21,
+  espelhando o escopo já aplicado em `GET /lancamento/`. Os 3 GETs de `endereco.py`/`contato.py`
+  escopam o Consulta ao clifor vinculado (lista só a própria; **403** em dado de outro clifor);
+  Admin/Operador seguem vendo tudo. Teste anti-regressão `backend/tests/test_escopo_consulta.py`
+  (6 casos). Era o último gap de dados do perfil Consulta. Demais itens médios de hardening no
+  doc 12 (gitignored).

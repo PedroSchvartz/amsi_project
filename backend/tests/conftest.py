@@ -359,7 +359,11 @@ def tipo_lancamento_base(client, headers_admin):
     assert r.status_code == 200
     data = r.json()
     yield data
-    lancamentos = client.get("/lancamento/", headers=headers_admin)
+    # Estreita com filtro (o endpoint agora pagina: sem filtro veríamos só a 1ª página e
+    # deixaríamos lançamentos de teste para trás → db_snapshot acusaria banco sujo).
+    lancamentos = client.get(
+        f"/lancamento/?id_tipo_conta={data['id_tipo_conta']}&limit=1000", headers=headers_admin
+    )
     if lancamentos.is_success:
         for l in lancamentos.json():
             if l["id_tipo_conta_fk"] == data["id_tipo_conta"]:
@@ -416,7 +420,10 @@ def clifor_base(client, headers_admin, usuario_base):
     yield data
     # Desvincula antes de apagar: a FK usuario.id_clifor_fk bloquearia o delete do clifor.
     client.delete(f"/usuarios/{usuario_base['id_usuario']}/clifor/desvincular", headers=headers_admin)
-    lancamentos = client.get("/lancamento/", headers=headers_admin)
+    # Estreita com filtro (o endpoint agora pagina — ver nota no tipo_lancamento_base).
+    lancamentos = client.get(
+        f"/lancamento/?id_clifor={data['id_clifor']}&limit=1000", headers=headers_admin
+    )
     if lancamentos.is_success:
         for l in lancamentos.json():
             if l["id_clifor_relacionado_fk"] == data["id_clifor"]:

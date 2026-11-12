@@ -72,5 +72,8 @@ class UsuarioResponse(BaseModel):
     data_cadastro: datetime
     primeiro_acesso: bool
     id_clifor_fk: Optional[int] = None
+    # 2.6 "ultimo acesso": MAX(Data_Login) da tabela Login, calculado na rota (nao e coluna
+    # em usuario). None = nunca logou ("Nunca acessou" no front).
+    ultimo_acesso: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)

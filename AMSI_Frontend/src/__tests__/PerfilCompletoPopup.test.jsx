@@ -75,6 +75,23 @@ describe('PerfilCompletoPopup — dados básicos', () => {
 	});
 });
 
+describe('PerfilCompletoPopup — último acesso (2.6)', () => {
+	it('formata a data/hora do último acesso quando presente', async () => {
+		render(
+			<PerfilCompletoPopup usuario={{ ...USUARIO, ultimo_acesso: '2026-06-02T14:32:00' }} onFechar={() => {}} />
+		);
+		expect(screen.getByText('02/06/2026 às 14:32')).toBeInTheDocument();
+		// espera a carga assíncrona do clifor para não vazar act()
+		await screen.findByText('Cliente Vinculado');
+	});
+
+	it('mostra "Nunca acessou" quando ultimo_acesso é null/ausente', async () => {
+		render(<PerfilCompletoPopup usuario={{ ...USUARIO, ultimo_acesso: null }} onFechar={() => {}} />);
+		expect(screen.getByText('Nunca acessou')).toBeInTheDocument();
+		await screen.findByText('Cliente Vinculado');
+	});
+});
+
 describe('PerfilCompletoPopup — clifor vinculado', () => {
 	it('renderiza a seção do clifor vinculado após a carga', async () => {
 		render(<PerfilCompletoPopup usuario={USUARIO} onFechar={() => {}} />);

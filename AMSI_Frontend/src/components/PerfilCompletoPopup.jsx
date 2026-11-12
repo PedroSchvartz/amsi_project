@@ -254,6 +254,16 @@ function PerfilCompletoPopup({ usuario, onFechar }) {
 		return str;
 	};
 
+	// 2.6 "último acesso": ISO 'AAAA-MM-DDTHH:MM:SS' → 'dd/mm/aaaa às HH:MM' fatiando a
+	// string (sem new Date, evita o shift de fuso). null/vazio → 'Nunca acessou'.
+	const formatarAcesso = (iso) => {
+		if (!iso) return 'Nunca acessou';
+		const [data, hora = ''] = String(iso).split('T');
+		const [ano, mes, dia] = data.split('-');
+		const hhmm = hora.slice(0, 5);
+		return hhmm ? `${dia}/${mes}/${ano} às ${hhmm}` : `${dia}/${mes}/${ano}`;
+	};
+
 	return (
 		<>
 			{confirmandoAssoc && (
@@ -309,6 +319,10 @@ function PerfilCompletoPopup({ usuario, onFechar }) {
 							<span style={s.badge(!usuario.bloqueado)}>
 								{usuario.bloqueado ? 'Bloqueado' : 'Ativo'}
 							</span>
+						</div>
+						<div style={s.fieldRow}>
+							<span style={s.fieldLabel}>Último acesso</span>
+							<span style={s.fieldValue}>{formatarAcesso(usuario.ultimo_acesso)}</span>
 						</div>
 					</div>
 

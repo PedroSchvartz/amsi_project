@@ -44,6 +44,11 @@ esses códigos.
 
 ### 2.6 Exibir "último acesso" do usuário
 
+> ✅ **Implementado em 2026-10-21** (local; aguardando deploy): a listagem de usuários passou a
+> trazer `ultimo_acesso` = `MAX(Data_Login)` (`backend/routes/usuario.py`), e o
+> `PerfilCompletoPopup` exibe "Último acesso: dd/mm/aaaa às HH:MM" ou "Nunca acessou". Decisão de
+> UX: aparece só no Perfil Completo (a lista não ganhou coluna). Permanece aqui até subir em prod.
+
 Na página de gerenciamento de usuários (menu de Ações de cada linha) e no `PerfilPopup` (informações do próprio usuário logado), exibir quando o usuário acessou o sistema pela última vez.
 
 **Comportamento esperado:**
@@ -363,33 +368,11 @@ Permitir que associados paguem seus lançamentos via PIX gerado pelo próprio si
 
 ## Reunião 2026-09-09 — demandas de produto (pendentes)
 
-> Itens **novos** levantados na reunião de 2026-09-09 que entregam capacidade nova ao
-> usuário. Os refinamentos de UI/RBAC e validações já entregues na mesma reunião estão
-> na seção [Reunião 2026-09-09](./dividas-tecnicas.md) de `dividas-tecnicas.md`. O item
-> "API de envio de email" da lista original foi **resolvido** (revisão de IPs do Brevo
-> desligada — sem código; ver memória `projeto_brevo_ip_dinamico`).
-
-### R0909.4 Login por CPF **ou** Email
-
-Hoje o identificador do usuário é o email (o campo `login` foi removido). A demanda
-reintroduz um identificador flexível: no front, o rótulo "Email" vira **"CPF ou
-Email"**; no banco, volta um campo `login` que aceita qualquer valor (CPF ou email).
-
-- ⚠️ **Estrutural — mexe no banco e na autenticação.** Segue `tabelas_do_banco.txt` →
-  model → schema → route (auth). Merece sessão dedicada; avaliar impacto no bootstrap,
-  no reset de senha e nos usuários existentes (migração do email atual para `login`).
-- Relaciona-se com R0909.13 (criar usuário a partir do clifor com login por CPF).
-
-### R0909.7 Perfil Consulta só visualiza os próprios dados
-
-Na tela de lançamentos, o perfil Consulta deve ver **apenas os lançamentos do próprio
-clifor vinculado**, não a base inteira.
-
-- É a contraparte de dados do que hoje só é escondido na UI (2.4). Precisa de **escopo
-  no backend** — hoje `GET /lancamento/` não filtra por perfil (ver item de segurança
-  na seção Reunião 2026-09-09 de [`dividas-tecnicas.md`](./dividas-tecnicas.md)).
-- Sobrepõe-se ao [7.1 Portal do Associado](#71-visualização-do-próprio-clifor) — vale
-  desenhar os dois juntos (o `GET /minha-conta` proposto lá resolve este escopo).
+> Itens **novos** levantados na reunião de 2026-09-09. A maior parte já foi **entregue em
+> produção** e foi movida para a seção [Entregues](#entregues) no fim deste arquivo (reconciliação
+> de 2026-10-21, conferida contra o código). Restou abaixo o que ainda **não** foi feito. O item
+> "API de envio de email" foi resolvido (revisão de IPs do Brevo desligada — sem código; ver
+> memória `projeto_brevo_ip_dinamico`).
 
 ### R0909.12 Exibir (e editar) os tipos de conta em massa do clifor no cadastro/edição
 
@@ -399,31 +382,26 @@ aquele clifor — permitindo também editar essa associação a partir da tela d
 - Relaciona-se com a Parametrização de clifors já existente (seleção nomeada de
   clifors+valor por Tipo de Conta) — aqui é a visão inversa (a partir do clifor).
 
-### R0909.13 Incluir usuários a partir do clifor (login por CPF)
+---
 
-Permitir criar usuários diretamente a partir do clifor, com login por CPF, **somente
-entre os clifors selecionados** (recorte definido pelo Marcio).
+## Entregues
 
-- Depende de R0909.4 (login por CPF) e de R0909.16 (clifor 1–N usuários).
+> Itens já **em produção**, movidos para cá na reconciliação de 2026-10-21 — conferidos contra o
+> **código** (as seções de "estado/pendências" dos `contexto_macro*` desatualizam). Mantidos como
+> registro, não como backlog ativo.
 
-### R0909.14 Novo booleano "associado" no clifor
+### Reunião 2026-09-09 — entregues
 
-Adicionar a flag **"associado"** ao clifor (tela e tabela `cliente_fornecedor`).
-
-- Segue `tabelas_do_banco.txt` → model → schema → route.
-- Par com R0909.15 (o "associado" sai do usuário e passa a viver no clifor).
-
-### R0909.15 "Cargo" do usuário perde a opção "associado"
-
-Na tela de usuário, o campo **"cargo"** deixa de ter "associado" — esse conceito migra
-para o clifor (R0909.14).
-
-### R0909.16 Relacionamento clifor ↔ usuários passa de 1–1 para 1–N
-
-O vínculo entre clifor e usuários (por email e id) deixa de ser **1–1** e passa a ser
-**1–N** (um clifor pode ter vários usuários).
-
-- ⚠️ **Estrutural — mudança de cardinalidade no modelo.** Alinhar com o plano
-  [5.1 Plataforma multi-associação](#51-plataforma-multi-associação) /
-  [`multi-associacao-jwt-fundacao.md`](./multi-associacao-jwt-fundacao.md) antes de
-  implementar, para não migrar o schema duas vezes.
+- **R0909.4 Login por CPF ou Email** — `usuario.login` voltou e é a única credencial que autentica
+  (`backend/models/usuario.py`; regra em `backend/auth/router.py`).
+- **R0909.7 Consulta só visualiza os próprios dados** — `listar_lancamentos` escopa o perfil
+  Consulta ao `id_clifor_fk` (`backend/routes/lancamento.py`). Fecha também o item de dados
+  correspondente em `dividas-tecnicas.md`.
+- **R0909.13 Criar usuário a partir do clifor (login por documento)** — `gerar_acesso_clifor` +
+  endpoint "item 13" (`backend/routes/usuario.py`).
+- **R0909.14 Booleano "associado" no clifor** — coluna `associado`
+  (`backend/models/cliente_fornecedor.py`).
+- **R0909.15 Cargo perde "associado"** — `cargo` nullable; o conceito migrou para o clifor
+  (`backend/models/usuario.py`).
+- **R0909.16 Clifor ↔ usuários 1–N** — `usuario.id_clifor_fk` + backref `usuarios`
+  (`backend/models/usuario.py`).
