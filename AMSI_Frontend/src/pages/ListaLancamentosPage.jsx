@@ -300,6 +300,13 @@ function ListaLancamentosPage() {
 				skip,
 				limit: POR_PAGINA
 			});
+			// A página pedida pode ter deixado de existir (ex.: excluí a última linha da
+			// última página) → recua para a última página real e refaz a busca.
+			const ultimaPagina = Math.max(1, Math.ceil(tot / POR_PAGINA));
+			if (pag > ultimaPagina) {
+				await buscar(fEfetivo, ultimaPagina);
+				return;
+			}
 			setLancamentos(itens);
 			setTotal(tot);
 			setPagina(pag);
@@ -641,7 +648,7 @@ function ListaLancamentosPage() {
 			);
 			setModalFechar(null);
 			setComprovante(null);
-			buscar();
+			buscar(filtrosAplicados, pagina);
 			setLoteRefresh((x) => x + 1);
 		} catch (err) {
 			if (err.message !== 'sessao-expirada')
@@ -656,7 +663,7 @@ function ListaLancamentosPage() {
 			await aprovarLancamento(modalAprovar);
 			mostrarToast('Lançamento aprovado com sucesso.');
 			setModalAprovar(null);
-			buscar();
+			buscar(filtrosAplicados, pagina);
 			setLoteRefresh((x) => x + 1);
 		} catch (err) {
 			if (err.message !== 'sessao-expirada')
@@ -728,7 +735,7 @@ function ListaLancamentosPage() {
 			if (comprovante) await anexarComprovante(modalEditar, comprovante);
 			mostrarToast('Lançamento editado com sucesso.');
 			setModalEditar(null);
-			buscar();
+			buscar(filtrosAplicados, pagina);
 			setLoteRefresh((x) => x + 1);
 		} catch (err) {
 			if (err.message !== 'sessao-expirada')
@@ -743,7 +750,7 @@ function ListaLancamentosPage() {
 			mostrarToast('Lançamento excluído com sucesso.');
 			setConfirmarDeletar(false);
 			setModalEditar(null);
-			buscar();
+			buscar(filtrosAplicados, pagina);
 			setLoteRefresh((x) => x + 1);
 		} catch (err) {
 			if (err.message !== 'sessao-expirada')
@@ -766,7 +773,7 @@ function ListaLancamentosPage() {
 					: 'Aprovação desfeita — lançamento voltou para Em análise.'
 			);
 			setTimelineModal(null);
-			buscar();
+			buscar(filtrosAplicados, pagina);
 			setLoteRefresh((x) => x + 1);
 		} catch (err) {
 			if (err.message !== 'sessao-expirada')
@@ -2412,7 +2419,7 @@ function ListaLancamentosPage() {
 						setLoteAcima(false);
 						setLoteModal(null);
 					}}
-					onChanged={() => buscar()}
+					onChanged={() => buscar(filtrosAplicados, pagina)}
 				/>
 			)}
 
