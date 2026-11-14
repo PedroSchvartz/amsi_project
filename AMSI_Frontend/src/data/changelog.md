@@ -13,6 +13,11 @@
   Não precisa mexer em código para publicar um novo deploy: basta editar este arquivo.
 -->
 
+## 2026-11-13
+
+### Dashboard: um mês por vez e novo card "Resultado"
+O filtro do painel agora é um único campo de mês (sem mais "de/até"). O card "Saldo" foi substituído por "Resultado": Receitas menos Despesas do mês, somadas aos lançamentos de natureza "Resultado" do mês anterior. Esses lançamentos aparecem numa nova lista, "Resultado de <mês anterior>", logo abaixo das listas de Receitas e Despesas, para todos os perfis.
+
 ## 2026-11-12
 
 ### Lista de lançamentos agora é paginada

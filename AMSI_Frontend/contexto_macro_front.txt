@@ -69,12 +69,13 @@ AMSI_Frontend/src/
         filtros pendentes diferem dos aplicados (ambos os temas)
       Fechar lançamento com upload de comprovante PDF (máx 5MB)
     dashboard.jsx
-      Seletor de período: Último mês / Últimos 6 meses / Ano atual / Desde sempre
-      + seletor livre de mês/ano (type="month") — exclusivos com botões rápidos
-      KPIs realizados: Receita Recebida, Despesa Paga, Saldo do Período, Reembolsos
-      KPIs pendentes: A Receber, A Pagar, A Receber (excl. inadimplentes), Inadimplentes
-      Rankings lado a lado: Top Despesas / Top Receitas (top 5 por tipo de conta)
-      Lista inadimplentes (máx 8, link "Ver todos")
+      Filtro: um único mês (type="month", padrão mês atual), recorte por data de pagamento
+      KPIs do mês: Receitas, Despesas, Resultado (= Receitas - Despesas + Σ lançamentos de
+      natureza Resultado do MÊS ANTERIOR, via resumo-por-tipo?natureza=Resultado)
+      Logo abaixo de Receitas/Despesas (todos os perfis): lista "Resultado de <mês anterior>"
+      (Tipo/Total/Qtd)
+      Posição atual (oculta p/ Consulta): A Receber, A Pagar, Inadimplência, Em Análise,
+      Estornos, Inadimplentes (máx 8, link "Ver todos")
     (wrappers de rota para ClientList, ClientRegister, ClientEdit, UserList)
   services/
     api.js                         — todas as chamadas HTTP

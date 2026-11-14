@@ -14,7 +14,7 @@ function formatarValor(v) {
 }
 
 // ── Seletor de período (data de pagamento) ──────────────────────────────────
-// A fonte única de verdade é o par (mesDe, mesAte) — dois <input type="month">.
+// A fonte única de verdade é `mes` — um único <input type="month">.
 // `mesParaDia` resolve o mês no 1º/último dia; o padrão de abertura é o mês corrente.
 function ym(offsetMeses = 0) {
 	const d = new Date();
@@ -35,13 +35,26 @@ function mesParaDia(mesAno, fim = false) {
 	return `${ano}-${String(mes).padStart(2, '0')}-01`;
 }
 
-function computarParams(mesDe, mesAte) {
+function computarParams(mes) {
 	const params = {};
-	const de = mesParaDia(mesDe, false);
-	const ate = mesParaDia(mesAte, true);
+	const de = mesParaDia(mes, false);
+	const ate = mesParaDia(mes, true);
 	if (de) params.data_pagamento_de = de;
 	if (ate) params.data_pagamento_ate = ate;
 	return params;
+}
+
+// Mês imediatamente anterior a "AAAA-MM" (jan → dez do ano anterior).
+function mesAnterior(mes) {
+	const [ano, m] = mes.split('-').map(Number);
+	const d = new Date(ano, m - 2, 1);
+	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+const NOMES_MES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+function rotuloMes(mes) {
+	const [ano, m] = mes.split('-').map(Number);
+	return `${NOMES_MES[m - 1]}/${ano}`;
 }
 
 function faixaTexto(de, ate) {
@@ -67,11 +80,11 @@ const KPI_INFO = {
 		descricao:
 			'Soma dos lançamentos de natureza Débito já APROVADOS pelo administrador, com pagamento dentro do período selecionado. Só o que foi aprovado conta como saída de caixa — lançamentos "Em análise" não entram. Estornos/reembolsos são contabilizados à parte.'
 	},
-	saldo_periodo: {
-		tooltip: 'Receitas menos Despesas no período.',
-		titulo: 'Saldo',
+	resultado: {
+		tooltip: 'Receitas − Despesas + lançamentos Resultado do mês anterior.',
+		titulo: 'Resultado',
 		descricao:
-			'Resultado líquido do período: Receitas menos Despesas, considerando apenas lançamentos aprovados. Positivo indica superávit (entrou mais do que saiu); negativo, déficit. Ignora estornos e tudo que ainda não foi aprovado.'
+			'Receitas menos Despesas do mês selecionado, somadas aos lançamentos de natureza Resultado do mês anterior (lista no fim da página). Considera apenas lançamentos aprovados. Positivo indica superávit; negativo, déficit. Ignora estornos e tudo que ainda não foi aprovado.'
 	},
 	a_receber: {
 		tooltip: 'Créditos em aberto, ainda não efetivados.',
@@ -106,7 +119,6 @@ const KPI_INFO = {
 const KPI_FILTROS = {
 	receita_recebida: { natureza: 'Credito', apenas_quitados: 'true', estorno: 'false', usarData: true },
 	despesa_paga:     { natureza: 'Debito',  apenas_quitados: 'true', estorno: 'false', usarData: true },
-	saldo_periodo:    { natureza: '',        apenas_quitados: 'true', estorno: 'false', usarData: true },
 	a_receber:        { natureza: 'Credito', apenas_abertos: 'true',    estorno: 'false', usarData: false },
 	a_pagar:          { natureza: 'Debito',  apenas_abertos: 'true',    estorno: 'false', usarData: false },
 	em_analise:       { natureza: '',        apenas_em_analise: 'true', estorno: 'false', usarData: false },
@@ -233,14 +245,15 @@ function Dashboard() {
 	const [porTipoDespesa, setPorTipoDespesa] = useState([]);
 	const [porTipoReceita, setPorTipoReceita] = useState([]);
 	const [porTipoEstorno, setPorTipoEstorno] = useState([]); // só Admin/Operador
+	const [porTipoResultado, setPorTipoResultado] = useState([]); // lançamentos Resultado do mês anterior
+	const [mesResultado, setMesResultado] = useState(mesAnterior(MES_PADRAO()));
 	const [inadimplentes, setInadimplentes] = useState([]);
 	const [carregando, setCarregando] = useState(false);
 	const [erro, setErro] = useState('');
 	const [populado, setPopulado] = useState(false); // true após a 1ª busca
 
-	// Seleção do período (rascunho) — dois inputs de mês, fonte única de verdade.
-	const [mesDe, setMesDe] = useState(MES_PADRAO());
-	const [mesAte, setMesAte] = useState(MES_PADRAO());
+	// Seleção do período (rascunho) — um único input de mês, fonte única de verdade.
+	const [mes, setMes] = useState(MES_PADRAO());
 	// Range efetivamente carregado (dias) — usado pelo cabeçalho e pelo "Discriminar".
 	const [aplicado, setAplicado] = useState({ data_pagamento_de: undefined, data_pagamento_ate: undefined });
 	const [pendente, setPendente] = useState(false);
@@ -254,17 +267,22 @@ function Dashboard() {
 			const buscaEstorno = isConsulta()
 				? Promise.resolve([])
 				: getResumoPorTipo({ ...params, estorno: true });
-			const [res, despesas, receitas, clifors, estornos] = await Promise.all([
+			// Resultado: lançamentos de natureza Resultado do mês ANTERIOR ao selecionado.
+			const paramsAnterior = computarParams(mesAnterior(meta.mes));
+			const [res, despesas, receitas, clifors, estornos, resultados] = await Promise.all([
 				getLancamentosResumo(params),
 				getResumoPorTipo({ ...params, natureza: 'Debito' }),
 				getResumoPorTipo({ ...params, natureza: 'Credito' }),
 				getClifors({ inadimplente: true }),
-				buscaEstorno
+				buscaEstorno,
+				getResumoPorTipo({ ...paramsAnterior, natureza: 'Resultado' })
 			]);
 			setResumo(res);
 			setPorTipoDespesa(despesas);
 			setPorTipoReceita(receitas);
 			setPorTipoEstorno(estornos);
+			setPorTipoResultado(resultados);
+			setMesResultado(mesAnterior(meta.mes));
 			setInadimplentes(clifors);
 			setPopulado(true);
 			setCache('dashboard', {
@@ -272,6 +290,7 @@ function Dashboard() {
 				porTipoDespesa: despesas,
 				porTipoReceita: receitas,
 				porTipoEstorno: estornos,
+				porTipoResultado: resultados,
 				inadimplentes: clifors,
 				...meta
 			});
@@ -285,55 +304,55 @@ function Dashboard() {
 
 	// Ao abrir: se já houve pesquisa nesta sessão, reidrata o resultado (e a seleção) do
 	// cache; senão, carrega automaticamente o período padrão (mês atual) — sem exigir o
-	// clique em "Pesquisar". mesDe/mesAte já vêm nos defaults do useState.
+	// clique em "Pesquisar". `mes` já vem no default do useState.
 	useEffect(() => {
 		const cache = getCache('dashboard');
-		if (cache) {
+		// Cache antigo (formato mesDe/mesAte, sem `mes`) é descartado.
+		if (cache && cache.mes) {
 			setResumo(cache.resumo);
 			setPorTipoDespesa(cache.porTipoDespesa);
 			setPorTipoReceita(cache.porTipoReceita);
 			setPorTipoEstorno(cache.porTipoEstorno || []);
+			setPorTipoResultado(cache.porTipoResultado || []);
+			setMesResultado(mesAnterior(cache.mes));
 			setInadimplentes(cache.inadimplentes);
 			setAplicado(cache.aplicado);
-			setMesDe(cache.mesDe);
-			setMesAte(cache.mesAte);
+			setMes(cache.mes);
 			setPendente(false);
 			setPopulado(true);
 			return;
 		}
-		const params = computarParams(mesDe, mesAte);
+		const params = computarParams(mes);
 		const aplicadoNovo = {
 			data_pagamento_de: params.data_pagamento_de,
 			data_pagamento_ate: params.data_pagamento_ate
 		};
 		setAplicado(aplicadoNovo);
-		carregarDados(params, { aplicado: aplicadoNovo, mesDe, mesAte });
+		carregarDados(params, { aplicado: aplicadoNovo, mes });
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
-	const handleDataChange = (campo, valor) => {
-		if (campo === 'de') setMesDe(valor);
-		else setMesAte(valor);
-		setPendente(true);
-	};
-
-	// Consulta: seletor de mês único → de e até recebem o mesmo mês (dia 1 ao último).
-	const handleMesUnico = (valor) => {
-		setMesDe(valor);
-		setMesAte(valor);
+	const handleMesChange = (valor) => {
+		setMes(valor);
 		setPendente(true);
 	};
 
 	const aplicar = () => {
-		const params = computarParams(mesDe, mesAte);
+		if (!mes) return; // input limpo: nada a pesquisar
+		const params = computarParams(mes);
 		const aplicadoNovo = {
 			data_pagamento_de: params.data_pagamento_de,
 			data_pagamento_ate: params.data_pagamento_ate
 		};
 		setAplicado(aplicadoNovo);
-		carregarDados(params, { aplicado: aplicadoNovo, mesDe, mesAte });
+		carregarDados(params, { aplicado: aplicadoNovo, mes });
 		setPendente(false);
 	};
+
+	const resultado =
+		parseFloat(resumo?.total_recebido ?? 0) -
+		parseFloat(resumo?.total_pago ?? 0) +
+		porTipoResultado.reduce((s, t) => s + parseFloat(t.total ?? 0), 0);
 
 	const botaoPendente = populado && pendente;
 	const rotuloAplicar = botaoPendente ? '⚠ Pesquisar' : 'Pesquisar';
@@ -364,39 +383,15 @@ function Dashboard() {
 			</div>
 
 			<div className="dash-periodo">
-				<span className="dash-periodo__label">
-					{isConsulta() ? 'Mês de referência' : 'Período (data de pagamento)'}
-				</span>
+				<span className="dash-periodo__label">Mês de referência (data de pagamento)</span>
 				<div className="dash-periodo__livre">
-					{isConsulta() ? (
-						// Consulta: um único mês. Seta de/até com o mesmo valor → computarParams
-						// gera 1º→último dia daquele mês.
-						<input
-							type="month"
-							value={mesDe}
-							onChange={(e) => handleMesUnico(e.target.value)}
-							className="dash-periodo__input"
-							aria-label="Mês de referência"
-						/>
-					) : (
-						<>
-							<input
-								type="month"
-								value={mesDe}
-								onChange={(e) => handleDataChange('de', e.target.value)}
-								className="dash-periodo__input"
-								aria-label="Mês inicial"
-							/>
-							<span className="dash-periodo__sep">até</span>
-							<input
-								type="month"
-								value={mesAte}
-								onChange={(e) => handleDataChange('ate', e.target.value)}
-								className="dash-periodo__input"
-								aria-label="Mês final"
-							/>
-						</>
-					)}
+					<input
+						type="month"
+						value={mes}
+						onChange={(e) => handleMesChange(e.target.value)}
+						className="dash-periodo__input"
+						aria-label="Mês de referência"
+					/>
 				</div>
 				<button
 					onClick={aplicar}
@@ -452,17 +447,16 @@ function Dashboard() {
 								onDiscriminar={isConsulta() ? undefined : () => discriminar('despesa_paga')}
 							/>
 							<KpiCard
-								infoKey="saldo_periodo"
+								infoKey="resultado"
 								icon="bi-wallet2"
 								iconClass="dash-kpi-card__icon--saldo"
-								label="Saldo"
-								value={formatarValor(resumo?.saldo_total)}
+								label="Resultado"
+								value={formatarValor(resultado)}
 								valueClass={
-									parseFloat(resumo?.saldo_total ?? 0) >= 0
+									resultado >= 0
 										? 'dash-kpi-card__value--positivo'
 										: 'dash-kpi-card__value--negativo'
 								}
-								onDiscriminar={isConsulta() ? undefined : () => discriminar('saldo_periodo')}
 							/>
 						</div>
 
@@ -549,6 +543,49 @@ function Dashboard() {
 									</div>
 								)}
 							</div>
+						</div>
+
+						{/* ── Resultado: lançamentos de natureza Resultado do mês ANTERIOR (todos os perfis).
+						     A soma desta lista entra no card Resultado. ── */}
+						<div className="dash-section">
+							<div className="dash-section__header">
+								<h2 className="dash-section__title">
+									<i className="bi bi-wallet2 me-2" style={{ color: 'var(--primary)' }} />
+									Resultado de {rotuloMes(mesResultado)}
+								</h2>
+								{porTipoResultado.length > 0 && (
+									<span className="dash-section__badge">{porTipoResultado.length}</span>
+								)}
+							</div>
+							{porTipoResultado.length === 0 ? (
+								<p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', margin: 0 }}>
+									<i className="bi bi-check-circle me-2" style={{ color: '#16a34a' }} />
+									Nenhum lançamento de Resultado no mês anterior.
+								</p>
+							) : (
+								<div className="dash-table-scroll">
+									<table className="dash-table">
+										<thead>
+											<tr>
+												<th>Tipo</th>
+												<th>Total</th>
+												<th>Qtd</th>
+											</tr>
+										</thead>
+										<tbody>
+											{porTipoResultado.map((t) => (
+												<tr key={t.id_tipo_conta}>
+													<td style={{ fontWeight: 500 }}>{t.descricao_conta}</td>
+													<td style={{ fontWeight: 600 }}>{formatarValor(t.total)}</td>
+													<td style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+														{t.quantidade}
+													</td>
+												</tr>
+											))}
+										</tbody>
+									</table>
+								</div>
+							)}
 						</div>
 					</section>
 
@@ -705,6 +742,7 @@ function Dashboard() {
 						</div>
 					</section>
 					)}
+
 				</>
 			)}
 		</div>

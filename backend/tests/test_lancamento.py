@@ -2649,3 +2649,50 @@ def test_paginacao_limit_skip_total_e_cap(client, headers_admin, usuario_base, t
         for lid in ids:
             client.delete(f"/lancamento/{lid}", headers=headers_admin)
         client.delete(f"/cliente_fornecedor/{cli}", headers=headers_admin)
+
+
+def test_resumo_por_tipo_natureza_resultado(client, headers_admin, usuario_base, clifor_base):
+    """Base do card/lista 'Resultado' do dashboard: natureza=Resultado devolve só tipos
+    de natureza Resultado aprovados no período; Credito/Debito não os enxergam."""
+    from datetime import datetime, date
+    hoje = date.today().isoformat()
+
+    r = client.post("/tipo_conta/", json={
+        "descricao_conta": "Tipo Resultado Resumo Pytest",
+        "natureza_conta": "Resultado"
+    }, headers=headers_admin)
+    assert r.status_code == 200, r.text
+    id_tipo = r.json()["id_tipo_conta"]
+
+    r = client.post("/lancamento/", json={
+        "id_usuario_fk_lancamento": usuario_base["id_usuario"],
+        "id_clifor_relacionado_fk": clifor_base["id_clifor"],
+        "id_tipo_conta_fk": id_tipo,
+        "valor": "321.00",
+        "data_vencimento": hoje,
+        "natureza_lancamento": "Resultado"
+    }, headers=headers_admin)
+    assert r.status_code == 200, r.text
+    id_lanc = r.json()["id_lancamento"]
+
+    try:
+        url = f"/lancamento/resumo-por-tipo?data_pagamento_de={hoje}&data_pagamento_ate={hoje}"
+        # Ainda não efetivado/aprovado: não conta.
+        antes = client.get(url + "&natureza=Resultado", headers=headers_admin).json()
+        assert not any(i["id_tipo_conta"] == id_tipo for i in antes)
+
+        client.put(f"/lancamento/{id_lanc}", json={
+            "data_pagamento": datetime.now().isoformat(),
+            "valor_pago": "321.00"
+        }, headers=headers_admin)
+
+        res = client.get(url + "&natureza=Resultado", headers=headers_admin).json()
+        item = next(i for i in res if i["id_tipo_conta"] == id_tipo)
+        assert float(item["total"]) == 321.0 and item["quantidade"] == 1
+
+        for nat in ("Credito", "Debito"):
+            outros = client.get(url + f"&natureza={nat}", headers=headers_admin).json()
+            assert not any(i["id_tipo_conta"] == id_tipo for i in outros)
+    finally:
+        client.delete(f"/lancamento/{id_lanc}", headers=headers_admin)
+        client.delete(f"/tipo_conta/{id_tipo}", headers=headers_admin)
