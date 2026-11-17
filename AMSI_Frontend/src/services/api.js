@@ -597,6 +597,7 @@ function montarParamsLancamentos(filtros = {}) {
 	if (filtros.apenas_em_analise != null)
 		params.append('apenas_em_analise', filtros.apenas_em_analise);
 	if (filtros.apenas_quitados != null) params.append('apenas_quitados', filtros.apenas_quitados);
+	if (filtros.apenas_abonados != null) params.append('apenas_abonados', filtros.apenas_abonados);
 	if (filtros.apenas_com_comprovante != null)
 		params.append('apenas_com_comprovante', filtros.apenas_com_comprovante);
 	if (filtros.apenas_sem_comprovante != null)
@@ -788,6 +789,15 @@ export const fecharLancamento = async (id_lancamento, data) => {
 // Em análise → Pago. Só administrador; o aprovador sai do token no backend.
 export const aprovarLancamento = async (id_lancamento) => {
 	const response = await fetchComLoading(`${BASE_URL}/lancamento/${id_lancamento}/aprovar`, {
+		method: 'POST',
+		headers: authHeaders()
+	});
+	return handleResponse(response);
+};
+
+// Aberto → Abonado (dispensa o pagamento, dá baixa; não soma em receita/despesa). Só administrador.
+export const abonarLancamento = async (id_lancamento) => {
+	const response = await fetchComLoading(`${BASE_URL}/lancamento/${id_lancamento}/abonar`, {
 		method: 'POST',
 		headers: authHeaders()
 	});

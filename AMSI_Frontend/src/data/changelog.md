@@ -13,7 +13,10 @@
   Não precisa mexer em código para publicar um novo deploy: basta editar este arquivo.
 -->
 
-## 2026-11-13
+## 2026-11-17
+
+### Novo status "Abonado"
+A diretoria pode dispensar um lançamento do pagamento: no modal "Efetivar Lançamento" (só Administrador) há o novo botão "Abonar", que dá baixa e muda o status para "Abonado". Só lançamentos em aberto (vencidos ou não, nunca estornos) podem ser abonados, e o abono pode ser desfeito pelo histórico (volta para Aberto). Abonado tem filtro próprio na lista e NÃO é somado a nada: não entra em receita, despesa, a receber, a pagar nem inadimplência; abonar um lançamento vencido também tira o cliente/fornecedor da inadimplência. A planilha exportada ganhou as colunas "Abonado por" e "Data de Abono" (perfis Administrador e Operador).
 
 ### Dashboard: um mês por vez e novo card "Resultado"
 O filtro do painel agora é um único campo de mês (sem mais "de/até"). O card "Saldo" foi substituído por "Resultado": Receitas menos Despesas do mês, somadas aos lançamentos de natureza "Resultado" do mês anterior. Esses lançamentos aparecem numa nova lista, "Resultado de <mês anterior>", logo abaixo das listas de Receitas e Despesas, para todos os perfis.

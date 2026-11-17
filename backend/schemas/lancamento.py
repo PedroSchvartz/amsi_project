@@ -18,6 +18,7 @@ class SituacaoEnum(str, Enum):
     Pago = "Pago"
     Estorno = "Estorno"
     Vencido = "Vencido"
+    Abonado = "Abonado"
 
 
 class LancamentoCreate(BaseModel):
@@ -110,6 +111,8 @@ class LancamentoResponse(BaseModel):
     data_aprovacao: Optional[datetime] = None
     id_usuario_fk_edicao: Optional[int] = None
     data_edicao: Optional[datetime] = None
+    id_usuario_fk_abono: Optional[int] = None
+    data_abono: Optional[datetime] = None
     data_pagamento: Optional[datetime] = None
     valor_pago: Optional[Decimal] = None
     observacao: Optional[str] = None
@@ -128,6 +131,7 @@ class LancamentoResponse(BaseModel):
     nome_usuario_efetivacao: Optional[str] = None
     nome_usuario_aprovacao: Optional[str] = None
     nome_usuario_edicao: Optional[str] = None
+    nome_usuario_abono: Optional[str] = None
 
     @model_validator(mode='before')
     @classmethod
@@ -154,6 +158,9 @@ class LancamentoResponse(BaseModel):
             ued = getattr(values, 'usuario_edicao', None)
             if ued:
                 values.__dict__['nome_usuario_edicao'] = ued.nome
+            uab = getattr(values, 'usuario_abono', None)
+            if uab:
+                values.__dict__['nome_usuario_abono'] = uab.nome
         elif isinstance(values, dict):
             values['tem_comprovante'] = values.get('comprovante') is not None
         return values

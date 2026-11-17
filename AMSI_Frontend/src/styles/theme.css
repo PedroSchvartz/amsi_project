@@ -60,6 +60,10 @@
   --badge-vencido-fg:     #7f1d1d;
   --badge-vencido-border: #ef4444;
 
+  --badge-abonado-bg:     #ddd6fe;
+  --badge-abonado-fg:     #4c1d95;
+  --badge-abonado-border: #8b5cf6;
+
   --badge-estorno-bg:     #e5e7eb;
   --badge-estorno-fg:     #374151;
   --badge-estorno-border: #9ca3af;

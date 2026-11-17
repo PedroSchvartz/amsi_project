@@ -199,6 +199,20 @@ def _aplicar_migracoes():
                 ))
                 conn.commit()
 
+    # Migration: abono (POST /lancamento/{id}/abonar). Sem backfill: nenhum lançamento
+    # existente é abonado.
+    if "lancamento" in insp.get_table_names():
+        cols = [c["name"] for c in insp.get_columns("lancamento")]
+        if "data_abono" not in cols:
+            with engine.connect() as conn:
+                conn.execute(text(
+                    "ALTER TABLE lancamento "
+                    "ADD COLUMN data_abono TIMESTAMP, "
+                    "ADD COLUMN id_usuario_fk_abono BIGINT "
+                    "REFERENCES usuario(id_usuario)"
+                ))
+                conn.commit()
+
     # Migration: normaliza data_lancamento para UTC.
     # O default era now() — hora LOCAL do Postgres, que roda em America/Sao_Paulo —
     # enquanto data_efetivacao/aprovacao/edicao sempre vieram de datetime.utcnow().

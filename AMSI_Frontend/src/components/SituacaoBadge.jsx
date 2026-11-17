@@ -1,7 +1,7 @@
 /**
  * Badge da situação do lançamento.
  *
- * A REGRA não mora aqui: a prioridade (Estorno > Pago > Em análise > Vencido > Aberto)
+ * A REGRA não mora aqui: a prioridade (Estorno > Abonado > Pago > Em análise > Vencido > Aberto)
  * é decidida no backend, em Lancamento.situacao, e chega pronta no campo `situacao`.
  * Aqui só se escolhe a cor. Antes disso a regra estava copiada na ListaLancamentosPage
  * e no LoteLancamentosModal, e as duas cópias precisavam aprender qualquer mudança
@@ -12,6 +12,7 @@
 export const CLASSE_SITUACAO = {
 	'Estorno': 'badge-estorno',
 	'Pago': 'badge-pago',
+	'Abonado': 'badge-abonado',
 	'Em análise': 'badge-analise',
 	'Vencido': 'badge-vencido',
 	'Aberto': 'badge-aberto',

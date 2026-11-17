@@ -15,6 +15,7 @@ import { useExportacao } from '../services/exportacaoContext.jsx';
 import { getCache, setCache } from '../services/cache';
 import '../styles/listaLancamentos.css';
 import {
+	abonarLancamento,
 	getLancamentosPaginado,
 	fecharLancamento,
 	aprovarLancamento,
@@ -49,6 +50,7 @@ const FILTROS_INICIAL = {
 	apenas_vencidos: '',
 	apenas_em_analise: '',
 	apenas_quitados: '',
+	apenas_abonados: '',
 	apenas_com_comprovante: '',
 	apenas_sem_comprovante: '',
 	data_vencimento_de: '',
@@ -78,6 +80,7 @@ function filtrosParaParams(f) {
 	if (f.apenas_vencidos !== '') params.apenas_vencidos = f.apenas_vencidos === 'true';
 	if (f.apenas_em_analise !== '') params.apenas_em_analise = f.apenas_em_analise === 'true';
 	if (f.apenas_quitados !== '') params.apenas_quitados = f.apenas_quitados === 'true';
+	if (f.apenas_abonados !== '') params.apenas_abonados = f.apenas_abonados === 'true';
 	if (f.apenas_com_comprovante !== '')
 		params.apenas_com_comprovante = f.apenas_com_comprovante === 'true';
 	if (f.apenas_sem_comprovante !== '')
@@ -158,6 +161,7 @@ function ListaLancamentosPage() {
 	const [lancamentoSelecionado, setLancamentoSelecionado] = useState(null);
 	const [confirmarRemoverComprovante, setConfirmarRemoverComprovante] = useState(false);
 	const [modalAprovar, setModalAprovar] = useState(null);
+	const [confirmarAbonar, setConfirmarAbonar] = useState(false);
 
 	const [modalEditar, setModalEditar] = useState(null);
 	const [formEditar, setFormEditar] = useState(EDITAR_INICIAL);
@@ -438,7 +442,7 @@ function ListaLancamentosPage() {
 	// No modo exclusivo (interseção) o ciclo Aberto/Em análise/Pago é excludente: dois
 	// ao mesmo tempo dariam vazio. Vira single-select — marcar um limpa os outros dois;
 	// remarcar o já ativo desliga (não trava num estado impossível de zerar).
-	const CICLO = ['apenas_abertos', 'apenas_em_analise', 'apenas_quitados'];
+	const CICLO = ['apenas_abertos', 'apenas_em_analise', 'apenas_quitados', 'apenas_abonados'];
 
 	const marcarCiclo = (campo, marcado) => {
 		if (exclusivo) {
@@ -447,6 +451,7 @@ function ListaLancamentosPage() {
 				apenas_abertos: '',
 				apenas_em_analise: '',
 				apenas_quitados: '',
+				apenas_abonados: '',
 				[campo]: marcado ? 'true' : ''
 			});
 		} else {
@@ -466,7 +471,8 @@ function ListaLancamentosPage() {
 					status_modo: modo,
 					apenas_abertos: manter === 'apenas_abertos' ? 'true' : '',
 					apenas_em_analise: manter === 'apenas_em_analise' ? 'true' : '',
-					apenas_quitados: manter === 'apenas_quitados' ? 'true' : ''
+					apenas_quitados: manter === 'apenas_quitados' ? 'true' : '',
+					apenas_abonados: manter === 'apenas_abonados' ? 'true' : ''
 				});
 				return;
 			}
@@ -668,6 +674,22 @@ function ListaLancamentosPage() {
 		} catch (err) {
 			if (err.message !== 'sessao-expirada')
 				mostrarToast(err.message || 'Erro ao aprovar lançamento', 'erro');
+		}
+	};
+
+	// ── Abono: Aberto → Abonado (só admin) — dispensa o pagamento e dá baixa ───
+	const handleAbonar = async () => {
+		setConfirmarAbonar(false);
+		try {
+			await abonarLancamento(modalFechar);
+			mostrarToast('Lançamento abonado.');
+			setModalFechar(null);
+			setComprovante(null);
+			buscar(filtrosAplicados, pagina);
+			setLoteRefresh((x) => x + 1);
+		} catch (err) {
+			if (err.message !== 'sessao-expirada')
+				mostrarToast(err.message || 'Erro ao abonar lançamento', 'erro');
 		}
 	};
 
@@ -1098,6 +1120,15 @@ function ListaLancamentosPage() {
 												onChange={(e) => marcarCiclo('apenas_quitados', e.target.checked)}
 											/>
 											Pago
+										</label>
+										<label>
+											<input
+												type="checkbox"
+												className={exclusivo ? 'll-checkbox-round' : ''}
+												checked={filtros.apenas_abonados === 'true'}
+												onChange={(e) => marcarCiclo('apenas_abonados', e.target.checked)}
+											/>
+											Abonado
 										</label>
 									</div>
 									<span className="ll-status-sep" />
@@ -1778,6 +1809,11 @@ function ListaLancamentosPage() {
 									<button type="button" className="ll-btn-limpar" onClick={fecharModalEfetivacao}>
 										Cancelar
 									</button>
+									{admin && !aprovando && !lancamentoSelecionado?.estorno && (
+										<button type="button" className="ll-btn-limpar" onClick={() => setConfirmarAbonar(true)}>
+											Abonar
+										</button>
+									)}
 									<button type="submit" className="ll-btn-filtrar">
 										{aprovando ? 'Aprovar' : 'Confirmar'}
 									</button>
@@ -1785,6 +1821,17 @@ function ListaLancamentosPage() {
 							</form>
 						</div>
 					</div>
+				)}
+
+				{confirmarAbonar && (
+					<ModalConfirm
+						titulo="Abonar Lançamento"
+						mensagem="Abonar dispensa o pagamento deste lançamento. Ele não entra em receita nem despesa."
+						textoBotaoConfirmar="Abonar"
+						textoBotaoCancelar="Cancelar"
+						onConfirmar={handleAbonar}
+						onCancelar={() => setConfirmarAbonar(false)}
+					/>
 				)}
 
 				{/* MODAL EDITAR (admin only) */}
@@ -2220,7 +2267,7 @@ function ListaLancamentosPage() {
 									</div>
 								</div>
 								<div className="ll-field">
-									<label>Aprovado por</label>
+									<label>{modalVer.data_abono ? 'Abonado por' : 'Aprovado por'}</label>
 									<div
 										style={{
 											padding: '6px 10px',
@@ -2229,7 +2276,9 @@ function ListaLancamentosPage() {
 											fontSize: '0.875rem'
 										}}
 									>
-										{modalVer.data_aprovacao
+										{modalVer.data_abono
+												? `${modalVer.nome_usuario_abono || '—'} · ${formatarCarimbo(modalVer.data_abono)}`
+											: modalVer.data_aprovacao
 											? `${modalVer.nome_usuario_aprovacao || '—'} · ${formatarCarimbo(modalVer.data_aprovacao)}`
 											: 'Aguardando aprovação'}
 									</div>

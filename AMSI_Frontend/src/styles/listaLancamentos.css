@@ -487,6 +487,12 @@
 	border: 1px solid var(--badge-aberto-border);
 }
 
+.badge.badge-abonado {
+	background: var(--badge-abonado-bg);
+	color: var(--badge-abonado-fg);
+	border: 1px solid var(--badge-abonado-border);
+}
+
 .badge.badge-pago {
 	background: var(--badge-pago-bg);
 	color: var(--badge-pago-fg);

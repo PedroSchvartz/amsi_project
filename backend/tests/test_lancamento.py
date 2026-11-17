@@ -2696,3 +2696,160 @@ def test_resumo_por_tipo_natureza_resultado(client, headers_admin, usuario_base,
     finally:
         client.delete(f"/lancamento/{id_lanc}", headers=headers_admin)
         client.delete(f"/tipo_conta/{id_tipo}", headers=headers_admin)
+
+
+# ── Abonado: dispensa o pagamento, dá baixa, nunca soma ────────────────────
+
+def _resumo(client, headers):
+    return client.get("/lancamento/resumo", headers=headers).json()
+
+
+def test_abonar_vira_abonado_com_carimbos(client, headers_admin, lancamento):
+    r = client.post(f"/lancamento/{lancamento['id_lancamento']}/abonar", headers=headers_admin)
+    assert r.status_code == 200
+    d = r.json()
+    assert d["situacao"] == "Abonado"
+    assert d["data_abono"] and d["id_usuario_fk_abono"] and d["nome_usuario_abono"]
+    assert d["data_efetivacao"] and d["data_aprovacao"]
+    assert d["valor_pago"] is None
+
+
+def test_abonar_operador_403(client, headers_operador, lancamento):
+    r = client.post(f"/lancamento/{lancamento['id_lancamento']}/abonar", headers=headers_operador)
+    assert r.status_code == 403
+
+
+def test_abonar_inexistente_404(client, headers_admin):
+    assert client.post("/lancamento/99999999/abonar", headers=headers_admin).status_code == 404
+
+
+def test_abonar_duas_vezes_409(client, headers_admin, lancamento):
+    url = f"/lancamento/{lancamento['id_lancamento']}/abonar"
+    assert client.post(url, headers=headers_admin).status_code == 200
+    assert client.post(url, headers=headers_admin).status_code == 409
+
+
+def test_abonar_ja_efetivado_409(client, headers_admin, lancamento):
+    client.put(f"/lancamento/{lancamento['id_lancamento']}",
+               json={"data_pagamento": "2026-11-01T00:00:00"}, headers=headers_admin)
+    r = client.post(f"/lancamento/{lancamento['id_lancamento']}/abonar", headers=headers_admin)
+    assert r.status_code == 409
+
+
+def test_abonar_estorno_409(client, headers_admin, lancamento):
+    id_ = lancamento["id_lancamento"]
+    client.patch(f"/lancamento/{id_}/editar", json={"estorno": True}, headers=headers_admin)
+    assert client.post(f"/lancamento/{id_}/abonar", headers=headers_admin).status_code == 409
+
+
+def test_abonado_nao_entra_em_nenhuma_soma(client, headers_admin, lancamento, lancamento_vencido):
+    antes = _resumo(client, headers_admin)
+    for l in (lancamento, lancamento_vencido):
+        assert client.post(f"/lancamento/{l['id_lancamento']}/abonar", headers=headers_admin).status_code == 200
+    depois = _resumo(client, headers_admin)
+    # Some de a pagar/a receber/abertos/vencidos, mas nada vira recebido/pago/saldo.
+    for campo in ("total_recebido", "total_pago", "total_reembolsado", "saldo_total",
+                  "total_em_analise_receber", "total_em_analise_pagar"):
+        assert depois[campo] == antes[campo], campo
+    assert float(depois["total_a_pagar"]) == float(antes["total_a_pagar"]) - 250
+    assert float(depois["total_a_receber"]) == float(antes["total_a_receber"]) - 100
+
+
+def test_abonado_fora_de_resumo_por_tipo(client, headers_admin, lancamento):
+    antes = client.get("/lancamento/resumo-por-tipo", headers=headers_admin).json()
+    client.post(f"/lancamento/{lancamento['id_lancamento']}/abonar", headers=headers_admin)
+    depois = client.get("/lancamento/resumo-por-tipo", headers=headers_admin).json()
+    assert depois == antes
+
+
+def test_filtro_abonado_separado_de_pago(client, headers_admin, lancamento):
+    id_ = lancamento["id_lancamento"]
+    client.post(f"/lancamento/{id_}/abonar", headers=headers_admin)
+    ids = lambda q: [x["id_lancamento"] for x in client.get(f"/lancamento/?{q}", headers=headers_admin).json()]
+    assert id_ in ids("apenas_abonados=true")
+    assert id_ not in ids("apenas_quitados=true")
+    assert id_ not in ids("apenas_abertos=true")
+
+
+def test_reverter_abonado_para_aberto_limpa_abono(client, headers_admin, lancamento):
+    id_ = lancamento["id_lancamento"]
+    client.post(f"/lancamento/{id_}/abonar", headers=headers_admin)
+    r = client.patch(f"/lancamento/{id_}/editar", json={"reverter_para": "aberto"}, headers=headers_admin)
+    assert r.status_code == 200
+    d = r.json()
+    assert d["situacao"] in ("Aberto", "Vencido")
+    assert d["data_abono"] is None and d["id_usuario_fk_abono"] is None
+
+
+def test_reverter_abonado_para_em_analise_409(client, headers_admin, lancamento):
+    id_ = lancamento["id_lancamento"]
+    client.post(f"/lancamento/{id_}/abonar", headers=headers_admin)
+    r = client.patch(f"/lancamento/{id_}/editar", json={"reverter_para": "em_analise"}, headers=headers_admin)
+    assert r.status_code == 409
+
+
+# ── Abonado: regressão em inadimplência, saldos do clifor, contadores e export ──
+
+def test_abonar_vencido_limpa_inadimplencia(client, headers_admin, clifor_base, lancamento_vencido):
+    url_clifor = f"/cliente_fornecedor/{clifor_base['id_clifor']}"
+    assert client.get(url_clifor, headers=headers_admin).json()["inadimplente"] is True
+    r = client.post(f"/lancamento/{lancamento_vencido['id_lancamento']}/abonar", headers=headers_admin)
+    assert r.status_code == 200
+    assert client.get(url_clifor, headers=headers_admin).json()["inadimplente"] is False
+
+
+def test_abonado_fora_dos_saldos_do_clifor(client, headers_admin, clifor_base, lancamento, lancamento_vencido):
+    id_c = clifor_base["id_clifor"]
+
+    def snap():
+        res = client.get(f"/cliente_fornecedor/{id_c}/resumo", headers=headers_admin).json()
+        sal = next(s for s in client.get("/cliente_fornecedor/saldos", headers=headers_admin).json()
+                   if s["id_clifor"] == id_c)
+        return res, sal
+
+    antes_res, antes_sal = snap()
+    for l in (lancamento, lancamento_vencido):
+        assert client.post(f"/lancamento/{l['id_lancamento']}/abonar", headers=headers_admin).status_code == 200
+    res, sal = snap()
+
+    assert float(res["total_a_receber"]) == float(antes_res["total_a_receber"]) - 100
+    assert float(res["total_a_pagar"]) == float(antes_res["total_a_pagar"]) - 250
+    assert float(res["total_vencido_a_receber"]) == float(antes_res["total_vencido_a_receber"]) - 100
+    assert res["quantidade_abertos"] == antes_res["quantidade_abertos"] - 2
+    assert res["quantidade_vencidos"] == antes_res["quantidade_vencidos"] - 1
+    assert float(sal["total_a_receber"]) == float(antes_sal["total_a_receber"]) - 100
+    assert float(sal["total_a_pagar"]) == float(antes_sal["total_a_pagar"]) - 250
+
+
+def test_abonado_nao_conta_em_quantidades_do_resumo(client, headers_admin, lancamento, lancamento_vencido):
+    antes = _resumo(client, headers_admin)
+    for l in (lancamento, lancamento_vencido):
+        client.post(f"/lancamento/{l['id_lancamento']}/abonar", headers=headers_admin)
+    depois = _resumo(client, headers_admin)
+    assert depois["quantidade_abertos"] == antes["quantidade_abertos"] - 2
+    assert depois["quantidade_vencidos"] == antes["quantidade_vencidos"] - 1
+
+
+def test_exportar_abonado_xlsx(client, headers_admin, lancamento):
+    import io
+    import time
+    from openpyxl import load_workbook
+
+    id_ = lancamento["id_lancamento"]
+    client.post(f"/lancamento/{id_}/abonar", headers=headers_admin)
+    job = client.post("/lancamento/exportar?apenas_abonados=true", headers=headers_admin).json()["job_id"]
+    for _ in range(50):
+        if client.get(f"/lancamento/exportar/{job}", headers=headers_admin).json()["status"] == "concluido":
+            break
+        time.sleep(0.2)
+    r = client.get(f"/lancamento/exportar/{job}/download", headers=headers_admin)
+    assert r.status_code == 200
+
+    ws = load_workbook(io.BytesIO(r.content)).active
+    cab = [c.value for c in ws[6]]
+    assert "Abonado por" in cab and "Data de Abono" in cab
+    linhas = [dict(zip(cab, [c.value for c in row])) for row in ws.iter_rows(min_row=7)]
+    minha = next(l for l in linhas if l["ID"] == id_)
+    assert minha["Status"] == "Abonado"
+    assert minha["Abonado por"]
+    assert minha["Data de Abono"]

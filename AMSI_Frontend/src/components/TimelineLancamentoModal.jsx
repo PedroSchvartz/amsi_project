@@ -8,6 +8,7 @@ const EVENTOS = [
 	{ acao: 'Efetivado', ordem: 1, icone: 'bi-hourglass-split', campoData: 'data_efetivacao', campoNome: 'nome_usuario_efetivacao', campoId: 'id_usuario_fk_efetivacao' },
 	{ acao: 'Aprovado', ordem: 2, icone: 'bi-check-circle', campoData: 'data_aprovacao', campoNome: 'nome_usuario_aprovacao', campoId: 'id_usuario_fk_aprovacao' },
 	{ acao: 'Editado', ordem: 3, icone: 'bi-pencil', campoData: 'data_edicao', campoNome: 'nome_usuario_edicao', campoId: 'id_usuario_fk_edicao' },
+	{ acao: 'Abonado', ordem: 4, icone: 'bi-slash-circle', campoData: 'data_abono', campoNome: 'nome_usuario_abono', campoId: 'id_usuario_fk_abono' },
 ];
 
 // Carimbos do servidor vêm em UTC e sem sufixo de fuso ("2026-07-15T18:00:06").
@@ -47,7 +48,9 @@ export const formatarCarimbo = (iso) => {
 // então ele é o único que se posiciona pela própria data.
 export const eventosDoLancamento = (l) => {
 	if (!l) return [];
-	const presentes = EVENTOS.filter((e) => l[e.campoData]).map((e) => ({
+	// Abono carimba efetivação e aprovação no mesmo instante: mostrar só "Abonado".
+	const abonado = !!l.data_abono;
+	const presentes = EVENTOS.filter((e) => l[e.campoData] && !(abonado && (e.acao === 'Efetivado' || e.acao === 'Aprovado'))).map((e) => ({
 		acao: e.acao,
 		ordem: e.ordem,
 		icone: e.icone,
@@ -97,7 +100,7 @@ function TimelineLancamentoModal({ lancamento, onFechar, onAbrirPerfil, podeReve
 	// anterior. Pago → Em análise; Em análise → Aberto; o resto não tem o que desfazer.
 	const alvoRevert =
 		lancamento?.situacao === 'Pago' ? 'em_analise'
-			: lancamento?.situacao === 'Em análise' ? 'aberto'
+			: lancamento?.situacao === 'Em análise' || lancamento?.situacao === 'Abonado' ? 'aberto'
 				: null;
 	const mostrarReverter = !!podeReverter && !!alvoRevert;
 	const rotuloDestino = alvoRevert === 'em_analise' ? 'Em análise' : 'Aberto';

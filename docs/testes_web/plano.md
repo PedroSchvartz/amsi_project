@@ -466,6 +466,12 @@
 
 ---
 
+### T60b · Abonar Lançamento `[ADM]`
+**Ação:** Abrir "Efetivar Lançamento" de um lançamento Aberto → "Abonar" (entre Cancelar e Confirmar) → confirmar. Como Operador, o botão não aparece.  
+**Esperado:** Status vira "Abonado" (filtro "Abonado" o encontra; fora de "Pago"); Dashboard não muda (nada soma); Histórico mostra "Abonado" e permite voltar para Aberto.  
+
+---
+
 ### T61 · Efetivar Lançamento — comprovante acima de 5 MB `[OP]`
 **Ação:** Tentar selecionar PDF > 5 MB.  
 **Esperado:** Toast "O arquivo excede o limite de 5MB."; arquivo não é selecionado.  

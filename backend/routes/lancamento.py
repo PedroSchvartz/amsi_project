@@ -57,7 +57,7 @@ def resumo_lancamentos(
         # O recorte do período continua sobre data_pagamento (a data econômica): um pagamento
         # feito em 5/jun e aprovado em 7/jun tem que contar em 5/jun, senão a fila de
         # aprovação distorce o mês de competência.
-        q = q_base().filter(Lancamento.data_aprovacao != None)
+        q = q_base().filter(Lancamento.data_aprovacao != None, Lancamento.data_abono == None)
         if data_pagamento_de is not None:
             q = q.filter(func.date(Lancamento.data_pagamento) >= data_pagamento_de)
         if data_pagamento_ate is not None:
@@ -197,6 +197,7 @@ def resumo_por_tipo(
         .join(Lancamento, Lancamento.id_tipo_conta_fk == tipo_conta.id_tipo_conta)
         .filter(
             Lancamento.data_aprovacao != None,   # dinheiro: só aprovado
+            Lancamento.data_abono == None,       # abono não é dinheiro
             Lancamento.estorno == (estorno if estorno is not None else False),
         )
     )
@@ -231,6 +232,7 @@ def _query_lancamentos_filtrada(
     apenas_vencidos: Optional[bool] = None,
     apenas_em_analise: Optional[bool] = None,
     apenas_quitados: Optional[bool] = None,
+    apenas_abonados: Optional[bool] = None,
     apenas_com_comprovante: Optional[bool] = None,
     apenas_sem_comprovante: Optional[bool] = None,
     data_vencimento_de: Optional[date] = None,
@@ -261,6 +263,7 @@ def _query_lancamentos_filtrada(
         joinedload(Lancamento.usuario_efetivacao),
         joinedload(Lancamento.usuario_aprovacao),
         joinedload(Lancamento.usuario_edicao),
+        joinedload(Lancamento.usuario_abono),
         joinedload(Lancamento.tipo_conta_rel)
     )
 
@@ -287,7 +290,10 @@ def _query_lancamentos_filtrada(
     if apenas_em_analise:
         condicoes_estado.append(and_(Lancamento.data_efetivacao != None, Lancamento.data_aprovacao == None))
     if apenas_quitados:
-        condicoes_estado.append(Lancamento.data_aprovacao != None)
+        # Pago = dinheiro realizado: o abono também carimba aprovação, mas não é Pago.
+        condicoes_estado.append(and_(Lancamento.data_aprovacao != None, Lancamento.data_abono == None))
+    if apenas_abonados:
+        condicoes_estado.append(Lancamento.data_abono != None)
     if estorno is True:
         condicoes_estado.append(Lancamento.estorno == True)
 
@@ -343,6 +349,7 @@ def listar_lancamentos(
     apenas_vencidos: Optional[bool] = None,
     apenas_em_analise: Optional[bool] = None,
     apenas_quitados: Optional[bool] = None,
+    apenas_abonados: Optional[bool] = None,
     apenas_com_comprovante: Optional[bool] = None,
     apenas_sem_comprovante: Optional[bool] = None,
     data_vencimento_de: Optional[date] = None,
@@ -380,6 +387,7 @@ def listar_lancamentos(
         id_clifor=id_clifor, id_tipo_conta=id_tipo_conta, natureza=natureza,
         apenas_abertos=apenas_abertos, apenas_vencidos=apenas_vencidos,
         apenas_em_analise=apenas_em_analise, apenas_quitados=apenas_quitados,
+        apenas_abonados=apenas_abonados,
         apenas_com_comprovante=apenas_com_comprovante, apenas_sem_comprovante=apenas_sem_comprovante,
         data_vencimento_de=data_vencimento_de, data_vencimento_ate=data_vencimento_ate,
         data_lancamento_de=data_lancamento_de, data_lancamento_ate=data_lancamento_ate,
@@ -482,6 +490,7 @@ def _descrever_filtros(db: Session, f: dict) -> str:
     status = [rot for chave, rot in (
         ("apenas_abertos", "Aberto"), ("apenas_vencidos", "Vencidos"),
         ("apenas_em_analise", "Em análise"), ("apenas_quitados", "Pago"),
+        ("apenas_abonados", "Abonado"),
     ) if f.get(chave)]
     if status:
         conector = " e " if f.get("status_modo") == "exclusivo" else " ou "
@@ -553,6 +562,8 @@ def _colunas(r, perfil_completo: bool) -> list[tuple[str, object, Optional[str]]
         ("Data de Efetivação", _carimbo_cel(r.data_efetivacao), FMT_CARIMBO),
         ("Aprovado por", r.nome_usuario_aprovacao or "", None),
         ("Data de Aprovação", _carimbo_cel(r.data_aprovacao), FMT_CARIMBO),
+        ("Abonado por", r.nome_usuario_abono or "", None),
+        ("Data de Abono", _carimbo_cel(r.data_abono), FMT_CARIMBO),
         ("Editado por", r.nome_usuario_edicao or "", None),
         ("Data de Edição", _carimbo_cel(r.data_edicao), FMT_CARIMBO),
     ]
@@ -658,6 +669,7 @@ def iniciar_exportacao(
     apenas_vencidos: Optional[bool] = None,
     apenas_em_analise: Optional[bool] = None,
     apenas_quitados: Optional[bool] = None,
+    apenas_abonados: Optional[bool] = None,
     apenas_com_comprovante: Optional[bool] = None,
     apenas_sem_comprovante: Optional[bool] = None,
     data_vencimento_de: Optional[date] = None,
@@ -683,6 +695,7 @@ def iniciar_exportacao(
         "id_clifor": id_clifor, "id_tipo_conta": id_tipo_conta, "natureza": natureza,
         "apenas_abertos": apenas_abertos, "apenas_vencidos": apenas_vencidos,
         "apenas_em_analise": apenas_em_analise, "apenas_quitados": apenas_quitados,
+        "apenas_abonados": apenas_abonados,
         "apenas_com_comprovante": apenas_com_comprovante, "apenas_sem_comprovante": apenas_sem_comprovante,
         "data_vencimento_de": data_vencimento_de, "data_vencimento_ate": data_vencimento_ate,
         "data_lancamento_de": data_lancamento_de, "data_lancamento_ate": data_lancamento_ate,
@@ -984,6 +997,39 @@ def aprovar_lancamento(
     return lancamento
 
 
+@router.post("/{id_lancamento}/abonar", response_model=LancamentoResponse)
+def abonar_lancamento(
+    id_lancamento: int,
+    db: Session = Depends(get_db),
+    admin: Usuario = Depends(exige_admin)
+):
+    """Abona um lançamento Aberto: dispensa o pagamento e dá baixa. Só administrador.
+
+    Carimba efetivação, aprovação e abono num único instante (por isso some de abertos,
+    vencidos, a receber/a pagar e inadimplência), mas NÃO é dinheiro: valor_pago fica
+    NULL e as consultas de caixa excluem data_abono. Desfaz-se por /editar reverter_para=aberto.
+    """
+    lancamento = db.query(Lancamento).filter(Lancamento.id_lancamento == id_lancamento).first()
+    if not lancamento:
+        raise HTTPException(status_code=404, detail="Lançamento não encontrado")
+    if lancamento.estorno:
+        raise HTTPException(status_code=409, detail="Estorno não pode ser abonado")
+    if lancamento.data_efetivacao is not None:
+        raise HTTPException(status_code=409, detail="Só é possível abonar lançamento Aberto")
+
+    agora = datetime.utcnow()
+    lancamento.data_efetivacao = lancamento.data_aprovacao = agora
+    lancamento.data_pagamento = lancamento.data_abono = agora
+    lancamento.id_usuario_fk_efetivacao = admin.id_usuario
+    lancamento.id_usuario_fk_aprovacao = admin.id_usuario
+    lancamento.id_usuario_fk_abono = admin.id_usuario
+
+    db.commit()
+    db.refresh(lancamento)
+    atualizar_inadimplente(lancamento.id_clifor_relacionado_fk, db)
+    return lancamento
+
+
 @router.patch("/{id_lancamento}/editar", response_model=LancamentoResponse)
 def editar_lancamento_admin(
     id_lancamento: int,
@@ -1011,7 +1057,7 @@ def editar_lancamento_admin(
         if dados.reverter_para == "em_analise":
             # Desfaz só a aprovação (Pago → Em análise). data_pagamento fica intacta: a
             # aprovação nunca a tocou, é da efetivação. Exige estar Pago.
-            if lancamento.data_aprovacao is None:
+            if lancamento.data_aprovacao is None or lancamento.data_abono is not None:
                 raise HTTPException(status_code=409, detail="Lançamento não está Pago: nada a reverter para Em análise")
             lancamento.data_aprovacao = None
             lancamento.id_usuario_fk_aprovacao = None
@@ -1028,6 +1074,9 @@ def editar_lancamento_admin(
             lancamento.data_pagamento = None
             lancamento.valor_pago = None
             lancamento.observacao_pagamento = None
+            # Desfaz o abono também (Abonado → Aberto).
+            lancamento.data_abono = None
+            lancamento.id_usuario_fk_abono = None
 
         # Limpa o rastro de edição também — o pedido é a linha voltar a parecer intocada.
         # Quem reverteu fica registrado no log de atividade por rota (middleware), não aqui.

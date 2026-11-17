@@ -173,6 +173,10 @@ CREATE INDEX idx_id_usuario_FK ON Login(id_usuario_FK);
 -- data_pagamento e digitada no formulario e pode ser retroativa, entao um admin
 -- editando a data de pagamento mudaria o estado do lancamento sem querer.
 -- Dinheiro so entra no caixa (resumo/dashboard) e inadimplencia so limpa na APROVACAO.
+--   Abonado    = data_abono IS NOT NULL (so Admin, so a partir de Aberto). E "baixa sem
+--                dinheiro": carimba efetivacao+aprovacao+pagamento no mesmo instante (assim
+--                sai de aberto/vencido/inadimplencia sozinho), mas NAO entra em nenhuma
+--                soma de caixa: toda consulta de dinheiro exige data_abono IS NULL.
 CREATE TABLE Lancamento (
     id_lancamento BIGINT GENERATED ALWAYS AS IDENTITY,
     id_Usuario_FK_Lancamento BIGINT NOT NULL,
@@ -200,6 +204,9 @@ CREATE TABLE Lancamento (
     -- mostra QUEM editou e QUANDO, nunca o que mudou -- por isso um par de colunas basta.
     id_Usuario_FK_Edicao BIGINT,              -- quem editou; vem do token, nunca do body
     data_edicao TIMESTAMP,                    -- carimbo do servidor no ato da edicao
+    -- Abono (so Admin, via POST /lancamento/{id}/abonar): dispensa o pagamento.
+    id_Usuario_FK_Abono BIGINT,               -- quem abonou; vem do token, nunca do body
+    data_abono TIMESTAMP,                     -- carimbo do servidor no ato do abono
     data_pagamento TIMESTAMP,                 -- data ECONOMICA do pagamento (digitada, pode ser retroativa)
     Valor_Pago DECIMAL(15,2),
     Observacao TEXT,
@@ -216,6 +223,7 @@ CREATE TABLE Lancamento (
     FOREIGN KEY (id_Usuario_FK_Efetivacao) REFERENCES Usuario(id_usuario),
     FOREIGN KEY (id_Usuario_FK_Aprovacao) REFERENCES Usuario(id_usuario),
     FOREIGN KEY (id_Usuario_FK_Edicao) REFERENCES Usuario(id_usuario),
+    FOREIGN KEY (id_Usuario_FK_Abono) REFERENCES Usuario(id_usuario),
     -- Os dois CHECKs abaixo valem para uma base criada do zero por este script.
     -- NAO estao aplicados na base existente: a migracao de main._aplicar_migracoes()
     -- so faz o ALTER (um CHECK que estoura no startup derruba o deploy inteiro).

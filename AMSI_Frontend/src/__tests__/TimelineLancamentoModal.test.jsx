@@ -21,6 +21,18 @@ import TimelineLancamentoModal, {
 const ordem = (l) => eventosDoLancamento(l).map((e) => e.acao);
 
 describe('ordem da linha do tempo', () => {
+	it('abonado: mostra só Lançado → Abonado (sem Efetivado/Aprovado duplicados)', () => {
+		const l = {
+			data_lancamento: '2026-06-17T10:00:00',
+			data_efetivacao: '2026-06-17T11:00:00',
+			data_aprovacao: '2026-06-17T11:00:00',
+			data_abono: '2026-06-17T11:00:00',
+			nome_usuario_abono: 'Pedro',
+		};
+		expect(ordem(l)).toEqual(['Lançado', 'Abonado']);
+		expect(ultimaInteracao(l).nome).toBe('Pedro');
+	});
+
 	it('5190 real: backfill à meia-noite não joga Efetivado antes de Lançado', () => {
 		const l = {
 			data_lancamento: '2026-06-17T18:33:02', nome_usuario_lancamento: 'Pedro',
@@ -191,6 +203,12 @@ describe('reverter (undo do fluxo)', () => {
 		render(<TimelineLancamentoModal lancamento={emAnalise} onFechar={() => {}} podeReverter onReverter={vi.fn()} />);
 		expect(screen.getByRole('button', { name: /Voltar para Aberto/ })).toBeInTheDocument();
 		expect(screen.queryByRole('button', { name: /Voltar para Em análise/ })).not.toBeInTheDocument();
+	});
+
+	it('Abonado oferece voltar para Aberto (desfaz o abono)', () => {
+		const abonado = { id_lancamento: 9, data_lancamento: '2026-06-17T13:00:00', data_abono: '2026-06-17T14:00:00', situacao: 'Abonado' };
+		render(<TimelineLancamentoModal lancamento={abonado} onFechar={() => {}} podeReverter onReverter={vi.fn()} />);
+		expect(screen.getByRole('button', { name: /Voltar para Aberto/ })).toBeInTheDocument();
 	});
 
 	it('Aberto não oferece reverter nada', () => {

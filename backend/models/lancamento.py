@@ -21,6 +21,7 @@ class SituacaoLancamentoEnum(str, enum.Enum):
     Pago = "Pago"
     Estorno = "Estorno"
     Vencido = "Vencido"
+    Abonado = "Abonado"
 
 
 class Lancamento(Base):
@@ -50,6 +51,11 @@ class Lancamento(Base):
     # A linha do tempo mostra quem editou e quando, nunca o que mudou.
     id_usuario_fk_edicao = Column(BigInteger, ForeignKey("usuario.id_usuario"), nullable=True)
     data_edicao = Column(TIMESTAMP, nullable=True)
+    # Abono (só Admin) — dispensa o pagamento. Abonado = data_abono preenchido; também
+    # carimba efetivação/aprovação, mas NUNCA conta como dinheiro (ver `situacao` e as
+    # consultas de caixa em routes/lancamento.py).
+    id_usuario_fk_abono = Column(BigInteger, ForeignKey("usuario.id_usuario"), nullable=True)
+    data_abono = Column(TIMESTAMP, nullable=True)
     # Data econômica do pagamento — digitada no formulário, pode ser retroativa.
     # Não comanda o estado (quem comanda é data_efetivacao).
     data_pagamento = Column(TIMESTAMP, nullable=True)
@@ -66,6 +72,7 @@ class Lancamento(Base):
     usuario_efetivacao = relationship("Usuario", foreign_keys=[id_usuario_fk_efetivacao], backref="lancamentos_efetivados")
     usuario_aprovacao = relationship("Usuario", foreign_keys=[id_usuario_fk_aprovacao], backref="lancamentos_aprovados")
     usuario_edicao = relationship("Usuario", foreign_keys=[id_usuario_fk_edicao], backref="lancamentos_editados")
+    usuario_abono = relationship("Usuario", foreign_keys=[id_usuario_fk_abono], backref="lancamentos_abonados")
     cliente_fornecedor = relationship("ClienteFornecedor", backref="lancamentos")
     tipo_conta_rel = relationship("tipo_conta", backref="lancamentos")
 
@@ -79,6 +86,9 @@ class Lancamento(Base):
         """
         if self.estorno:
             return SituacaoLancamentoEnum.Estorno
+        # Antes de Pago: o abono também carimba aprovação, mas não é dinheiro.
+        if self.data_abono is not None:
+            return SituacaoLancamentoEnum.Abonado
         if self.data_aprovacao is not None:
             return SituacaoLancamentoEnum.Pago
         if self.data_efetivacao is not None:
