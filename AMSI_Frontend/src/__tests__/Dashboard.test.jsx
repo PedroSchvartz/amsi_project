@@ -43,10 +43,11 @@ describe.each([false, true])('Dashboard (consulta=%s)', (ehConsulta) => {
 		consulta = ehConsulta;
 	});
 
-	it('tem um único campo de mês e nenhum card Saldo', async () => {
+	it('seletor de mês conforme o perfil e nenhum card Saldo', async () => {
 		const { container } = render(<Dashboard />);
 		await screen.findByText('Resultado');
-		expect(container.querySelectorAll('input[type="month"]')).toHaveLength(1);
+		// Admin/Operador: um único campo de mês. Consulta: 3 botões, sem o campo.
+		expect(container.querySelectorAll('input[type="month"]')).toHaveLength(ehConsulta ? 0 : 1);
 		expect(screen.queryByText('Saldo')).toBeNull();
 	});
 
@@ -71,6 +72,56 @@ describe.each([false, true])('Dashboard (consulta=%s)', (ehConsulta) => {
 		expect(card.textContent).toContain('Saldo anterior');
 		expect(card.textContent).toContain('Resultado de');
 	});
+});
+
+describe('Consulta: seção Período com 3 botões', () => {
+	beforeEach(() => {
+		consulta = true;
+	});
+
+	it('3 botões (2 meses atrás | anterior | atual), atual pressionado', async () => {
+		const { container } = render(<Dashboard />);
+		await screen.findByText('Resultado');
+		const botoes = [...container.querySelectorAll('.dash-periodo__mes')];
+		expect(botoes).toHaveLength(3);
+		expect(botoes.map((b) => b.getAttribute('aria-pressed'))).toEqual(['false', 'false', 'true']);
+		const hoje = new Date();
+		const esperado = [-2, -1, 0].map((o) => {
+			const d = new Date(hoje.getFullYear(), hoje.getMonth() + o, 1);
+			return String(d.getFullYear()).slice(-2);
+		});
+		botoes.forEach((b, i) => expect(b.textContent).toContain(`/${esperado[i]}`));
+	});
+
+	it('clicar em outro mês carrega aquele mês e move a seleção', async () => {
+		const { container } = render(<Dashboard />);
+		await screen.findByText('Resultado');
+		const botoes = () => [...container.querySelectorAll('.dash-periodo__mes')];
+		const hoje = new Date();
+		const alvo = new Date(hoje.getFullYear(), hoje.getMonth() - 2, 1);
+		const mm = String(alvo.getMonth() + 1).padStart(2, '0');
+		fireEvent.click(botoes()[0]);
+		await waitFor(() => {
+			const chamadas = api.getLancamentosResumo.mock.calls;
+			expect(chamadas[chamadas.length - 1][0].data_pagamento_de).toBe(`${alvo.getFullYear()}-${mm}-01`);
+		});
+		expect(botoes().map((b) => b.getAttribute('aria-pressed'))).toEqual(['true', 'false', 'false']);
+	});
+});
+
+it('KPIs Receitas/Despesas/Resultado: modal traz o texto do tooltip como subtítulo', async () => {
+	consulta = false;
+	render(<Dashboard />);
+	await screen.findByText('Resultado');
+	for (const [titulo, texto] of [
+		['Receitas', 'Total dos recebimentos'],
+		['Despesas', 'Total dos pagamentos'],
+		['Resultado', 'Saldo em caixa']
+	]) {
+		fireEvent.click(screen.getAllByText(titulo)[0]);
+		expect(await screen.findByText(texto)).toBeTruthy();
+		fireEvent.click(screen.getByText('✕'));
+	}
 });
 
 it('mês anterior de janeiro é dezembro do ano anterior', async () => {

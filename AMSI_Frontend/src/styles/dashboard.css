@@ -442,6 +442,45 @@
 	outline: none;
 }
 
+/* Perfil Consulta: rótulo + 3 botões de mês (o ativo parece "pressionado"). */
+.dash-periodo--consulta {
+	flex-wrap: nowrap;
+}
+.dash-periodo__meses {
+	display: flex;
+	gap: 8px;
+	margin-left: auto;
+	min-width: 0;
+}
+.dash-periodo__mes {
+	min-height: 44px;
+	padding: 6px 14px;
+	border-radius: 8px;
+	border: 1px solid var(--border);
+	background: var(--bg-card);
+	color: var(--text-muted);
+	font-size: 0.85rem;
+	font-weight: 500;
+	cursor: pointer;
+	white-space: nowrap;
+	transition: all 0.15s;
+}
+.dash-periodo__mes:hover {
+	background: var(--input-bg);
+	color: var(--text);
+}
+.dash-periodo__mes--ativo,
+.dash-periodo__mes--ativo:hover {
+	background: var(--primary);
+	color: #fff;
+	border-color: var(--primary);
+	box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+.dash-periodo__mes-abrev,
+.dash-periodo__mesnome {
+	display: none;
+}
+
 .dash-periodo__sep {
 	font-size: 0.8rem;
 	color: var(--text-muted);
@@ -542,6 +581,29 @@
 
 	.dash-header__title {
 		font-size: 1.4rem;
+	}
+
+	/* Consulta no celular: rótulo em cima, 3 botões dividindo a largura; abrevia o mês
+	   (não cabe por extenso) e o nome do mês selecionado aparece depois de "Período". */
+	.dash-periodo--consulta {
+		flex-wrap: wrap;
+		gap: 10px;
+	}
+	.dash-periodo__meses {
+		width: 100%;
+		margin-left: 0;
+	}
+	.dash-periodo__mes {
+		flex: 1 1 0;
+		min-width: 0;
+		padding: 6px 4px;
+	}
+	.dash-periodo__mes-completo {
+		display: none;
+	}
+	.dash-periodo__mes-abrev,
+	.dash-periodo__mesnome {
+		display: inline;
 	}
 
 	/* Período no celular: o Pesquisar sobe para a MESMA linha do rótulo, alinhado à

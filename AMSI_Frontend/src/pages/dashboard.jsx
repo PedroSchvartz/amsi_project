@@ -57,6 +57,14 @@ function rotuloMes(mes) {
 	return `${NOMES_MES[m - 1]}/${ano}`;
 }
 
+// Perfil Consulta: botões dos 3 últimos meses (rótulo "Setembro/26", abreviado "Set/26" no celular).
+const MESES_COMPLETO = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+function partesMes(mes) {
+	const [ano, m] = mes.split('-').map(Number);
+	const completo = MESES_COMPLETO[m - 1];
+	return { completo, abrev: completo.slice(0, 3), ano2: String(ano).slice(-2) };
+}
+
 function faixaTexto(de, ate) {
 	if (!de && !ate) return 'todo o histórico';
 	const fmt = (iso) => (iso ? iso.split('-').reverse().join('/') : '…');
@@ -69,19 +77,22 @@ function faixaTexto(de, ate) {
 // aguardando aprovação (não é caixa nem aberto). Ver /lancamento/resumo.
 const KPI_INFO = {
 	receita_recebida: {
-		tooltip: 'Créditos aprovados cujo pagamento caiu no período.',
+		tooltip: 'Total dos recebimentos',
+		subtitulo: 'Total dos recebimentos',
 		titulo: 'Receitas',
 		descricao:
 			'Soma dos lançamentos de natureza Crédito já APROVADOS pelo administrador, com pagamento dentro do período selecionado (recorte pela data de pagamento). Só o que o admin aprovou conta como caixa — lançamentos ainda "Em análise" não entram aqui. Estornos/reembolsos são contabilizados à parte.'
 	},
 	despesa_paga: {
-		tooltip: 'Débitos aprovados cujo pagamento caiu no período.',
+		tooltip: 'Total dos pagamentos',
+		subtitulo: 'Total dos pagamentos',
 		titulo: 'Despesas',
 		descricao:
 			'Soma dos lançamentos de natureza Débito já APROVADOS pelo administrador, com pagamento dentro do período selecionado. Só o que foi aprovado conta como saída de caixa — lançamentos "Em análise" não entram. Estornos/reembolsos são contabilizados à parte.'
 	},
 	resultado: {
-		tooltip: 'Receitas − Despesas + lançamentos Resultado do mês anterior.',
+		tooltip: 'Saldo em caixa',
+		subtitulo: 'Saldo em caixa',
 		titulo: 'Resultado',
 		descricao:
 			'Receitas menos Despesas do mês selecionado, somadas aos lançamentos de natureza Resultado do mês anterior (lista no fim da página). Considera apenas lançamentos aprovados. Positivo indica superávit; negativo, déficit. Ignora estornos e tudo que ainda não foi aprovado.'
@@ -206,6 +217,11 @@ function KpiCard({ infoKey, icon, iconClass, label, value, sub, valueClass, onDi
 								✕
 							</button>
 						</div>
+						{info.subtitulo && (
+							<p style={{ margin: '-8px 0 16px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+								{info.subtitulo}
+							</p>
+						)}
 						<p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text)', lineHeight: 1.7 }}>
 							{info.descricao}
 						</p>
@@ -337,17 +353,24 @@ function Dashboard() {
 		setPendente(true);
 	};
 
-	const aplicar = () => {
-		if (!mes) return; // input limpo: nada a pesquisar
-		const params = computarParams(mes);
+	const aplicar = (m = mes) => {
+		if (!m) return; // input limpo: nada a pesquisar
+		const params = computarParams(m);
 		const aplicadoNovo = {
 			data_pagamento_de: params.data_pagamento_de,
 			data_pagamento_ate: params.data_pagamento_ate
 		};
 		setAplicado(aplicadoNovo);
-		carregarDados(params, { aplicado: aplicadoNovo, mes });
+		carregarDados(params, { aplicado: aplicadoNovo, mes: m });
 		setPendente(false);
 	};
+
+	// Consulta: clicar num mês equivale a escolhê-lo no calendário e pesquisar.
+	const selecionarMes = (m) => {
+		setMes(m);
+		aplicar(m);
+	};
+	const mesesConsulta = [ym(-2), ym(-1), ym(0)];
 
 	const resultado =
 		parseFloat(resumo?.total_recebido ?? 0) -
@@ -382,6 +405,33 @@ function Dashboard() {
 				</div>
 			</div>
 
+			{isConsulta() ? (
+				<div className="dash-periodo dash-periodo--consulta">
+					<span className="dash-periodo__label">
+						Período
+						{mesesConsulta.includes(mes) && (
+							<span className="dash-periodo__mesnome"> · {partesMes(mes).completo}</span>
+						)}
+					</span>
+					<div className="dash-periodo__meses">
+						{mesesConsulta.map((m) => {
+							const p = partesMes(m);
+							return (
+								<button
+									key={m}
+									type="button"
+									aria-pressed={m === mes}
+									onClick={() => selecionarMes(m)}
+									className={`dash-periodo__mes${m === mes ? ' dash-periodo__mes--ativo' : ''}`}
+								>
+									<span className="dash-periodo__mes-completo">{p.completo}/{p.ano2}</span>
+									<span className="dash-periodo__mes-abrev">{p.abrev}/{p.ano2}</span>
+								</button>
+							);
+						})}
+					</div>
+				</div>
+			) : (
 			<div className="dash-periodo">
 				<span className="dash-periodo__label">Mês de referência (data de pagamento)</span>
 				<div className="dash-periodo__livre">
@@ -394,13 +444,14 @@ function Dashboard() {
 					/>
 				</div>
 				<button
-					onClick={aplicar}
+					onClick={() => aplicar()}
 					className={`dash-periodo__btn${botaoPendente ? ' dash-periodo__btn--pendente' : ' dash-periodo__btn--ativo'}`}
 					title="Aplicar filtros"
 				>
 					{rotuloAplicar}
 				</button>
 			</div>
+			)}
 
 			{erro && (
 				<div className="dash-erro">

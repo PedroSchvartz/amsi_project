@@ -13,6 +13,14 @@
   Não precisa mexer em código para publicar um novo deploy: basta editar este arquivo.
 -->
 
+## 2026-11-19
+
+### Dashboard: período com 3 botões para quem só consulta
+Para o perfil Consulta, o filtro do painel virou "Período", com três botões: dois meses atrás, mês anterior e mês atual (ex.: "Setembro/26", "Outubro/26", "Novembro/26"). O mês atual já vem selecionado e, ao tocar em outro, os dados carregam na hora. No celular os nomes aparecem abreviados e o mês selecionado é mostrado por extenso ao lado de "Período". Administrador e Operador continuam com o campo de mês e o botão "Pesquisar".
+
+### Dashboard: textos dos indicadores Receitas, Despesas e Resultado
+Ao passar o mouse sobre os cards, o texto agora é direto: Receitas = "Total dos recebimentos", Despesas = "Total dos pagamentos" e Resultado = "Saldo em caixa". Ao clicar, a janela de detalhes traz esse mesmo texto como subtítulo, abaixo do título.
+
 ## 2026-11-17
 
 ### Novo status "Abonado"
